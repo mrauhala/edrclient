@@ -62,12 +62,12 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox }: SidebarProps) =
     //map.zoomToExtent(new OpenLayers.Bounds(minLng,minLat,maxLng,maxLat).transform("EPSG:4326", "EPSG:900913"))
   };
 
-  const [query, setQuery] = React.useState('');
-  const handleQuery = (event: SelectChangeEvent) => {
-    setQuery(event.target.value as string);
-    console.log(event);
-    //setQueryUrl(qq)
-  };
+  //const [query, setQuery] = React.useState('');
+  //const handleQuery = (event: SelectChangeEvent) => {
+  //  setQuery(event.target.value as string);
+  //  console.log(event);
+  //  //setQueryUrl(qq)
+  //};
 
   const [crs, setCRS] = React.useState('');
   const handleCRS = (event: SelectChangeEvent) => {

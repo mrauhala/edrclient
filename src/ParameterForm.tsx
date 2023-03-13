@@ -5,7 +5,7 @@ import FormControl from '@mui/material/FormControl';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
 import Alert from '@mui/material/Alert';
 import AlertTitle from '@mui/material/AlertTitle';
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { parameterNames } from './DataRetrievalAPI';
 
 

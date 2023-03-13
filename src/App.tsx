@@ -1,6 +1,6 @@
 import Sidebar from './Sidebar';
 import TopMenu from './TopMenu';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Grid from '@mui/material/Grid';
 import OpenLayersMap from './Map';
 

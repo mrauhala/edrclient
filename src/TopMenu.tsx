@@ -5,7 +5,6 @@ import Toolbar from '@mui/material/Toolbar';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import InputBase from '@mui/material/InputBase';
-import Button from '@mui/material/Button';
 import MenuIcon from '@mui/icons-material/Menu';
 import SearchIcon from '@mui/icons-material/Search';
 import Menu from '@mui/material/Menu';
@@ -62,9 +61,9 @@ const StyledInputBase = styled(InputBase)(({ theme }) => ({
 const TopMenu = ({ onMenuClick }: TopMenuProps) => {
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
-  const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
+  //const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
+  //  setAnchorEl(event.currentTarget);
+  //};
   const handleClose = () => {
     setAnchorEl(null);
   };

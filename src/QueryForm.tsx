@@ -6,7 +6,7 @@ import Select, { SelectChangeEvent } from '@mui/material/Select';
 import Alert from '@mui/material/Alert';
 import Link from '@mui/material/Link';
 import AlertTitle from '@mui/material/AlertTitle';
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { dataQueries } from './DataRetrievalAPI';
 
 
