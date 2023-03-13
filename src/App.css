@@ -36,3 +36,12 @@
     transform: rotate(360deg);
   }
 }
+
+/* App.css */
+.sidebar {
+  width: 240px;
+}
+
+.top-menu {
+  margin-bottom: 20px;
+}
