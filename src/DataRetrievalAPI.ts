@@ -1,8 +1,12 @@
 import axios from 'axios';
 import SchemaValidator from './SchemaValidator';
 
-export interface dataQueries {
+export interface DataQuery {
     link: Link;
+}
+
+export interface DataQueries {
+    [key: string]: DataQuery;
 }
 
 export interface Link {
@@ -37,7 +41,7 @@ export interface Collection {
   description?: string;
   keywords?: string[];
   links: Link[];
-  data_queries: dataQueries[];
+  data_queries: DataQueries;
   extent: Extent;
   crs: string[];
   output_formats: string[];
@@ -58,6 +62,79 @@ interface CollectionsResponse {
 export interface GetCollectionsResult {
   collections: Collection[];
   validation: ValidationResult;
+}
+
+export interface LocationQueryResult {
+  type: string;
+  features: any[];
+}
+
+// Function to check if a collection supports location queries
+export function hasLocationQuery(collection: Collection): boolean {
+  try {
+    if (!collection || !collection.data_queries || typeof collection.data_queries !== 'object') {
+      return false;
+    }
+    
+    // Check if there's a 'locations' key in data_queries
+    const locationsQuery = collection.data_queries['locations'];
+    return !!locationsQuery && 
+           !!locationsQuery.link &&
+           !!locationsQuery.link.href;
+  } catch (error) {
+    console.warn('Error checking for location query:', error);
+    return false;
+  }
+}
+
+// Function to get the location query URL for a collection
+export function getLocationQueryUrl(collection: Collection): string | null {
+  try {
+    if (!collection || !collection.data_queries || typeof collection.data_queries !== 'object') {
+      return null;
+    }
+    
+    const locationsQuery = collection.data_queries['locations'];
+    return locationsQuery && locationsQuery.link ? locationsQuery.link.href : null;
+  } catch (error) {
+    console.warn('Error getting location query URL:', error);
+    return null;
+  }
+}
+
+// Function to execute a location query
+export async function executeLocationQuery(queryUrl: string): Promise<LocationQueryResult | null> {
+  try {
+    console.log('Executing location query:', queryUrl);
+    
+    // Add f=json format parameter if not already present
+    const url = new URL(queryUrl);
+    if (!url.searchParams.has('f')) {
+      url.searchParams.set('f', 'json');
+    }
+    
+    const response = await axios.get(url.toString());
+    const data = response.data;
+    
+    // Validate that we got GeoJSON
+    if (data && typeof data === 'object' && data.type === 'FeatureCollection' && Array.isArray(data.features)) {
+      console.log(`Location query returned ${data.features.length} features`);
+      return data;
+    } else if (data && typeof data === 'object' && data.type === 'Feature') {
+      // Single feature response
+      console.log('Location query returned a single feature');
+      return {
+        type: 'FeatureCollection',
+        features: [data]
+      };
+    } else {
+      console.warn('Location query did not return valid GeoJSON:', data);
+      return null;
+    }
+  } catch (error) {
+    console.error('Error executing location query:', error);
+    return null;
+  }
 }
 
 // Utility function to normalize bbox to array of [west, south, east, north] format

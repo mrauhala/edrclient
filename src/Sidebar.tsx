@@ -20,12 +20,13 @@ import AlertTitle from '@mui/material/AlertTitle';
 import Button from '@mui/material/Button';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
 import React, { useEffect, useState } from 'react';
-import { getCollections, Collection, ValidationResult, normalizeBbox } from './DataRetrievalAPI';
+import { getCollections, Collection, ValidationResult, normalizeBbox, hasLocationQuery, getLocationQueryUrl, executeLocationQuery } from './DataRetrievalAPI';
 import FormatForm from './FormatForm';
 import ParameterForm from './ParameterForm';
 import QueryForm from './QueryForm';
 import ValidationResults from './ValidationResult';
 import SchemaInspector from './SchemaInspector';
+import LocationFeatureList from './LocationFeatureList';
 
 interface SidebarProps {
   open: boolean;
@@ -33,25 +34,51 @@ interface SidebarProps {
   setBoundingBox: any;
   onClose: () => void;
   onCollectionExtentChange?: (extents: [number, number, number, number][] | null) => void;
+  onLocationFeaturesChange?: (features: any[] | null) => void;
+  onFeatureSelect?: (feature: any) => void;
+  onSelectedCollectionChange?: (collection: Collection | null) => void;
+  locationFeatures?: any[] | null;
 }
 
-const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExtentChange }: SidebarProps) => {
+// EDR service options
+const edrServices = [
+  { label: 'FMI Open Data', value: 'https://opendata.fmi.fi/edr/collections' },
+  { label: 'SWIM Met Norway', value: 'https://swim.met.no/collections' },
+  { label: 'Meteogate Observations', value: 'https://observations.meteogate.eu/collections' },
+  { label: 'SmartMet Kenya', value: 'https://data-kenya.smartmet.org/edr/collections' },
+  { label: 'Custom', value: '' }
+];
+
+const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExtentChange, onLocationFeaturesChange, onFeatureSelect, onSelectedCollectionChange, locationFeatures }: SidebarProps) => {
   const [apiUrl, setApiUrl] = useState('https://opendata.fmi.fi/edr/collections');
+  const [selectedService, setSelectedService] = useState('https://opendata.fmi.fi/edr/collections');
   const [queryUrl, setQueryUrl] = useState('https://opendata.fmi.fi/edr/collections');
   const [collections, setCollections] = useState<Collection[]>([]);
   const [validationResult, setValidationResult] = useState<ValidationResult>({ isValid: true, errors: null });
   const [showValidationDetails, setShowValidationDetails] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [currentLocationCollection, setCurrentLocationCollection] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadCollections() {
       setIsLoading(true);
       try {
+        console.log('Loading collections from:', apiUrl);
         const result = await getCollections(apiUrl);
         
         // Always update collections if they exist, even if validation fails
         if (result.collections && result.collections.length > 0) {
           setCollections(result.collections);
+          console.log(`Loaded ${result.collections.length} collections`);
+          
+          // Log which collections have location queries
+          try {
+            const collectionsWithLocations = result.collections.filter(c => hasLocationQuery(c));
+            console.log(`Collections with location queries: ${collectionsWithLocations.length}`, 
+              collectionsWithLocations.map(c => c.id));
+          } catch (filterError) {
+            console.warn('Error filtering collections with location queries:', filterError);
+          }
         }
         
         // Update validation result
@@ -71,28 +98,100 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
     loadCollections();
   }, [apiUrl]);
 
-  const [menuOpen, setMenuOpen] = useState(Array(collections.length).fill(false));
+  const [openCollectionIndex, setOpenCollectionIndex] = useState<number | null>(null);
 
   function handleApiUrlChange(event: React.ChangeEvent<HTMLInputElement>) {
-    setApiUrl(event.target.value);
+    const newUrl = event.target.value;
+    setApiUrl(newUrl);
+    // Update selected service if it matches a predefined service
+    const matchingService = edrServices.find(service => service.value === newUrl);
+    if (matchingService) {
+      setSelectedService(newUrl);
+    } else {
+      setSelectedService(''); // Set to empty if it's a custom URL
+    }
   }
 
-  const handleItemClick = (index: number, key: string) => {
-    const newOpen = [...menuOpen];
-    newOpen[index] = !newOpen[index];
-    setMenuOpen(newOpen);
+  const handleServiceChange = (event: SelectChangeEvent) => {
+    const newService = event.target.value;
+    setSelectedService(newService);
+    if (newService !== '') {
+      setApiUrl(newService);
+    }
+    // If "Custom" is selected (empty value), don't change the apiUrl
+  };
+
+  const handleItemClick = async (index: number, key: string) => {
+    // Toggle collection: close if already open, open if closed (and close others)
+    const newIndex = openCollectionIndex === index ? null : index;
+    setOpenCollectionIndex(newIndex);
     setQueryUrl(apiUrl+"/"+key);
     
     // Find the collection and trigger extent change
     const collection = collections[index];
-    if (collection && collection.extent && collection.extent.spatial && collection.extent.spatial.bbox) {
-      const normalizedBboxes = normalizeBbox(collection.extent.spatial.bbox);
-      if (normalizedBboxes && onCollectionExtentChange) {
-        onCollectionExtentChange(normalizedBboxes);
+    console.log('handleItemClick called with collection:', collection?.id, 'data_queries:', collection?.data_queries);
+    
+    // Notify parent about selected collection change
+    if (onSelectedCollectionChange) {
+      onSelectedCollectionChange(newIndex !== null ? collection : null);
+    }
+    
+    // Only show extent and location data if collection is being opened
+    if (newIndex !== null) {
+      // Collection is being opened - show extent and location data
+      if (collection && collection.extent && collection.extent.spatial && collection.extent.spatial.bbox) {
+        const normalizedBboxes = normalizeBbox(collection.extent.spatial.bbox);
+        if (normalizedBboxes && onCollectionExtentChange) {
+          onCollectionExtentChange(normalizedBboxes);
+        }
+      } else if (onCollectionExtentChange) {
+        // Clear extent if collection doesn't have valid bbox
+        onCollectionExtentChange(null);
       }
-    } else if (onCollectionExtentChange) {
-      // Clear extent if collection doesn't have valid bbox
-      onCollectionExtentChange(null);
+      
+      // Check for location query support and execute if available
+      console.log('Checking collection for location query support:', collection?.id);
+      if (collection && hasLocationQuery(collection) && onLocationFeaturesChange) {
+        console.log('Collection supports location queries, executing...');
+        const locationQueryUrl = getLocationQueryUrl(collection);
+        console.log('Location query URL:', locationQueryUrl);
+        
+        if (locationQueryUrl) {
+          try {
+            const locationResult = await executeLocationQuery(locationQueryUrl);
+            if (locationResult && locationResult.features) {
+              console.log(`Found ${locationResult.features.length} location features`);
+              onLocationFeaturesChange(locationResult.features);
+              setCurrentLocationCollection(collection.id); // Track which collection has location features
+            } else {
+              console.log('No location features returned');
+              onLocationFeaturesChange(null);
+              setCurrentLocationCollection(null);
+            }
+          } catch (error) {
+            console.error('Error executing location query:', error);
+            onLocationFeaturesChange(null);
+            setCurrentLocationCollection(null);
+          }
+        }
+      } else {
+        console.log('Collection does not support location queries or callback not available');
+        if (onLocationFeaturesChange) {
+          // Clear location features if collection doesn't support location queries
+          onLocationFeaturesChange(null);
+          setCurrentLocationCollection(null);
+        }
+      }
+    } else {
+      // Collection is being closed - clear all map data
+      console.log('Collection being closed, clearing map data');
+      if (onCollectionExtentChange) {
+        onCollectionExtentChange(null);
+      }
+      if (onLocationFeaturesChange) {
+        onLocationFeaturesChange(null);
+        setCurrentLocationCollection(null);
+      }
     }
   };
 
@@ -132,6 +231,22 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
       </Card>
       
       <Box sx={{ padding: 1, minWidth: 120 }}>
+        <FormControl fullWidth sx={{ mb: 2 }}>
+          <InputLabel id="edr-service-select-label">EDR Service</InputLabel>
+          <Select
+            labelId="edr-service-select-label"
+            id="edr-service-select"
+            value={selectedService}
+            label="EDR Service"
+            onChange={handleServiceChange}
+          >
+            {edrServices.map((service) => (
+              <MenuItem key={service.value} value={service.value}>
+                {service.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
         <TextField 
           sx={{ padding: 1, width: '90%' }} 
           id="apiUrl" 
@@ -159,13 +274,31 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                 <LayersIcon />
               </ListItemIcon>
               <ListItemText 
-                primary={collection.title ? collection.title : collection.id} 
+                primary={
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span>{collection.title ? collection.title : collection.id}</span>
+                    {hasLocationQuery(collection) && (
+                      <span 
+                        style={{ 
+                          backgroundColor: '#2196F3', 
+                          color: 'white', 
+                          padding: '2px 8px', 
+                          borderRadius: '4px', 
+                          fontSize: '0.7rem',
+                          fontWeight: 'bold'
+                        }}
+                      >
+                        LOCATIONS
+                      </span>
+                    )}
+                  </div>
+                }
                 secondary={collection.description ? collection.description : null} 
               />
-              {menuOpen[index] ? <ExpandLess /> : <ExpandMore />}
+              {openCollectionIndex === index ? <ExpandLess /> : <ExpandMore />}
             </ListItemButton>
             
-            <Collapse in={menuOpen[index]} timeout="auto" unmountOnExit>
+            <Collapse in={openCollectionIndex === index} timeout="auto" unmountOnExit>
               {typeof collection.id == "undefined" 
                 ? <Alert severity="error"><AlertTitle>A: ID</AlertTitle>"Every Collection within a collections array MUST have a unique (within the array) id parameter.</Alert>
                 : <Alert severity="success"><AlertTitle>A: ID</AlertTitle>{collection.id}</Alert>
@@ -194,7 +327,29 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
 
               { typeof collection.data_queries == "undefined"
                 ? <Alert severity="error"><AlertTitle>F: DATA_QUERIES</AlertTitle>Every collection within a collections array MUST have a data_queries parameter.</Alert>
-                : <QueryForm queryUrl={queryUrl} queries={collection.data_queries} setQueryUrl={setQueryUrl}/> 
+                : (
+                  <>
+                    <QueryForm queryUrl={queryUrl} queries={collection.data_queries} setQueryUrl={setQueryUrl}/> 
+                    {hasLocationQuery(collection) && (
+                      <>
+                        <Alert severity="info" sx={{ mt: 1 }}>
+                          <AlertTitle>Location Query Available</AlertTitle>
+                          This collection supports location queries. Location features will be displayed on the map when this collection is selected.
+                        </Alert>
+                        
+                        {/* Show location features list only for the current collection */}
+                        {currentLocationCollection === collection.id && locationFeatures && (
+                          <Box sx={{ mt: 1 }}>
+                            <LocationFeatureList 
+                              features={locationFeatures} 
+                              onFeatureSelect={onFeatureSelect}
+                            />
+                          </Box>
+                        )}
+                      </>
+                    )}
+                  </>
+                )
               }
               
               
