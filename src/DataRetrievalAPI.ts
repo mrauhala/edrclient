@@ -18,13 +18,13 @@ export interface Link {
 }
 
 export interface Spatial {
-    bbox: number[][] | number[]; // EDR standard: array of bbox arrays, or legacy flat array
-    crs: string;
+    bbox?: number[][] | number[]; // EDR standard: array of bbox arrays, or legacy flat array - now optional
+    crs?: string; // Also optional since some extents might be empty
 } 
 
 export interface Extent {
-    spatial: Spatial;
-    temporal: any;
+    spatial?: Spatial; // Made optional to handle empty extent objects
+    temporal?: any; // Also optional
 } 
 
 export interface parameterNames {
@@ -35,6 +35,15 @@ export interface parameterNames {
     observedProperty: any;
 }
 
+// Aviation Weather specific parameter structure
+export interface ParameterDefinition {
+    id?: string;
+    type?: string;
+    description?: string;
+    unit?: any;
+    observedProperty?: any;
+}
+
 export interface Collection {
   id: string;
   title?: string;
@@ -42,15 +51,18 @@ export interface Collection {
   keywords?: string[];
   links: Link[];
   data_queries: DataQueries;
-  extent: Extent;
+  extent?: Extent; // Made optional to handle missing or empty extent
   crs: string[];
   output_formats: string[];
-  parameter_names: parameterNames[];
+  parameter_names?: parameterNames[] | { [key: string]: ParameterDefinition }; // Support both formats
 }
 
 export interface ValidationResult {
   isValid: boolean;
-  errors: any[] | null;
+  errors: Array<{
+    message: string;
+    type?: 'cors' | 'network' | 'schema' | 'unknown';
+  }> | null;
   schemaCount?: number;
   schemaUrls?: string[];
 }
@@ -138,50 +150,72 @@ export async function executeLocationQuery(queryUrl: string): Promise<LocationQu
 }
 
 // Utility function to normalize bbox to array of [west, south, east, north] format
-export function normalizeBbox(bbox: number[][] | number[]): [number, number, number, number][] | null {
-  if (!bbox || !Array.isArray(bbox)) {
-    console.warn('Invalid bbox: not an array', bbox);
+export function normalizeBbox(bbox: number[][] | number[] | null | undefined): [number, number, number, number][] | null {
+  // Validate input exists and is an array
+  if (!bbox || !Array.isArray(bbox) || bbox.length === 0) {
+    console.warn('Invalid bbox: not an array or empty', bbox);
     return null;
   }
 
-  // Handle EDR standard format: array of bbox arrays
-  if (Array.isArray(bbox[0])) {
-    const bboxArrays = bbox as number[][];
-    console.log('Processing bbox as array of bbox arrays (EDR standard):', bboxArrays);
-    
-    const validBboxes: [number, number, number, number][] = [];
-    
-    for (const singleBbox of bboxArrays) {
-      if (Array.isArray(singleBbox) && singleBbox.length >= 4) {
-        const [west, south, east, north] = singleBbox;
-        validBboxes.push([west, south, east, north]);
-        console.log(`Valid bbox found: west=${west}, south=${south}, east=${east}, north=${north}`);
-      } else {
-        console.warn('Invalid bbox in array:', singleBbox);
+  try {
+    // Handle EDR standard format: array of bbox arrays
+    if (Array.isArray(bbox[0])) {
+      const bboxArrays = bbox as number[][];
+      console.log('Processing bbox as array of bbox arrays (EDR standard):', bboxArrays);
+      
+      const validBboxes: [number, number, number, number][] = [];
+      
+      for (const singleBbox of bboxArrays) {
+        if (Array.isArray(singleBbox) && singleBbox.length >= 4) {
+          const [west, south, east, north] = singleBbox;
+          
+          // Validate that all coordinates are valid numbers
+          if (typeof west === 'number' && typeof south === 'number' && 
+              typeof east === 'number' && typeof north === 'number' &&
+              isFinite(west) && isFinite(south) && isFinite(east) && isFinite(north)) {
+            validBboxes.push([west, south, east, north]);
+            console.log(`Valid bbox found: west=${west}, south=${south}, east=${east}, north=${north}`);
+          } else {
+            console.warn('Invalid bbox coordinates (not finite numbers):', singleBbox);
+          }
+        } else {
+          console.warn('Invalid bbox in array (not array or insufficient length):', singleBbox);
+        }
+      }
+      
+      if (validBboxes.length > 0) {
+        return validBboxes;
       }
     }
     
-    if (validBboxes.length > 0) {
-      return validBboxes;
+    // Handle legacy flat array format (non-standard but common)
+    if (typeof bbox[0] === 'number') {
+      const flatBbox = bbox as number[];
+      console.log('Processing bbox as flat array (legacy format):', flatBbox);
+      
+      if (flatBbox.length >= 4) {
+        const [west, south, east, north] = flatBbox;
+        
+        // Validate that all coordinates are valid numbers
+        if (typeof west === 'number' && typeof south === 'number' && 
+            typeof east === 'number' && typeof north === 'number' &&
+            isFinite(west) && isFinite(south) && isFinite(east) && isFinite(north)) {
+          console.log(`Extracted coordinates: west=${west}, south=${south}, east=${east}, north=${north}`);
+          return [[west, south, east, north]];
+        } else {
+          console.warn('Invalid flat bbox coordinates (not finite numbers):', flatBbox);
+        }
+      } else {
+        console.warn('Invalid flat bbox format: insufficient coordinates', flatBbox);
+      }
     }
-  }
-  
-  // Handle legacy flat array format (non-standard but common)
-  if (typeof bbox[0] === 'number') {
-    const flatBbox = bbox as number[];
-    console.log('Processing bbox as flat array (legacy format):', flatBbox);
-    
-    if (flatBbox.length >= 4) {
-      const [west, south, east, north] = flatBbox;
-      console.log(`Extracted coordinates: west=${west}, south=${south}, east=${east}, north=${north}`);
-      return [[west, south, east, north]];
-    } else {
-      console.warn('Invalid flat bbox format: insufficient coordinates', flatBbox);
-    }
-  }
 
-  console.warn('Unable to normalize bbox format:', bbox);
-  return null;
+    console.warn('Unable to normalize bbox format:', bbox);
+    return null;
+  } catch (error) {
+    console.error('Error in normalizeBbox:', error, 'Input:', bbox);
+    return null;
+  }
 }
 
 // Utility function to get the overall extent that encompasses all bboxes
@@ -216,18 +250,24 @@ export async function getCollections(apiUrl: string): Promise<GetCollectionsResu
     }
 
     // Fetch data from API
+    console.log('Fetching collections from:', apiUrl);
     const response = await axios.get<CollectionsResponse>(apiUrl);
     const data = response.data;
+    console.log('Raw API response:', data);
 
     let collections: Collection[] = [];
     
     // Extract collections from the response safely
     if (data && typeof data === 'object') {
-      if (Array.isArray(data.collections)) {
+      if (data.collections && Array.isArray(data.collections)) {
         collections = data.collections;
+        console.log(`Found ${collections.length} collections in response.collections`);
       } else if (Array.isArray(data)) {
         // Some APIs might return collections directly as an array
         collections = data;
+        console.log(`Found ${collections.length} collections as direct array`);
+      } else {
+        console.warn('No collections found in response structure:', Object.keys(data));
       }
     }
 
@@ -249,13 +289,45 @@ export async function getCollections(apiUrl: string): Promise<GetCollectionsResu
       }
     };
   } catch (error) {
-    // If there's an error with the request, return empty collections and the error
     console.error('Error fetching collections:', error);
+    
+    // Check if this is a CORS error
+    let errorMessage = 'Unknown error fetching collections';
+    let errorType: 'cors' | 'network' | 'unknown' = 'unknown';
+    
+    if (error instanceof Error) {
+      errorMessage = error.message;
+      // Common CORS error indicators
+      if (error.message.includes('CORS') || 
+          error.message.includes('Access-Control-Allow-Origin') ||
+          error.message.includes('cross-origin')) {
+        errorType = 'cors';
+        errorMessage = `CORS Error: This endpoint (${apiUrl}) does not allow cross-origin requests from web browsers. The service may not have proper CORS headers configured.`;
+      } else if (error.message.includes('Network Error') ||
+                 error.message.includes('ERR_NETWORK') ||
+                 error.message.includes('Failed to fetch')) {
+        errorType = 'network';
+        errorMessage = `Network Error: Unable to connect to ${apiUrl}. This may be due to CORS restrictions or the service being unavailable.`;
+      }
+    }
+    
+    // Check for axios-specific error properties
+    if (error && typeof error === 'object' && 'code' in error) {
+      if (error.code === 'ERR_NETWORK') {
+        errorType = 'cors';
+        errorMessage = `CORS Error: ${apiUrl} does not allow cross-origin requests. The server needs to include proper CORS headers.`;
+      }
+    }
+    
+    // If there's an error with the request, return empty collections and the error
     return {
       collections: [],
       validation: {
         isValid: false,
-        errors: [{ message: error instanceof Error ? error.message : 'Unknown error fetching collections' }],
+        errors: [{ 
+          message: errorMessage,
+          type: errorType
+        }],
         schemaCount: validator.isLoaded() ? validator.getLoadedSchemaCount() : 0,
         schemaUrls: validator.isLoaded() ? validator.getLoadedSchemaUrls() : []
       }
