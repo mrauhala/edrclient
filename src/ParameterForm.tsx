@@ -6,11 +6,11 @@ import Select, { SelectChangeEvent } from '@mui/material/Select';
 import Alert from '@mui/material/Alert';
 import AlertTitle from '@mui/material/AlertTitle';
 import React from 'react';
-import { parameterNames } from './DataRetrievalAPI';
+import { parameterNames, ParameterDefinition } from './DataRetrievalAPI';
 
 
 interface ParameterFormProps {
-  parameters: parameterNames[];
+  parameters: parameterNames[] | { [key: string]: ParameterDefinition };
   queryUrl: string;
   setQueryUrl: any;
 }
@@ -24,11 +24,22 @@ const FormatForm = ({ parameters, queryUrl, setQueryUrl }: ParameterFormProps) =
     console.log(queryUrl);
   };
 
+  // Handle both array and object formats for parameters
+  const getParameterKeys = () => {
+    if (Array.isArray(parameters)) {
+      return parameters.map(p => p.id);
+    } else {
+      return Object.keys(parameters);
+    }
+  };
+
+  const parameterKeys = getParameterKeys();
+
   return (
     <>
       {parameters ?
         <Box sx={{ padding: 0, minWidth: 120 }}>
-          <Alert severity="success"><AlertTitle>J: PARAMETER_NAMES</AlertTitle>{Object.keys(parameters).join(', ')}</Alert>
+          <Alert severity="success"><AlertTitle>J: PARAMETER_NAMES</AlertTitle>{parameterKeys.join(', ')}</Alert>
           <FormControl fullWidth>
             <InputLabel id="parameter-select-label">Parameter</InputLabel>
             <Select
@@ -38,7 +49,7 @@ const FormatForm = ({ parameters, queryUrl, setQueryUrl }: ParameterFormProps) =
               label="Parameter"
               onChange={handleParameter}
             >
-              {Object.keys(parameters).map((par) => (
+              {parameterKeys.map((par) => (
                 <MenuItem key={par} value={par}>{par}</MenuItem>
               ))}
             </Select>

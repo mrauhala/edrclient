@@ -44,6 +44,10 @@ interface SidebarProps {
 const edrServices = [
   { label: 'FMI Open Data', value: 'https://opendata.fmi.fi/edr/collections' },
   { label: 'SWIM Met Norway', value: 'https://swim.met.no/collections' },
+  { label: 'Norwegian Met Office Isobaric', value: 'https://edrisobaric.k8s.met.no/collections' },
+  { label: 'SWIM iblsoft (Test empty bbox)', value: 'https://swim.iblsoft.com/edr/collections' },
+  { label: 'Met Office Labs', value: 'https://labs.metoffice.gov.uk/edr/collections' },
+  { label: 'Aviation Weather (WIFS)', value: 'https://aviationweather.gov/wifs/api/collections?f=json' },
   { label: 'Meteogate Observations', value: 'https://observations.meteogate.eu/collections' },
   { label: 'SmartMet Kenya', value: 'https://data-kenya.smartmet.org/edr/collections' },
   { label: 'Custom', value: '' }
@@ -62,15 +66,19 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   useEffect(() => {
     async function loadCollections() {
       setIsLoading(true);
+      // Clear previous collections and state when starting new load
+      setCollections([]);
+      setOpenCollectionIndex(null);
+      
       try {
         console.log('Loading collections from:', apiUrl);
         const result = await getCollections(apiUrl);
         
-        // Always update collections if they exist, even if validation fails
+        // Always update collections, even if empty (to clear previous results)
+        setCollections(result.collections || []);
+        console.log(`Loaded ${result.collections?.length || 0} collections`);
+        
         if (result.collections && result.collections.length > 0) {
-          setCollections(result.collections);
-          console.log(`Loaded ${result.collections.length} collections`);
-          
           // Log which collections have location queries
           try {
             const collectionsWithLocations = result.collections.filter(c => hasLocationQuery(c));
@@ -83,19 +91,31 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
         
         // Update validation result
         setValidationResult(result.validation);
+        
+        // Clear any previous extent/location data when switching services
+        if (onCollectionExtentChange) {
+          onCollectionExtentChange(null);
+        }
+        if (onLocationFeaturesChange) {
+          onLocationFeaturesChange(null);
+        }
+        if (onSelectedCollectionChange) {
+          onSelectedCollectionChange(null);
+        }
       } catch (error) {
         console.error('Error loading collections:', error);
+        setCollections([]); // Clear collections on error
         setValidationResult({
           isValid: false,
           errors: [{ message: error instanceof Error ? error.message : 'Unknown error loading collections' }]
         });
-        // Don't clear collections on error - keep previous state
       } finally {
         setIsLoading(false);
       }
     }
 
     loadCollections();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiUrl]);
 
   const [openCollectionIndex, setOpenCollectionIndex] = useState<number | null>(null);
@@ -114,8 +134,10 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
 
   const handleServiceChange = (event: SelectChangeEvent) => {
     const newService = event.target.value;
+    console.log('Service changed to:', newService);
     setSelectedService(newService);
     if (newService !== '') {
+      console.log('Setting API URL to:', newService);
       setApiUrl(newService);
     }
     // If "Custom" is selected (empty value), don't change the apiUrl
@@ -139,14 +161,35 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
     // Only show extent and location data if collection is being opened
     if (newIndex !== null) {
       // Collection is being opened - show extent and location data
-      if (collection && collection.extent && collection.extent.spatial && collection.extent.spatial.bbox) {
-        const normalizedBboxes = normalizeBbox(collection.extent.spatial.bbox);
-        if (normalizedBboxes && onCollectionExtentChange) {
-          onCollectionExtentChange(normalizedBboxes);
+      // Safely check for bbox existence with proper validation
+      if (collection && 
+          collection.extent && 
+          typeof collection.extent === 'object' &&
+          collection.extent.spatial && 
+          typeof collection.extent.spatial === 'object' &&
+          collection.extent.spatial.bbox && 
+          Array.isArray(collection.extent.spatial.bbox) &&
+          collection.extent.spatial.bbox.length > 0) {
+        
+        try {
+          const normalizedBboxes = normalizeBbox(collection.extent.spatial.bbox);
+          if (normalizedBboxes && onCollectionExtentChange) {
+            onCollectionExtentChange(normalizedBboxes);
+          } else if (onCollectionExtentChange) {
+            // normalizeBbox returned null, clear extent
+            onCollectionExtentChange(null);
+          }
+        } catch (error) {
+          console.warn('Error normalizing bbox:', error);
+          if (onCollectionExtentChange) {
+            onCollectionExtentChange(null);
+          }
         }
-      } else if (onCollectionExtentChange) {
+      } else {
         // Clear extent if collection doesn't have valid bbox
-        onCollectionExtentChange(null);
+        if (onCollectionExtentChange) {
+          onCollectionExtentChange(null);
+        }
       }
       
       // Check for location query support and execute if available
@@ -267,7 +310,38 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
       </Box>
       
       <List component="nav">
-        {collections.map((collection, index) => (
+                    {isLoading ? (
+              <Alert severity="info">Loading collections...</Alert>
+            ) : collections.length === 0 ? (
+              validationResult.errors && validationResult.errors.length > 0 ? (
+                validationResult.errors.map((error, index) => (
+                  <Alert 
+                    key={index} 
+                    severity={error.type === 'cors' ? 'warning' : 'error'}
+                  >
+                    <AlertTitle>
+                      {error.type === 'cors' ? 'CORS Issue' : 'Error'}
+                    </AlertTitle>
+                    {error.message}
+                    {error.type === 'cors' && (
+                      <div style={{ marginTop: '8px', fontSize: '0.875rem' }}>
+                        <strong>Possible solutions:</strong>
+                        <ul style={{ margin: '4px 0', paddingLeft: '20px' }}>
+                          <li>Use a CORS proxy service</li>
+                          <li>Contact the service provider to enable CORS headers</li>
+                          <li>Access the API from a server-side application instead</li>
+                        </ul>
+                      </div>
+                    )}
+                  </Alert>
+                ))
+              ) : (
+                <Alert severity="warning">No collections found from this endpoint.</Alert>
+              )
+            ) : (
+              <Alert severity="success">Found {collections.length} collections</Alert>
+            )}
+            {collections.map((collection, index) => (
           <React.Fragment key={collection.id || index}>
             <ListItemButton onClick={() => handleItemClick(index, collection.id)}>
               <ListItemIcon>
@@ -353,7 +427,15 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
               }
               
               
-              { typeof collection.extent != "undefined" && collection.extent.spatial.bbox && collection.extent.spatial.crs ?
+              { // Check for valid extent structure
+                typeof collection.extent !== "undefined" && 
+                typeof collection.extent === 'object' &&
+                collection.extent.spatial && 
+                typeof collection.extent.spatial === 'object' &&
+                collection.extent.spatial.bbox && 
+                Array.isArray(collection.extent.spatial.bbox) &&
+                collection.extent.spatial.bbox.length > 0 && 
+                collection.extent.spatial.crs ?
               <Box sx={{ padding: 0, minWidth: 120 }}>
                 <Alert severity="success"><AlertTitle>G: EXTENT</AlertTitle>
                   {collection.extent.spatial.crs}<br/>
@@ -377,10 +459,19 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                   size="small" 
                   sx={{ mt: 1, mb: 1 }}
                   onClick={() => {
-                    if (onCollectionExtentChange) {
-                      const normalizedBboxes = normalizeBbox(collection.extent.spatial.bbox);
-                      if (normalizedBboxes) {
-                        onCollectionExtentChange(normalizedBboxes);
+                    if (onCollectionExtentChange && 
+                        collection.extent && 
+                        collection.extent.spatial && 
+                        collection.extent.spatial.bbox) {
+                      try {
+                        const normalizedBboxes = normalizeBbox(collection.extent.spatial.bbox);
+                        if (normalizedBboxes) {
+                          onCollectionExtentChange(normalizedBboxes);
+                        } else {
+                          console.warn('Failed to normalize bbox for zoom');
+                        }
+                      } catch (error) {
+                        console.error('Error normalizing bbox for zoom:', error);
                       }
                     }
                   }}
@@ -399,7 +490,12 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                       <MenuItem value={collection.extent.spatial.crs}>{collection.extent.spatial.crs}</MenuItem>
                   </Select>
                 </FormControl>
-              </Box> : <Alert severity="error"><AlertTitle>G: EXTENT</AlertTitle>Every collection within a collections array MUST have an extent parameter.</Alert> }
+              </Box> 
+              : (typeof collection.extent !== "undefined" ? 
+                <Alert severity="warning"><AlertTitle>G: EXTENT</AlertTitle>Collection has an extent property but it is empty or invalid. This may indicate missing spatial bounding box information.</Alert>
+                :
+                <Alert severity="error"><AlertTitle>G: EXTENT</AlertTitle>Every collection within a collections array MUST have an extent parameter.</Alert> 
+              )}
 
               { typeof collection.crs == "undefined" 
                 ? <Alert severity="error"><AlertTitle>H: CRS</AlertTitle>Every collection within a collections array MUST have a crs parameter.</Alert> 

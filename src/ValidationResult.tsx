@@ -84,8 +84,7 @@ const ValidationResults: React.FC<ValidationResultsProps> = ({ validation, expan
             {validation.errors && validation.errors.map((error, index) => (
               <ListItem key={index} sx={{ py: 0 }}>
                 <Typography variant="caption" color="text.secondary">
-                  {error.instancePath ? `${error.instancePath}` : ''} 
-                  {error.message ? ` ${error.message}` : ''}
+                  {error.message}
                 </Typography>
               </ListItem>
             )).slice(0, 10)}
