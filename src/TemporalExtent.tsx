@@ -16,16 +16,21 @@ import { Temporal, normalizeTemporal, formatTemporalInterval, getOverallTemporal
 interface TemporalExtentProps {
   temporal: Temporal | null | undefined;
   collectionId?: string;
+  isSubsection?: boolean;
 }
 
-const TemporalExtent: React.FC<TemporalExtentProps> = ({ temporal, collectionId }) => {
+const TemporalExtent: React.FC<TemporalExtentProps> = ({ temporal, collectionId, isSubsection = false }) => {
   const [showDetails, setShowDetails] = useState(false);
+
+  const getAlertTitle = () => {
+    return isSubsection ? "G.2: Temporal Extent (Optional)" : "TEMPORAL EXTENT";
+  };
 
   // If no temporal extent, show appropriate message
   if (!temporal) {
     return (
       <Alert severity="warning">
-        <AlertTitle>TEMPORAL EXTENT</AlertTitle>
+        <AlertTitle>{getAlertTitle()}</AlertTitle>
         No temporal extent information available for this collection. 
         The collection may not have time-dependent data or temporal metadata may be missing.
       </Alert>
@@ -38,7 +43,7 @@ const TemporalExtent: React.FC<TemporalExtentProps> = ({ temporal, collectionId 
   if (!normalizedTemporal) {
     return (
       <Alert severity="error">
-        <AlertTitle>TEMPORAL EXTENT</AlertTitle>
+        <AlertTitle>{getAlertTitle()}</AlertTitle>
         Invalid temporal extent format in collection metadata.
       </Alert>
     );
@@ -51,7 +56,7 @@ const TemporalExtent: React.FC<TemporalExtentProps> = ({ temporal, collectionId 
   if (!hasIntervals && !hasValues) {
     return (
       <Alert severity="warning">
-        <AlertTitle>TEMPORAL EXTENT</AlertTitle>
+        <AlertTitle>{getAlertTitle()}</AlertTitle>
         Temporal extent is defined but contains no valid intervals or values.
       </Alert>
     );
@@ -63,7 +68,7 @@ const TemporalExtent: React.FC<TemporalExtentProps> = ({ temporal, collectionId 
   return (
     <Box sx={{ mt: 1 }}>
       <Alert severity="success">
-        <AlertTitle>TEMPORAL EXTENT</AlertTitle>
+        <AlertTitle>{getAlertTitle()}</AlertTitle>
         
         {/* Overall coverage summary */}
         {overallExtent && (

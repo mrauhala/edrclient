@@ -16,16 +16,21 @@ import { Vertical, normalizeVertical, formatVerticalInterval, formatVerticalValu
 interface VerticalExtentProps {
   vertical: Vertical | null | undefined;
   collectionId?: string;
+  isSubsection?: boolean;
 }
 
-const VerticalExtent: React.FC<VerticalExtentProps> = ({ vertical, collectionId }) => {
+const VerticalExtent: React.FC<VerticalExtentProps> = ({ vertical, collectionId, isSubsection = false }) => {
   const [showDetails, setShowDetails] = useState(false);
+
+  const getAlertTitle = () => {
+    return isSubsection ? "G.3: Vertical Extent (Optional)" : "VERTICAL EXTENT";
+  };
 
   // If no vertical extent, show appropriate message
   if (!vertical) {
     return (
       <Alert severity="warning">
-        <AlertTitle>VERTICAL EXTENT</AlertTitle>
+        <AlertTitle>{getAlertTitle()}</AlertTitle>
         No vertical extent information available for this collection. 
         The collection may not have height/depth-dependent data or vertical metadata may be missing.
       </Alert>
@@ -38,7 +43,7 @@ const VerticalExtent: React.FC<VerticalExtentProps> = ({ vertical, collectionId 
   if (!normalizedVertical) {
     return (
       <Alert severity="error">
-        <AlertTitle>VERTICAL EXTENT</AlertTitle>
+        <AlertTitle>{getAlertTitle()}</AlertTitle>
         Invalid vertical extent format in collection metadata.
       </Alert>
     );
@@ -51,7 +56,7 @@ const VerticalExtent: React.FC<VerticalExtentProps> = ({ vertical, collectionId 
   if (!hasIntervals && !hasValues) {
     return (
       <Alert severity="warning">
-        <AlertTitle>VERTICAL EXTENT</AlertTitle>
+        <AlertTitle>{getAlertTitle()}</AlertTitle>
         Vertical extent is defined but contains no valid intervals or values.
       </Alert>
     );
@@ -64,7 +69,7 @@ const VerticalExtent: React.FC<VerticalExtentProps> = ({ vertical, collectionId 
   return (
     <Box sx={{ mt: 1 }}>
       <Alert severity="success">
-        <AlertTitle>VERTICAL EXTENT</AlertTitle>
+        <AlertTitle>{getAlertTitle()}</AlertTitle>
         
         {/* Overall coverage summary */}
         {overallExtent && (
