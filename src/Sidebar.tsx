@@ -461,30 +461,6 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                           This collection uses a flat array format instead of the EDR standard array-of-bbox-arrays format.
                         </Alert>
                       )}
-                      <Button 
-                        variant="outlined" 
-                        size="small" 
-                        sx={{ mt: 1, mb: 1 }}
-                        onClick={() => {
-                          if (onCollectionExtentChange && 
-                              collection.extent && 
-                              collection.extent.spatial && 
-                              collection.extent.spatial.bbox) {
-                            try {
-                              const normalizedBboxes = normalizeBbox(collection.extent.spatial.bbox);
-                              if (normalizedBboxes) {
-                                onCollectionExtentChange(normalizedBboxes);
-                              } else {
-                                console.warn('Failed to normalize bbox for zoom');
-                              }
-                            } catch (error) {
-                              console.error('Error normalizing bbox for zoom:', error);
-                            }
-                          }
-                        }}
-                      >
-                        Zoom to Extent{Array.isArray(collection.extent.spatial.bbox[0]) && collection.extent.spatial.bbox.length > 1 ? 's' : ''}
-                      </Button>
                     </Box>
                   ) : (
                     <Box sx={{ ml: 2, mt: 1 }}>
