@@ -9,7 +9,8 @@ function App() {
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const [boundingBox, setBoundingBox] = useState<[number, number, number, number]>([0, 0, 0, 0]);
+  const [boundingBox, setBoundingBox] = useState<[number, number, number, number]>([-180, -90, 180, 90]);
+  const [selectedCollectionExtents, setSelectedCollectionExtents] = useState<[number, number, number, number][] | null>(null);
 
   const handleUpdateBoundingBox = (newBoundingBox: [number, number, number, number]) => {
     setBoundingBox(newBoundingBox);
@@ -25,11 +26,10 @@ function App() {
 
   return (
     <div>
-      <button onClick={() => setBoundingBox([-180, -90, 180, 90])}>Reset Bounding Box</button>
       <Grid container spacing={0}>
       <Grid item xs={12}><TopMenu onMenuClick={handleMenuClick} /></Grid>
-      <Grid item xs={12} md={5}><Sidebar open={sidebarOpen} onClose={handleSidebarClose} boundingBox={boundingBox} setBoundingBox={setBoundingBox}/></Grid>
-      <Grid item xs={12} md={7}><OpenLayersMap zoomLevel={10} boundingBox={boundingBox} onUpdateBoundingBox={handleUpdateBoundingBox} /></Grid>
+      <Grid item xs={12} md={5}><Sidebar open={sidebarOpen} onClose={handleSidebarClose} boundingBox={boundingBox} setBoundingBox={setBoundingBox} onCollectionExtentChange={setSelectedCollectionExtents}/></Grid>
+      <Grid item xs={12} md={7}><OpenLayersMap zoomLevel={2} boundingBox={boundingBox} selectedCollectionExtents={selectedCollectionExtents} onUpdateBoundingBox={handleUpdateBoundingBox} /></Grid>
       </Grid>
     </div>
   );

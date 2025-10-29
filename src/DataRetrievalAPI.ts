@@ -1,8 +1,9 @@
 import axios from 'axios';
+import SchemaValidator from './SchemaValidator';
 
 export interface dataQueries {
     link: Link;
-  }
+}
 
 export interface Link {
     title?: string;
@@ -13,7 +14,7 @@ export interface Link {
 }
 
 export interface Spatial {
-    bbox: number[];
+    bbox: number[][] | number[]; // EDR standard: array of bbox arrays, or legacy flat array
     crs: string;
 } 
 
@@ -43,13 +44,144 @@ export interface Collection {
   parameter_names: parameterNames[];
 }
 
+export interface ValidationResult {
+  isValid: boolean;
+  errors: any[] | null;
+  schemaCount?: number;
+  schemaUrls?: string[];
+}
+
 interface CollectionsResponse {
   collections: Collection[];
 }
 
-export async function getCollections(apiUrl: string): Promise<Collection[]> {
+export interface GetCollectionsResult {
+  collections: Collection[];
+  validation: ValidationResult;
+}
 
-  //const response = await axios.get<CollectionsResponse>(apiUrl,{ headers: {'Authorization': 'eyJvcmciOiI1ZTU1NGUxOTI3NGE5NjAwMDEyYTNlYjEiLCJpZCI6ImQ3NmZjMDUwNzI0ZjQ0ZmVhMzU5Y2FmNmI0MjQ0OWJhIiwiaCI6Im11cm11cjEyOCJ9'}});
-  const response = await axios.get<CollectionsResponse>(apiUrl);
-  return response.data.collections;
+// Utility function to normalize bbox to array of [west, south, east, north] format
+export function normalizeBbox(bbox: number[][] | number[]): [number, number, number, number][] | null {
+  if (!bbox || !Array.isArray(bbox)) {
+    console.warn('Invalid bbox: not an array', bbox);
+    return null;
+  }
+
+  // Handle EDR standard format: array of bbox arrays
+  if (Array.isArray(bbox[0])) {
+    const bboxArrays = bbox as number[][];
+    console.log('Processing bbox as array of bbox arrays (EDR standard):', bboxArrays);
+    
+    const validBboxes: [number, number, number, number][] = [];
+    
+    for (const singleBbox of bboxArrays) {
+      if (Array.isArray(singleBbox) && singleBbox.length >= 4) {
+        const [west, south, east, north] = singleBbox;
+        validBboxes.push([west, south, east, north]);
+        console.log(`Valid bbox found: west=${west}, south=${south}, east=${east}, north=${north}`);
+      } else {
+        console.warn('Invalid bbox in array:', singleBbox);
+      }
+    }
+    
+    if (validBboxes.length > 0) {
+      return validBboxes;
+    }
+  }
+  
+  // Handle legacy flat array format (non-standard but common)
+  if (typeof bbox[0] === 'number') {
+    const flatBbox = bbox as number[];
+    console.log('Processing bbox as flat array (legacy format):', flatBbox);
+    
+    if (flatBbox.length >= 4) {
+      const [west, south, east, north] = flatBbox;
+      console.log(`Extracted coordinates: west=${west}, south=${south}, east=${east}, north=${north}`);
+      return [[west, south, east, north]];
+    } else {
+      console.warn('Invalid flat bbox format: insufficient coordinates', flatBbox);
+    }
+  }
+
+  console.warn('Unable to normalize bbox format:', bbox);
+  return null;
+}
+
+// Utility function to get the overall extent that encompasses all bboxes
+export function getOverallExtent(bboxes: [number, number, number, number][]): [number, number, number, number] | null {
+  if (!bboxes || bboxes.length === 0) {
+    return null;
+  }
+  
+  let minWest = Number.POSITIVE_INFINITY;
+  let minSouth = Number.POSITIVE_INFINITY;
+  let maxEast = Number.NEGATIVE_INFINITY;
+  let maxNorth = Number.NEGATIVE_INFINITY;
+  
+  for (const [west, south, east, north] of bboxes) {
+    minWest = Math.min(minWest, west);
+    minSouth = Math.min(minSouth, south);
+    maxEast = Math.max(maxEast, east);
+    maxNorth = Math.max(maxNorth, north);
+  }
+  
+  return [minWest, minSouth, maxEast, maxNorth];
+}
+
+export async function getCollections(apiUrl: string): Promise<GetCollectionsResult> {
+  // Initialize the schema validator outside the try block so it's accessible in the catch block
+  const validator = SchemaValidator.getInstance();
+  
+  try {
+    // Load the schema if not already loaded
+    if (!validator.isLoaded()) {
+      await validator.loadSchema();
+    }
+
+    // Fetch data from API
+    const response = await axios.get<CollectionsResponse>(apiUrl);
+    const data = response.data;
+
+    let collections: Collection[] = [];
+    
+    // Extract collections from the response safely
+    if (data && typeof data === 'object') {
+      if (Array.isArray(data.collections)) {
+        collections = data.collections;
+      } else if (Array.isArray(data)) {
+        // Some APIs might return collections directly as an array
+        collections = data;
+      }
+    }
+
+    // Perform validation with the enhanced async method
+    const validationResult = await validator.validateCollections(data);
+
+    // Log validation details
+    console.log(`Schema validation result: ${validationResult.valid ? 'Valid' : 'Invalid'}`);
+    console.log(`Loaded schema count: ${validator.getLoadedSchemaCount()}`);
+    
+    // Even if validation fails, still return any collections we found
+    return {
+      collections: collections,
+      validation: {
+        isValid: validationResult.valid,
+        errors: validationResult.errors,
+        schemaCount: validator.getLoadedSchemaCount(),
+        schemaUrls: validator.getLoadedSchemaUrls()
+      }
+    };
+  } catch (error) {
+    // If there's an error with the request, return empty collections and the error
+    console.error('Error fetching collections:', error);
+    return {
+      collections: [],
+      validation: {
+        isValid: false,
+        errors: [{ message: error instanceof Error ? error.message : 'Unknown error fetching collections' }],
+        schemaCount: validator.isLoaded() ? validator.getLoadedSchemaCount() : 0,
+        schemaUrls: validator.isLoaded() ? validator.getLoadedSchemaUrls() : []
+      }
+    };
+  }
 }
