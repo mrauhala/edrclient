@@ -27,6 +27,8 @@ import QueryForm from './QueryForm';
 import ValidationResults from './ValidationResult';
 import SchemaInspector from './SchemaInspector';
 import LocationFeatureList from './LocationFeatureList';
+import TemporalExtent from './TemporalExtent';
+import VerticalExtent from './VerticalExtent';
 
 interface SidebarProps {
   open: boolean;
@@ -50,6 +52,7 @@ const edrServices = [
   { label: 'Aviation Weather (WIFS)', value: 'https://aviationweather.gov/wifs/api/collections?f=json' },
   { label: 'Meteogate Observations', value: 'https://observations.meteogate.eu/collections' },
   { label: 'SmartMet Kenya', value: 'https://data-kenya.smartmet.org/edr/collections' },
+  { label: 'DWD WIS2 GDC', value: 'https://wis2.dwd.de/gdc/collections' },
   { label: 'Custom', value: '' }
 ];
 
@@ -495,6 +498,22 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                 <Alert severity="warning"><AlertTitle>G: EXTENT</AlertTitle>Collection has an extent property but it is empty or invalid. This may indicate missing spatial bounding box information.</Alert>
                 :
                 <Alert severity="error"><AlertTitle>G: EXTENT</AlertTitle>Every collection within a collections array MUST have an extent parameter.</Alert> 
+              )}
+
+              {/* Temporal Extent Display */}
+              {collection.extent && (
+                <TemporalExtent 
+                  temporal={collection.extent.temporal} 
+                  collectionId={collection.id}
+                />
+              )}
+
+              {/* Vertical Extent Display */}
+              {collection.extent?.vertical && (
+                <VerticalExtent 
+                  vertical={collection.extent.vertical} 
+                  collectionId={collection.id}
+                />
               )}
 
               { typeof collection.crs == "undefined" 

@@ -22,9 +22,22 @@ export interface Spatial {
     crs?: string; // Also optional since some extents might be empty
 } 
 
+export interface Temporal {
+    interval?: (string | null)[][]; // Array of ISO 8601 date interval arrays, null values indicate open intervals
+    values?: string[]; // Array of ISO 8601 datestrings for specific time points/intervals
+    trs?: string; // Temporal reference system, defaults to Gregorian
+}
+
+export interface Vertical {
+    interval?: (number | string | null)[][]; // Array of level value arrays, can be strings or numbers for min/max vertical levels
+    values?: (number | string)[]; // Array of height values supported by the collection, can be strings or numbers
+    vrs?: string; // Vertical reference system, follows Well Known Text standard
+}
+
 export interface Extent {
     spatial?: Spatial; // Made optional to handle empty extent objects
-    temporal?: any; // Also optional
+    temporal?: Temporal; // Made optional to handle missing temporal extent
+    vertical?: Vertical; // Made optional to handle missing vertical extent
 } 
 
 export interface parameterNames {
@@ -218,7 +231,275 @@ export function normalizeBbox(bbox: number[][] | number[] | null | undefined): [
   }
 }
 
-// Utility function to get the overall extent that encompasses all bboxes
+// Utility function to normalize temporal extent to a standard format
+export function normalizeTemporal(temporal: Temporal | null | undefined): {
+  intervals: [string | null, string | null][];
+  values: string[];
+  trs: string;
+} | null {
+  // Handle missing temporal
+  if (!temporal) {
+    console.log('No temporal extent provided');
+    return null;
+  }
+
+  try {
+    const result = {
+      intervals: [] as [string | null, string | null][],
+      values: [] as string[],
+      trs: temporal.trs || 'Gregorian'
+    };
+
+    // Process intervals if they exist
+    if (temporal.interval && Array.isArray(temporal.interval)) {
+      console.log('Processing temporal intervals:', temporal.interval);
+      
+      for (const interval of temporal.interval) {
+        if (Array.isArray(interval) && interval.length >= 2) {
+          const [start, end] = interval;
+          result.intervals.push([start, end]);
+          console.log(`Valid temporal interval: ${start} to ${end}`);
+        } else {
+          console.warn('Invalid temporal interval format:', interval);
+        }
+      }
+    }
+
+    // Process values if they exist
+    if (temporal.values && Array.isArray(temporal.values)) {
+      console.log('Processing temporal values:', temporal.values.length, 'values');
+      result.values = temporal.values.filter(value => typeof value === 'string');
+    }
+
+    console.log(`Normalized temporal extent: ${result.intervals.length} intervals, ${result.values.length} values`);
+    return result;
+  } catch (error) {
+    console.error('Error normalizing temporal extent:', error, 'Input:', temporal);
+    return null;
+  }
+}
+
+// Utility function to format temporal intervals for display
+export function formatTemporalInterval(start: string | null, end: string | null): string {
+  if (start === null && end === null) {
+    return 'All time';
+  } else if (start === null) {
+    return `Until ${formatDateString(end)}`;
+  } else if (end === null) {
+    return `From ${formatDateString(start)}`;
+  } else {
+    return `${formatDateString(start)} to ${formatDateString(end)}`;
+  }
+}
+
+// Utility function to format ISO 8601 date strings for human-readable display
+export function formatDateString(dateString: string | null): string {
+  if (!dateString) return 'Open';
+  
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return dateString; // Return original if parsing fails
+    }
+    
+    // Format as locale-specific date and time
+    return date.toLocaleString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZoneName: 'short'
+    });
+  } catch (error) {
+    console.warn('Error formatting date string:', dateString, error);
+    return dateString;
+  }
+}
+
+// Utility function to get the overall temporal extent that encompasses all intervals
+export function getOverallTemporalExtent(intervals: [string | null, string | null][]): [string | null, string | null] | null {
+  if (!intervals || intervals.length === 0) {
+    return null;
+  }
+  
+  let overallStart: string | null = null;
+  let overallEnd: string | null = null;
+  
+  for (const [start, end] of intervals) {
+    // Handle start times
+    if (start !== null) {
+      if (overallStart === null || start < overallStart) {
+        overallStart = start;
+      }
+    } else {
+      overallStart = null; // If any interval is open at the start, overall is open
+    }
+    
+    // Handle end times
+    if (end !== null) {
+      if (overallEnd === null || end > overallEnd) {
+        overallEnd = end;
+      }
+    } else {
+      overallEnd = null; // If any interval is open at the end, overall is open
+    }
+  }
+  
+  return [overallStart, overallEnd];
+}
+
+// Utility function to normalize vertical extent to a standard format
+export function normalizeVertical(vertical: Vertical | null | undefined): {
+  intervals: [number | null, number | null][];
+  values: number[];
+  vrs: string;
+} | null {
+  // Handle missing vertical
+  if (!vertical) {
+    console.log('No vertical extent provided');
+    return null;
+  }
+
+  try {
+    const result = {
+      intervals: [] as [number | null, number | null][],
+      values: [] as number[],
+      vrs: vertical.vrs || 'Unknown'
+    };
+
+    // Process intervals if they exist
+    if (vertical.interval && Array.isArray(vertical.interval)) {
+      console.log('Processing vertical intervals:', vertical.interval);
+      
+      for (const interval of vertical.interval) {
+        if (Array.isArray(interval) && interval.length >= 2) {
+          // Convert string values to numbers, handle both number and string inputs
+          const min = interval[0] === null ? null : (typeof interval[0] === 'string' ? parseFloat(interval[0]) : interval[0]);
+          const max = interval[1] === null ? null : (typeof interval[1] === 'string' ? parseFloat(interval[1]) : interval[1]);
+          
+          // Only add if conversion was successful
+          if (min !== null && isNaN(min)) {
+            console.warn('Invalid vertical interval min value:', interval[0]);
+            continue;
+          }
+          if (max !== null && isNaN(max)) {
+            console.warn('Invalid vertical interval max value:', interval[1]);
+            continue;
+          }
+          
+          result.intervals.push([min, max]);
+          console.log(`Valid vertical interval: ${min} to ${max}`);
+        } else {
+          console.warn('Invalid vertical interval format:', interval);
+        }
+      }
+    }
+
+    // Process values if they exist - handle both string and number values
+    if (vertical.values && Array.isArray(vertical.values)) {
+      console.log('Processing vertical values:', vertical.values.length, 'values');
+      for (const value of vertical.values) {
+        let numValue: number;
+        if (typeof value === 'string') {
+          numValue = parseFloat(value);
+        } else if (typeof value === 'number') {
+          numValue = value;
+        } else {
+          console.warn('Invalid vertical value type:', typeof value, value);
+          continue;
+        }
+        
+        if (!isNaN(numValue) && isFinite(numValue)) {
+          result.values.push(numValue);
+        } else {
+          console.warn('Invalid vertical value:', value);
+        }
+      }
+    }
+
+    console.log(`Normalized vertical extent: ${result.intervals.length} intervals, ${result.values.length} values`);
+    return result;
+  } catch (error) {
+    console.error('Error normalizing vertical extent:', error, 'Input:', vertical);
+    return null;
+  }
+}
+
+// Utility function to format vertical intervals for display
+export function formatVerticalInterval(min: number | null, max: number | null, unit?: string): string {
+  const unitSuffix = unit ? ` ${unit}` : '';
+  
+  if (min === null && max === null) {
+    return 'All levels';
+  } else if (min === null) {
+    return `Up to ${formatVerticalValue(max)}${unitSuffix}`;
+  } else if (max === null) {
+    return `From ${formatVerticalValue(min)}${unitSuffix}`;
+  } else {
+    return `${formatVerticalValue(min)} to ${formatVerticalValue(max)}${unitSuffix}`;
+  }
+}
+
+// Utility function to format vertical values for display
+export function formatVerticalValue(value: number | null): string {
+  if (value === null) return 'Open';
+  
+  // Format numbers with appropriate precision
+  if (Number.isInteger(value)) {
+    return value.toString();
+  } else {
+    return value.toFixed(2);
+  }
+}
+
+// Utility function to get the overall vertical extent that encompasses all intervals
+export function getOverallVerticalExtent(intervals: [number | null, number | null][]): [number | null, number | null] | null {
+  if (!intervals || intervals.length === 0) {
+    return null;
+  }
+  
+  let overallMin: number | null = null;
+  let overallMax: number | null = null;
+  
+  for (const [min, max] of intervals) {
+    // Handle minimum values
+    if (min !== null) {
+      if (overallMin === null || min < overallMin) {
+        overallMin = min;
+      }
+    } else {
+      overallMin = null; // If any interval is open at the minimum, overall is open
+    }
+    
+    // Handle maximum values
+    if (max !== null) {
+      if (overallMax === null || max > overallMax) {
+        overallMax = max;
+      }
+    } else {
+      overallMax = null; // If any interval is open at the maximum, overall is open
+    }
+  }
+  
+  return [overallMin, overallMax];
+}
+
+// Utility function to extract unit information from VRS string
+export function getVerticalUnit(vrs: string): string {
+  if (!vrs) return '';
+  
+  // Extract unit from common VRS patterns
+  if (vrs.includes('metre') || vrs.includes('meter')) return 'm';
+  if (vrs.includes('foot') || vrs.includes('feet')) return 'ft';
+  if (vrs.includes('hPa') || vrs.includes('hectopascal')) return 'hPa';
+  if (vrs.includes('Pa') || vrs.includes('pascal')) return 'Pa';
+  if (vrs.includes('mbar') || vrs.includes('millibar')) return 'mbar';
+  if (vrs.includes('level')) return 'level';
+  
+  // Default return empty string if no unit found
+  return '';
+}
 export function getOverallExtent(bboxes: [number, number, number, number][]): [number, number, number, number] | null {
   if (!bboxes || bboxes.length === 0) {
     return null;
