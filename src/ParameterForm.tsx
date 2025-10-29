@@ -39,7 +39,7 @@ const FormatForm = ({ parameters, queryUrl, setQueryUrl }: ParameterFormProps) =
               onChange={handleParameter}
             >
               {Object.keys(parameters).map((par) => (
-                <MenuItem value={par}>{par}</MenuItem>
+                <MenuItem key={par} value={par}>{par}</MenuItem>
               ))}
             </Select>
           </FormControl>

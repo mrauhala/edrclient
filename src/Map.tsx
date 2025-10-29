@@ -5,24 +5,36 @@ import View from 'ol/View';
 import TileLayer from 'ol/layer/Tile';
 import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
-import OSM from 'ol/source/OSM';
+import XYZ from 'ol/source/XYZ';
+import Overlay from 'ol/Overlay';
 import { Feature } from 'ol';
 import { Polygon } from 'ol/geom';
 import { fromLonLat } from 'ol/proj';
-import { Style, Stroke, Fill } from 'ol/style';
+import { Style, Stroke, Fill, Circle } from 'ol/style';
+import GeoJSON from 'ol/format/GeoJSON';
+import FeatureInfo from './FeatureInfo';
+import { Collection } from './DataRetrievalAPI';
 
 interface MapProps {
   zoomLevel: number;
   boundingBox: [number, number, number, number];
   selectedCollectionExtents?: [number, number, number, number][] | null;
+  selectedCollection?: Collection | null;
+  locationFeatures?: any[] | null;
+  selectedFeature?: any | null;
   onUpdateBoundingBox?: (boundingBox: [number, number, number, number]) => void;
+  onFeatureSelect?: (feature: any | null) => void;
 }
 
-const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCollectionExtents, onUpdateBoundingBox }) => {
+const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCollectionExtents, selectedCollection, locationFeatures, selectedFeature, onUpdateBoundingBox, onFeatureSelect }) => {
   const [map, setMap] = useState<Map | null>(null);
   const [vectorLayer, setVectorLayer] = useState<VectorLayer<VectorSource> | null>(null);
+  const [locationLayer, setLocationLayer] = useState<VectorLayer<VectorSource> | null>(null);
+  const [tooltipOverlay, setTooltipOverlay] = useState<Overlay | null>(null);
   const boundingBoxRef = useRef(boundingBox);
   const selectedExtentsRef = useRef(selectedCollectionExtents);
+  const locationFeaturesRef = useRef(locationFeatures);
+  const tooltipRef = useRef<HTMLDivElement>(null);
 
   // Effect to handle selected collection extents changes (multiple bboxes)
   useEffect(() => {
@@ -91,6 +103,66 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
     }
   }, [map, selectedCollectionExtents, vectorLayer]);
 
+  // Effect to handle location features (GeoJSON)
+  useEffect(() => {
+    if (map && locationLayer && locationFeatures !== locationFeaturesRef.current) {
+      // Clear previous location features
+      locationLayer.getSource()?.clear();
+      
+      if (locationFeatures && locationFeatures.length > 0) {
+        console.log(`Adding ${locationFeatures.length} location features to map`);
+        
+        // Create GeoJSON format for parsing
+        const geojsonFormat = new GeoJSON({
+          featureProjection: 'EPSG:3857', // Map projection
+          dataProjection: 'EPSG:4326' // GeoJSON is typically in WGS84
+        });
+        
+        // Add each feature to the location layer
+        locationFeatures.forEach((feature, index) => {
+          try {
+            // Parse the GeoJSON feature
+            const olFeatures = geojsonFormat.readFeatures(feature);
+            
+            // Handle both single feature and feature array
+            const featuresArray = Array.isArray(olFeatures) ? olFeatures : [olFeatures];
+            
+            featuresArray.forEach((olFeature, subIndex) => {
+              olFeature.set('featureIndex', index);
+              olFeature.set('subIndex', subIndex);
+              olFeature.set('layer', 'location');
+              olFeature.set('name', feature.properties?.name || `Location ${index + 1}-${subIndex + 1}`);
+              
+              // Add to location layer
+              locationLayer.getSource()?.addFeature(olFeature);
+            });
+          } catch (error) {
+            console.warn(`Failed to parse location feature ${index}:`, error, feature);
+          }
+        });
+        
+        // Only zoom to location features if there's no bbox extent being displayed
+        // This prevents the location zoom from overriding the bbox zoom
+        if (!selectedCollectionExtents || selectedCollectionExtents.length === 0) {
+          const extent = locationLayer.getSource()?.getExtent();
+          if (extent && extent.every(coord => isFinite(coord))) {
+            map.getView().fit(extent, { 
+              padding: [50, 50, 50, 50],
+              duration: 1000,
+              maxZoom: 10 // Don't zoom in too much for point features
+            });
+          }
+        }
+      }
+      
+      locationFeaturesRef.current = locationFeatures;
+    } else if (map && locationLayer && locationFeatures === null) {
+      // Clear location features when null
+      locationLayer.getSource()?.clear();
+      locationFeaturesRef.current = null;
+    }
+  }, [map, locationLayer, locationFeatures]);
+
   useEffect(() => {
     if (map && boundingBoxRef.current !== boundingBox) {
       // Convert bounding box coordinates [west, south, east, north] to extent
@@ -120,13 +192,72 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
       }),
     });
 
+    // Create vector source and layer for location features
+    const locationSource = new VectorSource();
+    const newLocationLayer = new VectorLayer({
+      source: locationSource,
+      style: (feature) => {
+        const geometry = feature.getGeometry();
+        if (!geometry) return new Style();
+        
+        const geometryType = geometry.getType();
+        
+        if (geometryType === 'Point') {
+          return new Style({
+            image: new Circle({
+              radius: 8,
+              fill: new Fill({
+                color: '#2196F3',
+              }),
+              stroke: new Stroke({
+                color: '#ffffff',
+                width: 3,
+              }),
+            }),
+          });
+        } else if (geometryType === 'LineString' || geometryType === 'MultiLineString') {
+          return new Style({
+            stroke: new Stroke({
+              color: '#2196F3',
+              width: 4,
+            }),
+          });
+        } else if (geometryType === 'Polygon' || geometryType === 'MultiPolygon') {
+          return new Style({
+            stroke: new Stroke({
+              color: '#2196F3',
+              width: 3,
+            }),
+            fill: new Fill({
+              color: 'rgba(33, 150, 243, 0.3)',
+            }),
+          });
+        }
+        
+        // Default style
+        return new Style({
+          stroke: new Stroke({
+            color: '#2196F3',
+            width: 2,
+          }),
+          fill: new Fill({
+            color: 'rgba(33, 150, 243, 0.2)',
+          }),
+        });
+      },
+    });
+
     const openLayersMap = new Map({
       target: 'map',
       layers: [
         new TileLayer({
-          source: new OSM(),
+          source: new XYZ({
+            url: 'https://{a-d}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+            attributions: '© <a href="https://carto.com/attributions">CARTO</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+          }),
         }),
         newVectorLayer, // Add vector layer for bounding boxes
+        newLocationLayer, // Add vector layer for location features
       ],
       view: new View({
         center: [0, 0],
@@ -136,6 +267,80 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
 
     setMap(openLayersMap);
     setVectorLayer(newVectorLayer);
+    setLocationLayer(newLocationLayer);
+
+    // Create tooltip overlay
+    const tooltip = new Overlay({
+      element: tooltipRef.current!,
+      offset: [10, 0],
+      positioning: 'bottom-left',
+    });
+    openLayersMap.addOverlay(tooltip);
+    setTooltipOverlay(tooltip);
+
+    // Add click interaction for location features
+    openLayersMap.on('click', (event) => {
+      const features = openLayersMap.getFeaturesAtPixel(event.pixel);
+      if (features && features.length > 0) {
+        // Look for location features (features from the location layer)
+        const locationFeature = features.find(feature => {
+          const layer = feature.get('layer');
+          return layer === 'location' || feature.get('featureIndex') !== undefined;
+        });
+        
+        if (locationFeature) {
+          // Get the original GeoJSON feature data
+          const featureIndex = locationFeature.get('featureIndex');
+          const originalFeature = locationFeaturesRef.current?.[featureIndex];
+          
+          if (originalFeature) {
+            console.log('Selected location feature:', originalFeature);
+            onFeatureSelect?.(originalFeature);
+          }
+        } else {
+          // Clicked somewhere else, clear selection
+          onFeatureSelect?.(null);
+        }
+      } else {
+        // No features at click point, clear selection
+        onFeatureSelect?.(null);
+      }
+    });
+
+    // Add pointer cursor when hovering over location features and show tooltip
+    openLayersMap.on('pointermove', (event) => {
+      const features = openLayersMap.getFeaturesAtPixel(event.pixel);
+      const locationFeature = features && features.find(feature => {
+        const layer = feature.get('layer');
+        return layer === 'location' || feature.get('featureIndex') !== undefined;
+      });
+      
+      if (locationFeature && tooltip) {
+        // Show tooltip with feature name or ID
+        const featureIndex = locationFeature.get('featureIndex');
+        const originalFeature = locationFeaturesRef.current?.[featureIndex];
+        
+        if (originalFeature) {
+          const name = originalFeature.properties?.name || originalFeature.id || 'Unknown Location';
+          if (tooltipRef.current) {
+            tooltipRef.current.innerHTML = name;
+            tooltipRef.current.style.display = 'block';
+          }
+          tooltip.setPosition(event.coordinate);
+        }
+        
+        openLayersMap.getTargetElement().style.cursor = 'pointer';
+      } else {
+        // Hide tooltip and reset cursor
+        if (tooltipRef.current) {
+          tooltipRef.current.style.display = 'none';
+        }
+        if (tooltip) {
+          tooltip.setPosition(undefined);
+        }
+        openLayersMap.getTargetElement().style.cursor = '';
+      }
+    });
 
     return () => {
       openLayersMap.setTarget(undefined);
@@ -148,7 +353,70 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
     }
   }, [onUpdateBoundingBox]);
 
-  return <div id="map" style={{ width: '100%', height: '100%' }} />;
+  return (
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      <div id="map" style={{ width: '100%', height: '100%' }} />
+      
+      {/* Tooltip element */}
+      <div
+        ref={tooltipRef}
+        style={{
+          position: 'absolute',
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          color: 'white',
+          padding: '4px 8px',
+          borderRadius: '4px',
+          fontSize: '12px',
+          fontWeight: 'bold',
+          pointerEvents: 'none',
+          whiteSpace: 'nowrap',
+          display: 'none',
+          zIndex: 1000,
+          boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+        }}
+      />
+      
+      {/* Collection Legend */}
+      {selectedCollection && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '10px',
+            left: '10px',
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            color: 'white',
+            padding: '12px 16px',
+            borderRadius: '8px',
+            fontSize: '14px',
+            fontWeight: 'normal',
+            maxWidth: '300px',
+            zIndex: 1000,
+            boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
+            border: '1px solid rgba(255,255,255,0.2)',
+          }}
+        >
+          <div style={{ fontWeight: 'bold', marginBottom: '4px', fontSize: '16px' }}>
+            {selectedCollection.title || selectedCollection.id}
+          </div>
+          {selectedCollection.description && (
+            <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.9)', lineHeight: '1.3' }}>
+              {selectedCollection.description}
+            </div>
+          )}
+          {selectedCollection.id && selectedCollection.title && (
+            <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)', marginTop: '4px' }}>
+              ID: {selectedCollection.id}
+            </div>
+          )}
+        </div>
+      )}
+      
+      <FeatureInfo 
+        feature={selectedFeature} 
+        onClose={() => onFeatureSelect?.(null)} 
+      />
+    </div>
+  );
 };
 
 export default OpenLayersMap;

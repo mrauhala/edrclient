@@ -7,13 +7,13 @@ import Alert from '@mui/material/Alert';
 import Link from '@mui/material/Link';
 import AlertTitle from '@mui/material/AlertTitle';
 import React from 'react';
-import { dataQueries } from './DataRetrievalAPI';
+import { DataQueries } from './DataRetrievalAPI';
 
 
 interface QueryFormProps {
-  queries: dataQueries[];
   queryUrl: string;
-  setQueryUrl: any;
+  queries: DataQueries;
+  setQueryUrl: (url: string) => void;
 }
 
 const QueryForm = ({ queries, queryUrl, setQueryUrl }: QueryFormProps) => {
@@ -29,7 +29,11 @@ const QueryForm = ({ queries, queryUrl, setQueryUrl }: QueryFormProps) => {
     <Box sx={{ padding: 0, minWidth: 120 }}>
     <Alert severity="success">
       <AlertTitle>F: DATA_QUERIES</AlertTitle>
-      {Object.entries(queries).map(([key, q]) => (<div><Link href={q.link.href}>{q.link.title ? q.link.title : q.link.rel}</Link> ({q.link.rel})</div>))}
+      {Object.entries(queries).map(([key, q]) => (
+        <div key={key}>
+          <Link href={q.link.href}>{q.link.title ? q.link.title : q.link.rel}</Link> ({q.link.rel})
+        </div>
+      ))}
     </Alert>
     <>
       {queries ?
@@ -44,7 +48,7 @@ const QueryForm = ({ queries, queryUrl, setQueryUrl }: QueryFormProps) => {
                   onChange={handleQuery}
                 >
                   {Object.entries(queries).map(([key,q]) => (
-                    <MenuItem value={key}>{key}</MenuItem>
+                    <MenuItem key={key} value={key}>{key}</MenuItem>
                   ))}
                 </Select>
               </FormControl>
