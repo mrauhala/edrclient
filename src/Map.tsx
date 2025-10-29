@@ -13,7 +13,7 @@ import { fromLonLat } from 'ol/proj';
 import { Style, Stroke, Fill, Circle } from 'ol/style';
 import GeoJSON from 'ol/format/GeoJSON';
 import FeatureInfo from './FeatureInfo';
-import { Collection } from './DataRetrievalAPI';
+import { Collection, normalizeTemporal, formatTemporalInterval, getOverallTemporalExtent, normalizeVertical, formatVerticalInterval, getOverallVerticalExtent, getVerticalUnit } from './DataRetrievalAPI';
 
 interface MapProps {
   zoomLevel: number;
@@ -39,6 +39,8 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
   // Effect to handle selected collection extents changes (multiple bboxes)
   useEffect(() => {
     if (map && selectedCollectionExtents && selectedExtentsRef.current !== selectedCollectionExtents) {
+      console.log('Processing selectedCollectionExtents:', selectedCollectionExtents);
+      
       // Clear previous bounding box rectangles
       if (vectorLayer) {
         vectorLayer.getSource()?.clear();
@@ -52,6 +54,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
         // Add each bbox as a separate rectangle feature
         selectedCollectionExtents.forEach((bbox, index) => {
           const [west, south, east, north] = bbox;
+          console.log(`Processing bbox ${index}:`, { west, south, east, north });
           
           // Update overall extent
           minWest = Math.min(minWest, west);
@@ -70,12 +73,16 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
             ]
           ];
           
+          console.log('Creating polygon with coordinates:', coordinates);
+          
           const polygon = new Polygon(coordinates);
           const feature = new Feature({
             geometry: polygon,
             name: `Collection Extent ${index + 1}`,
             bboxIndex: index
           });
+          
+          console.log('Adding feature to vector layer:', feature);
           
           // Add the feature to the vector layer
           vectorLayer.getSource()?.addFeature(feature);
@@ -88,10 +95,25 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
             ...fromLonLat([maxEast, maxNorth])
           ];
           
-          map.getView().fit(overallExtent, { 
-            padding: [50, 50, 50, 50],
-            duration: 1000 // Smooth animation
-          });
+          console.log('Zooming to overall extent:', overallExtent);
+          console.log('Overall bbox:', { minWest, minSouth, maxEast, maxNorth });
+          
+          // Check if this is a global bbox (-180, -90, 180, 90)
+          const isGlobalBbox = minWest <= -179 && minSouth <= -89 && maxEast >= 179 && maxNorth >= 89;
+          
+          if (isGlobalBbox) {
+            console.log('Detected global bbox, setting moderate zoom level');
+            // For global bbox, just set a reasonable zoom level instead of fitting to full extent
+            map.getView().setCenter([0, 0]);
+            map.getView().setZoom(2);
+          } else {
+            map.getView().fit(overallExtent, { 
+              padding: [50, 50, 50, 50],
+              duration: 1000 // Smooth animation
+            });
+          }
+        } else {
+          console.warn('Invalid extent - not zooming');
         }
       }
       
@@ -184,10 +206,10 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
       style: new Style({
         stroke: new Stroke({
           color: '#ff0000',
-          width: 2,
+          width: 3,
         }),
         fill: new Fill({
-          color: 'rgba(255, 0, 0, 0.1)',
+          color: 'rgba(255, 0, 0, 0.2)',
         }),
       }),
     });
@@ -252,7 +274,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
       layers: [
         new TileLayer({
           source: new XYZ({
-            url: 'https://{a-d}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+            url: 'https://{a-c}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
             attributions: '© <a href="https://carto.com/attributions">CARTO</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
           }),
         }),
@@ -389,7 +411,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
             borderRadius: '8px',
             fontSize: '14px',
             fontWeight: 'normal',
-            maxWidth: '300px',
+            maxWidth: '350px',
             zIndex: 1000,
             boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
             border: '1px solid rgba(255,255,255,0.2)',
@@ -399,10 +421,56 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
             {selectedCollection.title || selectedCollection.id}
           </div>
           {selectedCollection.description && (
-            <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.9)', lineHeight: '1.3' }}>
+            <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.9)', lineHeight: '1.3', marginBottom: '8px' }}>
               {selectedCollection.description}
             </div>
           )}
+          
+          {/* Temporal Coverage */}
+          {selectedCollection.extent?.temporal && (() => {
+            const normalizedTemporal = normalizeTemporal(selectedCollection.extent.temporal);
+            if (normalizedTemporal && normalizedTemporal.intervals.length > 0) {
+              const overallExtent = getOverallTemporalExtent(normalizedTemporal.intervals);
+              if (overallExtent) {
+                return (
+                  <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.8)', marginBottom: '4px' }}>
+                    <div style={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.9)' }}>Time Coverage:</div>
+                    <div>{formatTemporalInterval(overallExtent[0], overallExtent[1])}</div>
+                    {normalizedTemporal.intervals.length > 1 && (
+                      <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.7)' }}>
+                        ({normalizedTemporal.intervals.length} intervals)
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+            }
+            return null;
+          })()}
+
+          {/* Vertical Coverage */}
+          {selectedCollection.extent?.vertical && (() => {
+            const normalizedVertical = normalizeVertical(selectedCollection.extent.vertical);
+            if (normalizedVertical && normalizedVertical.intervals.length > 0) {
+              const overallExtent = getOverallVerticalExtent(normalizedVertical.intervals);
+              if (overallExtent) {
+                const unit = getVerticalUnit(normalizedVertical.vrs);
+                return (
+                  <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.8)', marginBottom: '4px' }}>
+                    <div style={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.9)' }}>Vertical Coverage:</div>
+                    <div>{formatVerticalInterval(overallExtent[0], overallExtent[1], unit)}</div>
+                    {normalizedVertical.intervals.length > 1 && (
+                      <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.7)' }}>
+                        ({normalizedVertical.intervals.length} intervals)
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+            }
+            return null;
+          })()}
+
           {selectedCollection.id && selectedCollection.title && (
             <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)', marginTop: '4px' }}>
               ID: {selectedCollection.id}

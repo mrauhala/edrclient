@@ -27,6 +27,8 @@ import QueryForm from './QueryForm';
 import ValidationResults from './ValidationResult';
 import SchemaInspector from './SchemaInspector';
 import LocationFeatureList from './LocationFeatureList';
+import TemporalExtent from './TemporalExtent';
+import VerticalExtent from './VerticalExtent';
 
 interface SidebarProps {
   open: boolean;
@@ -50,6 +52,7 @@ const edrServices = [
   { label: 'Aviation Weather (WIFS)', value: 'https://aviationweather.gov/wifs/api/collections?f=json' },
   { label: 'Meteogate Observations', value: 'https://observations.meteogate.eu/collections' },
   { label: 'SmartMet Kenya', value: 'https://data-kenya.smartmet.org/edr/collections' },
+  { label: 'DWD WIS2 GDC', value: 'https://wis2.dwd.de/gdc/collections' },
   { label: 'Custom', value: '' }
 ];
 
@@ -238,10 +241,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
     }
   };
 
-  const [crs, setCRS] = React.useState('');
-  const handleCRS = (event: SelectChangeEvent) => {
-    setCRS(event.target.value as string);
-  };
+
 
   const toggleValidationDetails = () => {
     setShowValidationDetails(!showValidationDetails);
@@ -426,75 +426,76 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                 )
               }
               
-              
-              { // Check for valid extent structure
-                typeof collection.extent !== "undefined" && 
-                typeof collection.extent === 'object' &&
-                collection.extent.spatial && 
-                typeof collection.extent.spatial === 'object' &&
-                collection.extent.spatial.bbox && 
-                Array.isArray(collection.extent.spatial.bbox) &&
-                collection.extent.spatial.bbox.length > 0 && 
-                collection.extent.spatial.crs ?
-              <Box sx={{ padding: 0, minWidth: 120 }}>
-                <Alert severity="success"><AlertTitle>G: EXTENT</AlertTitle>
-                  {collection.extent.spatial.crs}<br/>
-                  {Array.isArray(collection.extent.spatial.bbox[0]) 
-                    ? (collection.extent.spatial.bbox as number[][]).map((bbox, idx) => (
-                        <div key={idx}>
-                          Bbox {idx + 1}: [{bbox.join(', ')}]
-                        </div>
-                      ))
-                    : `[${(collection.extent.spatial.bbox as number[]).join(', ')}]`
-                  }
-                </Alert>
-                {!Array.isArray(collection.extent.spatial.bbox[0]) && (
-                  <Alert severity="warning" sx={{ mt: 1 }}>
-                    <AlertTitle>Legacy bbox format</AlertTitle>
-                    This collection uses a flat array format instead of the EDR standard array-of-bbox-arrays format.
+              {/* Main Extent Section */}
+              {typeof collection.extent !== "undefined" ? (
+                <Box sx={{ padding: 0, minWidth: 120 }}>
+                  <Alert severity="success">
+                    <AlertTitle>G: EXTENT</AlertTitle>
+                    Collection extent information with spatial (mandatory), temporal and vertical components (optional).
                   </Alert>
-                )}
-                <Button 
-                  variant="outlined" 
-                  size="small" 
-                  sx={{ mt: 1, mb: 1 }}
-                  onClick={() => {
-                    if (onCollectionExtentChange && 
-                        collection.extent && 
-                        collection.extent.spatial && 
-                        collection.extent.spatial.bbox) {
-                      try {
-                        const normalizedBboxes = normalizeBbox(collection.extent.spatial.bbox);
-                        if (normalizedBboxes) {
-                          onCollectionExtentChange(normalizedBboxes);
-                        } else {
-                          console.warn('Failed to normalize bbox for zoom');
+                  
+                  {/* Spatial Extent Subsection (Mandatory) */}
+                  {collection.extent.spatial && 
+                   typeof collection.extent.spatial === 'object' &&
+                   collection.extent.spatial.bbox && 
+                   Array.isArray(collection.extent.spatial.bbox) &&
+                   collection.extent.spatial.bbox.length > 0 && 
+                   collection.extent.spatial.crs ? (
+                    <Box sx={{ ml: 2, mt: 1 }}>
+                      <Alert severity="success">
+                        <AlertTitle>G.1: Spatial Extent (Mandatory)</AlertTitle>
+                        <strong>CRS:</strong> {collection.extent.spatial.crs}<br/>
+                        <strong>Bounding Box{Array.isArray(collection.extent.spatial.bbox[0]) && collection.extent.spatial.bbox.length > 1 ? 'es' : ''}:</strong><br/>
+                        {Array.isArray(collection.extent.spatial.bbox[0]) 
+                          ? (collection.extent.spatial.bbox as number[][]).map((bbox, idx) => (
+                              <div key={idx} style={{ marginLeft: '10px' }}>
+                                Bbox {idx + 1}: [{bbox.join(', ')}]
+                              </div>
+                            ))
+                          : <div style={{ marginLeft: '10px' }}>[{(collection.extent.spatial.bbox as number[]).join(', ')}]</div>
                         }
-                      } catch (error) {
-                        console.error('Error normalizing bbox for zoom:', error);
-                      }
-                    }
-                  }}
-                >
-                  Zoom to Extent{Array.isArray(collection.extent.spatial.bbox[0]) && collection.extent.spatial.bbox.length > 1 ? 's' : ''}
-                </Button>
-                <FormControl fullWidth>
-                  <InputLabel id="crs-select-label">CRS</InputLabel>
-                  <Select
-                    labelId="crs-select-label"
-                    id="crs-select"
-                    value={crs}
-                    label="CRS"
-                    onChange={handleCRS}
-                  >
-                      <MenuItem value={collection.extent.spatial.crs}>{collection.extent.spatial.crs}</MenuItem>
-                  </Select>
-                </FormControl>
-              </Box> 
-              : (typeof collection.extent !== "undefined" ? 
-                <Alert severity="warning"><AlertTitle>G: EXTENT</AlertTitle>Collection has an extent property but it is empty or invalid. This may indicate missing spatial bounding box information.</Alert>
-                :
-                <Alert severity="error"><AlertTitle>G: EXTENT</AlertTitle>Every collection within a collections array MUST have an extent parameter.</Alert> 
+                      </Alert>
+                      {!Array.isArray(collection.extent.spatial.bbox[0]) && (
+                        <Alert severity="warning" sx={{ mt: 1 }}>
+                          <AlertTitle>Legacy bbox format</AlertTitle>
+                          This collection uses a flat array format instead of the EDR standard array-of-bbox-arrays format.
+                        </Alert>
+                      )}
+                    </Box>
+                  ) : (
+                    <Box sx={{ ml: 2, mt: 1 }}>
+                      <Alert severity="error">
+                        <AlertTitle>G.1: Spatial Extent (Mandatory)</AlertTitle>
+                        Missing or invalid spatial extent. Spatial extent with bounding box and CRS is required.
+                      </Alert>
+                    </Box>
+                  )}
+
+                  {/* Temporal Extent Subsection (Optional) */}
+                  <Box sx={{ ml: 2, mt: 1 }}>
+                    <TemporalExtent 
+                      temporal={collection.extent.temporal} 
+                      collectionId={collection.id}
+                      isSubsection={true}
+                    />
+                  </Box>
+
+                  {/* Vertical Extent Subsection (Optional) */}
+                  {collection.extent?.vertical && (
+                    <Box sx={{ ml: 2, mt: 1 }}>
+                      <VerticalExtent 
+                        vertical={collection.extent.vertical} 
+                        collectionId={collection.id}
+                        isSubsection={true}
+                      />
+                    </Box>
+                  )}
+                </Box>
+              ) : (
+                <Alert severity="error">
+                  <AlertTitle>G: EXTENT</AlertTitle>
+                  Every collection within a collections array MUST have an extent parameter.
+                </Alert>
               )}
 
               { typeof collection.crs == "undefined" 
