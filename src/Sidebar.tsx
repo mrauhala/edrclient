@@ -431,7 +431,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                 ? <Alert severity="error"><AlertTitle>F: DATA_QUERIES</AlertTitle>Every collection within a collections array MUST have a data_queries parameter.</Alert>
                 : (
                   <>
-                    <QueryForm queryUrl={queryUrl} queries={collection.data_queries} setQueryUrl={setQueryUrl}/> 
+                    <QueryForm queryUrl={queryUrl} queries={collection.data_queries} setQueryUrl={setQueryUrl} collection={collection}/> 
                     {hasLocationQuery(collection) && (
                       <>
                         <Alert severity="info" sx={{ mt: 1 }}>

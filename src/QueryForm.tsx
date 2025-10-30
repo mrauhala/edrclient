@@ -7,36 +7,45 @@ import Alert from '@mui/material/Alert';
 import Link from '@mui/material/Link';
 import AlertTitle from '@mui/material/AlertTitle';
 import React from 'react';
-import { DataQueries } from './DataRetrievalAPI';
+import { DataQueries, getSupportedDataQueries, Collection } from './DataRetrievalAPI';
 
 
 interface QueryFormProps {
   queryUrl: string;
   queries: DataQueries;
   setQueryUrl: (url: string) => void;
+  collection?: Collection; // Optional: if provided, will use getSupportedDataQueries
 }
 
-const QueryForm = ({ queries, queryUrl, setQueryUrl }: QueryFormProps) => {
+const QueryForm = ({ queries, queryUrl, setQueryUrl, collection }: QueryFormProps) => {
 
   const [query, setQuery] = React.useState('');
+  
+  // Get supported queries - either from the collection helper or by filtering queries object
+  const supportedQueryKeys = collection 
+    ? getSupportedDataQueries(collection)
+    : Object.keys(queries).filter(key => queries[key]?.link?.href);
+  
   const handleQuery = (event: SelectChangeEvent) => {
     setQuery(event.target.value as string);
-    setQueryUrl(event.target.value);
-    console.log(queryUrl);
+    const selectedKey = event.target.value;
+    if (queries[selectedKey]?.link?.href) {
+      setQueryUrl(queries[selectedKey].link.href);
+    }
   };
 
   return (
     <Box sx={{ padding: 0, minWidth: 120 }}>
     <Alert severity="success">
       <AlertTitle>F: DATA_QUERIES</AlertTitle>
-      {Object.entries(queries).map(([key, q]) => (
+      {supportedQueryKeys.map((key) => (
         <div key={key}>
-          <Link href={q.link.href}>{q.link.title ? q.link.title : q.link.rel}</Link> ({q.link.rel})
+          <Link href={queries[key].link.href}>{queries[key].link.title ? queries[key].link.title : queries[key].link.rel}</Link> ({queries[key].link.rel})
         </div>
       ))}
     </Alert>
     <>
-      {queries ?
+      {supportedQueryKeys.length > 0 ?
 
           <FormControl fullWidth>
                 <InputLabel id="query-select-label">Query:</InputLabel>
@@ -47,7 +56,7 @@ const QueryForm = ({ queries, queryUrl, setQueryUrl }: QueryFormProps) => {
                   label="Query"
                   onChange={handleQuery}
                 >
-                  {Object.entries(queries).map(([key,q]) => (
+                  {supportedQueryKeys.map((key) => (
                     <MenuItem key={key} value={key}>{key}</MenuItem>
                   ))}
                 </Select>
