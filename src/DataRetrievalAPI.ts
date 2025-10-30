@@ -104,6 +104,31 @@ export interface LocationQueryResult {
   features: any[];
 }
 
+// Function to get all supported data query types for a collection
+export function getSupportedDataQueries(collection: Collection): string[] {
+  try {
+    if (!collection || !collection.data_queries || typeof collection.data_queries !== 'object') {
+      return [];
+    }
+    
+    const supportedQueries: string[] = [];
+    const queryTypes = Object.keys(collection.data_queries);
+    
+    for (const queryType of queryTypes) {
+      const query = collection.data_queries[queryType];
+      // Check if the query has a valid link
+      if (query && query.link && query.link.href) {
+        supportedQueries.push(queryType);
+      }
+    }
+    
+    return supportedQueries.sort(); // Sort alphabetically for consistent display
+  } catch (error) {
+    console.warn('Error getting supported data queries:', error);
+    return [];
+  }
+}
+
 // Function to check if a collection supports location queries
 export function hasLocationQuery(collection: Collection): boolean {
   try {

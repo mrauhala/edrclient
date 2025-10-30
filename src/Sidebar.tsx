@@ -18,9 +18,10 @@ import Link from '@mui/material/Link';
 import Alert from '@mui/material/Alert';
 import AlertTitle from '@mui/material/AlertTitle';
 import Button from '@mui/material/Button';
+import Chip from '@mui/material/Chip';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
 import React, { useEffect, useState } from 'react';
-import { getCollections, Collection, ValidationResult, normalizeBbox, hasLocationQuery, getLocationQueryUrl, executeLocationQuery } from './DataRetrievalAPI';
+import { getCollections, Collection, ValidationResult, normalizeBbox, hasLocationQuery, getLocationQueryUrl, executeLocationQuery, getSupportedDataQueries } from './DataRetrievalAPI';
 import FormatForm from './FormatForm';
 import ParameterForm from './ParameterForm';
 import QueryForm from './QueryForm';
@@ -332,22 +333,43 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
               </ListItemIcon>
               <ListItemText 
                 primary={
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span>{collection.title ? collection.title : collection.id}</span>
-                    {hasLocationQuery(collection) && (
-                      <span 
-                        style={{ 
-                          backgroundColor: '#2196F3', 
-                          color: 'white', 
-                          padding: '2px 8px', 
-                          borderRadius: '4px', 
-                          fontSize: '0.7rem',
-                          fontWeight: 'bold'
-                        }}
-                      >
-                        LOCATIONS
-                      </span>
+                  <div>
+                    {/* Data Query Type Badges - First row */}
+                    {getSupportedDataQueries(collection).length > 0 && (
+                      <div style={{ 
+                        display: 'flex', 
+                        gap: '4px', 
+                        flexWrap: 'wrap',
+                        marginBottom: '6px'
+                      }}>
+                        {getSupportedDataQueries(collection).map((queryType) => (
+                          <Chip
+                            key={queryType}
+                            label={queryType.toUpperCase()}
+                            size="small"
+                            color="primary"
+                            variant="outlined"
+                            sx={{ 
+                              height: '18px',
+                              fontSize: '0.6rem',
+                              fontWeight: 'bold',
+                              borderWidth: '1px',
+                              '& .MuiChip-label': {
+                                padding: '0 5px'
+                              }
+                            }}
+                          />
+                        ))}
+                      </div>
                     )}
+                    {/* Collection Title - Second row */}
+                    <div style={{ 
+                      fontSize: '1rem',
+                      fontWeight: 500,
+                      lineHeight: 1.3
+                    }}>
+                      {collection.title ? collection.title : collection.id}
+                    </div>
                   </div>
                 }
                 secondary={
@@ -409,7 +431,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                 ? <Alert severity="error"><AlertTitle>F: DATA_QUERIES</AlertTitle>Every collection within a collections array MUST have a data_queries parameter.</Alert>
                 : (
                   <>
-                    <QueryForm queryUrl={queryUrl} queries={collection.data_queries} setQueryUrl={setQueryUrl}/> 
+                    <QueryForm queryUrl={queryUrl} queries={collection.data_queries} setQueryUrl={setQueryUrl} collection={collection}/> 
                     {hasLocationQuery(collection) && (
                       <>
                         <Alert severity="info" sx={{ mt: 1 }}>
