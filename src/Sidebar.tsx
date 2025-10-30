@@ -358,14 +358,19 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                   </div>
                 }
                 secondary={
-                  <div>
-                    {collection.description && <div>{collection.description}</div>}
+                  <>
+                    {collection.description && <span>{collection.description}</span>}
                     {collection.title && collection.id && (
-                      <div style={{ fontSize: '0.875rem', color: 'rgba(0, 0, 0, 0.6)', marginTop: collection.description ? '4px' : '0' }}>
+                      <span style={{ 
+                        fontSize: '0.875rem', 
+                        color: 'rgba(0, 0, 0, 0.6)', 
+                        display: 'block', 
+                        marginTop: collection.description ? '4px' : '0' 
+                      }}>
                         ID: {collection.id}
-                      </div>
+                      </span>
                     )}
-                  </div>
+                  </>
                 } 
               />
               {openCollectionIndex === index ? <ExpandLess /> : <ExpandMore />}
