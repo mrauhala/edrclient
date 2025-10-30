@@ -333,24 +333,43 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
               </ListItemIcon>
               <ListItemText 
                 primary={
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
-                    <span>{collection.title ? collection.title : collection.id}</span>
-                    {getSupportedDataQueries(collection).map((queryType) => (
-                      <Chip
-                        key={queryType}
-                        label={queryType.toUpperCase()}
-                        size="small"
-                        color="primary"
-                        sx={{ 
-                          height: '20px',
-                          fontSize: '0.65rem',
-                          fontWeight: 'bold',
-                          '& .MuiChip-label': {
-                            padding: '0 6px'
-                          }
-                        }}
-                      />
-                    ))}
+                  <div>
+                    {/* Data Query Type Badges - First row */}
+                    {getSupportedDataQueries(collection).length > 0 && (
+                      <div style={{ 
+                        display: 'flex', 
+                        gap: '4px', 
+                        flexWrap: 'wrap',
+                        marginBottom: '6px'
+                      }}>
+                        {getSupportedDataQueries(collection).map((queryType) => (
+                          <Chip
+                            key={queryType}
+                            label={queryType.toUpperCase()}
+                            size="small"
+                            color="primary"
+                            variant="outlined"
+                            sx={{ 
+                              height: '18px',
+                              fontSize: '0.6rem',
+                              fontWeight: 'bold',
+                              borderWidth: '1px',
+                              '& .MuiChip-label': {
+                                padding: '0 5px'
+                              }
+                            }}
+                          />
+                        ))}
+                      </div>
+                    )}
+                    {/* Collection Title - Second row */}
+                    <div style={{ 
+                      fontSize: '1rem',
+                      fontWeight: 500,
+                      lineHeight: 1.3
+                    }}>
+                      {collection.title ? collection.title : collection.id}
+                    </div>
                   </div>
                 }
                 secondary={
