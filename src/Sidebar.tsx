@@ -357,7 +357,16 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                     )}
                   </div>
                 }
-                secondary={collection.description ? collection.description : null} 
+                secondary={
+                  <div>
+                    {collection.description && <div>{collection.description}</div>}
+                    {collection.title && collection.id && (
+                      <div style={{ fontSize: '0.875rem', color: 'rgba(0, 0, 0, 0.6)', marginTop: collection.description ? '4px' : '0' }}>
+                        ID: {collection.id}
+                      </div>
+                    )}
+                  </div>
+                } 
               />
               {openCollectionIndex === index ? <ExpandLess /> : <ExpandMore />}
             </ListItemButton>
