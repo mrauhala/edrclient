@@ -29,7 +29,7 @@ import SchemaInspector from './SchemaInspector';
 import LocationFeatureList from './LocationFeatureList';
 import TemporalExtent from './TemporalExtent';
 import VerticalExtent from './VerticalExtent';
-import CollectionValidationErrors from './CollectionValidationErrors';
+// import CollectionValidationErrors from './CollectionValidationErrors'; // Temporarily disabled for debugging
 
 interface SidebarProps {
   open: boolean;
@@ -137,8 +137,13 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   };
 
   const handleItemClick = async (index: number, key: string) => {
+    console.log('=== handleItemClick START ===');
+    console.log('index:', index, 'key:', key);
+    console.log('openCollectionIndex before:', openCollectionIndex);
+    
     // Toggle collection: close if already open, open if closed (and close others)
     const newIndex = openCollectionIndex === index ? null : index;
+    console.log('newIndex calculated:', newIndex);
     setOpenCollectionIndex(newIndex);
     setQueryUrl(apiUrl+"/"+key);
     
@@ -147,12 +152,14 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
     console.log('handleItemClick called with collection:', collection?.id, 'data_queries:', collection?.data_queries);
     
     // Notify parent about selected collection change
+    console.log('Calling onSelectedCollectionChange with:', newIndex !== null ? collection : null);
     if (onSelectedCollectionChange) {
       onSelectedCollectionChange(newIndex !== null ? collection : null);
     }
     
     // Only show extent and location data if collection is being opened
     if (newIndex !== null) {
+      console.log('Collection is being opened, processing extent and location data...');
       // Collection is being opened - show extent and location data
       // Safely check for bbox existence with proper validation
       if (collection && 
@@ -164,12 +171,16 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
           Array.isArray(collection.extent.spatial.bbox) &&
           collection.extent.spatial.bbox.length > 0) {
         
+        console.log('Collection has valid bbox, normalizing...');
         try {
           const normalizedBboxes = normalizeBbox(collection.extent.spatial.bbox);
+          console.log('Normalized bboxes:', normalizedBboxes);
           if (normalizedBboxes && onCollectionExtentChange) {
+            console.log('Calling onCollectionExtentChange with normalized bboxes');
             onCollectionExtentChange(normalizedBboxes);
           } else if (onCollectionExtentChange) {
             // normalizeBbox returned null, clear extent
+            console.log('normalizeBbox returned null, clearing extent');
             onCollectionExtentChange(null);
           }
         } catch (error) {
@@ -180,6 +191,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
         }
       } else {
         // Clear extent if collection doesn't have valid bbox
+        console.log('Collection does not have valid bbox, clearing extent');
         if (onCollectionExtentChange) {
           onCollectionExtentChange(null);
         }
@@ -378,6 +390,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
             
             <Collapse in={openCollectionIndex === index} timeout="auto" unmountOnExit>
               {/* Schema validation errors for this collection */}
+              {/* Temporarily disabled for debugging
               {validationResult.collectionErrors && validationResult.collectionErrors[collection.id] && (
                 <CollectionValidationErrors 
                   collectionId={collection.id}
@@ -385,6 +398,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                   expanded={false}
                 />
               )}
+              */}
 
               {typeof collection.id == "undefined" 
                 ? <Alert severity="error"><AlertTitle>A: ID</AlertTitle>"Every Collection within a collections array MUST have a unique (within the array) id parameter.</Alert>
@@ -521,7 +535,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                 : (
                   <>
                     <FormatForm queryUrl={queryUrl} formats={collection.output_formats} setQueryUrl={setQueryUrl}/> 
-                    {/* Schema validation errors specific to output_formats */}
+                    {/* Schema validation errors specific to output_formats - Temporarily disabled for debugging
                     {validationResult.collectionErrors && validationResult.collectionErrors[collection.id] && (
                       <CollectionValidationErrors 
                         collectionId={collection.id}
@@ -530,6 +544,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                         expanded={false}
                       />
                     )}
+                    */}
                   </>
                 )
               }
@@ -539,7 +554,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                 : (
                   <>
                     <ParameterForm queryUrl={queryUrl} parameters={collection.parameter_names} setQueryUrl={setQueryUrl}/> 
-                    {/* Schema validation errors specific to parameter_names */}
+                    {/* Schema validation errors specific to parameter_names - Temporarily disabled for debugging
                     {validationResult.collectionErrors && validationResult.collectionErrors[collection.id] && (
                       <CollectionValidationErrors 
                         collectionId={collection.id}
@@ -548,6 +563,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                         expanded={false}
                       />
                     )}
+                    */}
                   </>
                 )
               }
