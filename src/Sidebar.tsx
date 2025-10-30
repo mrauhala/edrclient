@@ -18,9 +18,10 @@ import Link from '@mui/material/Link';
 import Alert from '@mui/material/Alert';
 import AlertTitle from '@mui/material/AlertTitle';
 import Button from '@mui/material/Button';
+import Chip from '@mui/material/Chip';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
 import React, { useEffect, useState } from 'react';
-import { getCollections, Collection, ValidationResult, normalizeBbox, hasLocationQuery, getLocationQueryUrl, executeLocationQuery } from './DataRetrievalAPI';
+import { getCollections, Collection, ValidationResult, normalizeBbox, hasLocationQuery, getLocationQueryUrl, executeLocationQuery, getSupportedDataQueries } from './DataRetrievalAPI';
 import FormatForm from './FormatForm';
 import ParameterForm from './ParameterForm';
 import QueryForm from './QueryForm';
@@ -332,22 +333,24 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
               </ListItemIcon>
               <ListItemText 
                 primary={
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
                     <span>{collection.title ? collection.title : collection.id}</span>
-                    {hasLocationQuery(collection) && (
-                      <span 
-                        style={{ 
-                          backgroundColor: '#2196F3', 
-                          color: 'white', 
-                          padding: '2px 8px', 
-                          borderRadius: '4px', 
-                          fontSize: '0.7rem',
-                          fontWeight: 'bold'
+                    {getSupportedDataQueries(collection).map((queryType) => (
+                      <Chip
+                        key={queryType}
+                        label={queryType.toUpperCase()}
+                        size="small"
+                        color="primary"
+                        sx={{ 
+                          height: '20px',
+                          fontSize: '0.65rem',
+                          fontWeight: 'bold',
+                          '& .MuiChip-label': {
+                            padding: '0 6px'
+                          }
                         }}
-                      >
-                        LOCATIONS
-                      </span>
-                    )}
+                      />
+                    ))}
                   </div>
                 }
                 secondary={
