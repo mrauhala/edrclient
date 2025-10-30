@@ -70,14 +70,24 @@ export interface Collection {
   parameter_names?: parameterNames[] | { [key: string]: ParameterDefinition }; // Support both formats
 }
 
+export interface ValidationError {
+  message: string;
+  type?: 'cors' | 'network' | 'schema' | 'unknown';
+  path?: string;
+  keyword?: string;
+  allowedValues?: any;
+  schema?: any;
+  data?: any;
+  collectionId?: string;
+  section?: string;
+}
+
 export interface ValidationResult {
   isValid: boolean;
-  errors: Array<{
-    message: string;
-    type?: 'cors' | 'network' | 'schema' | 'unknown';
-  }> | null;
+  errors: ValidationError[] | null;
   schemaCount?: number;
   schemaUrls?: string[];
+  collectionErrors?: { [collectionId: string]: ValidationError[] };
 }
 
 interface CollectionsResponse {
@@ -565,7 +575,8 @@ export async function getCollections(apiUrl: string): Promise<GetCollectionsResu
         isValid: validationResult.valid,
         errors: validationResult.errors,
         schemaCount: validator.getLoadedSchemaCount(),
-        schemaUrls: validator.getLoadedSchemaUrls()
+        schemaUrls: validator.getLoadedSchemaUrls(),
+        collectionErrors: validationResult.collectionErrors
       }
     };
   } catch (error) {

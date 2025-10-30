@@ -29,6 +29,7 @@ import SchemaInspector from './SchemaInspector';
 import LocationFeatureList from './LocationFeatureList';
 import TemporalExtent from './TemporalExtent';
 import VerticalExtent from './VerticalExtent';
+import CollectionValidationErrors from './CollectionValidationErrors';
 
 interface SidebarProps {
   open: boolean;
@@ -143,7 +144,6 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
     
     // Find the collection and trigger extent change
     const collection = collections[index];
-    console.log('handleItemClick called with collection:', collection?.id, 'data_queries:', collection?.data_queries);
     
     // Notify parent about selected collection change
     if (onSelectedCollectionChange) {
@@ -185,21 +185,16 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
       }
       
       // Check for location query support and execute if available
-      console.log('Checking collection for location query support:', collection?.id);
       if (collection && hasLocationQuery(collection) && onLocationFeaturesChange) {
-        console.log('Collection supports location queries, executing...');
         const locationQueryUrl = getLocationQueryUrl(collection);
-        console.log('Location query URL:', locationQueryUrl);
         
         if (locationQueryUrl) {
           try {
             const locationResult = await executeLocationQuery(locationQueryUrl);
             if (locationResult && locationResult.features) {
-              console.log(`Found ${locationResult.features.length} location features`);
               onLocationFeaturesChange(locationResult.features);
               setCurrentLocationCollection(collection.id); // Track which collection has location features
             } else {
-              console.log('No location features returned');
               onLocationFeaturesChange(null);
               setCurrentLocationCollection(null);
             }
@@ -210,7 +205,6 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
           }
         }
       } else {
-        console.log('Collection does not support location queries or callback not available');
         if (onLocationFeaturesChange) {
           // Clear location features if collection doesn't support location queries
           onLocationFeaturesChange(null);
@@ -356,12 +350,35 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                     )}
                   </div>
                 }
-                secondary={collection.description ? collection.description : null} 
+                secondary={
+                  <>
+                    {collection.description && <span>{collection.description}</span>}
+                    {collection.title && collection.id && (
+                      <span style={{ 
+                        fontSize: '0.875rem', 
+                        color: 'rgba(0, 0, 0, 0.6)', 
+                        display: 'block', 
+                        marginTop: collection.description ? '4px' : '0' 
+                      }}>
+                        ID: {collection.id}
+                      </span>
+                    )}
+                  </>
+                } 
               />
               {openCollectionIndex === index ? <ExpandLess /> : <ExpandMore />}
             </ListItemButton>
             
             <Collapse in={openCollectionIndex === index} timeout="auto" unmountOnExit>
+              {/* Schema validation errors for this collection */}
+              {validationResult.collectionErrors && validationResult.collectionErrors[collection.id] && (
+                <CollectionValidationErrors 
+                  collectionId={collection.id}
+                  errors={validationResult.collectionErrors[collection.id]}
+                  expanded={false}
+                />
+              )}
+
               {typeof collection.id == "undefined" 
                 ? <Alert severity="error"><AlertTitle>A: ID</AlertTitle>"Every Collection within a collections array MUST have a unique (within the array) id parameter.</Alert>
                 : <Alert severity="success"><AlertTitle>A: ID</AlertTitle>{collection.id}</Alert>
@@ -494,12 +511,38 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
               
               { typeof collection.output_formats == "undefined" 
                 ? <Alert severity="error"><AlertTitle>I: OUTPUT_FORMATS</AlertTitle>Every collection within a collections array MUST have an output_formats parameter.</Alert>
-                : <FormatForm queryUrl={queryUrl} formats={collection.output_formats} setQueryUrl={setQueryUrl}/> 
+                : (
+                  <>
+                    <FormatForm queryUrl={queryUrl} formats={collection.output_formats} setQueryUrl={setQueryUrl}/> 
+                    {/* Schema validation errors specific to output_formats */}
+                    {validationResult.collectionErrors && validationResult.collectionErrors[collection.id] && (
+                      <CollectionValidationErrors 
+                        collectionId={collection.id}
+                        errors={validationResult.collectionErrors[collection.id]}
+                        section="output_formats"
+                        expanded={false}
+                      />
+                    )}
+                  </>
+                )
               }
 
               { typeof collection.parameter_names == "undefined"
                 ? <Alert severity="error"><AlertTitle>J: PARAMETER_NAMES</AlertTitle>Every collection within a collections array MUST have a parameter_names parameter.</Alert>
-                : <ParameterForm queryUrl={queryUrl} parameters={collection.parameter_names} setQueryUrl={setQueryUrl}/> 
+                : (
+                  <>
+                    <ParameterForm queryUrl={queryUrl} parameters={collection.parameter_names} setQueryUrl={setQueryUrl}/> 
+                    {/* Schema validation errors specific to parameter_names */}
+                    {validationResult.collectionErrors && validationResult.collectionErrors[collection.id] && (
+                      <CollectionValidationErrors 
+                        collectionId={collection.id}
+                        errors={validationResult.collectionErrors[collection.id]}
+                        section="parameter_names"
+                        expanded={false}
+                      />
+                    )}
+                  </>
+                )
               }
             </Collapse>
           </React.Fragment>
