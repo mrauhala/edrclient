@@ -126,7 +126,7 @@ export class SchemaValidator {
     }
   }
 
-  public async validateCollections(data: any): Promise<{ valid: boolean; errors: any[] | null }> {
+  public async validateCollections(data: any): Promise<{ valid: boolean; errors: any[] | null; collectionErrors?: { [collectionId: string]: any[] } }> {
     if (!this.isSchemaLoaded || !this.collectionsValidate) {
       return { 
         valid: true, // Default to valid to prevent UI issues
@@ -147,7 +147,7 @@ export class SchemaValidator {
         console.warn('❌ EDR collections schema validation failed');
         console.warn('Validation errors:', this.collectionsValidate.errors);
         
-        // Convert AJV errors to our format
+        // Convert AJV errors to our format and categorize by collection
         const errors = this.collectionsValidate.errors?.map((error: any) => ({
           path: error.instancePath || error.dataPath || 'root',
           message: `${error.instancePath || error.dataPath || ''}: ${error.message}`,
@@ -156,8 +156,50 @@ export class SchemaValidator {
           schema: error.schema,
           data: error.data
         })) || [];
+
+        // Categorize errors by collection
+        const collectionErrors: { [collectionId: string]: any[] } = {};
+        const globalErrors: any[] = [];
+
+        errors.forEach((error: any) => {
+          const pathParts = error.path.split('/').filter((p: string) => p);
+          
+          // Check if error path indicates a specific collection
+          if (pathParts.length >= 3 && pathParts[0] === 'collections' && !isNaN(parseInt(pathParts[1]))) {
+            const collectionIndex = parseInt(pathParts[1]);
+            
+            // Try to get collection ID from the data
+            if (data?.collections?.[collectionIndex]?.id) {
+              const collectionId = data.collections[collectionIndex].id;
+              
+              // Determine the section based on the path
+              let section = '';
+              if (pathParts.length > 2) {
+                section = pathParts[2];
+              }
+              
+              if (!collectionErrors[collectionId]) {
+                collectionErrors[collectionId] = [];
+              }
+              
+              collectionErrors[collectionId].push({
+                ...error,
+                collectionId,
+                section
+              });
+            } else {
+              globalErrors.push(error);
+            }
+          } else {
+            globalErrors.push(error);
+          }
+        });
         
-        return { valid: false, errors };
+        return { 
+          valid: false, 
+          errors: globalErrors.length > 0 ? globalErrors : errors,
+          collectionErrors: Object.keys(collectionErrors).length > 0 ? collectionErrors : undefined
+        };
       }
     } catch (error) {
       console.error('❌ EDR schema validation error:', error);

@@ -29,6 +29,7 @@ import SchemaInspector from './SchemaInspector';
 import LocationFeatureList from './LocationFeatureList';
 import TemporalExtent from './TemporalExtent';
 import VerticalExtent from './VerticalExtent';
+import CollectionValidationErrors from './CollectionValidationErrors';
 
 interface SidebarProps {
   open: boolean;
@@ -362,6 +363,15 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
             </ListItemButton>
             
             <Collapse in={openCollectionIndex === index} timeout="auto" unmountOnExit>
+              {/* Schema validation errors for this collection */}
+              {validationResult.collectionErrors && validationResult.collectionErrors[collection.id] && (
+                <CollectionValidationErrors 
+                  collectionId={collection.id}
+                  errors={validationResult.collectionErrors[collection.id]}
+                  expanded={false}
+                />
+              )}
+
               {typeof collection.id == "undefined" 
                 ? <Alert severity="error"><AlertTitle>A: ID</AlertTitle>"Every Collection within a collections array MUST have a unique (within the array) id parameter.</Alert>
                 : <Alert severity="success"><AlertTitle>A: ID</AlertTitle>{collection.id}</Alert>
@@ -494,12 +504,38 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
               
               { typeof collection.output_formats == "undefined" 
                 ? <Alert severity="error"><AlertTitle>I: OUTPUT_FORMATS</AlertTitle>Every collection within a collections array MUST have an output_formats parameter.</Alert>
-                : <FormatForm queryUrl={queryUrl} formats={collection.output_formats} setQueryUrl={setQueryUrl}/> 
+                : (
+                  <>
+                    <FormatForm queryUrl={queryUrl} formats={collection.output_formats} setQueryUrl={setQueryUrl}/> 
+                    {/* Schema validation errors specific to output_formats */}
+                    {validationResult.collectionErrors && validationResult.collectionErrors[collection.id] && (
+                      <CollectionValidationErrors 
+                        collectionId={collection.id}
+                        errors={validationResult.collectionErrors[collection.id]}
+                        section="output_formats"
+                        expanded={false}
+                      />
+                    )}
+                  </>
+                )
               }
 
               { typeof collection.parameter_names == "undefined"
                 ? <Alert severity="error"><AlertTitle>J: PARAMETER_NAMES</AlertTitle>Every collection within a collections array MUST have a parameter_names parameter.</Alert>
-                : <ParameterForm queryUrl={queryUrl} parameters={collection.parameter_names} setQueryUrl={setQueryUrl}/> 
+                : (
+                  <>
+                    <ParameterForm queryUrl={queryUrl} parameters={collection.parameter_names} setQueryUrl={setQueryUrl}/> 
+                    {/* Schema validation errors specific to parameter_names */}
+                    {validationResult.collectionErrors && validationResult.collectionErrors[collection.id] && (
+                      <CollectionValidationErrors 
+                        collectionId={collection.id}
+                        errors={validationResult.collectionErrors[collection.id]}
+                        section="parameter_names"
+                        expanded={false}
+                      />
+                    )}
+                  </>
+                )
               }
             </Collapse>
           </React.Fragment>
