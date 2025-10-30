@@ -534,7 +534,6 @@ export async function getCollections(apiUrl: string): Promise<GetCollectionsResu
     console.log('Fetching collections from:', apiUrl);
     const response = await axios.get<CollectionsResponse>(apiUrl);
     const data = response.data;
-    console.log('Raw API response:', data);
 
     let collections: Collection[] = [];
     

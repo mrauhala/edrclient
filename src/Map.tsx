@@ -30,6 +30,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
   const [map, setMap] = useState<Map | null>(null);
   const [vectorLayer, setVectorLayer] = useState<VectorLayer<VectorSource> | null>(null);
   const [locationLayer, setLocationLayer] = useState<VectorLayer<VectorSource> | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [tooltipOverlay, setTooltipOverlay] = useState<Overlay | null>(null);
   const boundingBoxRef = useRef(boundingBox);
   const selectedExtentsRef = useRef(selectedCollectionExtents);
@@ -183,7 +184,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
       locationLayer.getSource()?.clear();
       locationFeaturesRef.current = null;
     }
-  }, [map, locationLayer, locationFeatures]);
+  }, [map, locationLayer, locationFeatures, selectedCollectionExtents]);
 
   useEffect(() => {
     if (map && boundingBoxRef.current !== boundingBox) {
@@ -367,7 +368,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
     return () => {
       openLayersMap.setTarget(undefined);
     };
-  }, [zoomLevel]);
+  }, [zoomLevel, onFeatureSelect]);
 
   useEffect(() => {
     if (onUpdateBoundingBox) {

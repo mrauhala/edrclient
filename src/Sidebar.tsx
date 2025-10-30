@@ -81,17 +81,6 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
         setCollections(result.collections || []);
         console.log(`Loaded ${result.collections?.length || 0} collections`);
         
-        if (result.collections && result.collections.length > 0) {
-          // Log which collections have location queries
-          try {
-            const collectionsWithLocations = result.collections.filter(c => hasLocationQuery(c));
-            console.log(`Collections with location queries: ${collectionsWithLocations.length}`, 
-              collectionsWithLocations.map(c => c.id));
-          } catch (filterError) {
-            console.warn('Error filtering collections with location queries:', filterError);
-          }
-        }
-        
         // Update validation result
         setValidationResult(result.validation);
         
