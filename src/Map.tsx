@@ -294,6 +294,12 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
       }),
     });
 
+    // Set canvas willReadFrequently attribute for better performance
+    const canvas = openLayersMap.getViewport().querySelector('canvas');
+    if (canvas) {
+      (canvas as any).willReadFrequently = true;
+    }
+
     setMap(openLayersMap);
     setVectorLayer(newVectorLayer);
     setLocationLayer(newLocationLayer);
