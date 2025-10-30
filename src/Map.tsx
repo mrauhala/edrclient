@@ -36,6 +36,12 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
   const selectedExtentsRef = useRef(selectedCollectionExtents);
   const locationFeaturesRef = useRef(locationFeatures);
   const tooltipRef = useRef<HTMLDivElement>(null);
+  const onFeatureSelectRef = useRef(onFeatureSelect);
+
+  // Keep the callback ref updated
+  useEffect(() => {
+    onFeatureSelectRef.current = onFeatureSelect;
+  }, [onFeatureSelect]);
 
   // Effect to handle selected collection extents changes (multiple bboxes)
   useEffect(() => {
@@ -318,15 +324,15 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
           
           if (originalFeature) {
             console.log('Selected location feature:', originalFeature);
-            onFeatureSelect?.(originalFeature);
+            onFeatureSelectRef.current?.(originalFeature);
           }
         } else {
           // Clicked somewhere else, clear selection
-          onFeatureSelect?.(null);
+          onFeatureSelectRef.current?.(null);
         }
       } else {
         // No features at click point, clear selection
-        onFeatureSelect?.(null);
+        onFeatureSelectRef.current?.(null);
       }
     });
 
@@ -368,7 +374,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
     return () => {
       openLayersMap.setTarget(undefined);
     };
-  }, [zoomLevel, onFeatureSelect]);
+  }, [zoomLevel]); // Removed onFeatureSelect from dependencies to prevent map recreation
 
   useEffect(() => {
     if (onUpdateBoundingBox) {
@@ -482,7 +488,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
       
       <FeatureInfo 
         feature={selectedFeature} 
-        onClose={() => onFeatureSelect?.(null)} 
+        onClose={() => onFeatureSelectRef.current?.(null)} 
       />
     </div>
   );
