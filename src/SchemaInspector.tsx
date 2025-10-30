@@ -10,7 +10,6 @@ import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import Alert from '@mui/material/Alert';
 import axios from 'axios';
-import SchemaValidator from './SchemaValidator';
 
 const SchemaInspector: React.FC = () => {
   const [open, setOpen] = useState(false);
@@ -61,9 +60,8 @@ const SchemaInspector: React.FC = () => {
       const response = await axios.get(schemaUrl);
       setSchemaData(response.data);
       
-      // Register this schema in our validator
-      const validator = SchemaValidator.getInstance();
-      validator.registerSchema(response.data, schemaUrl);
+      // Note: Schema loaded for inspection (validation uses EDR compliance checking)
+      console.log(`Schema loaded for inspection: ${schemaUrl}`);
       
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error fetching schema');
@@ -84,9 +82,8 @@ const SchemaInspector: React.FC = () => {
         absoluteUrl = new URL(reference, baseUrl).toString();
       }
       
-      // Load and register the referenced schema
-      const validator = SchemaValidator.getInstance();
-      await validator.fetchAndRegisterSchema(reference, schemaUrl.substring(0, schemaUrl.lastIndexOf('/') + 1));
+      // Load referenced schema for inspection
+      console.log(`Loading referenced schema: ${absoluteUrl}`);
       
       // Fetch it to display
       const response = await axios.get(absoluteUrl);
