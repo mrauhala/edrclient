@@ -10,6 +10,7 @@ import LayersIcon from '@mui/icons-material/Layers';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
 import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
 import InputLabel from '@mui/material/InputLabel';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
@@ -21,7 +22,7 @@ import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
 import React, { useEffect, useState } from 'react';
-import { getCollections, Collection, ValidationResult, normalizeBbox, hasLocationQuery, getLocationQueryUrl, executeLocationQuery, getSupportedDataQueries } from './DataRetrievalAPI';
+import { getCollections, Collection, ValidationResult, normalizeBbox, hasLocationQuery, getLocationQueryUrl, executeLocationQuery, getSupportedDataQueries, normalizeTemporal } from './DataRetrievalAPI';
 import FormatForm from './FormatForm';
 import ParameterForm from './ParameterForm';
 import QueryForm from './QueryForm';
@@ -31,6 +32,7 @@ import LocationFeatureList from './LocationFeatureList';
 import TemporalExtent from './TemporalExtent';
 import VerticalExtent from './VerticalExtent';
 import CollectionValidationErrors from './CollectionValidationErrors';
+import SwaggerUIViewer from './SwaggerUIViewer';
 
 interface SidebarProps {
   open: boolean;
@@ -46,27 +48,32 @@ interface SidebarProps {
 
 // EDR service options
 const edrServices = [
-  { label: 'FMI Open Data', value: 'https://opendata.fmi.fi/edr/collections' },
-  { label: 'SWIM Met Norway', value: 'https://swim.met.no/collections' },
-  { label: 'Norwegian Met Office Isobaric', value: 'https://edrisobaric.k8s.met.no/collections' },
-  { label: 'SWIM iblsoft (Test empty bbox)', value: 'https://swim.iblsoft.com/edr/collections' },
-  { label: 'Met Office Labs', value: 'https://labs.metoffice.gov.uk/edr/collections' },
-  { label: 'Aviation Weather (WIFS)', value: 'https://aviationweather.gov/wifs/api/collections?f=json' },
-  { label: 'Meteogate Observations', value: 'https://observations.meteogate.eu/collections' },
-  { label: 'SmartMet Kenya', value: 'https://data-kenya.smartmet.org/edr/collections' },
-  { label: 'DWD WIS2 GDC', value: 'https://wis2.dwd.de/gdc/collections' },
+  { label: 'FMI Open Data', value: 'https://opendata.fmi.fi/edr' },
+  { label: 'SWIM Met Norway', value: 'https://swim.met.no' },
+  { label: 'Norwegian Met Office Isobaric', value: 'https://edrisobaric.k8s.met.no' },
+  { label: 'SWIM iblsoft (Test empty bbox)', value: 'https://swim.iblsoft.com/edr' },
+  { label: 'Met Office Labs', value: 'https://labs.metoffice.gov.uk/edr' },
+  { label: 'Aviation Weather (WIFS)', value: 'https://aviationweather.gov/wifs/api' },
+  { label: 'Meteogate Observations', value: 'https://observations.meteogate.eu' },
+  { label: 'SmartMet Kenya', value: 'https://data-kenya.smartmet.org/edr' },
+  { label: 'DWD WIS2 GDC', value: 'https://wis2.dwd.de/gdc/' },
   { label: 'Custom', value: '' }
 ];
 
 const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExtentChange, onLocationFeaturesChange, onFeatureSelect, onSelectedCollectionChange, locationFeatures }: SidebarProps) => {
-  const [apiUrl, setApiUrl] = useState('https://opendata.fmi.fi/edr/collections');
-  const [selectedService, setSelectedService] = useState('https://opendata.fmi.fi/edr/collections');
-  const [queryUrl, setQueryUrl] = useState('https://opendata.fmi.fi/edr/collections');
+  const [apiUrl, setApiUrl] = useState('https://opendata.fmi.fi/edr');
+  const [selectedService, setSelectedService] = useState('https://opendata.fmi.fi/edr');
+  const [queryUrl, setQueryUrl] = useState('https://opendata.fmi.fi/edr');
   const [collections, setCollections] = useState<Collection[]>([]);
   const [validationResult, setValidationResult] = useState<ValidationResult>({ isValid: true, errors: null });
   const [showValidationDetails, setShowValidationDetails] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [currentLocationCollection, setCurrentLocationCollection] = useState<string | null>(null);
+  const [landingPageUrl, setLandingPageUrl] = useState<string | null>(null);
+  const [collectionsUrl, setCollectionsUrl] = useState<string | null>(null);
+  const [landingPageTitle, setLandingPageTitle] = useState<string | null>(null);
+  const [landingPageDescription, setLandingPageDescription] = useState<string | null>(null);
+  const [serviceDescUrl, setServiceDescUrl] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadCollections() {
@@ -85,6 +92,15 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
         
         // Update validation result
         setValidationResult(result.validation);
+        
+        // Update URLs for display
+        setLandingPageUrl(result.landingPageUrl || null);
+        setCollectionsUrl(result.collectionsUrl || null);
+        
+        // Update landing page info for display
+        setLandingPageTitle(result.landingPageTitle || null);
+        setLandingPageDescription(result.landingPageDescription || null);
+        setServiceDescUrl(result.serviceDescUrl || null);
         
         // Clear any previous extent/location data when switching services
         if (onCollectionExtentChange) {
@@ -235,8 +251,36 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
     <Paper style={{minWidth: 200, maxHeight: '100vh', overflow: 'auto'}}>
       <Card sx={{ minWidth: 275 }}>
         <CardContent>
+          {/* Service Information from Landing Page */}
+          {(landingPageTitle || landingPageDescription) && (
+            <Box sx={{ mb: 2, p: 2, backgroundColor: 'rgba(25, 118, 210, 0.08)', borderRadius: 1 }}>
+              {landingPageTitle && (
+                <Typography variant="h6" gutterBottom sx={{ color: 'primary.main', fontWeight: 600 }}>
+                  {landingPageTitle}
+                </Typography>
+              )}
+              {landingPageDescription && (
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  {landingPageDescription}
+                </Typography>
+              )}
+            </Box>
+          )}
+          
           <Box sx={{ mb: 2 }}>
-            Current query URL: {queryUrl}
+            {landingPageUrl && (
+              <div style={{ marginBottom: '8px' }}>
+                <strong>Landing Page:</strong> {landingPageUrl}
+              </div>
+            )}
+            {collectionsUrl && (
+              <div>
+                <strong>Collections URL:</strong> {collectionsUrl}
+              </div>
+            )}
+            {!landingPageUrl && !collectionsUrl && (
+              <div>Current query URL: {queryUrl}</div>
+            )}
           </Box>
           
           <ValidationResults 
@@ -290,6 +334,10 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
         >
           {isLoading ? 'Loading...' : 'Validate'}
         </Button>
+        <SwaggerUIViewer 
+          serviceDescUrl={serviceDescUrl} 
+          serviceName={landingPageTitle || undefined}
+        />
         <SchemaInspector />
       </Box>
       
@@ -385,6 +433,39 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                         ID: {collection.id}
                       </span>
                     )}
+                    {/* Temporal Extent Intervals */}
+                    {collection.extent?.temporal && (() => {
+                      const normalizedTemporal = normalizeTemporal(collection.extent.temporal);
+                      if (normalizedTemporal && normalizedTemporal.intervals.length > 0) {
+                        return (
+                          <div style={{ marginTop: '8px' }}>
+                            <div style={{ 
+                              fontSize: '0.75rem', 
+                              fontWeight: 600,
+                              color: 'rgba(0, 0, 0, 0.7)',
+                              marginBottom: '4px'
+                            }}>
+                              Temporal Intervals:
+                            </div>
+                            {normalizedTemporal.intervals.map((interval, idx) => (
+                              <div 
+                                key={idx}
+                                style={{ 
+                                  fontSize: '0.7rem', 
+                                  color: 'rgba(0, 0, 0, 0.6)',
+                                  fontFamily: 'monospace',
+                                  paddingLeft: '8px',
+                                  marginBottom: '2px'
+                                }}
+                              >
+                                [{interval[0] === null ? 'null' : interval[0]}, {interval[1] === null ? 'null' : interval[1]}]
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
                   </>
                 } 
               />

@@ -88,15 +88,30 @@ export interface ValidationResult {
   schemaCount?: number;
   schemaUrls?: string[];
   collectionErrors?: { [collectionId: string]: ValidationError[] };
+  landingPageValidation?: {
+    isValid: boolean;
+    errors: ValidationError[] | null;
+  };
 }
 
 interface CollectionsResponse {
   collections: Collection[];
 }
 
+export interface LandingPage {
+  title?: string;
+  description?: string;
+  links: Link[];
+}
+
 export interface GetCollectionsResult {
   collections: Collection[];
   validation: ValidationResult;
+  landingPageUrl?: string;
+  collectionsUrl?: string;
+  landingPageTitle?: string;
+  landingPageDescription?: string;
+  serviceDescUrl?: string;
 }
 
 export interface LocationQueryResult {
@@ -565,9 +580,70 @@ export async function getCollections(apiUrl: string): Promise<GetCollectionsResu
       await validator.loadSchema();
     }
 
-    // Fetch data from API
-    console.log('Fetching collections from:', apiUrl);
-    const response = await axios.get<CollectionsResponse>(apiUrl);
+    // Step 1: Fetch and validate the landing page
+    console.log('Step 1: Fetching landing page from:', apiUrl);
+    
+    // Add f=json format parameter if not already present
+    const landingPageUrl = new URL(apiUrl);
+    if (!landingPageUrl.searchParams.has('f')) {
+      landingPageUrl.searchParams.set('f', 'json');
+    }
+    
+    const landingPageResponse = await axios.get<LandingPage>(landingPageUrl.toString());
+    const landingPageData = landingPageResponse.data;
+
+    // Validate the landing page
+    const landingPageValidation = await validator.validateLandingPage(landingPageData);
+    console.log(`Landing page validation result: ${landingPageValidation.valid ? 'Valid' : 'Invalid'}`);
+
+    // Step 2: Extract the collections URL from landing page links
+    let collectionsUrl: string | null = null;
+    let serviceDescUrl: string | null = null;
+    
+    if (landingPageData && landingPageData.links && Array.isArray(landingPageData.links)) {
+      // Look for a link with rel='data' or rel='http://www.opengis.net/def/rel/ogc/1.0/data'
+      const dataLink = landingPageData.links.find(
+        (link: Link) => link.rel === 'data' || 
+                       link.rel === 'http://www.opengis.net/def/rel/ogc/1.0/data'
+      );
+      
+      // Look for a link with rel='service-desc' for OpenAPI/Swagger documentation
+      const serviceDescLink = landingPageData.links.find(
+        (link: Link) => link.rel === 'service-desc' || 
+                       link.rel === 'http://www.opengis.net/def/rel/ogc/1.0/service-desc'
+      );
+      
+      if (dataLink && dataLink.href) {
+        collectionsUrl = dataLink.href;
+        console.log('Found collections URL from landing page:', collectionsUrl);
+      } else {
+        console.warn('No data link found in landing page. Available links:', 
+          landingPageData.links.map((l: Link) => ({ rel: l.rel, href: l.href })));
+        
+        // Fallback: try appending /collections to the base URL
+        collectionsUrl = `${apiUrl}/collections`;
+        console.log('Using fallback collections URL:', collectionsUrl);
+      }
+      
+      if (serviceDescLink && serviceDescLink.href) {
+        serviceDescUrl = serviceDescLink.href;
+        console.log('Found service description URL from landing page:', serviceDescUrl);
+      }
+    } else {
+      console.warn('Landing page has no links array. Using fallback.');
+      collectionsUrl = `${apiUrl}/collections`;
+    }
+
+    // Step 3: Fetch collections from the discovered URL
+    console.log('Step 2: Fetching collections from:', collectionsUrl);
+    
+    // Add f=json format parameter if not already present
+    const collectionsUrlWithFormat = new URL(collectionsUrl);
+    if (!collectionsUrlWithFormat.searchParams.has('f')) {
+      collectionsUrlWithFormat.searchParams.set('f', 'json');
+    }
+    
+    const response = await axios.get<CollectionsResponse>(collectionsUrlWithFormat.toString());
     const data = response.data;
 
     let collections: Collection[] = [];
@@ -586,23 +662,41 @@ export async function getCollections(apiUrl: string): Promise<GetCollectionsResu
       }
     }
 
-    // Perform validation with the enhanced async method
-    const validationResult = await validator.validateCollections(data);
-
-    // Log validation details
-    console.log(`Schema validation result: ${validationResult.valid ? 'Valid' : 'Invalid'}`);
+    // Step 4: Validate collections
+    const collectionsValidation = await validator.validateCollections(data);
+    console.log(`Collections validation result: ${collectionsValidation.valid ? 'Valid' : 'Invalid'}`);
     console.log(`Loaded schema count: ${validator.getLoadedSchemaCount()}`);
+    
+    // Combine both validation results
+    const combinedValidation: ValidationResult = {
+      isValid: landingPageValidation.valid && collectionsValidation.valid,
+      errors: [
+        ...(landingPageValidation.errors || []),
+        ...(collectionsValidation.errors || [])
+      ],
+      schemaCount: validator.getLoadedSchemaCount(),
+      schemaUrls: validator.getLoadedSchemaUrls(),
+      collectionErrors: collectionsValidation.collectionErrors,
+      landingPageValidation: {
+        isValid: landingPageValidation.valid,
+        errors: landingPageValidation.errors
+      }
+    };
+
+    // If no errors, set errors to null
+    if (combinedValidation.errors && combinedValidation.errors.length === 0) {
+      combinedValidation.errors = null;
+    }
     
     // Even if validation fails, still return any collections we found
     return {
       collections: collections,
-      validation: {
-        isValid: validationResult.valid,
-        errors: validationResult.errors,
-        schemaCount: validator.getLoadedSchemaCount(),
-        schemaUrls: validator.getLoadedSchemaUrls(),
-        collectionErrors: validationResult.collectionErrors
-      }
+      validation: combinedValidation,
+      landingPageUrl: apiUrl,
+      collectionsUrl: collectionsUrl,
+      landingPageTitle: landingPageData?.title,
+      landingPageDescription: landingPageData?.description,
+      serviceDescUrl: serviceDescUrl || undefined
     };
   } catch (error) {
     console.error('Error fetching collections:', error);
@@ -646,7 +740,8 @@ export async function getCollections(apiUrl: string): Promise<GetCollectionsResu
         }],
         schemaCount: validator.isLoaded() ? validator.getLoadedSchemaCount() : 0,
         schemaUrls: validator.isLoaded() ? validator.getLoadedSchemaUrls() : []
-      }
+      },
+      landingPageUrl: apiUrl
     };
   }
 }
