@@ -96,31 +96,51 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
         });
         
         // Zoom to the overall extent that encompasses all bboxes
-        if (isFinite(minWest)) {
-          const overallExtent = [
-            ...fromLonLat([minWest, minSouth]),
-            ...fromLonLat([maxEast, maxNorth])
-          ];
+        if (isFinite(minWest) && isFinite(minSouth) && isFinite(maxEast) && isFinite(maxNorth)) {
+          // Additional validation: check if the extent is not empty (has area)
+          const hasValidArea = minWest !== maxEast && minSouth !== maxNorth;
           
-          console.log('Zooming to overall extent:', overallExtent);
-          console.log('Overall bbox:', { minWest, minSouth, maxEast, maxNorth });
-          
-          // Check if this is a global bbox (-180, -90, 180, 90)
-          const isGlobalBbox = minWest <= -179 && minSouth <= -89 && maxEast >= 179 && maxNorth >= 89;
-          
-          if (isGlobalBbox) {
-            console.log('Detected global bbox, setting moderate zoom level');
-            // For global bbox, just set a reasonable zoom level instead of fitting to full extent
-            map.getView().setCenter([0, 0]);
-            map.getView().setZoom(2);
+          if (!hasValidArea) {
+            console.warn('Extent has no area (point or line), skipping zoom');
           } else {
-            map.getView().fit(overallExtent, { 
-              padding: [50, 50, 50, 50],
-              duration: 1000 // Smooth animation
-            });
+            const overallExtent = [
+              ...fromLonLat([minWest, minSouth]),
+              ...fromLonLat([maxEast, maxNorth])
+            ];
+            
+            console.log('Zooming to overall extent:', overallExtent);
+            console.log('Overall bbox:', { minWest, minSouth, maxEast, maxNorth });
+            
+            // Validate that the transformed extent is also valid
+            const isValidExtent = overallExtent.every(coord => isFinite(coord)) &&
+                                  overallExtent[0] !== overallExtent[2] && 
+                                  overallExtent[1] !== overallExtent[3];
+            
+            if (!isValidExtent) {
+              console.warn('Transformed extent is invalid, skipping zoom');
+            } else {
+              // Check if this is a global bbox (-180, -90, 180, 90)
+              const isGlobalBbox = minWest <= -179 && minSouth <= -89 && maxEast >= 179 && maxNorth >= 89;
+              
+              if (isGlobalBbox) {
+                console.log('Detected global bbox, setting moderate zoom level');
+                // For global bbox, just set a reasonable zoom level instead of fitting to full extent
+                map.getView().setCenter([0, 0]);
+                map.getView().setZoom(2);
+              } else {
+                try {
+                  map.getView().fit(overallExtent, { 
+                    padding: [50, 50, 50, 50],
+                    duration: 1000 // Smooth animation
+                  });
+                } catch (error) {
+                  console.error('Error fitting extent to map view:', error, overallExtent);
+                }
+              }
+            }
           }
         } else {
-          console.warn('Invalid extent - not zooming');
+          console.warn('Invalid extent - coordinates are not finite, not zooming');
         }
       }
       
@@ -175,11 +195,27 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
         if (!selectedCollectionExtents || selectedCollectionExtents.length === 0) {
           const extent = locationLayer.getSource()?.getExtent();
           if (extent && extent.every(coord => isFinite(coord))) {
-            map.getView().fit(extent, { 
-              padding: [50, 50, 50, 50],
-              duration: 1000,
-              maxZoom: 10 // Don't zoom in too much for point features
-            });
+            // Additional validation: check if the extent is not empty (has area)
+            const hasValidArea = extent[0] !== extent[2] && extent[1] !== extent[3];
+            
+            if (!hasValidArea) {
+              console.warn('Location extent has no area (point), using center with zoom instead of fit');
+              // For point features, center on the point with a reasonable zoom level
+              const centerX = (extent[0] + extent[2]) / 2;
+              const centerY = (extent[1] + extent[3]) / 2;
+              map.getView().setCenter([centerX, centerY]);
+              map.getView().setZoom(10);
+            } else {
+              try {
+                map.getView().fit(extent, { 
+                  padding: [50, 50, 50, 50],
+                  duration: 1000,
+                  maxZoom: 10 // Don't zoom in too much for point features
+                });
+              } catch (error) {
+                console.error('Error fitting location extent to map view:', error, extent);
+              }
+            }
           }
         }
       }
@@ -196,11 +232,35 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
     if (map && boundingBoxRef.current !== boundingBox) {
       // Convert bounding box coordinates [west, south, east, north] to extent
       const [west, south, east, north] = boundingBox;
-      const extent = [
-        ...fromLonLat([west, south]),
-        ...fromLonLat([east, north])
-      ];
-      map.getView().fit(extent, { padding: [10, 10, 10, 10] });
+      
+      // Validate coordinates
+      if (isFinite(west) && isFinite(south) && isFinite(east) && isFinite(north)) {
+        // Check if the extent has valid area
+        const hasValidArea = west !== east && south !== north;
+        
+        if (!hasValidArea) {
+          console.warn('Bounding box has no area, skipping fit');
+        } else {
+          const extent = [
+            ...fromLonLat([west, south]),
+            ...fromLonLat([east, north])
+          ];
+          
+          // Additional check for transformed extent
+          if (extent.every(coord => isFinite(coord)) && extent[0] !== extent[2] && extent[1] !== extent[3]) {
+            try {
+              map.getView().fit(extent, { padding: [10, 10, 10, 10] });
+            } catch (error) {
+              console.error('Error fitting bounding box to map view:', error, extent);
+            }
+          } else {
+            console.warn('Transformed bounding box extent is invalid, skipping fit');
+          }
+        }
+      } else {
+        console.warn('Invalid bounding box coordinates:', { west, south, east, north });
+      }
+      
       boundingBoxRef.current = boundingBox;
     }
   }, [map, boundingBox]);
