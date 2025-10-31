@@ -34,10 +34,18 @@ export interface Vertical {
     vrs?: string; // Vertical reference system, follows Well Known Text standard
 }
 
+export interface CustomDimension {
+    id: string; // Dimension name/identifier
+    interval?: (number | string | null)[]; // Min/max values for the dimension
+    reference?: string; // Reference/unit for the dimension (e.g., "minutes")
+    values?: (number | string)[]; // Specific values supported by the dimension
+}
+
 export interface Extent {
     spatial?: Spatial; // Made optional to handle empty extent objects
     temporal?: Temporal; // Made optional to handle missing temporal extent
     vertical?: Vertical; // Made optional to handle missing vertical extent
+    custom?: CustomDimension[]; // Custom dimensions array
 } 
 
 export interface parameterNames {
