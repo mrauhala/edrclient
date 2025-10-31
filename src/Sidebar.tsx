@@ -249,6 +249,47 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
 
   return (
     <Paper style={{minWidth: 200, maxHeight: '100vh', overflow: 'auto'}}>
+      {/* EDR Service Selector and API URL - Moved to top */}
+      <Box sx={{ padding: 2, minWidth: 120, borderBottom: '1px solid rgba(0, 0, 0, 0.12)' }}>
+        <FormControl fullWidth sx={{ mb: 2 }}>
+          <InputLabel id="edr-service-select-label">EDR Service</InputLabel>
+          <Select
+            labelId="edr-service-select-label"
+            id="edr-service-select"
+            value={selectedService}
+            label="EDR Service"
+            onChange={handleServiceChange}
+          >
+            {edrServices.map((service) => (
+              <MenuItem key={service.value} value={service.value}>
+                {service.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <TextField 
+          fullWidth
+          id="apiUrl" 
+          label="API URL" 
+          value={apiUrl}
+          variant="outlined" 
+          onChange={handleApiUrlChange}
+        />
+        <Button 
+          variant="contained" 
+          sx={{ mt: 1, mr: 1 }}
+          disabled={isLoading}
+          onClick={() => getCollections(apiUrl)}
+        >
+          {isLoading ? 'Loading...' : 'Validate'}
+        </Button>
+        <SwaggerUIViewer 
+          serviceDescUrl={serviceDescUrl} 
+          serviceName={landingPageTitle || undefined}
+        />
+        <SchemaInspector />
+      </Box>
+      
       <Card sx={{ minWidth: 275 }}>
         <CardContent>
           {/* Service Information from Landing Page */}
@@ -300,46 +341,6 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
           )}
         </CardContent>
       </Card>
-      
-      <Box sx={{ padding: 1, minWidth: 120 }}>
-        <FormControl fullWidth sx={{ mb: 2 }}>
-          <InputLabel id="edr-service-select-label">EDR Service</InputLabel>
-          <Select
-            labelId="edr-service-select-label"
-            id="edr-service-select"
-            value={selectedService}
-            label="EDR Service"
-            onChange={handleServiceChange}
-          >
-            {edrServices.map((service) => (
-              <MenuItem key={service.value} value={service.value}>
-                {service.label}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        <TextField 
-          sx={{ padding: 1, width: '90%' }} 
-          id="apiUrl" 
-          label="API URL" 
-          value={apiUrl}
-          variant="outlined" 
-          onChange={handleApiUrlChange}
-        />
-        <Button 
-          variant="contained" 
-          sx={{ mt: 1, mr: 1 }}
-          disabled={isLoading}
-          onClick={() => getCollections(apiUrl)}
-        >
-          {isLoading ? 'Loading...' : 'Validate'}
-        </Button>
-        <SwaggerUIViewer 
-          serviceDescUrl={serviceDescUrl} 
-          serviceName={landingPageTitle || undefined}
-        />
-        <SchemaInspector />
-      </Box>
       
       <List component="nav">
                     {isLoading ? (
