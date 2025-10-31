@@ -410,7 +410,54 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                         ))}
                       </div>
                     )}
-                    {/* Collection Title - Second row */}
+                    {/* Extent Type Badges - Second row */}
+                    {(() => {
+                      const extentBadges = [];
+                      // Check for spatial extent
+                      if (collection.extent?.spatial?.bbox && 
+                          Array.isArray(collection.extent.spatial.bbox) && 
+                          collection.extent.spatial.bbox.length > 0) {
+                        extentBadges.push('Spatial');
+                      }
+                      // Check for temporal extent
+                      if (collection.extent?.temporal && 
+                          (collection.extent.temporal.interval || collection.extent.temporal.values)) {
+                        extentBadges.push('Temporal');
+                      }
+                      // Check for vertical extent
+                      if (collection.extent?.vertical && 
+                          (collection.extent.vertical.interval || collection.extent.vertical.values)) {
+                        extentBadges.push('Vertical');
+                      }
+                      
+                      return extentBadges.length > 0 ? (
+                        <div style={{ 
+                          display: 'flex', 
+                          gap: '4px', 
+                          flexWrap: 'wrap',
+                          marginBottom: '6px'
+                        }}>
+                          {extentBadges.map((extentType) => (
+                            <Chip
+                              key={extentType}
+                              label={extentType}
+                              size="small"
+                              color="secondary"
+                              variant="filled"
+                              sx={{ 
+                                height: '18px',
+                                fontSize: '0.6rem',
+                                fontWeight: 'bold',
+                                '& .MuiChip-label': {
+                                  padding: '0 5px'
+                                }
+                              }}
+                            />
+                          ))}
+                        </div>
+                      ) : null;
+                    })()}
+                    {/* Collection Title - Third row */}
                     <div style={{ 
                       fontSize: '1rem',
                       fontWeight: 500,
