@@ -20,6 +20,18 @@ const ValidationResults: React.FC<ValidationResultsProps> = ({ validation, expan
     </Box>
   );
 
+  // Show landing page validation if available
+  const landingPageValidation = validation.landingPageValidation ? (
+    <Box sx={{ mb: 1 }}>
+      <Chip
+        label={`Landing Page: ${validation.landingPageValidation.isValid ? 'Valid' : 'Invalid'}`}
+        color={validation.landingPageValidation.isValid ? 'success' : 'warning'}
+        size="small"
+        sx={{ mr: 1 }}
+      />
+    </Box>
+  ) : null;
+
   // If there are no errors or we've manually set isValid to true despite errors
   if (validation.isValid) {
     return (
@@ -41,6 +53,7 @@ const ValidationResults: React.FC<ValidationResultsProps> = ({ validation, expan
           </Typography>
         )}
         
+        {landingPageValidation}
         {schemaInfo}
         
         <Collapse in={expanded}>
@@ -74,6 +87,7 @@ const ValidationResults: React.FC<ValidationResultsProps> = ({ validation, expan
           Data is still being displayed
         </Typography>
         
+        {landingPageValidation}
         {schemaInfo}
       </Alert>
       

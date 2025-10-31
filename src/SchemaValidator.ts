@@ -10,6 +10,7 @@ export class SchemaValidator {
   private schema: any = null;
   private ajv: Ajv;
   private collectionsValidate: any = null;
+  private landingPageValidate: any = null;
 
   private constructor() {
     // Initialize AJV for data validation
@@ -37,6 +38,7 @@ export class SchemaValidator {
       this.loadedSchemaUrls = [];
       this.schema = null;
       this.collectionsValidate = null;
+      this.landingPageValidate = null;
       
       // Download the bundled EDR OpenAPI specification (JSON with all references resolved)
       console.log('Downloading bundled EDR OpenAPI specification...');
@@ -66,6 +68,9 @@ export class SchemaValidator {
       
       // Try to prepare the collections validator
       this.prepareCollectionsValidator();
+      
+      // Try to prepare the landing page validator
+      this.prepareLandingPageValidator();
       
       this.isSchemaLoaded = true;
       this.schemaLoadError = null;
@@ -123,6 +128,52 @@ export class SchemaValidator {
     } else {
       console.warn('❌ No collections schema found in EDR specification');
       console.warn('Available paths:', Object.keys(this.schema.paths));
+    }
+  }
+
+  private prepareLandingPageValidator(): void {
+    if (!this.schema?.paths) {
+      console.warn('No paths found in OpenAPI specification');
+      return;
+    }
+
+    let landingPageSchema = null;
+    
+    // Look for the landing page schema in the / (root) path response
+    const rootPath = this.schema.paths['/'];
+    if (rootPath?.get?.responses?.['200']?.content?.['application/json']?.schema) {
+      landingPageSchema = rootPath.get.responses['200'].content['application/json'].schema;
+      console.log('✅ Found landing page schema in / path');
+    }
+    
+    // Also try alternative content types
+    if (!landingPageSchema && rootPath?.get?.responses?.['200']?.content) {
+      const contentTypes = Object.keys(rootPath.get.responses['200'].content);
+      for (const contentType of contentTypes) {
+        if (rootPath.get.responses['200'].content[contentType]?.schema) {
+          landingPageSchema = rootPath.get.responses['200'].content[contentType].schema;
+          console.log(`✅ Found landing page schema in / path (${contentType})`);
+          break;
+        }
+      }
+    }
+    
+    if (landingPageSchema) {
+      try {
+        console.log('Compiling landing page schema for validation...');
+        console.log('Schema structure:', {
+          type: landingPageSchema.type,
+          required: landingPageSchema.required,
+          properties: landingPageSchema.properties ? Object.keys(landingPageSchema.properties) : []
+        });
+        
+        this.landingPageValidate = this.ajv.compile(landingPageSchema);
+        console.log('✅ Landing page validator compiled successfully');
+      } catch (error) {
+        console.error('❌ Error compiling landing page schema:', error);
+      }
+    } else {
+      console.warn('❌ No landing page schema found in EDR specification');
     }
   }
 
@@ -203,6 +254,52 @@ export class SchemaValidator {
       }
     } catch (error) {
       console.error('❌ EDR schema validation error:', error);
+      
+      return {
+        valid: false,
+        errors: [{ message: error instanceof Error ? error.message : 'Unknown validation error' }]
+      };
+    }
+  }
+
+  public async validateLandingPage(data: any): Promise<{ valid: boolean; errors: any[] | null }> {
+    if (!this.isSchemaLoaded || !this.landingPageValidate) {
+      return { 
+        valid: true, // Default to valid to prevent UI issues
+        errors: [{ message: 'EDR schema not loaded or no landing page schema found. Validation skipped.' }] 
+      };
+    }
+
+    try {
+      console.log('🔍 Beginning validation against EDR landing page schema...');
+      
+      // Validate the data against the pre-compiled landing page schema
+      const isValid = this.landingPageValidate(data);
+      
+      if (isValid) {
+        console.log('✅ EDR landing page schema validation passed');
+        return { valid: true, errors: null };
+      } else {
+        console.warn('❌ EDR landing page schema validation failed');
+        console.warn('Validation errors:', this.landingPageValidate.errors);
+        
+        // Convert AJV errors to our format
+        const errors = this.landingPageValidate.errors?.map((error: any) => ({
+          path: error.instancePath || error.dataPath || 'root',
+          message: `${error.instancePath || error.dataPath || ''}: ${error.message}`,
+          keyword: error.keyword,
+          allowedValues: error.params?.allowedValues,
+          schema: error.schema,
+          data: error.data
+        })) || [];
+        
+        return { 
+          valid: false, 
+          errors: errors
+        };
+      }
+    } catch (error) {
+      console.error('❌ EDR landing page validation error:', error);
       
       return {
         valid: false,
