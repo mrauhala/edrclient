@@ -468,37 +468,52 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                     })()}
                     {/* Extent Type Badges - Last row */}
                     {(() => {
-                      const extentBadges = [];
+                      const standardExtentBadges: { label: string; color: 'secondary' | 'info' }[] = [];
+                      const customExtentBadges: { label: string; color: 'secondary' | 'info' }[] = [];
+                      
                       // Check for spatial extent
                       if (collection.extent?.spatial?.bbox && 
                           Array.isArray(collection.extent.spatial.bbox) && 
                           collection.extent.spatial.bbox.length > 0) {
-                        extentBadges.push('Spatial');
+                        standardExtentBadges.push({ label: 'Spatial', color: 'secondary' });
                       }
                       // Check for temporal extent
                       if (collection.extent?.temporal && 
                           (collection.extent.temporal.interval || collection.extent.temporal.values)) {
-                        extentBadges.push('Temporal');
+                        standardExtentBadges.push({ label: 'Temporal', color: 'secondary' });
                       }
                       // Check for vertical extent
                       if (collection.extent?.vertical && 
                           (collection.extent.vertical.interval || collection.extent.vertical.values)) {
-                        extentBadges.push('Vertical');
+                        standardExtentBadges.push({ label: 'Vertical', color: 'secondary' });
+                      }
+                      // Check for custom dimensions
+                      if (collection.extent?.custom && Array.isArray(collection.extent.custom)) {
+                        collection.extent.custom.forEach((customDim) => {
+                          if (customDim.id) {
+                            customExtentBadges.push({ 
+                              label: customDim.id, 
+                              color: 'info' 
+                            });
+                          }
+                        });
                       }
                       
-                      return extentBadges.length > 0 ? (
+                      const allBadges = [...standardExtentBadges, ...customExtentBadges];
+                      
+                      return allBadges.length > 0 ? (
                         <div style={{ 
                           display: 'flex', 
                           gap: '4px', 
                           flexWrap: 'wrap',
                           marginTop: '8px'
                         }}>
-                          {extentBadges.map((extentType) => (
+                          {allBadges.map((badge, idx) => (
                             <Chip
-                              key={extentType}
-                              label={extentType}
+                              key={`${badge.label}-${idx}`}
+                              label={badge.label}
                               size="small"
-                              color="secondary"
+                              color={badge.color}
                               variant="filled"
                               sx={{ 
                                 height: '18px',
