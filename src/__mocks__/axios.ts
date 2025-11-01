@@ -1,4 +1,4 @@
-export default {
+const axiosMock = {
   get: jest.fn(() => Promise.resolve({ data: {} })),
   post: jest.fn(() => Promise.resolve({ data: {} })),
   put: jest.fn(() => Promise.resolve({ data: {} })),
@@ -6,3 +6,5 @@ export default {
   patch: jest.fn(() => Promise.resolve({ data: {} })),
   request: jest.fn(() => Promise.resolve({ data: {} })),
 };
+
+export default axiosMock;
