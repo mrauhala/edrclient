@@ -780,10 +780,6 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                       label="Data Query"
                       onChange={(e) => {
                         const queryType = e.target.value;
-                        console.log('Data query selected:', queryType);
-                        console.log('Collection data_queries:', collection.data_queries);
-                        console.log('Selected query data:', collection.data_queries[queryType]);
-                        
                         setSelectedDataQuery(queryType);
                         // Notify parent about data query change
                         if (onDataQueryChange) {
@@ -796,22 +792,16 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                         let baseUrl = '';
                         if (queryType && collection.data_queries[queryType]?.link) {
                           baseUrl = collection.data_queries[queryType].link.href;
-                          console.log('Using data query link:', baseUrl);
                         } else {
-                          console.log('No data query link found, using data link');
                           // Reset to data link
                           const dataLink = collection.links.find(link => link.rel === 'data');
                           if (dataLink) {
                             baseUrl = dataLink.href;
-                            console.log('Using data link:', baseUrl);
-                          } else {
-                            console.log('No data link found either');
                           }
                         }
                         // Apply format and parameter if data query is selected
                         const isDataQuery = !!queryType;
                         const newUrl = buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, queryType);
-                        console.log('Final URL:', newUrl);
                         setCollectionUrl(newUrl);
                       }}
                       size="small"

@@ -663,12 +663,16 @@ export async function getCollections(apiUrl: string): Promise<GetCollectionsResu
       await validator.loadSchema();
     }
 
+    // Check if this is DMI service (to avoid f=json bug)
+    const isDMI = apiUrl.includes('api.meteogate.eu/dk/edr');
+
     // Step 1: Fetch and validate the landing page
     console.log('Step 1: Fetching landing page from:', apiUrl);
     
     // Add f=json format parameter if not already present
+    // Skip for DMI service as it incorrectly includes f=json in the href paths
     const landingPageUrl = new URL(apiUrl);
-    if (!landingPageUrl.searchParams.has('f')) {
+    if (!landingPageUrl.searchParams.has('f') && !isDMI) {
       landingPageUrl.searchParams.set('f', 'json');
     }
     
@@ -733,8 +737,9 @@ export async function getCollections(apiUrl: string): Promise<GetCollectionsResu
     console.log('Step 2: Fetching collections from:', collectionsUrl);
     
     // Add f=json format parameter if not already present
+    // Skip for DMI service as it incorrectly includes f=json in the href paths
     const collectionsUrlWithFormat = new URL(collectionsUrl);
-    if (!collectionsUrlWithFormat.searchParams.has('f')) {
+    if (!collectionsUrlWithFormat.searchParams.has('f') && !isDMI) {
       collectionsUrlWithFormat.searchParams.set('f', 'json');
     }
     
