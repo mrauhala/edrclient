@@ -91,6 +91,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   const [queryDrawerOpen, setQueryDrawerOpen] = useState(false);
   const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
   const [selectedDataQuery, setSelectedDataQuery] = useState<string>('');
+  const [selectedFormat, setSelectedFormat] = useState<string>('');
   const [collectionUrl, setCollectionUrl] = useState<string>('');
 
   // Debounce effect for text input - only update apiUrl after 1 second of no typing
@@ -193,6 +194,24 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
     setValidationTrigger(prev => prev + 1);
   };
 
+  // Helper function to build URL with query parameters
+  const buildUrlWithParams = (baseUrl: string, format: string) => {
+    if (!baseUrl) return baseUrl;
+    
+    try {
+      const url = new URL(baseUrl);
+      if (format) {
+        url.searchParams.set('f', format);
+      } else {
+        url.searchParams.delete('f');
+      }
+      return url.toString();
+    } catch (error) {
+      // If URL is invalid, return as is
+      return baseUrl;
+    }
+  };
+
   const handleItemClick = async (index: number, key: string) => {
     // Toggle collection: close if already open, open if closed (and close others)
     const newIndex = openCollectionIndex === index ? null : index;
@@ -209,15 +228,19 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
     // Find the "data" link from collection links
     if (selectedColl) {
       const dataLink = selectedColl.links.find(link => link.rel === 'data');
+      let baseUrl = '';
       if (dataLink) {
-        setCollectionUrl(dataLink.href);
+        baseUrl = dataLink.href;
       } else {
         // Fallback to constructed URL if no data link found
-        setCollectionUrl(apiUrl + "/collections/" + key);
+        baseUrl = apiUrl + "/collections/" + key;
       }
+      // Apply current format if selected
+      setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat));
       setSelectedDataQuery(''); // Reset data query selection
     } else {
       setCollectionUrl('');
+      setSelectedFormat(''); // Reset format when collection is deselected
     }
     
     // Open query drawer if collection is selected
@@ -708,15 +731,18 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                         onChange={(e) => {
                           const queryType = e.target.value;
                           setSelectedDataQuery(queryType);
+                          let baseUrl = '';
                           if (queryType && collection.data_queries[queryType]?.link) {
-                            setCollectionUrl(collection.data_queries[queryType].link.href);
+                            baseUrl = collection.data_queries[queryType].link.href;
                           } else {
                             // Reset to data link
                             const dataLink = collection.links.find(link => link.rel === 'data');
                             if (dataLink) {
-                              setCollectionUrl(dataLink.href);
+                              baseUrl = dataLink.href;
                             }
                           }
+                          // Apply current format to the URL
+                          setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat));
                         }}
                         size="small"
                       >
@@ -834,7 +860,32 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                 ? <Alert severity="error"><AlertTitle>I: OUTPUT_FORMATS</AlertTitle>Every collection within a collections array MUST have an output_formats parameter.</Alert>
                 : (
                   <>
-                    <FormatForm queryUrl={queryUrl} formats={collection.output_formats} setQueryUrl={setQueryUrl}/> 
+                    {/* Format Selector */}
+                    <FormControl fullWidth sx={{ mb: 2 }}>
+                      <InputLabel id="format-select-label">Output Format</InputLabel>
+                      <Select
+                        labelId="format-select-label"
+                        value={selectedFormat}
+                        label="Output Format"
+                        onChange={(e) => {
+                          const format = e.target.value;
+                          setSelectedFormat(format);
+                          // Update URL with format parameter while preserving current base URL
+                          setCollectionUrl(buildUrlWithParams(collectionUrl, format));
+                        }}
+                        size="small"
+                      >
+                        <MenuItem value="">
+                          <em>Select a format</em>
+                        </MenuItem>
+                        {collection.output_formats.map((format) => (
+                          <MenuItem key={format} value={format}>
+                            {format}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                    
                     {/* Schema validation errors specific to output_formats */}
                     {validationResult.collectionErrors && validationResult.collectionErrors[collection.id] && (
                       <CollectionValidationErrors 
