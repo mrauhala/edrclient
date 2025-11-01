@@ -480,7 +480,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
 
   // Effect to handle map clicks for position queries
   useEffect(() => {
-    if (!map || !selectedCollection) return;
+    if (!map) return;
 
     const handleMapClick = (event: any) => {
       // Only handle clicks if data query is 'position'
@@ -490,10 +490,20 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
         const [x, y] = toLonLat(coords);
         
         // Get collection bbox
-        const bbox = selectedCollection.extent?.spatial?.bbox;
-        if (bbox && bbox.length > 0) {
-          const collectionBbox = bbox[0] as number[];
-          const [minLon, minLat, maxLon, maxLat] = collectionBbox;
+        const bbox = selectedCollection?.extent?.spatial?.bbox;
+        
+        if (bbox && Array.isArray(bbox) && bbox.length >= 4) {
+          // bbox can be either a flat array [minLon, minLat, maxLon, maxLat] 
+          // or an array of arrays [[minLon, minLat, maxLon, maxLat]]
+          let minLon: number, minLat: number, maxLon: number, maxLat: number;
+          
+          if (Array.isArray(bbox[0])) {
+            // Array of arrays format
+            [minLon, minLat, maxLon, maxLat] = bbox[0];
+          } else {
+            // Flat array format
+            [minLon, minLat, maxLon, maxLat] = bbox as number[];
+          }
           
           // Check if click is within bbox
           if (x >= minLon && x <= maxLon && y >= minLat && y <= maxLat) {

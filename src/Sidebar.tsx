@@ -50,6 +50,7 @@ interface SidebarProps {
   onSelectedCollectionChange?: (collection: Collection | null) => void;
   onMapClick?: (coords: [number, number] | null) => void;
   onDataQueryChange?: (dataQuery: string) => void;
+  clickedCoords?: [number, number] | null;
   locationFeatures?: any[] | null;
 }
 
@@ -69,7 +70,7 @@ const edrServices = [
   { label: 'Custom', value: '' }
 ];
 
-const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExtentChange, onLocationFeaturesChange, onFeatureSelect, onSelectedCollectionChange, onMapClick, onDataQueryChange, locationFeatures }: SidebarProps) => {
+const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExtentChange, onLocationFeaturesChange, onFeatureSelect, onSelectedCollectionChange, onMapClick, onDataQueryChange, clickedCoords, locationFeatures }: SidebarProps) => {
   const [apiUrl, setApiUrl] = useState('https://opendata.fmi.fi/edr');
   const [selectedService, setSelectedService] = useState('https://opendata.fmi.fi/edr');
   const [inputUrl, setInputUrl] = useState('https://opendata.fmi.fi/edr'); // Separate state for text input
@@ -93,7 +94,6 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   const [selectedDataQuery, setSelectedDataQuery] = useState<string>('');
   const [selectedFormat, setSelectedFormat] = useState<string>('');
   const [selectedParameters, setSelectedParameters] = useState<string[]>([]);
-  const [clickedCoords, setClickedCoords] = useState<[number, number] | null>(null);
   const [collectionUrl, setCollectionUrl] = useState<string>('');
   const [showCollectionValidation, setShowCollectionValidation] = useState<{[key: string]: boolean}>({});
 
@@ -280,9 +280,8 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
       setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, false, null, ''));
       setSelectedDataQuery(''); // Reset data query selection
       setSelectedParameters([]); // Reset parameters when collection changes
-      setClickedCoords(null); // Clear clicked coordinates when collection changes
       if (onMapClick) {
-        onMapClick(null); // Notify parent to clear marker
+        onMapClick(null); // Clear clicked coordinates when collection changes
       }
       if (onDataQueryChange) {
         onDataQueryChange(''); // Notify parent that data query was cleared
@@ -291,9 +290,8 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
       setCollectionUrl('');
       setSelectedFormat(''); // Reset format when collection is deselected
       setSelectedParameters([]); // Reset parameters when collection is deselected
-      setClickedCoords(null); // Clear clicked coordinates
       if (onMapClick) {
-        onMapClick(null); // Notify parent to clear marker
+        onMapClick(null); // Clear clicked coordinates
       }
     }
     
@@ -616,6 +614,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                     </div>
                   </div>
                 }
+                primaryTypographyProps={{ component: 'div' }}
                 secondary={
                   <>
                     {collection.description && <span>{collection.description}</span>}
@@ -725,7 +724,8 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                       ) : null;
                     })()}
                   </>
-                } 
+                }
+                secondaryTypographyProps={{ component: 'div' }}
               />
               {openCollectionIndex === index ? <ExpandLess /> : <ExpandMore />}
             </ListItemButton>
@@ -749,11 +749,8 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                           onDataQueryChange(queryType);
                         }
                         // Clear clicked coordinates when changing data query
-                        if (queryType.toLowerCase() !== 'position') {
-                          setClickedCoords(null);
-                          if (onMapClick) {
-                            onMapClick(null);
-                          }
+                        if (queryType.toLowerCase() !== 'position' && onMapClick) {
+                          onMapClick(null);
                         }
                         let baseUrl = '';
                         if (queryType && collection.data_queries[queryType]?.link) {

@@ -45,8 +45,8 @@ function App() {
     <div>
       <Grid container spacing={0}>
       <Grid item xs={12}><TopMenu /></Grid>
-      <Grid item xs={12} md={5}><Sidebar open={sidebarOpen} onClose={handleSidebarClose} boundingBox={boundingBox} setBoundingBox={setBoundingBox} onCollectionExtentChange={setSelectedCollectionExtents} onLocationFeaturesChange={setLocationFeatures} onFeatureSelect={handleFeatureSelect} onSelectedCollectionChange={setSelectedCollection} onMapClick={setClickedCoords} onDataQueryChange={setDataQuery} locationFeatures={locationFeatures}/></Grid>
-      <Grid item xs={12} md={7}><OpenLayersMap zoomLevel={2} boundingBox={boundingBox} selectedCollectionExtents={selectedCollectionExtents} selectedCollection={selectedCollection} locationFeatures={locationFeatures} selectedFeature={selectedFeature} onUpdateBoundingBox={handleUpdateBoundingBox} onFeatureSelect={handleFeatureSelect} clickedCoords={clickedCoords} dataQuery={dataQuery} /></Grid>
+      <Grid item xs={12} md={5}><Sidebar open={sidebarOpen} onClose={handleSidebarClose} boundingBox={boundingBox} setBoundingBox={setBoundingBox} onCollectionExtentChange={setSelectedCollectionExtents} onLocationFeaturesChange={setLocationFeatures} onFeatureSelect={handleFeatureSelect} onSelectedCollectionChange={setSelectedCollection} onMapClick={setClickedCoords} onDataQueryChange={setDataQuery} clickedCoords={clickedCoords} locationFeatures={locationFeatures}/></Grid>
+      <Grid item xs={12} md={7}><OpenLayersMap zoomLevel={2} boundingBox={boundingBox} selectedCollectionExtents={selectedCollectionExtents} selectedCollection={selectedCollection} locationFeatures={locationFeatures} selectedFeature={selectedFeature} onUpdateBoundingBox={handleUpdateBoundingBox} onFeatureSelect={handleFeatureSelect} clickedCoords={clickedCoords} dataQuery={dataQuery} onMapClick={setClickedCoords} /></Grid>
       </Grid>
     </div>
   );
