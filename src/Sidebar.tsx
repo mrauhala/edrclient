@@ -65,6 +65,7 @@ const edrServices = [
 const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExtentChange, onLocationFeaturesChange, onFeatureSelect, onSelectedCollectionChange, locationFeatures }: SidebarProps) => {
   const [apiUrl, setApiUrl] = useState('https://opendata.fmi.fi/edr');
   const [selectedService, setSelectedService] = useState('https://opendata.fmi.fi/edr');
+  const [inputUrl, setInputUrl] = useState('https://opendata.fmi.fi/edr'); // Separate state for text input
   const [queryUrl, setQueryUrl] = useState('https://opendata.fmi.fi/edr');
   const [collections, setCollections] = useState<Collection[]>([]);
   const [validationResult, setValidationResult] = useState<ValidationResult>({ isValid: true, errors: null });
@@ -76,6 +77,17 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   const [landingPageTitle, setLandingPageTitle] = useState<string | null>(null);
   const [landingPageDescription, setLandingPageDescription] = useState<string | null>(null);
   const [serviceDescUrl, setServiceDescUrl] = useState<string | null>(null);
+
+  // Debounce effect for text input - only update apiUrl after 1 second of no typing
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (inputUrl !== apiUrl) {
+        setApiUrl(inputUrl);
+      }
+    }, 1000); // 1 second delay
+
+    return () => clearTimeout(timer);
+  }, [inputUrl, apiUrl]);
 
   useEffect(() => {
     async function loadCollections() {
@@ -134,7 +146,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
 
   function handleApiUrlChange(event: React.ChangeEvent<HTMLInputElement>) {
     const newUrl = event.target.value;
-    setApiUrl(newUrl);
+    setInputUrl(newUrl); // Update input state immediately for responsive UI
     // Update selected service if it matches a predefined service
     const matchingService = edrServices.find(service => service.value === newUrl);
     if (matchingService) {
@@ -150,9 +162,16 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
     setSelectedService(newService);
     if (newService !== '') {
       console.log('Setting API URL to:', newService);
-      setApiUrl(newService);
+      setInputUrl(newService); // Update input immediately
+      setApiUrl(newService); // Trigger validation immediately for dropdown selection
     }
     // If "Custom" is selected (empty value), don't change the apiUrl
+  };
+
+  // Force validation/refresh handler for the button
+  const handleValidateClick = () => {
+    // Set apiUrl to current inputUrl to trigger validation
+    setApiUrl(inputUrl);
   };
 
   const handleItemClick = async (index: number, key: string) => {
@@ -273,15 +292,16 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
           fullWidth
           id="apiUrl" 
           label="API URL" 
-          value={apiUrl}
+          value={inputUrl}
           variant="outlined" 
           onChange={handleApiUrlChange}
+          helperText="Validation will trigger 1 second after you stop typing"
         />
         <Button 
           variant="contained" 
           sx={{ mt: 1, mr: 1 }}
           disabled={isLoading}
-          onClick={() => getCollections(apiUrl)}
+          onClick={handleValidateClick}
         >
           {isLoading ? 'Loading...' : 'Validate'}
         </Button>
