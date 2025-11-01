@@ -8,7 +8,7 @@ const TopMenu = () => {
     <AppBar position="static" >
       <Toolbar>
         <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            EDR Query Tool
+            OGC API Browser
           </Typography>
 
       </Toolbar>
