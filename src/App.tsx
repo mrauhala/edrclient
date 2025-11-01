@@ -80,7 +80,7 @@ function App() {
             flexGrow: 1, 
             height: '100%',
             position: 'relative',
-            overflow: 'hidden'
+            overflow: 'hidden',
           }}
         >
           <OpenLayersMap 

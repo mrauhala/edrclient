@@ -24,7 +24,6 @@ import AlertTitle from '@mui/material/AlertTitle';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import Tooltip from '@mui/material/Tooltip';
-import Drawer from '@mui/material/Drawer';
 import IconButton from '@mui/material/IconButton';
 import Checkbox from '@mui/material/Checkbox';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
@@ -388,21 +387,25 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   };
 
   return (
-    <Drawer
-      anchor="left"
-      open={open}
-      onClose={onClose}
-      variant="persistent"
+    <Box
       sx={{
-        width: 400,
+        width: open ? 400 : 0,
         flexShrink: 0,
-        '& .MuiDrawer-paper': {
-          width: 400,
-          boxSizing: 'border-box',
-        },
+        transition: 'width 225ms cubic-bezier(0, 0, 0.2, 1) 0ms',
+        overflow: 'hidden',
+        height: '100%',
       }}
     >
-      <Paper style={{minWidth: 200, height: '100%', overflow: 'auto'}}>
+      <Paper 
+        elevation={3}
+        sx={{
+          minWidth: 400, 
+          width: 400,
+          height: '100%', 
+          overflow: 'auto',
+          borderRight: '1px solid rgba(0, 0, 0, 0.12)',
+        }}
+      >
         {/* EDR Service Selector and API URL - Moved to top */}
         <Box sx={{ padding: 2, minWidth: 120, borderBottom: '1px solid rgba(0, 0, 0, 0.12)' }}>
         <FormControl fullWidth sx={{ mb: 2 }}>
@@ -1077,7 +1080,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
         ))}
       </List>
     </Paper>
-    </Drawer>
+    </Box>
   );
 };
 
