@@ -34,6 +34,7 @@ import TemporalExtent from './TemporalExtent';
 import VerticalExtent from './VerticalExtent';
 import CollectionValidationErrors from './CollectionValidationErrors';
 import SwaggerUIViewer from './SwaggerUIViewer';
+import ConformanceViewer from './ConformanceViewer';
 
 interface SidebarProps {
   open: boolean;
@@ -80,6 +81,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   const [landingPageDescription, setLandingPageDescription] = useState<string | null>(null);
   const [serviceDescUrl, setServiceDescUrl] = useState<string | null>(null);
   const [conformsTo, setConformsTo] = useState<string[] | null>(null);
+  const [selectedConformanceUrl, setSelectedConformanceUrl] = useState<string | null>(null);
   const [validationTrigger, setValidationTrigger] = useState(0); // Counter to force re-validation
 
   // Debounce effect for text input - only update apiUrl after 1 second of no typing
@@ -317,6 +319,10 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
           serviceDescUrl={serviceDescUrl} 
           serviceName={landingPageTitle || undefined}
         />
+        <ConformanceViewer 
+          conformanceUrl={selectedConformanceUrl}
+          onClose={() => setSelectedConformanceUrl(null)}
+        />
         <SchemaInspector />
       </Box>
       
@@ -367,16 +373,12 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                           size="small"
                           color="success"
                           variant="outlined"
-                          component="a"
-                          href={item.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                          onClick={() => setSelectedConformanceUrl(item.url)}
                           clickable
                           sx={{ 
                             fontSize: '0.7rem',
                             height: '22px',
                             cursor: 'pointer',
-                            textDecoration: 'none',
                             '&:hover': {
                               backgroundColor: 'rgba(76, 175, 80, 0.2)',
                             }
