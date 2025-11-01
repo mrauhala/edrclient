@@ -64,7 +64,7 @@ const GeoJsonFeatureViewer: React.FC<GeoJsonFeatureViewerProps> = ({ feature, on
         position: 'absolute',
         top: 16,
         right: 16,
-        width: 400,
+        width: 500,
         maxHeight: '80vh',
         overflow: 'auto',
         p: 2,
