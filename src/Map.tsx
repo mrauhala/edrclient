@@ -12,6 +12,7 @@ import { Polygon, Point } from 'ol/geom';
 import { fromLonLat, toLonLat } from 'ol/proj';
 import { Style, Stroke, Fill, Circle } from 'ol/style';
 import GeoJSON from 'ol/format/GeoJSON';
+import { defaults as defaultControls } from 'ol/control';
 import FeatureInfo from './FeatureInfo';
 import { Collection, normalizeTemporal, formatTemporalInterval, getOverallTemporalExtent, normalizeVertical, formatVerticalInterval, getOverallVerticalExtent, getVerticalUnit } from './DataRetrievalAPI';
 
@@ -354,6 +355,9 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
 
     const openLayersMap = new Map({
       target: 'map',
+      controls: defaultControls({
+        zoom: false, // Disable zoom control buttons
+      }),
       layers: [
         new TileLayer({
           source: new XYZ({
