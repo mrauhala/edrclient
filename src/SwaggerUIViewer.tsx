@@ -64,8 +64,8 @@ const SwaggerUIViewer: React.FC<SwaggerUIViewerProps> = ({ serviceDescUrl, servi
             </IconButton>
           </Box>
         </DialogTitle>
-        <DialogContent dividers sx={{ p: 0, height: 'calc(100% - 64px)' }}>
-          <Box sx={{ height: '100%', overflow: 'auto' }}>
+        <DialogContent dividers sx={{ p: 0, height: 'calc(100% - 64px)', backgroundColor: '#fff' }}>
+          <Box sx={{ height: '100%', overflow: 'auto', backgroundColor: '#fff' }}>
             <SwaggerUI url={serviceDescUrl} />
           </Box>
         </DialogContent>

@@ -1,7 +1,9 @@
 import Sidebar from './Sidebar';
 import TopMenu from './TopMenu';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Box from '@mui/material/Box';
+import { ThemeProvider, createTheme } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
 import OpenLayersMap from './Map';
 import { Collection } from './DataRetrievalAPI';
 import Paper from '@mui/material/Paper';
@@ -13,7 +15,7 @@ import Typography from '@mui/material/Typography';
 
 
 function App() {
-
+  const [mode, setMode] = useState<'light' | 'dark'>('light');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [collectionUrl, setCollectionUrl] = useState<string>('');
 
@@ -32,6 +34,21 @@ function App() {
   const handleSidebarToggle = () => {
     setSidebarOpen(!sidebarOpen);
   };
+
+  const handleThemeToggle = () => {
+    setMode((prevMode) => (prevMode === 'light' ? 'dark' : 'light'));
+  };
+
+  // Create theme based on current mode
+  const theme = useMemo(
+    () =>
+      createTheme({
+        palette: {
+          mode,
+        },
+      }),
+    [mode]
+  );
 
   const handleFeatureSelect = (feature: any | null) => {
     setSelectedFeature(feature);
@@ -55,8 +72,10 @@ function App() {
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
-      <TopMenu onMenuClick={handleSidebarToggle} />
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+        <TopMenu onMenuClick={handleSidebarToggle} onThemeToggle={handleThemeToggle} mode={mode} />
       
       <Box 
         sx={{ 
@@ -152,6 +171,7 @@ function App() {
         </Box>
       </Paper>
     </Box>
+    </ThemeProvider>
   );
 }
 

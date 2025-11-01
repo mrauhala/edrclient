@@ -9,9 +9,6 @@ import Collapse from '@mui/material/Collapse';
 import LayersIcon from '@mui/icons-material/Layers';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
-import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
-import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import InputLabel from '@mui/material/InputLabel';
@@ -24,9 +21,10 @@ import AlertTitle from '@mui/material/AlertTitle';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import Tooltip from '@mui/material/Tooltip';
-import IconButton from '@mui/material/IconButton';
 import Checkbox from '@mui/material/Checkbox';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
+import { useTheme } from '@mui/material/styles';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import React, { useEffect, useState } from 'react';
 import { getCollections, Collection, ValidationResult, normalizeBbox, hasLocationQuery, getLocationQueryUrl, executeLocationQuery, getSupportedDataQueries, normalizeTemporal, formatConformanceClass } from './DataRetrievalAPI';
 import ValidationResults from './ValidationResult';
@@ -72,6 +70,10 @@ const edrServices = [
 ];
 
 const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExtentChange, onLocationFeaturesChange, onFeatureSelect, onSelectedCollectionChange, onMapClick, onDataQueryChange, onCollectionUrlChange, clickedCoords, locationFeatures }: SidebarProps) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md')); // Mobile/tablet breakpoint at 900px
+  const sidebarWidth = isMobile ? '100%' : 480;
+  
   const [apiUrl, setApiUrl] = useState('https://opendata.fmi.fi/edr');
   const [selectedService, setSelectedService] = useState('https://opendata.fmi.fi/edr');
   const [inputUrl, setInputUrl] = useState('https://opendata.fmi.fi/edr'); // Separate state for text input
@@ -403,18 +405,20 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   return (
     <Box
       sx={{
-        width: open ? 400 : 0,
+        width: open ? sidebarWidth : 0,
         flexShrink: 0,
         transition: 'width 225ms cubic-bezier(0, 0, 0.2, 1) 0ms',
         overflow: 'hidden',
         height: '100%',
+        position: isMobile ? 'absolute' : 'relative',
+        zIndex: isMobile ? 1100 : 'auto',
       }}
     >
       <Paper 
         elevation={3}
         sx={{
-          minWidth: 400, 
-          width: 400,
+          minWidth: isMobile ? '100vw' : 480, 
+          width: sidebarWidth,
           height: '100%', 
           overflow: 'auto',
           borderRight: '1px solid rgba(0, 0, 0, 0.12)',

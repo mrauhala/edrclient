@@ -4,17 +4,22 @@ import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import MenuIcon from '@mui/icons-material/Menu';
+import Brightness4Icon from '@mui/icons-material/Brightness4';
+import Brightness7Icon from '@mui/icons-material/Brightness7';
+import Tooltip from '@mui/material/Tooltip';
 
 interface TopMenuProps {
   onMenuClick: () => void;
+  onThemeToggle: () => void;
+  mode: 'light' | 'dark';
 }
 
-const TopMenu: React.FC<TopMenuProps> = ({ onMenuClick }) => {
+const TopMenu: React.FC<TopMenuProps> = ({ onMenuClick, onThemeToggle, mode }) => {
   return (
     <AppBar position="static" >
-      <Toolbar>
+      <Toolbar variant="dense">
         <IconButton
-          size="large"
+          size="small"
           edge="start"
           color="inherit"
           aria-label="menu"
@@ -23,9 +28,20 @@ const TopMenu: React.FC<TopMenuProps> = ({ onMenuClick }) => {
         >
           <MenuIcon />
         </IconButton>
-        <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+        <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontSize: '1.1rem' }}>
           OGC API Browser
         </Typography>
+        <Tooltip title={mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
+          <IconButton
+            size="small"
+            edge="end"
+            color="inherit"
+            aria-label="toggle theme"
+            onClick={onThemeToggle}
+          >
+            {mode === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}
+          </IconButton>
+        </Tooltip>
       </Toolbar>
     </AppBar>
   );

@@ -66,7 +66,7 @@ const LocationFeatureList: React.FC<LocationFeatureListProps> = ({ features, onF
       </ListItemButton>
       
       <Collapse in={open} timeout="auto" unmountOnExit>
-        <List component="div" disablePadding sx={{ maxHeight: 250, overflow: 'auto', backgroundColor: 'grey.50', borderRadius: 1 }}>
+        <List component="div" disablePadding sx={{ maxHeight: 250, overflow: 'auto', backgroundColor: 'action.hover', borderRadius: 1 }}>
           {features.slice(0, 50).map((feature, index) => { // Limit to first 50 for performance
             const { id, properties } = feature;
             const name = properties?.name || properties?.title || `Feature ${index + 1}`;
