@@ -115,6 +115,13 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
       setCollections([]);
       setOpenCollectionIndex(null);
       
+      // Reset all query-related states when service changes
+      setSelectedCollection(null);
+      setSelectedDataQuery('');
+      setSelectedFormat('');
+      setSelectedParameters([]);
+      setCollectionUrl('');
+      
       try {
         console.log('Loading collections from:', apiUrl);
         const result = await getCollections(apiUrl);
@@ -146,6 +153,12 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
         }
         if (onSelectedCollectionChange) {
           onSelectedCollectionChange(null);
+        }
+        if (onMapClick) {
+          onMapClick(null);
+        }
+        if (onDataQueryChange) {
+          onDataQueryChange('');
         }
       } catch (error) {
         console.error('Error loading collections:', error);
