@@ -1,6 +1,7 @@
 import Sidebar from './Sidebar';
 import TopMenu from './TopMenu';
-import { useState, useMemo } from 'react';
+import SettingsDrawer, { CustomService } from './SettingsDrawer';
+import { useState, useMemo, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -12,12 +13,32 @@ import IconButton from '@mui/material/IconButton';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
+import useMediaQuery from '@mui/material/useMediaQuery';
 
 
 function App() {
-  const [mode, setMode] = useState<'light' | 'dark'>('light');
+  // Load theme mode from localStorage or default to 'system'
+  const [themeMode, setThemeMode] = useState<'light' | 'dark' | 'system'>(() => {
+    const savedMode = localStorage.getItem('themeMode');
+    return (savedMode === 'light' || savedMode === 'dark' || savedMode === 'system') 
+      ? savedMode 
+      : 'system';
+  });
+
+  // Load custom services from localStorage
+  const [customServices, setCustomServices] = useState<CustomService[]>(() => {
+    const savedServices = localStorage.getItem('customServices');
+    try {
+      return savedServices ? JSON.parse(savedServices) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [settingsDrawerOpen, setSettingsDrawerOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [collectionUrl, setCollectionUrl] = useState<string>('');
+  const [selectedServiceUrl, setSelectedServiceUrl] = useState<string | null>(null);
 
   const [boundingBox, setBoundingBox] = useState<[number, number, number, number]>([-180, -90, 180, 90]);
   const [selectedCollectionExtents, setSelectedCollectionExtents] = useState<[number, number, number, number][] | null>(null);
@@ -27,6 +48,27 @@ function App() {
   const [clickedCoords, setClickedCoords] = useState<[number, number] | null>(null);
   const [dataQuery, setDataQuery] = useState<string>('');
 
+  // Detect system preference
+  const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
+
+  // Save theme mode to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('themeMode', themeMode);
+  }, [themeMode]);
+
+  // Save custom services to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('customServices', JSON.stringify(customServices));
+  }, [customServices]);
+
+  // Determine actual mode based on themeMode setting
+  const actualMode = useMemo(() => {
+    if (themeMode === 'system') {
+      return prefersDarkMode ? 'dark' : 'light';
+    }
+    return themeMode;
+  }, [themeMode, prefersDarkMode]);
+
   const handleUpdateBoundingBox = (newBoundingBox: [number, number, number, number]) => {
     setBoundingBox(newBoundingBox);
   };
@@ -35,19 +77,43 @@ function App() {
     setSidebarOpen(!sidebarOpen);
   };
 
-  const handleThemeToggle = () => {
-    setMode((prevMode) => (prevMode === 'light' ? 'dark' : 'light'));
+  const handleSettingsDrawerToggle = () => {
+    setSettingsDrawerOpen(!settingsDrawerOpen);
   };
 
-  // Create theme based on current mode
+  const handleThemeModeChange = (mode: 'light' | 'dark' | 'system') => {
+    setThemeMode(mode);
+  };
+
+  const handleAddService = (service: CustomService) => {
+    setCustomServices((prev) => [...prev, service]);
+  };
+
+  const handleUpdateService = (service: CustomService) => {
+    setCustomServices((prev) => 
+      prev.map((s) => (s.id === service.id ? service : s))
+    );
+  };
+
+  const handleRemoveService = (id: string) => {
+    setCustomServices((prev) => prev.filter((service) => service.id !== id));
+  };
+
+  const handleServiceSelect = (url: string) => {
+    setSelectedServiceUrl(url);
+    // Reset after a short delay so it can be triggered again if needed
+    setTimeout(() => setSelectedServiceUrl(null), 100);
+  };
+
+  // Create theme based on actual mode
   const theme = useMemo(
     () =>
       createTheme({
         palette: {
-          mode,
+          mode: actualMode,
         },
       }),
-    [mode]
+    [actualMode]
   );
 
   const handleFeatureSelect = (feature: any | null) => {
@@ -75,7 +141,7 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
-        <TopMenu onMenuClick={handleSidebarToggle} onThemeToggle={handleThemeToggle} mode={mode} />
+        <TopMenu onMenuClick={handleSidebarToggle} onSettingsClick={handleSettingsDrawerToggle} />
       
       <Box 
         sx={{ 
@@ -99,6 +165,8 @@ function App() {
           clickedCoords={clickedCoords} 
           locationFeatures={locationFeatures}
           onCollectionUrlChange={setCollectionUrl}
+          customServices={customServices}
+          onServiceUrlSelect={selectedServiceUrl}
         />
         
         <Box 
@@ -170,6 +238,18 @@ function App() {
           )}
         </Box>
       </Paper>
+      
+      <SettingsDrawer 
+        open={settingsDrawerOpen}
+        onClose={handleSettingsDrawerToggle}
+        themeMode={themeMode}
+        onThemeModeChange={handleThemeModeChange}
+        customServices={customServices}
+        onAddService={handleAddService}
+        onUpdateService={handleUpdateService}
+        onRemoveService={handleRemoveService}
+        onServiceSelect={handleServiceSelect}
+      />
     </Box>
     </ThemeProvider>
   );

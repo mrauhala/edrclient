@@ -25,7 +25,7 @@ import Checkbox from '@mui/material/Checkbox';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { getCollections, Collection, ValidationResult, normalizeBbox, hasLocationQuery, getLocationQueryUrl, executeLocationQuery, getSupportedDataQueries, normalizeTemporal, formatConformanceClass } from './DataRetrievalAPI';
 import ValidationResults from './ValidationResult';
 import SchemaInspector from './SchemaInspector';
@@ -35,6 +35,7 @@ import VerticalExtent from './VerticalExtent';
 import CollectionValidationErrors from './CollectionValidationErrors';
 import SwaggerUIViewer from './SwaggerUIViewer';
 import ConformanceViewer from './ConformanceViewer';
+import { CustomService } from './SettingsDrawer';
 
 interface SidebarProps {
   open: boolean;
@@ -50,6 +51,8 @@ interface SidebarProps {
   onCollectionUrlChange?: (url: string) => void;
   clickedCoords?: [number, number] | null;
   locationFeatures?: any[] | null;
+  customServices?: CustomService[];
+  onServiceUrlSelect?: string | null;
 }
 
 // EDR service options
@@ -69,7 +72,7 @@ const edrServices = [
   { label: 'Custom', value: '' }
 ];
 
-const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExtentChange, onLocationFeaturesChange, onFeatureSelect, onSelectedCollectionChange, onMapClick, onDataQueryChange, onCollectionUrlChange, clickedCoords, locationFeatures }: SidebarProps) => {
+const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExtentChange, onLocationFeaturesChange, onFeatureSelect, onSelectedCollectionChange, onMapClick, onDataQueryChange, onCollectionUrlChange, clickedCoords, locationFeatures, customServices = [], onServiceUrlSelect = null }: SidebarProps) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md')); // Mobile/tablet breakpoint at 900px
   const sidebarWidth = isMobile ? '100%' : 480;
@@ -78,6 +81,30 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   const [selectedService, setSelectedService] = useState('https://opendata.fmi.fi/edr');
   const [inputUrl, setInputUrl] = useState('https://opendata.fmi.fi/edr'); // Separate state for text input
   const [queryUrl, setQueryUrl] = useState('https://opendata.fmi.fi/edr');
+
+  // Effect to handle external service URL selection (from settings)
+  useEffect(() => {
+    if (onServiceUrlSelect) {
+      setSelectedService(onServiceUrlSelect);
+      setInputUrl(onServiceUrlSelect);
+      setApiUrl(onServiceUrlSelect);
+    }
+  }, [onServiceUrlSelect]);
+
+  // Combine system services with custom services
+  const allServices = useMemo(() => {
+    const customServiceItems = customServices.map(service => ({
+      label: service.name,
+      value: service.url,
+      isCustom: true
+    }));
+    
+    return [
+      ...edrServices.filter(s => s.value !== ''), // System services except "Custom"
+      ...customServiceItems,
+      { label: 'Custom', value: '', isCustom: false } // Keep "Custom" at the end
+    ];
+  }, [customServices]);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [validationResult, setValidationResult] = useState<ValidationResult>({ isValid: true, errors: null });
   const [showValidationDetails, setShowValidationDetails] = useState(false);
@@ -203,8 +230,8 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   function handleApiUrlChange(event: React.ChangeEvent<HTMLInputElement>) {
     const newUrl = event.target.value;
     setInputUrl(newUrl); // Update input state immediately for responsive UI
-    // Update selected service if it matches a predefined service
-    const matchingService = edrServices.find(service => service.value === newUrl);
+    // Update selected service if it matches a predefined service (system or custom)
+    const matchingService = allServices.find(service => service.value === newUrl);
     if (matchingService) {
       setSelectedService(newUrl);
     } else {
@@ -435,8 +462,8 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
             label="EDR Service"
             onChange={handleServiceChange}
           >
-            {edrServices.map((service) => (
-              <MenuItem key={service.value} value={service.value}>
+            {allServices.map((service) => (
+              <MenuItem key={service.value || 'custom'} value={service.value}>
                 {service.label}
               </MenuItem>
             ))}
