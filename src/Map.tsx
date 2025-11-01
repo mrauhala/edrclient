@@ -41,6 +41,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
   const [locationLayer, setLocationLayer] = useState<VectorLayer<VectorSource> | null>(null);
   const [markerLayer, setMarkerLayer] = useState<VectorLayer<VectorSource> | null>(null);
   const [geoJsonVectorLayers, setGeoJsonVectorLayers] = useState<{[key: string]: VectorLayer<VectorSource>}>({});
+  const [geoJsonMetadata, setGeoJsonMetadata] = useState<{[key: string]: {numberReturned?: number, numberMatched?: number}}>({});
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [tooltipOverlay, setTooltipOverlay] = useState<Overlay | null>(null);
   const boundingBoxRef = useRef(boundingBox);
@@ -259,6 +260,11 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
           newLayers[layerKey] = geoJsonVectorLayers[layerKey];
         } else {
           // Create new layer with bbox strategy
+          const geojsonFormat = new GeoJSON({
+            dataProjection: 'EPSG:4326',
+            featureProjection: 'EPSG:3857',
+          });
+
           const vectorSource = new VectorSource({
             url: function (extent) {
               const [minX, minY, maxX, maxY] = extent;
@@ -272,10 +278,42 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
               return `${layerConfig.url}${separator}bbox=${bboxString}`;
             },
             strategy: bboxStrategy,
-            format: new GeoJSON({
-              dataProjection: 'EPSG:4326',
-              featureProjection: 'EPSG:3857',
-            }),
+            format: geojsonFormat,
+            loader: function(extent, resolution, projection, success, failure) {
+              const [minX, minY, maxX, maxY] = extent;
+              const [minLon, minLat] = toLonLat([minX, minY]);
+              const [maxLon, maxLat] = toLonLat([maxX, maxY]);
+              const bboxString = `${minLon},${minLat},${maxLon},${maxLat}`;
+              const separator = layerConfig.url.includes('?') ? '&' : '?';
+              const url = `${layerConfig.url}${separator}bbox=${bboxString}`;
+
+              fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                  // Capture metadata from the response
+                  if (data.numberReturned !== undefined || data.numberMatched !== undefined) {
+                    setGeoJsonMetadata(prev => ({
+                      ...prev,
+                      [layerKey]: {
+                        numberReturned: data.numberReturned,
+                        numberMatched: data.numberMatched
+                      }
+                    }));
+                  }
+                  
+                  // Parse features using GeoJSON format
+                  const features = geojsonFormat.readFeatures(data, {
+                    featureProjection: projection
+                  });
+                  
+                  vectorSource.addFeatures(features);
+                  if (success) success(features);
+                })
+                .catch(error => {
+                  console.error('Error loading GeoJSON:', error);
+                  if (failure) failure();
+                });
+            }
           });
 
           // Mark all features from this source as GeoJSON layer features
@@ -283,6 +321,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
             if (event.feature) {
               event.feature.set('layer', 'geojson');
               event.feature.set('layerTitle', layerConfig.title);
+              event.feature.set('layerUrl', layerConfig.url);
             }
           });
 
@@ -804,6 +843,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
       <GeoJsonFeatureViewer
         feature={selectedGeoJsonFeature}
         onClose={() => onGeoJsonFeatureSelect?.(null)}
+        metadata={selectedGeoJsonFeature?.get ? geoJsonMetadata[selectedGeoJsonFeature.get('layerUrl')] : undefined}
       />
     </div>
   );
