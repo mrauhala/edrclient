@@ -20,6 +20,7 @@ import Alert from '@mui/material/Alert';
 import AlertTitle from '@mui/material/AlertTitle';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
+import Tooltip from '@mui/material/Tooltip';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
 import React, { useEffect, useState } from 'react';
 import { getCollections, Collection, ValidationResult, normalizeBbox, hasLocationQuery, getLocationQueryUrl, executeLocationQuery, getSupportedDataQueries, normalizeTemporal, formatConformanceClass } from './DataRetrievalAPI';
@@ -339,13 +340,18 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
           
           {/* OGC API Conformance Classes */}
           {conformsTo && conformsTo.length > 0 && (() => {
-            // Filter and format OGC API conformance classes
+            // Filter and format OGC API conformance classes, keeping original URLs
             const ogcApiConformance = conformsTo
-              .map(url => formatConformanceClass(url))
-              .filter((formatted): formatted is string => formatted !== null);
+              .map(url => ({
+                url,
+                formatted: formatConformanceClass(url)
+              }))
+              .filter(item => item.formatted !== null);
             
-            // Remove duplicates
-            const uniqueConformance = Array.from(new Set(ogcApiConformance));
+            // Remove duplicates based on URL
+            const uniqueConformance = Array.from(
+              new Map(ogcApiConformance.map(item => [item.url, item])).values()
+            );
             
             if (uniqueConformance.length > 0) {
               return (
@@ -354,18 +360,29 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                     Conformance Classes
                   </Typography>
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                    {uniqueConformance.map((conformanceClass, index) => (
-                      <Chip
-                        key={index}
-                        label={conformanceClass}
-                        size="small"
-                        color="success"
-                        variant="outlined"
-                        sx={{ 
-                          fontSize: '0.7rem',
-                          height: '22px'
-                        }}
-                      />
+                    {uniqueConformance.map((item, index) => (
+                      <Tooltip key={index} title={item.url} arrow>
+                        <Chip
+                          label={item.formatted}
+                          size="small"
+                          color="success"
+                          variant="outlined"
+                          component="a"
+                          href={item.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          clickable
+                          sx={{ 
+                            fontSize: '0.7rem',
+                            height: '22px',
+                            cursor: 'pointer',
+                            textDecoration: 'none',
+                            '&:hover': {
+                              backgroundColor: 'rgba(76, 175, 80, 0.2)',
+                            }
+                          }}
+                        />
+                      </Tooltip>
                     ))}
                   </Box>
                 </Box>
