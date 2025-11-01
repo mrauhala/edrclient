@@ -698,7 +698,39 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                 ? <Alert severity="error"><AlertTitle>F: DATA_QUERIES</AlertTitle>Every collection within a collections array MUST have a data_queries parameter.</Alert>
                 : (
                   <>
-                    <QueryForm queryUrl={queryUrl} queries={collection.data_queries} setQueryUrl={setQueryUrl} collection={collection}/> 
+                    {/* Data Query Selector */}
+                    <FormControl fullWidth sx={{ mb: 2 }}>
+                      <InputLabel id="data-query-select-label">Data Query</InputLabel>
+                      <Select
+                        labelId="data-query-select-label"
+                        value={selectedDataQuery}
+                        label="Data Query"
+                        onChange={(e) => {
+                          const queryType = e.target.value;
+                          setSelectedDataQuery(queryType);
+                          if (queryType && collection.data_queries[queryType]?.link) {
+                            setCollectionUrl(collection.data_queries[queryType].link.href);
+                          } else {
+                            // Reset to data link
+                            const dataLink = collection.links.find(link => link.rel === 'data');
+                            if (dataLink) {
+                              setCollectionUrl(dataLink.href);
+                            }
+                          }
+                        }}
+                        size="small"
+                      >
+                        <MenuItem value="">
+                          <em>Select a data query</em>
+                        </MenuItem>
+                        {Object.keys(collection.data_queries).map((queryKey) => (
+                          <MenuItem key={queryKey} value={queryKey}>
+                            {queryKey}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                    
                     {hasLocationQuery(collection) && (
                       <>
                         <Alert severity="info" sx={{ mt: 1 }}>
@@ -840,83 +872,33 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
     </Paper>
     
     {/* Bottom Drawer for Query Builder */}
-    <Drawer
-      anchor="bottom"
-      open={queryDrawerOpen}
-      onClose={() => setQueryDrawerOpen(false)}
-      variant="persistent"
-      sx={{
-        '& .MuiDrawer-paper': {
-          height: '300px',
-          boxSizing: 'border-box',
-        },
-      }}
-    >
-      <Box sx={{ p: 2 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h6">Query Builder</Typography>
-          <IconButton onClick={() => setQueryDrawerOpen(false)} size="small">
-            <KeyboardArrowDownIcon />
-          </IconButton>
-        </Box>
-        
-        {selectedCollection ? (
-          <Box>
-            <Typography variant="subtitle2" gutterBottom>
-              Selected Collection
-            </Typography>
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                {selectedCollection.id}
+      <Drawer
+        anchor="bottom"
+        open={queryDrawerOpen}
+        onClose={() => setQueryDrawerOpen(false)}
+        variant="persistent"
+        sx={{
+          '& .MuiDrawer-paper': {
+            height: '120px',
+            boxSizing: 'border-box',
+          },
+        }}
+      >
+        <Box sx={{ p: 2 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+            <Typography variant="h6">Query Builder</Typography>
+            <IconButton onClick={() => setQueryDrawerOpen(false)} size="small">
+              <KeyboardArrowDownIcon />
+            </IconButton>
+          </Box>
+          
+          {selectedCollection && collectionUrl ? (
+            <Box>
+              {/* Collection URL with Copy Button */}
+              <Typography variant="caption" color="text.secondary" gutterBottom display="block">
+                {selectedDataQuery ? `${selectedDataQuery} URL` : 'Collection URL'}
               </Typography>
-              {selectedCollection.title && (
-                <Typography variant="body2" color="text.secondary">
-                  {selectedCollection.title}
-                </Typography>
-              )}
-            </Box>
-            
-            {/* Data Query Selector */}
-            {selectedCollection.data_queries && Object.keys(selectedCollection.data_queries).length > 0 && (
-              <FormControl fullWidth sx={{ mb: 2 }}>
-                <InputLabel id="data-query-select-label">Data Query</InputLabel>
-                <Select
-                  labelId="data-query-select-label"
-                  value={selectedDataQuery}
-                  label="Data Query"
-                  onChange={(e) => {
-                    const queryType = e.target.value;
-                    setSelectedDataQuery(queryType);
-                    if (queryType && selectedCollection.data_queries[queryType]?.link) {
-                      setCollectionUrl(selectedCollection.data_queries[queryType].link.href);
-                    } else {
-                      // Reset to data link
-                      const dataLink = selectedCollection.links.find(link => link.rel === 'data');
-                      if (dataLink) {
-                        setCollectionUrl(dataLink.href);
-                      }
-                    }
-                  }}
-                  size="small"
-                >
-                  <MenuItem value="">
-                    <em>Select a data query</em>
-                  </MenuItem>
-                  {Object.keys(selectedCollection.data_queries).map((queryKey) => (
-                    <MenuItem key={queryKey} value={queryKey}>
-                      {queryKey}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            )}
-            
-            {/* Collection URL with Copy Button */}
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="caption" color="text.secondary" gutterBottom>
-                {selectedDataQuery ? `${selectedDataQuery} URL:` : 'Collection URL:'}
-              </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <TextField
                   fullWidth
                   value={collectionUrl}
@@ -938,16 +920,13 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                 </IconButton>
               </Box>
             </Box>
-          </Box>
-        ) : (
-          <Typography variant="body2" color="text.secondary">
-            Select a collection to build queries
-          </Typography>
-        )}
-      </Box>
-    </Drawer>
-    
-    {/* Toggle button to show drawer when closed */}
+          ) : (
+            <Typography variant="body2" color="text.secondary">
+              Select a collection to view URL
+            </Typography>
+          )}
+        </Box>
+      </Drawer>    {/* Toggle button to show drawer when closed */}
     {!queryDrawerOpen && selectedCollection && (
       <Box
         sx={{
