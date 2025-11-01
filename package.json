@@ -67,7 +67,6 @@
     ]
   },
   "devDependencies": {
-    "@types/swagger-ui-react": "^5.18.0",
-    "identity-obj-proxy": "^3.0.0"
+    "@types/swagger-ui-react": "^5.18.0"
   }
 }

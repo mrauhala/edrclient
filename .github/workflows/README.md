@@ -7,19 +7,17 @@ This project uses GitHub Actions for continuous integration, testing, and deploy
 ### 1. CI (`ci.yml`)
 **Triggers:** Push to `main`/`develop` branches, Pull requests to `main`/`develop`
 
-**Purpose:** Runs automated tests, linting, and type checking on every push and pull request.
+**Purpose:** Runs automated linting, type checking, and builds on every push and pull request.
 
 **Jobs:**
-- **Test & Lint**: 
+- **Lint & Type Check**: 
   - Runs on Node.js 18.x and 20.x (matrix strategy)
   - Installs dependencies with npm caching
-  - Runs linter (if configured)
+  - Runs ESLint to check code quality
   - Performs TypeScript type checking
-  - Runs all tests with coverage
-  - Uploads coverage reports to Codecov (optional)
 
 - **Build**:
-  - Runs after tests pass
+  - Runs after lint and type check pass
   - Creates production build
   - Uploads build artifacts for 7 days
 
@@ -51,7 +49,6 @@ This project uses GitHub Actions for continuous integration, testing, and deploy
 
 **Features:**
 - Fails on high severity vulnerabilities
-- Blocks GPL-2.0 and GPL-3.0 licenses
 - Provides detailed dependency change analysis
 
 ### 5. CodeQL Security Analysis (`codeql.yml`)
@@ -83,12 +80,6 @@ The following secrets must be configured in your GitHub repository:
 3. Generate a new private key
 4. Add the JSON content as a secret in GitHub repository settings
 
-### Optional: Codecov Integration
-To enable code coverage reporting:
-1. Sign up at [codecov.io](https://codecov.io)
-2. Link your repository
-3. No additional secrets needed - the action uses tokenless uploads for public repos
-
 ## Best Practices
 
 - All workflows use Node.js caching to speed up execution
@@ -96,6 +87,7 @@ To enable code coverage reporting:
 - Build artifacts are uploaded for debugging
 - Security scanning runs automatically
 - Preview deployments help review changes before production
+- Code quality is enforced through ESLint and TypeScript type checking
 
 ## Workflow Status Badges
 
@@ -118,7 +110,8 @@ Add these badges to your main README.md:
 - Ensure Firebase project ID is correct
 - Check Firebase Hosting quota and limits
 
-### Test Failures
-- Tests must not require interactive input (watchAll=false)
-- Tests should work in CI environment (CI=true)
-- Ensure all test dependencies are installed
+### Linting or Type Check Failures
+- Run `npm run lint` locally to see linting errors
+- Run `npm run lint:fix` to auto-fix issues
+- Run `npx tsc --noEmit` to check TypeScript errors
+- Review error messages in the Actions tab
