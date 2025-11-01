@@ -26,12 +26,10 @@ import Chip from '@mui/material/Chip';
 import Tooltip from '@mui/material/Tooltip';
 import Drawer from '@mui/material/Drawer';
 import IconButton from '@mui/material/IconButton';
+import Checkbox from '@mui/material/Checkbox';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
 import React, { useEffect, useState } from 'react';
 import { getCollections, Collection, ValidationResult, normalizeBbox, hasLocationQuery, getLocationQueryUrl, executeLocationQuery, getSupportedDataQueries, normalizeTemporal, formatConformanceClass } from './DataRetrievalAPI';
-import FormatForm from './FormatForm';
-import ParameterForm from './ParameterForm';
-import QueryForm from './QueryForm';
 import ValidationResults from './ValidationResult';
 import SchemaInspector from './SchemaInspector';
 import LocationFeatureList from './LocationFeatureList';
@@ -92,7 +90,9 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
   const [selectedDataQuery, setSelectedDataQuery] = useState<string>('');
   const [selectedFormat, setSelectedFormat] = useState<string>('');
+  const [selectedParameters, setSelectedParameters] = useState<string[]>([]);
   const [collectionUrl, setCollectionUrl] = useState<string>('');
+  const [showCollectionValidation, setShowCollectionValidation] = useState<{[key: string]: boolean}>({});
 
   // Debounce effect for text input - only update apiUrl after 1 second of no typing
   useEffect(() => {
@@ -195,16 +195,32 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   };
 
   // Helper function to build URL with query parameters
-  const buildUrlWithParams = (baseUrl: string, format: string) => {
+  const buildUrlWithParams = (baseUrl: string, format: string, parameters: string[], isDataQuery: boolean) => {
     if (!baseUrl) return baseUrl;
     
     try {
       const url = new URL(baseUrl);
-      if (format) {
-        url.searchParams.set('f', format);
+      
+      // Only add query parameters if this is a data query URL (not a collection URL)
+      if (isDataQuery) {
+        if (format) {
+          url.searchParams.set('f', format);
+        } else {
+          url.searchParams.delete('f');
+        }
+        
+        // Add parameters as a single comma-separated parameter-name query param
+        if (parameters && parameters.length > 0) {
+          url.searchParams.set('parameter-name', parameters.join(','));
+        } else {
+          url.searchParams.delete('parameter-name');
+        }
       } else {
+        // Remove query params when it's not a data query
         url.searchParams.delete('f');
+        url.searchParams.delete('parameter-name');
       }
+      
       return url.toString();
     } catch (error) {
       // If URL is invalid, return as is
@@ -235,17 +251,14 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
         // Fallback to constructed URL if no data link found
         baseUrl = apiUrl + "/collections/" + key;
       }
-      // Apply current format if selected
-      setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat));
+      // Collection URL - no query params added (isDataQuery = false)
+      setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, false));
       setSelectedDataQuery(''); // Reset data query selection
+      setSelectedParameters([]); // Reset parameters when collection changes
     } else {
       setCollectionUrl('');
       setSelectedFormat(''); // Reset format when collection is deselected
-    }
-    
-    // Open query drawer if collection is selected
-    if (selectedColl) {
-      setQueryDrawerOpen(true);
+      setSelectedParameters([]); // Reset parameters when collection is deselected
     }
     
     // Notify parent about selected collection change
@@ -682,6 +695,156 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
             </ListItemButton>
             
             <Collapse in={openCollectionIndex === index} timeout="auto" unmountOnExit>
+              {/* Dropdowns Section - Always Visible */}
+              <Box sx={{ p: 2 }}>
+                {/* Data Query Selector */}
+                { typeof collection.data_queries !== "undefined" && (
+                  <FormControl fullWidth sx={{ mb: 2 }}>
+                    <InputLabel id="data-query-select-label">Data Query</InputLabel>
+                    <Select
+                      labelId="data-query-select-label"
+                      value={selectedDataQuery}
+                      label="Data Query"
+                      onChange={(e) => {
+                        const queryType = e.target.value;
+                        setSelectedDataQuery(queryType);
+                        let baseUrl = '';
+                        if (queryType && collection.data_queries[queryType]?.link) {
+                          baseUrl = collection.data_queries[queryType].link.href;
+                        } else {
+                          // Reset to data link
+                          const dataLink = collection.links.find(link => link.rel === 'data');
+                          if (dataLink) {
+                            baseUrl = dataLink.href;
+                          }
+                        }
+                        // Apply format and parameter if data query is selected
+                        const isDataQuery = !!queryType;
+                        setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery));
+                      }}
+                      size="small"
+                    >
+                      <MenuItem value="">
+                        <em>Select a data query</em>
+                      </MenuItem>
+                      {Object.keys(collection.data_queries).map((queryKey) => (
+                        <MenuItem key={queryKey} value={queryKey}>
+                          {queryKey}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                )}
+
+                {/* Format Selector */}
+                { typeof collection.output_formats !== "undefined" && (
+                  <FormControl fullWidth sx={{ mb: 2 }}>
+                    <InputLabel id="format-select-label">Output Format</InputLabel>
+                    <Select
+                      labelId="format-select-label"
+                      value={selectedFormat}
+                      label="Output Format"
+                      onChange={(e) => {
+                        const format = e.target.value;
+                        setSelectedFormat(format);
+                        // Update URL with format parameter while preserving current base URL
+                        // Only add params if data query is selected
+                        const isDataQuery = !!selectedDataQuery;
+                        setCollectionUrl(buildUrlWithParams(collectionUrl, format, selectedParameters, isDataQuery));
+                      }}
+                      size="small"
+                    >
+                      <MenuItem value="">
+                        <em>Select a format</em>
+                      </MenuItem>
+                      {collection.output_formats.map((format) => (
+                        <MenuItem key={format} value={format}>
+                          {format}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                )}
+
+                {/* Parameter Selector - Multiselect */}
+                { typeof collection.parameter_names !== "undefined" && (
+                  <FormControl fullWidth sx={{ mb: 2 }}>
+                    <InputLabel id="parameter-select-label">Parameters</InputLabel>
+                    <Select
+                      labelId="parameter-select-label"
+                      multiple
+                      value={selectedParameters}
+                      label="Parameters"
+                      onChange={(e) => {
+                        const parameters = typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value;
+                        setSelectedParameters(parameters);
+                        // Update URL with parameter-name parameter
+                        // Only add params if data query is selected
+                        const isDataQuery = !!selectedDataQuery;
+                        setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, parameters, isDataQuery));
+                      }}
+                      size="small"
+                      renderValue={(selected) => selected.join(', ')}
+                    >
+                      {Array.isArray(collection.parameter_names)
+                        ? collection.parameter_names.map((param) => (
+                            <MenuItem key={param.id} value={param.id}>
+                              <Checkbox checked={selectedParameters.indexOf(param.id) > -1} />
+                              <ListItemText primary={param.label || param.id} />
+                            </MenuItem>
+                          ))
+                        : Object.keys(collection.parameter_names || {}).map((paramKey) => {
+                            const params = collection.parameter_names as { [key: string]: any };
+                            return (
+                              <MenuItem key={paramKey} value={paramKey}>
+                                <Checkbox checked={selectedParameters.indexOf(paramKey) > -1} />
+                                <ListItemText primary={params[paramKey]?.description || paramKey} />
+                              </MenuItem>
+                            );
+                          })
+                      }
+                    </Select>
+                  </FormControl>
+                )}
+
+                {/* Location Query Info */}
+                {hasLocationQuery(collection) && (
+                  <>
+                    <Alert severity="info" sx={{ mt: 1 }}>
+                      <AlertTitle>Location Query Available</AlertTitle>
+                      This collection supports location queries. Location features will be displayed on the map when this collection is selected.
+                    </Alert>
+                    
+                    {/* Show location features list only for the current collection */}
+                    {currentLocationCollection === collection.id && locationFeatures && (
+                      <Box sx={{ mt: 1 }}>
+                        <LocationFeatureList 
+                          features={locationFeatures} 
+                          onFeatureSelect={onFeatureSelect}
+                        />
+                      </Box>
+                    )}
+                  </>
+                )}
+
+                {/* Show Validation Button */}
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  onClick={() => setShowCollectionValidation({
+                    ...showCollectionValidation,
+                    [collection.id]: !showCollectionValidation[collection.id]
+                  })}
+                  endIcon={showCollectionValidation[collection.id] ? <ExpandLess /> : <ExpandMore />}
+                  sx={{ mt: 2 }}
+                >
+                  {showCollectionValidation[collection.id] ? 'Hide Validation' : 'Show Validation'}
+                </Button>
+              </Box>
+
+              {/* Validation Section - Collapsible */}
+              <Collapse in={showCollectionValidation[collection.id]} timeout="auto" unmountOnExit>
+              <Box sx={{ p: 2 }}>
               {/* Schema validation errors for this collection */}
               {validationResult.collectionErrors && validationResult.collectionErrors[collection.id] && (
                 <CollectionValidationErrors 
@@ -720,62 +883,16 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
               { typeof collection.data_queries == "undefined"
                 ? <Alert severity="error"><AlertTitle>F: DATA_QUERIES</AlertTitle>Every collection within a collections array MUST have a data_queries parameter.</Alert>
                 : (
-                  <>
-                    {/* Data Query Selector */}
-                    <FormControl fullWidth sx={{ mb: 2 }}>
-                      <InputLabel id="data-query-select-label">Data Query</InputLabel>
-                      <Select
-                        labelId="data-query-select-label"
-                        value={selectedDataQuery}
-                        label="Data Query"
-                        onChange={(e) => {
-                          const queryType = e.target.value;
-                          setSelectedDataQuery(queryType);
-                          let baseUrl = '';
-                          if (queryType && collection.data_queries[queryType]?.link) {
-                            baseUrl = collection.data_queries[queryType].link.href;
-                          } else {
-                            // Reset to data link
-                            const dataLink = collection.links.find(link => link.rel === 'data');
-                            if (dataLink) {
-                              baseUrl = dataLink.href;
-                            }
-                          }
-                          // Apply current format to the URL
-                          setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat));
-                        }}
-                        size="small"
-                      >
-                        <MenuItem value="">
-                          <em>Select a data query</em>
-                        </MenuItem>
-                        {Object.keys(collection.data_queries).map((queryKey) => (
-                          <MenuItem key={queryKey} value={queryKey}>
-                            {queryKey}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                    
-                    {hasLocationQuery(collection) && (
-                      <>
-                        <Alert severity="info" sx={{ mt: 1 }}>
-                          <AlertTitle>Location Query Available</AlertTitle>
-                          This collection supports location queries. Location features will be displayed on the map when this collection is selected.
-                        </Alert>
-                        
-                        {/* Show location features list only for the current collection */}
-                        {currentLocationCollection === collection.id && locationFeatures && (
-                          <Box sx={{ mt: 1 }}>
-                            <LocationFeatureList 
-                              features={locationFeatures} 
-                              onFeatureSelect={onFeatureSelect}
-                            />
-                          </Box>
-                        )}
-                      </>
-                    )}
-                  </>
+                  <Alert severity="success">
+                    <AlertTitle>F: DATA_QUERIES</AlertTitle>
+                    {Object.keys(collection.data_queries).filter(key => collection.data_queries[key]?.link?.href).map((key) => (
+                      <div key={key}>
+                        <Link href={collection.data_queries[key].link.href}>
+                          {collection.data_queries[key].link.title ? collection.data_queries[key].link.title : collection.data_queries[key].link.rel}
+                        </Link> ({collection.data_queries[key].link.rel})
+                      </div>
+                    ))}
+                  </Alert>
                 )
               }
               
@@ -859,63 +976,38 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
               { typeof collection.output_formats == "undefined" 
                 ? <Alert severity="error"><AlertTitle>I: OUTPUT_FORMATS</AlertTitle>Every collection within a collections array MUST have an output_formats parameter.</Alert>
                 : (
-                  <>
-                    {/* Format Selector */}
-                    <FormControl fullWidth sx={{ mb: 2 }}>
-                      <InputLabel id="format-select-label">Output Format</InputLabel>
-                      <Select
-                        labelId="format-select-label"
-                        value={selectedFormat}
-                        label="Output Format"
-                        onChange={(e) => {
-                          const format = e.target.value;
-                          setSelectedFormat(format);
-                          // Update URL with format parameter while preserving current base URL
-                          setCollectionUrl(buildUrlWithParams(collectionUrl, format));
-                        }}
-                        size="small"
-                      >
-                        <MenuItem value="">
-                          <em>Select a format</em>
-                        </MenuItem>
-                        {collection.output_formats.map((format) => (
-                          <MenuItem key={format} value={format}>
-                            {format}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                    
-                    {/* Schema validation errors specific to output_formats */}
-                    {validationResult.collectionErrors && validationResult.collectionErrors[collection.id] && (
-                      <CollectionValidationErrors 
-                        collectionId={collection.id}
-                        errors={validationResult.collectionErrors[collection.id]}
-                        section="output_formats"
-                        expanded={false}
-                      />
-                    )}
-                  </>
+                  <Alert severity="success">
+                    <AlertTitle>I: OUTPUT_FORMATS</AlertTitle>
+                    {collection.output_formats.join(', ')}
+                  </Alert>
                 )
               }
 
               { typeof collection.parameter_names == "undefined"
                 ? <Alert severity="error"><AlertTitle>J: PARAMETER_NAMES</AlertTitle>Every collection within a collections array MUST have a parameter_names parameter.</Alert>
                 : (
-                  <>
-                    <ParameterForm queryUrl={queryUrl} parameters={collection.parameter_names} setQueryUrl={setQueryUrl}/> 
-                    {/* Schema validation errors specific to parameter_names */}
-                    {validationResult.collectionErrors && validationResult.collectionErrors[collection.id] && (
-                      <CollectionValidationErrors 
-                        collectionId={collection.id}
-                        errors={validationResult.collectionErrors[collection.id]}
-                        section="parameter_names"
-                        expanded={false}
-                      />
-                    )}
-                  </>
+                  <Alert severity="success">
+                    <AlertTitle>J: PARAMETER_NAMES</AlertTitle>
+                    {Array.isArray(collection.parameter_names)
+                      ? collection.parameter_names.map((param) => (
+                          <div key={param.id}>
+                            {param.label || param.id} ({param.type || 'unknown'})
+                          </div>
+                        ))
+                      : Object.keys(collection.parameter_names).map((paramKey) => {
+                          const params = collection.parameter_names as { [key: string]: any };
+                          return (
+                            <div key={paramKey}>
+                              {params[paramKey]?.description || paramKey} ({params[paramKey]?.type || 'unknown'})
+                            </div>
+                          );
+                        })
+                    }
+                  </Alert>
                 )
               }
+              </Box>
+              </Collapse>
             </Collapse>
           </React.Fragment>
         ))}
@@ -978,7 +1070,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
           )}
         </Box>
       </Drawer>    {/* Toggle button to show drawer when closed */}
-    {!queryDrawerOpen && selectedCollection && (
+    {!queryDrawerOpen && collectionUrl && (
       <Box
         sx={{
           position: 'fixed',
