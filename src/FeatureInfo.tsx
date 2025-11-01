@@ -43,7 +43,6 @@ const FeatureInfo: React.FC<FeatureInfoProps> = ({ feature, onClose }) => {
         overflow: 'auto',
         p: 2,
         zIndex: 1000,
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
         backdropFilter: 'blur(4px)'
       }}
     >
@@ -105,7 +104,7 @@ const FeatureInfo: React.FC<FeatureInfoProps> = ({ feature, onClose }) => {
           variant="body2" 
           sx={{ 
             fontFamily: 'monospace', 
-            backgroundColor: 'grey.100', 
+            backgroundColor: 'action.hover', 
             p: 1, 
             borderRadius: 1,
             fontSize: '0.8rem'

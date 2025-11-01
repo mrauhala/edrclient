@@ -131,7 +131,7 @@ const TemporalExtent: React.FC<TemporalExtentProps> = ({ temporal, collectionId,
                 <Typography variant="subtitle2" gutterBottom>
                   Time Intervals ({intervals.length})
                 </Typography>
-                <List dense sx={{ maxHeight: 200, overflow: 'auto', backgroundColor: 'rgba(0,0,0,0.02)', borderRadius: 1 }}>
+                <List dense sx={{ maxHeight: 200, overflow: 'auto', backgroundColor: 'action.hover', borderRadius: 1 }}>
                   {intervals.map((interval, index) => (
                     <ListItem key={index} divider={index < intervals.length - 1}>
                       <ListItemText
@@ -160,7 +160,7 @@ const TemporalExtent: React.FC<TemporalExtentProps> = ({ temporal, collectionId,
                 <Typography variant="subtitle2" gutterBottom>
                   Specific Time Values ({values.length})
                 </Typography>
-                <List dense sx={{ maxHeight: 200, overflow: 'auto', backgroundColor: 'rgba(0,0,0,0.02)', borderRadius: 1 }}>
+                <List dense sx={{ maxHeight: 200, overflow: 'auto', backgroundColor: 'action.hover', borderRadius: 1 }}>
                   {values.slice(0, 50).map((value, index) => (
                     <ListItem key={index} divider={index < Math.min(values.length, 50) - 1}>
                       <ListItemText
