@@ -17,9 +17,9 @@ interface TopMenuProps {
 const TopMenu: React.FC<TopMenuProps> = ({ onMenuClick, onThemeToggle, mode }) => {
   return (
     <AppBar position="static" >
-      <Toolbar>
+      <Toolbar variant="dense">
         <IconButton
-          size="large"
+          size="small"
           edge="start"
           color="inherit"
           aria-label="menu"
@@ -28,12 +28,12 @@ const TopMenu: React.FC<TopMenuProps> = ({ onMenuClick, onThemeToggle, mode }) =
         >
           <MenuIcon />
         </IconButton>
-        <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+        <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontSize: '1.1rem' }}>
           OGC API Browser
         </Typography>
         <Tooltip title={mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
           <IconButton
-            size="large"
+            size="small"
             edge="end"
             color="inherit"
             aria-label="toggle theme"
