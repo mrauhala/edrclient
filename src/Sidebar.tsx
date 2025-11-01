@@ -72,7 +72,7 @@ const edrServices = [
 const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExtentChange, onLocationFeaturesChange, onFeatureSelect, onSelectedCollectionChange, onMapClick, onDataQueryChange, onCollectionUrlChange, clickedCoords, locationFeatures }: SidebarProps) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md')); // Mobile/tablet breakpoint at 900px
-  const sidebarWidth = isMobile ? '100%' : 400;
+  const sidebarWidth = isMobile ? '100%' : 480;
   
   const [apiUrl, setApiUrl] = useState('https://opendata.fmi.fi/edr');
   const [selectedService, setSelectedService] = useState('https://opendata.fmi.fi/edr');
@@ -417,7 +417,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
       <Paper 
         elevation={3}
         sx={{
-          minWidth: isMobile ? '100vw' : 400, 
+          minWidth: isMobile ? '100vw' : 480, 
           width: sidebarWidth,
           height: '100%', 
           overflow: 'auto',
