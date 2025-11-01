@@ -120,6 +120,7 @@ export interface GetCollectionsResult {
   landingPageTitle?: string;
   landingPageDescription?: string;
   serviceDescUrl?: string;
+  conformsTo?: string[]; // OGC API conformance classes
 }
 
 export interface LocationQueryResult {
@@ -216,6 +217,35 @@ export async function executeLocationQuery(queryUrl: string): Promise<LocationQu
     }
   } catch (error) {
     console.error('Error executing location query:', error);
+    return null;
+  }
+}
+
+// Function to format OGC API conformance classes for display
+export function formatConformanceClass(url: string): string | null {
+  try {
+    // Only process OGC API conformance URLs
+    if (!url.includes('ogcapi-')) {
+      return null;
+    }
+    
+    // Extract the relevant parts: ogcapi-{standard}/{version}
+    const match = url.match(/ogcapi-([^/]+)\/([^/]+)/);
+    if (!match) {
+      return null;
+    }
+    
+    const [, standard, version] = match;
+    
+    // Format the standard name (capitalize and handle hyphens)
+    const formattedStandard = standard
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+    
+    return `OGC API - ${formattedStandard} v${version}`;
+  } catch (error) {
+    console.warn('Error formatting conformance class:', error);
     return null;
   }
 }
@@ -607,6 +637,7 @@ export async function getCollections(apiUrl: string): Promise<GetCollectionsResu
     // Step 2: Extract the collections URL from landing page links
     let collectionsUrl: string | null = null;
     let serviceDescUrl: string | null = null;
+    let conformanceUrl: string | null = null;
     
     if (landingPageData && landingPageData.links && Array.isArray(landingPageData.links)) {
       // Look for a link with rel='data' or rel='http://www.opengis.net/def/rel/ogc/1.0/data'
@@ -619,6 +650,12 @@ export async function getCollections(apiUrl: string): Promise<GetCollectionsResu
       const serviceDescLink = landingPageData.links.find(
         (link: Link) => link.rel === 'service-desc' || 
                        link.rel === 'http://www.opengis.net/def/rel/ogc/1.0/service-desc'
+      );
+      
+      // Look for conformance link
+      const conformanceLink = landingPageData.links.find(
+        (link: Link) => link.rel === 'conformance' || 
+                       link.rel === 'http://www.opengis.net/def/rel/ogc/1.0/conformance'
       );
       
       if (dataLink && dataLink.href) {
@@ -636,6 +673,11 @@ export async function getCollections(apiUrl: string): Promise<GetCollectionsResu
       if (serviceDescLink && serviceDescLink.href) {
         serviceDescUrl = serviceDescLink.href;
         console.log('Found service description URL from landing page:', serviceDescUrl);
+      }
+      
+      if (conformanceLink && conformanceLink.href) {
+        conformanceUrl = conformanceLink.href;
+        console.log('Found conformance URL from landing page:', conformanceUrl);
       }
     } else {
       console.warn('Landing page has no links array. Using fallback.');
@@ -675,6 +717,26 @@ export async function getCollections(apiUrl: string): Promise<GetCollectionsResu
     console.log(`Collections validation result: ${collectionsValidation.valid ? 'Valid' : 'Invalid'}`);
     console.log(`Loaded schema count: ${validator.getLoadedSchemaCount()}`);
     
+    // Step 5: Fetch conformance classes if conformance URL is available
+    let conformsTo: string[] | undefined = undefined;
+    if (conformanceUrl) {
+      try {
+        console.log('Step 5: Fetching conformance from:', conformanceUrl);
+        const conformanceUrlWithFormat = new URL(conformanceUrl);
+        if (!conformanceUrlWithFormat.searchParams.has('f')) {
+          conformanceUrlWithFormat.searchParams.set('f', 'json');
+        }
+        const conformanceResponse = await axios.get<{ conformsTo: string[] }>(conformanceUrlWithFormat.toString());
+        if (conformanceResponse.data && conformanceResponse.data.conformsTo) {
+          conformsTo = conformanceResponse.data.conformsTo;
+          console.log(`Found ${conformsTo.length} conformance classes`);
+        }
+      } catch (error) {
+        console.warn('Error fetching conformance, continuing without it:', error);
+        // Don't fail the whole request if conformance fetch fails
+      }
+    }
+    
     // Combine both validation results
     const combinedValidation: ValidationResult = {
       isValid: landingPageValidation.valid && collectionsValidation.valid,
@@ -704,7 +766,8 @@ export async function getCollections(apiUrl: string): Promise<GetCollectionsResu
       collectionsUrl: collectionsUrl,
       landingPageTitle: landingPageData?.title,
       landingPageDescription: landingPageData?.description,
-      serviceDescUrl: serviceDescUrl || undefined
+      serviceDescUrl: serviceDescUrl || undefined,
+      conformsTo: conformsTo
     };
   } catch (error) {
     console.error('Error fetching collections:', error);

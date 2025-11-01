@@ -22,7 +22,7 @@ import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
 import React, { useEffect, useState } from 'react';
-import { getCollections, Collection, ValidationResult, normalizeBbox, hasLocationQuery, getLocationQueryUrl, executeLocationQuery, getSupportedDataQueries, normalizeTemporal } from './DataRetrievalAPI';
+import { getCollections, Collection, ValidationResult, normalizeBbox, hasLocationQuery, getLocationQueryUrl, executeLocationQuery, getSupportedDataQueries, normalizeTemporal, formatConformanceClass } from './DataRetrievalAPI';
 import FormatForm from './FormatForm';
 import ParameterForm from './ParameterForm';
 import QueryForm from './QueryForm';
@@ -77,6 +77,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   const [landingPageTitle, setLandingPageTitle] = useState<string | null>(null);
   const [landingPageDescription, setLandingPageDescription] = useState<string | null>(null);
   const [serviceDescUrl, setServiceDescUrl] = useState<string | null>(null);
+  const [conformsTo, setConformsTo] = useState<string[] | null>(null);
   const [validationTrigger, setValidationTrigger] = useState(0); // Counter to force re-validation
 
   // Debounce effect for text input - only update apiUrl after 1 second of no typing
@@ -116,6 +117,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
         setLandingPageTitle(result.landingPageTitle || null);
         setLandingPageDescription(result.landingPageDescription || null);
         setServiceDescUrl(result.serviceDescUrl || null);
+        setConformsTo(result.conformsTo || null);
         
         // Clear any previous extent/location data when switching services
         if (onCollectionExtentChange) {
@@ -332,6 +334,43 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
               )}
             </Box>
           )}
+          
+          {/* OGC API Conformance Classes */}
+          {conformsTo && conformsTo.length > 0 && (() => {
+            // Filter and format OGC API conformance classes
+            const ogcApiConformance = conformsTo
+              .map(url => formatConformanceClass(url))
+              .filter((formatted): formatted is string => formatted !== null);
+            
+            // Remove duplicates
+            const uniqueConformance = Array.from(new Set(ogcApiConformance));
+            
+            if (uniqueConformance.length > 0) {
+              return (
+                <Box sx={{ mb: 2, p: 2, backgroundColor: 'rgba(76, 175, 80, 0.08)', borderRadius: 1 }}>
+                  <Typography variant="subtitle2" sx={{ color: 'success.main', fontWeight: 600, mb: 1 }}>
+                    Conformance Classes
+                  </Typography>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                    {uniqueConformance.map((conformanceClass, index) => (
+                      <Chip
+                        key={index}
+                        label={conformanceClass}
+                        size="small"
+                        color="success"
+                        variant="outlined"
+                        sx={{ 
+                          fontSize: '0.7rem',
+                          height: '22px'
+                        }}
+                      />
+                    ))}
+                  </Box>
+                </Box>
+              );
+            }
+            return null;
+          })()}
           
           <Box sx={{ mb: 2 }}>
             {landingPageUrl && (
