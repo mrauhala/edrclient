@@ -64,6 +64,7 @@ const edrServices = [
   { label: 'Aviation Weather (WIFS)', value: 'https://aviationweather.gov/wifs/api' },
   { label: 'Meteogate Observations', value: 'https://observations.meteogate.eu' },
   { label: 'SmartMet Kenya', value: 'https://data-kenya.smartmet.org/edr' },
+  { label: 'DMI (Denmark)', value: 'https://api.meteogate.eu/dk/edr' },
   { label: 'DWD WIS2 GDC', value: 'https://wis2.dwd.de/gdc/' },
   { label: 'Canada WIS2 GDC', value: 'https://wis2-gdc.weather.gc.ca' },
   { label: 'China WIS2 GDC', value: 'https://gdc.wis.cma.cn' },
