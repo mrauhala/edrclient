@@ -100,6 +100,10 @@ export interface ValidationResult {
     isValid: boolean;
     errors: ValidationError[] | null;
   };
+  collectionsValidation?: {
+    isValid: boolean;
+    errors: ValidationError[] | null;
+  };
   conformanceValidation?: {
     isValid: boolean;
     errors: ValidationError[] | null;
@@ -761,6 +765,10 @@ export async function getCollections(apiUrl: string): Promise<GetCollectionsResu
       landingPageValidation: {
         isValid: landingPageValidation.valid,
         errors: landingPageValidation.errors
+      },
+      collectionsValidation: {
+        isValid: collectionsValidation.valid,
+        errors: collectionsValidation.errors
       },
       conformanceValidation: {
         isValid: conformanceValidation.valid,

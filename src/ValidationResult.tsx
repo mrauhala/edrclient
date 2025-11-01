@@ -22,14 +22,32 @@ const ValidationResults: React.FC<ValidationResultsProps> = ({ validation, expan
 
   // Show landing page validation if available
   const landingPageValidation = validation.landingPageValidation ? (
-    <Box sx={{ mb: 1 }}>
-      <Chip
-        label={`Landing Page: ${validation.landingPageValidation.isValid ? 'Valid' : 'Invalid'}`}
-        color={validation.landingPageValidation.isValid ? 'success' : 'warning'}
-        size="small"
-        sx={{ mr: 1 }}
-      />
-    </Box>
+    <Chip
+      label={`Landing Page: ${validation.landingPageValidation.isValid ? 'Valid' : 'Invalid'}`}
+      color={validation.landingPageValidation.isValid ? 'success' : 'warning'}
+      size="small"
+      sx={{ mr: 1, mb: 1 }}
+    />
+  ) : null;
+
+  // Show collections validation if available
+  const collectionsValidation = validation.collectionsValidation ? (
+    <Chip
+      label={`Collections: ${validation.collectionsValidation.isValid ? 'Valid' : 'Invalid'}`}
+      color={validation.collectionsValidation.isValid ? 'success' : 'warning'}
+      size="small"
+      sx={{ mr: 1, mb: 1 }}
+    />
+  ) : null;
+
+  // Show conformance validation if available
+  const conformanceValidation = validation.conformanceValidation ? (
+    <Chip
+      label={`Conformance: ${validation.conformanceValidation.isValid ? 'Valid' : 'Invalid'}`}
+      color={validation.conformanceValidation.isValid ? 'success' : 'warning'}
+      size="small"
+      sx={{ mr: 1, mb: 1 }}
+    />
   ) : null;
 
   // If there are no errors or we've manually set isValid to true despite errors
@@ -53,7 +71,11 @@ const ValidationResults: React.FC<ValidationResultsProps> = ({ validation, expan
           </Typography>
         )}
         
-        {landingPageValidation}
+        <Box sx={{ mt: 1 }}>
+          {landingPageValidation}
+          {collectionsValidation}
+          {conformanceValidation}
+        </Box>
         {schemaInfo}
         
         <Collapse in={expanded}>
@@ -87,7 +109,11 @@ const ValidationResults: React.FC<ValidationResultsProps> = ({ validation, expan
           Data is still being displayed
         </Typography>
         
-        {landingPageValidation}
+        <Box sx={{ mt: 1 }}>
+          {landingPageValidation}
+          {collectionsValidation}
+          {conformanceValidation}
+        </Box>
         {schemaInfo}
       </Alert>
       
