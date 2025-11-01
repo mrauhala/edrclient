@@ -8,8 +8,8 @@ import VectorSource from 'ol/source/Vector';
 import XYZ from 'ol/source/XYZ';
 import Overlay from 'ol/Overlay';
 import { Feature } from 'ol';
-import { Polygon } from 'ol/geom';
-import { fromLonLat } from 'ol/proj';
+import { Polygon, Point } from 'ol/geom';
+import { fromLonLat, toLonLat } from 'ol/proj';
 import { Style, Stroke, Fill, Circle } from 'ol/style';
 import GeoJSON from 'ol/format/GeoJSON';
 import FeatureInfo from './FeatureInfo';
@@ -22,14 +22,18 @@ interface MapProps {
   selectedCollection?: Collection | null;
   locationFeatures?: any[] | null;
   selectedFeature?: any | null;
+  clickedCoords?: [number, number] | null;
+  dataQuery?: string;
   onUpdateBoundingBox?: (boundingBox: [number, number, number, number]) => void;
   onFeatureSelect?: (feature: any | null) => void;
+  onMapClick?: (coords: [number, number] | null) => void;
 }
 
-const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCollectionExtents, selectedCollection, locationFeatures, selectedFeature, onUpdateBoundingBox, onFeatureSelect }) => {
+const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCollectionExtents, selectedCollection, locationFeatures, selectedFeature, clickedCoords, dataQuery, onUpdateBoundingBox, onFeatureSelect, onMapClick }) => {
   const [map, setMap] = useState<Map | null>(null);
   const [vectorLayer, setVectorLayer] = useState<VectorLayer<VectorSource> | null>(null);
   const [locationLayer, setLocationLayer] = useState<VectorLayer<VectorSource> | null>(null);
+  const [markerLayer, setMarkerLayer] = useState<VectorLayer<VectorSource> | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [tooltipOverlay, setTooltipOverlay] = useState<Overlay | null>(null);
   const boundingBoxRef = useRef(boundingBox);
@@ -336,6 +340,18 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
       },
     });
 
+    // Create marker layer for position query clicks
+    const newMarkerLayer = new VectorLayer({
+      source: new VectorSource(),
+      style: new Style({
+        image: new Circle({
+          radius: 8,
+          fill: new Fill({ color: 'rgba(255, 0, 0, 0.8)' }),
+          stroke: new Stroke({ color: 'white', width: 2 }),
+        }),
+      }),
+    });
+
     const openLayersMap = new Map({
       target: 'map',
       layers: [
@@ -347,6 +363,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
         }),
         newVectorLayer, // Add vector layer for bounding boxes
         newLocationLayer, // Add vector layer for location features
+        newMarkerLayer, // Add marker layer for position clicks
       ],
       view: new View({
         center: [0, 0],
@@ -357,6 +374,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
     setMap(openLayersMap);
     setVectorLayer(newVectorLayer);
     setLocationLayer(newLocationLayer);
+    setMarkerLayer(newMarkerLayer);
 
     // Create tooltip overlay
     const tooltip = new Overlay({
@@ -441,6 +459,59 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
       onUpdateBoundingBox(boundingBoxRef.current);
     }
   }, [onUpdateBoundingBox]);
+
+  // Effect to update marker when clicked coordinates change
+  useEffect(() => {
+    if (markerLayer) {
+      const source = markerLayer.getSource();
+      if (source) {
+        source.clear();
+        
+        if (clickedCoords) {
+          const [lon, lat] = clickedCoords;
+          const feature = new Feature({
+            geometry: new Point(fromLonLat([lon, lat])),
+          });
+          source.addFeature(feature);
+        }
+      }
+    }
+  }, [clickedCoords, markerLayer]);
+
+  // Effect to handle map clicks for position queries
+  useEffect(() => {
+    if (!map || !selectedCollection) return;
+
+    const handleMapClick = (event: any) => {
+      // Only handle clicks if data query is 'position'
+      if (dataQuery && dataQuery.toLowerCase() === 'position') {
+        // Check if click is within collection bbox
+        const coords = map.getCoordinateFromPixel(event.pixel);
+        const [x, y] = toLonLat(coords);
+        
+        // Get collection bbox
+        const bbox = selectedCollection.extent?.spatial?.bbox;
+        if (bbox && bbox.length > 0) {
+          const collectionBbox = bbox[0] as number[];
+          const [minLon, minLat, maxLon, maxLat] = collectionBbox;
+          
+          // Check if click is within bbox
+          if (x >= minLon && x <= maxLon && y >= minLat && y <= maxLat) {
+            // Pass coordinates back to parent
+            if (onMapClick) {
+              onMapClick([x, y]);
+            }
+          }
+        }
+      }
+    };
+
+    map.on('singleclick', handleMapClick);
+
+    return () => {
+      map.un('singleclick', handleMapClick);
+    };
+  }, [map, dataQuery, selectedCollection, onMapClick]);
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>

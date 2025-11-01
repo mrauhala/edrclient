@@ -48,6 +48,8 @@ interface SidebarProps {
   onLocationFeaturesChange?: (features: any[] | null) => void;
   onFeatureSelect?: (feature: any) => void;
   onSelectedCollectionChange?: (collection: Collection | null) => void;
+  onMapClick?: (coords: [number, number] | null) => void;
+  onDataQueryChange?: (dataQuery: string) => void;
   locationFeatures?: any[] | null;
 }
 
@@ -67,7 +69,7 @@ const edrServices = [
   { label: 'Custom', value: '' }
 ];
 
-const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExtentChange, onLocationFeaturesChange, onFeatureSelect, onSelectedCollectionChange, locationFeatures }: SidebarProps) => {
+const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExtentChange, onLocationFeaturesChange, onFeatureSelect, onSelectedCollectionChange, onMapClick, onDataQueryChange, locationFeatures }: SidebarProps) => {
   const [apiUrl, setApiUrl] = useState('https://opendata.fmi.fi/edr');
   const [selectedService, setSelectedService] = useState('https://opendata.fmi.fi/edr');
   const [inputUrl, setInputUrl] = useState('https://opendata.fmi.fi/edr'); // Separate state for text input
@@ -91,6 +93,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   const [selectedDataQuery, setSelectedDataQuery] = useState<string>('');
   const [selectedFormat, setSelectedFormat] = useState<string>('');
   const [selectedParameters, setSelectedParameters] = useState<string[]>([]);
+  const [clickedCoords, setClickedCoords] = useState<[number, number] | null>(null);
   const [collectionUrl, setCollectionUrl] = useState<string>('');
   const [showCollectionValidation, setShowCollectionValidation] = useState<{[key: string]: boolean}>({});
 
@@ -162,6 +165,19 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
 
   const [openCollectionIndex, setOpenCollectionIndex] = useState<number | null>(null);
 
+  // Effect to rebuild URL when clicked coordinates change
+  useEffect(() => {
+    if (selectedDataQuery && selectedDataQuery.toLowerCase() === 'position' && clickedCoords) {
+      const isDataQuery = !!selectedDataQuery;
+      // Find the current collection and rebuild the URL
+      if (selectedCollection && selectedCollection.data_queries[selectedDataQuery]?.link) {
+        const baseUrl = selectedCollection.data_queries[selectedDataQuery].link.href;
+        setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedDataQuery));
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clickedCoords]);
+
   function handleApiUrlChange(event: React.ChangeEvent<HTMLInputElement>) {
     const newUrl = event.target.value;
     setInputUrl(newUrl); // Update input state immediately for responsive UI
@@ -195,7 +211,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   };
 
   // Helper function to build URL with query parameters
-  const buildUrlWithParams = (baseUrl: string, format: string, parameters: string[], isDataQuery: boolean) => {
+  const buildUrlWithParams = (baseUrl: string, format: string, parameters: string[], isDataQuery: boolean, coords: [number, number] | null = null, queryType: string = '') => {
     if (!baseUrl) return baseUrl;
     
     try {
@@ -215,10 +231,19 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
         } else {
           url.searchParams.delete('parameter-name');
         }
+        
+        // Add coords parameter if query type is 'position' and coords are available
+        if (queryType.toLowerCase() === 'position' && coords) {
+          const [lon, lat] = coords;
+          url.searchParams.set('coords', `POINT(${lon.toFixed(3)} ${lat.toFixed(3)})`);
+        } else {
+          url.searchParams.delete('coords');
+        }
       } else {
         // Remove query params when it's not a data query
         url.searchParams.delete('f');
         url.searchParams.delete('parameter-name');
+        url.searchParams.delete('coords');
       }
       
       return url.toString();
@@ -252,13 +277,24 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
         baseUrl = apiUrl + "/collections/" + key;
       }
       // Collection URL - no query params added (isDataQuery = false)
-      setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, false));
+      setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, false, null, ''));
       setSelectedDataQuery(''); // Reset data query selection
       setSelectedParameters([]); // Reset parameters when collection changes
+      setClickedCoords(null); // Clear clicked coordinates when collection changes
+      if (onMapClick) {
+        onMapClick(null); // Notify parent to clear marker
+      }
+      if (onDataQueryChange) {
+        onDataQueryChange(''); // Notify parent that data query was cleared
+      }
     } else {
       setCollectionUrl('');
       setSelectedFormat(''); // Reset format when collection is deselected
       setSelectedParameters([]); // Reset parameters when collection is deselected
+      setClickedCoords(null); // Clear clicked coordinates
+      if (onMapClick) {
+        onMapClick(null); // Notify parent to clear marker
+      }
     }
     
     // Notify parent about selected collection change
@@ -708,6 +744,17 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                       onChange={(e) => {
                         const queryType = e.target.value;
                         setSelectedDataQuery(queryType);
+                        // Notify parent about data query change
+                        if (onDataQueryChange) {
+                          onDataQueryChange(queryType);
+                        }
+                        // Clear clicked coordinates when changing data query
+                        if (queryType.toLowerCase() !== 'position') {
+                          setClickedCoords(null);
+                          if (onMapClick) {
+                            onMapClick(null);
+                          }
+                        }
                         let baseUrl = '';
                         if (queryType && collection.data_queries[queryType]?.link) {
                           baseUrl = collection.data_queries[queryType].link.href;
@@ -720,7 +767,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                         }
                         // Apply format and parameter if data query is selected
                         const isDataQuery = !!queryType;
-                        setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery));
+                        setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, queryType));
                       }}
                       size="small"
                     >
@@ -750,7 +797,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                         // Update URL with format parameter while preserving current base URL
                         // Only add params if data query is selected
                         const isDataQuery = !!selectedDataQuery;
-                        setCollectionUrl(buildUrlWithParams(collectionUrl, format, selectedParameters, isDataQuery));
+                        setCollectionUrl(buildUrlWithParams(collectionUrl, format, selectedParameters, isDataQuery, clickedCoords, selectedDataQuery));
                       }}
                       size="small"
                     >
@@ -781,7 +828,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                         // Update URL with parameter-name parameter
                         // Only add params if data query is selected
                         const isDataQuery = !!selectedDataQuery;
-                        setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, parameters, isDataQuery));
+                        setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, parameters, isDataQuery, clickedCoords, selectedDataQuery));
                       }}
                       size="small"
                       renderValue={(selected) => selected.join(', ')}

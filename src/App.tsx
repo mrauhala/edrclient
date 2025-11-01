@@ -15,6 +15,8 @@ function App() {
   const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
   const [locationFeatures, setLocationFeatures] = useState<any[] | null>(null);
   const [selectedFeature, setSelectedFeature] = useState<any | null>(null);
+  const [clickedCoords, setClickedCoords] = useState<[number, number] | null>(null);
+  const [dataQuery, setDataQuery] = useState<string>('');
 
   const handleUpdateBoundingBox = (newBoundingBox: [number, number, number, number]) => {
     setBoundingBox(newBoundingBox);
@@ -43,8 +45,8 @@ function App() {
     <div>
       <Grid container spacing={0}>
       <Grid item xs={12}><TopMenu /></Grid>
-      <Grid item xs={12} md={5}><Sidebar open={sidebarOpen} onClose={handleSidebarClose} boundingBox={boundingBox} setBoundingBox={setBoundingBox} onCollectionExtentChange={setSelectedCollectionExtents} onLocationFeaturesChange={setLocationFeatures} onFeatureSelect={handleFeatureSelect} onSelectedCollectionChange={setSelectedCollection} locationFeatures={locationFeatures}/></Grid>
-      <Grid item xs={12} md={7}><OpenLayersMap zoomLevel={2} boundingBox={boundingBox} selectedCollectionExtents={selectedCollectionExtents} selectedCollection={selectedCollection} locationFeatures={locationFeatures} selectedFeature={selectedFeature} onUpdateBoundingBox={handleUpdateBoundingBox} onFeatureSelect={handleFeatureSelect} /></Grid>
+      <Grid item xs={12} md={5}><Sidebar open={sidebarOpen} onClose={handleSidebarClose} boundingBox={boundingBox} setBoundingBox={setBoundingBox} onCollectionExtentChange={setSelectedCollectionExtents} onLocationFeaturesChange={setLocationFeatures} onFeatureSelect={handleFeatureSelect} onSelectedCollectionChange={setSelectedCollection} onMapClick={setClickedCoords} onDataQueryChange={setDataQuery} locationFeatures={locationFeatures}/></Grid>
+      <Grid item xs={12} md={7}><OpenLayersMap zoomLevel={2} boundingBox={boundingBox} selectedCollectionExtents={selectedCollectionExtents} selectedCollection={selectedCollection} locationFeatures={locationFeatures} selectedFeature={selectedFeature} onUpdateBoundingBox={handleUpdateBoundingBox} onFeatureSelect={handleFeatureSelect} clickedCoords={clickedCoords} dataQuery={dataQuery} /></Grid>
       </Grid>
     </div>
   );
