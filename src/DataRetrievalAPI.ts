@@ -100,6 +100,14 @@ export interface ValidationResult {
     isValid: boolean;
     errors: ValidationError[] | null;
   };
+  collectionsValidation?: {
+    isValid: boolean;
+    errors: ValidationError[] | null;
+  };
+  conformanceValidation?: {
+    isValid: boolean;
+    errors: ValidationError[] | null;
+  };
 }
 
 interface CollectionsResponse {
@@ -117,9 +125,11 @@ export interface GetCollectionsResult {
   validation: ValidationResult;
   landingPageUrl?: string;
   collectionsUrl?: string;
+  conformanceUrl?: string;
   landingPageTitle?: string;
   landingPageDescription?: string;
   serviceDescUrl?: string;
+  conformsTo?: string[]; // OGC API conformance classes
 }
 
 export interface LocationQueryResult {
@@ -216,6 +226,71 @@ export async function executeLocationQuery(queryUrl: string): Promise<LocationQu
     }
   } catch (error) {
     console.error('Error executing location query:', error);
+    return null;
+  }
+}
+
+// Function to format OGC API conformance classes for display
+export function formatConformanceClass(url: string): string | null {
+  try {
+    // Only process OGC API conformance URLs
+    if (!url.includes('ogcapi-')) {
+      return null;
+    }
+    
+    // Extract the relevant parts after ogcapi-
+    // Pattern: http://www.opengis.net/spec/ogcapi-{standard}-{partNum}/{version}/conf/{confName}
+    // or: http://www.opengis.net/spec/ogcapi-{standard}/{version}/conf/{confName}
+    const match = url.match(/ogcapi-([^/]+)\/([^/]+)\/conf\/(.+)/);
+    if (!match) {
+      // Fallback to simple pattern without conf path
+      const simpleMatch = url.match(/ogcapi-([^/]+)\/([^/]+)/);
+      if (!simpleMatch) {
+        return null;
+      }
+      
+      const [, standardWithPart, version] = simpleMatch;
+      
+      // Check if standard has a part number (e.g., "edr-1")
+      const partMatch = standardWithPart.match(/^(.+)-(\d+)$/);
+      if (partMatch) {
+        const [, standardName, partNum] = partMatch;
+        const formattedStandard = standardName.toUpperCase();
+        return `OGC API - ${formattedStandard} - Part ${partNum} (v${version})`;
+      }
+      
+      const formattedStandard = standardWithPart
+        .split('-')
+        .map(word => word.toUpperCase())
+        .join(' ');
+      
+      return `OGC API - ${formattedStandard} (v${version})`;
+    }
+    
+    const [, standardWithPart, version, confPath] = match;
+    
+    // Check if standard has a part number suffix (e.g., "edr-1", "common-1")
+    let standardName = standardWithPart;
+    let partNum = '1'; // Default to part 1
+    
+    const standardPartMatch = standardWithPart.match(/^(.+)-(\d+)$/);
+    if (standardPartMatch) {
+      standardName = standardPartMatch[1];
+      partNum = standardPartMatch[2];
+    }
+    
+    // Format the standard name - convert to uppercase
+    const formattedStandard = standardName.toUpperCase();
+    
+    // Format the conf path name (capitalize first letter)
+    const formattedConfName = confPath
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+    
+    return `OGC API - ${formattedStandard} - Part ${partNum}: ${formattedConfName} (v${version})`;
+  } catch (error) {
+    console.warn('Error formatting conformance class:', error);
     return null;
   }
 }
@@ -588,12 +663,16 @@ export async function getCollections(apiUrl: string): Promise<GetCollectionsResu
       await validator.loadSchema();
     }
 
+    // Check if this is DMI service (to avoid f=json bug)
+    const isDMI = apiUrl.includes('api.meteogate.eu/dk/edr');
+
     // Step 1: Fetch and validate the landing page
     console.log('Step 1: Fetching landing page from:', apiUrl);
     
     // Add f=json format parameter if not already present
+    // Skip for DMI service as it incorrectly includes f=json in the href paths
     const landingPageUrl = new URL(apiUrl);
-    if (!landingPageUrl.searchParams.has('f')) {
+    if (!landingPageUrl.searchParams.has('f') && !isDMI) {
       landingPageUrl.searchParams.set('f', 'json');
     }
     
@@ -607,6 +686,7 @@ export async function getCollections(apiUrl: string): Promise<GetCollectionsResu
     // Step 2: Extract the collections URL from landing page links
     let collectionsUrl: string | null = null;
     let serviceDescUrl: string | null = null;
+    let conformanceUrl: string | null = null;
     
     if (landingPageData && landingPageData.links && Array.isArray(landingPageData.links)) {
       // Look for a link with rel='data' or rel='http://www.opengis.net/def/rel/ogc/1.0/data'
@@ -619,6 +699,12 @@ export async function getCollections(apiUrl: string): Promise<GetCollectionsResu
       const serviceDescLink = landingPageData.links.find(
         (link: Link) => link.rel === 'service-desc' || 
                        link.rel === 'http://www.opengis.net/def/rel/ogc/1.0/service-desc'
+      );
+      
+      // Look for conformance link
+      const conformanceLink = landingPageData.links.find(
+        (link: Link) => link.rel === 'conformance' || 
+                       link.rel === 'http://www.opengis.net/def/rel/ogc/1.0/conformance'
       );
       
       if (dataLink && dataLink.href) {
@@ -637,6 +723,11 @@ export async function getCollections(apiUrl: string): Promise<GetCollectionsResu
         serviceDescUrl = serviceDescLink.href;
         console.log('Found service description URL from landing page:', serviceDescUrl);
       }
+      
+      if (conformanceLink && conformanceLink.href) {
+        conformanceUrl = conformanceLink.href;
+        console.log('Found conformance URL from landing page:', conformanceUrl);
+      }
     } else {
       console.warn('Landing page has no links array. Using fallback.');
       collectionsUrl = `${apiUrl}/collections`;
@@ -646,8 +737,9 @@ export async function getCollections(apiUrl: string): Promise<GetCollectionsResu
     console.log('Step 2: Fetching collections from:', collectionsUrl);
     
     // Add f=json format parameter if not already present
+    // Skip for DMI service as it incorrectly includes f=json in the href paths
     const collectionsUrlWithFormat = new URL(collectionsUrl);
-    if (!collectionsUrlWithFormat.searchParams.has('f')) {
+    if (!collectionsUrlWithFormat.searchParams.has('f') && !isDMI) {
       collectionsUrlWithFormat.searchParams.set('f', 'json');
     }
     
@@ -675,12 +767,38 @@ export async function getCollections(apiUrl: string): Promise<GetCollectionsResu
     console.log(`Collections validation result: ${collectionsValidation.valid ? 'Valid' : 'Invalid'}`);
     console.log(`Loaded schema count: ${validator.getLoadedSchemaCount()}`);
     
-    // Combine both validation results
+    // Step 5: Fetch conformance classes if conformance URL is available
+    let conformsTo: string[] | undefined = undefined;
+    let conformanceValidation: { valid: boolean; errors: any[] | null } = { valid: true, errors: null };
+    if (conformanceUrl) {
+      try {
+        console.log('Step 5: Fetching conformance from:', conformanceUrl);
+        const conformanceUrlWithFormat = new URL(conformanceUrl);
+        if (!conformanceUrlWithFormat.searchParams.has('f')) {
+          conformanceUrlWithFormat.searchParams.set('f', 'json');
+        }
+        const conformanceResponse = await axios.get<{ conformsTo: string[] }>(conformanceUrlWithFormat.toString());
+        
+        // Validate conformance response
+        conformanceValidation = await validator.validateConformance(conformanceResponse.data);
+        
+        if (conformanceResponse.data && conformanceResponse.data.conformsTo) {
+          conformsTo = conformanceResponse.data.conformsTo;
+          console.log(`Found ${conformsTo.length} conformance classes`);
+        }
+      } catch (error) {
+        console.warn('Error fetching conformance, continuing without it:', error);
+        // Don't fail the whole request if conformance fetch fails
+      }
+    }
+    
+    // Combine all validation results
     const combinedValidation: ValidationResult = {
-      isValid: landingPageValidation.valid && collectionsValidation.valid,
+      isValid: landingPageValidation.valid && collectionsValidation.valid && conformanceValidation.valid,
       errors: [
         ...(landingPageValidation.errors || []),
-        ...(collectionsValidation.errors || [])
+        ...(collectionsValidation.errors || []),
+        ...(conformanceValidation.errors || [])
       ],
       schemaCount: validator.getLoadedSchemaCount(),
       schemaUrls: validator.getLoadedSchemaUrls(),
@@ -688,6 +806,14 @@ export async function getCollections(apiUrl: string): Promise<GetCollectionsResu
       landingPageValidation: {
         isValid: landingPageValidation.valid,
         errors: landingPageValidation.errors
+      },
+      collectionsValidation: {
+        isValid: collectionsValidation.valid,
+        errors: collectionsValidation.errors
+      },
+      conformanceValidation: {
+        isValid: conformanceValidation.valid,
+        errors: conformanceValidation.errors
       }
     };
 
@@ -702,9 +828,11 @@ export async function getCollections(apiUrl: string): Promise<GetCollectionsResu
       validation: combinedValidation,
       landingPageUrl: apiUrl,
       collectionsUrl: collectionsUrl,
+      conformanceUrl: conformanceUrl || undefined,
       landingPageTitle: landingPageData?.title,
       landingPageDescription: landingPageData?.description,
-      serviceDescUrl: serviceDescUrl || undefined
+      serviceDescUrl: serviceDescUrl || undefined,
+      conformsTo: conformsTo
     };
   } catch (error) {
     console.error('Error fetching collections:', error);

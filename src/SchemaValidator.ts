@@ -11,6 +11,7 @@ export class SchemaValidator {
   private ajv: Ajv;
   private collectionsValidate: any = null;
   private landingPageValidate: any = null;
+  private conformanceValidate: any = null;
 
   private constructor() {
     // Initialize AJV for data validation
@@ -39,6 +40,7 @@ export class SchemaValidator {
       this.schema = null;
       this.collectionsValidate = null;
       this.landingPageValidate = null;
+      this.conformanceValidate = null;
       
       // Download the bundled EDR OpenAPI specification (JSON with all references resolved)
       console.log('Downloading bundled EDR OpenAPI specification...');
@@ -71,6 +73,9 @@ export class SchemaValidator {
       
       // Try to prepare the landing page validator
       this.prepareLandingPageValidator();
+      
+      // Try to prepare the conformance validator
+      this.prepareConformanceValidator();
       
       this.isSchemaLoaded = true;
       this.schemaLoadError = null;
@@ -174,6 +179,52 @@ export class SchemaValidator {
       }
     } else {
       console.warn('❌ No landing page schema found in EDR specification');
+    }
+  }
+
+  private prepareConformanceValidator(): void {
+    if (!this.schema?.paths) {
+      console.warn('No paths found in OpenAPI specification');
+      return;
+    }
+
+    let conformanceSchema = null;
+    
+    // Look for the conformance schema in the /conformance path response
+    const conformancePath = this.schema.paths['/conformance'];
+    if (conformancePath?.get?.responses?.['200']?.content?.['application/json']?.schema) {
+      conformanceSchema = conformancePath.get.responses['200'].content['application/json'].schema;
+      console.log('✅ Found conformance schema in /conformance path');
+    }
+    
+    // Also try alternative content types
+    if (!conformanceSchema && conformancePath?.get?.responses?.['200']?.content) {
+      const contentTypes = Object.keys(conformancePath.get.responses['200'].content);
+      for (const contentType of contentTypes) {
+        if (conformancePath.get.responses['200'].content[contentType]?.schema) {
+          conformanceSchema = conformancePath.get.responses['200'].content[contentType].schema;
+          console.log(`✅ Found conformance schema in /conformance path (${contentType})`);
+          break;
+        }
+      }
+    }
+    
+    if (conformanceSchema) {
+      try {
+        console.log('Compiling conformance schema for validation...');
+        console.log('Schema structure:', {
+          type: conformanceSchema.type,
+          required: conformanceSchema.required,
+          properties: conformanceSchema.properties ? Object.keys(conformanceSchema.properties) : []
+        });
+        
+        this.conformanceValidate = this.ajv.compile(conformanceSchema);
+        console.log('✅ Conformance validator compiled successfully');
+      } catch (error) {
+        console.error('❌ Error compiling conformance schema:', error);
+      }
+    } else {
+      console.warn('❌ No conformance schema found in EDR specification');
     }
   }
 
@@ -300,6 +351,52 @@ export class SchemaValidator {
       }
     } catch (error) {
       console.error('❌ EDR landing page validation error:', error);
+      
+      return {
+        valid: false,
+        errors: [{ message: error instanceof Error ? error.message : 'Unknown validation error' }]
+      };
+    }
+  }
+
+  public async validateConformance(data: any): Promise<{ valid: boolean; errors: any[] | null }> {
+    if (!this.isSchemaLoaded || !this.conformanceValidate) {
+      return { 
+        valid: true, // Default to valid to prevent UI issues
+        errors: [{ message: 'EDR schema not loaded or no conformance schema found. Validation skipped.' }] 
+      };
+    }
+
+    try {
+      console.log('🔍 Beginning validation against EDR conformance schema...');
+      
+      // Validate the data against the pre-compiled conformance schema
+      const isValid = this.conformanceValidate(data);
+      
+      if (isValid) {
+        console.log('✅ EDR conformance schema validation passed');
+        return { valid: true, errors: null };
+      } else {
+        console.warn('❌ EDR conformance schema validation failed');
+        console.warn('Validation errors:', this.conformanceValidate.errors);
+        
+        // Convert AJV errors to our format
+        const errors = this.conformanceValidate.errors?.map((error: any) => ({
+          path: error.instancePath || error.dataPath || 'root',
+          message: `${error.instancePath || error.dataPath || ''}: ${error.message}`,
+          keyword: error.keyword,
+          allowedValues: error.params?.allowedValues,
+          schema: error.schema,
+          data: error.data
+        })) || [];
+        
+        return { 
+          valid: false, 
+          errors: errors
+        };
+      }
+    } catch (error) {
+      console.error('❌ EDR conformance validation error:', error);
       
       return {
         valid: false,
