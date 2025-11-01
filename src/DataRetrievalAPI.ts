@@ -100,6 +100,10 @@ export interface ValidationResult {
     isValid: boolean;
     errors: ValidationError[] | null;
   };
+  conformanceValidation?: {
+    isValid: boolean;
+    errors: ValidationError[] | null;
+  };
 }
 
 interface CollectionsResponse {
@@ -117,6 +121,7 @@ export interface GetCollectionsResult {
   validation: ValidationResult;
   landingPageUrl?: string;
   collectionsUrl?: string;
+  conformanceUrl?: string;
   landingPageTitle?: string;
   landingPageDescription?: string;
   serviceDescUrl?: string;
@@ -719,6 +724,7 @@ export async function getCollections(apiUrl: string): Promise<GetCollectionsResu
     
     // Step 5: Fetch conformance classes if conformance URL is available
     let conformsTo: string[] | undefined = undefined;
+    let conformanceValidation: { valid: boolean; errors: any[] | null } = { valid: true, errors: null };
     if (conformanceUrl) {
       try {
         console.log('Step 5: Fetching conformance from:', conformanceUrl);
@@ -727,6 +733,10 @@ export async function getCollections(apiUrl: string): Promise<GetCollectionsResu
           conformanceUrlWithFormat.searchParams.set('f', 'json');
         }
         const conformanceResponse = await axios.get<{ conformsTo: string[] }>(conformanceUrlWithFormat.toString());
+        
+        // Validate conformance response
+        conformanceValidation = await validator.validateConformance(conformanceResponse.data);
+        
         if (conformanceResponse.data && conformanceResponse.data.conformsTo) {
           conformsTo = conformanceResponse.data.conformsTo;
           console.log(`Found ${conformsTo.length} conformance classes`);
@@ -737,12 +747,13 @@ export async function getCollections(apiUrl: string): Promise<GetCollectionsResu
       }
     }
     
-    // Combine both validation results
+    // Combine all validation results
     const combinedValidation: ValidationResult = {
-      isValid: landingPageValidation.valid && collectionsValidation.valid,
+      isValid: landingPageValidation.valid && collectionsValidation.valid && conformanceValidation.valid,
       errors: [
         ...(landingPageValidation.errors || []),
-        ...(collectionsValidation.errors || [])
+        ...(collectionsValidation.errors || []),
+        ...(conformanceValidation.errors || [])
       ],
       schemaCount: validator.getLoadedSchemaCount(),
       schemaUrls: validator.getLoadedSchemaUrls(),
@@ -750,6 +761,10 @@ export async function getCollections(apiUrl: string): Promise<GetCollectionsResu
       landingPageValidation: {
         isValid: landingPageValidation.valid,
         errors: landingPageValidation.errors
+      },
+      conformanceValidation: {
+        isValid: conformanceValidation.valid,
+        errors: conformanceValidation.errors
       }
     };
 
@@ -764,6 +779,7 @@ export async function getCollections(apiUrl: string): Promise<GetCollectionsResu
       validation: combinedValidation,
       landingPageUrl: apiUrl,
       collectionsUrl: collectionsUrl,
+      conformanceUrl: conformanceUrl || undefined,
       landingPageTitle: landingPageData?.title,
       landingPageDescription: landingPageData?.description,
       serviceDescUrl: serviceDescUrl || undefined,

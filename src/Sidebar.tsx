@@ -74,6 +74,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   const [currentLocationCollection, setCurrentLocationCollection] = useState<string | null>(null);
   const [landingPageUrl, setLandingPageUrl] = useState<string | null>(null);
   const [collectionsUrl, setCollectionsUrl] = useState<string | null>(null);
+  const [conformanceUrl, setConformanceUrl] = useState<string | null>(null);
   const [landingPageTitle, setLandingPageTitle] = useState<string | null>(null);
   const [landingPageDescription, setLandingPageDescription] = useState<string | null>(null);
   const [serviceDescUrl, setServiceDescUrl] = useState<string | null>(null);
@@ -112,6 +113,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
         // Update URLs for display
         setLandingPageUrl(result.landingPageUrl || null);
         setCollectionsUrl(result.collectionsUrl || null);
+        setConformanceUrl(result.conformanceUrl || null);
         
         // Update landing page info for display
         setLandingPageTitle(result.landingPageTitle || null);
@@ -379,8 +381,13 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
               </div>
             )}
             {collectionsUrl && (
-              <div>
+              <div style={{ marginBottom: '8px' }}>
                 <strong>Collections URL:</strong> {collectionsUrl}
+              </div>
+            )}
+            {conformanceUrl && (
+              <div>
+                <strong>Conformance URL:</strong> {conformanceUrl}
               </div>
             )}
             {!landingPageUrl && !collectionsUrl && (
