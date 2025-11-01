@@ -20,4 +20,5 @@ jobs:
         uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: high
-          deny-licenses: GPL-2.0, GPL-3.0
+          # License checking can be configured via repository settings
+          # deny-licenses option is deprecated
