@@ -1,14 +1,20 @@
 import Sidebar from './Sidebar';
 import TopMenu from './TopMenu';
 import { useState } from 'react';
-import Grid from '@mui/material/Grid';
+import Box from '@mui/material/Box';
 import OpenLayersMap from './Map';
 import { Collection } from './DataRetrievalAPI';
+import Paper from '@mui/material/Paper';
+import TextField from '@mui/material/TextField';
+import IconButton from '@mui/material/IconButton';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import Tooltip from '@mui/material/Tooltip';
 
 
 function App() {
 
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [collectionUrl, setCollectionUrl] = useState<string>('');
 
   const [boundingBox, setBoundingBox] = useState<[number, number, number, number]>([-180, -90, 180, 90]);
   const [selectedCollectionExtents, setSelectedCollectionExtents] = useState<[number, number, number, number][] | null>(null);
@@ -22,8 +28,8 @@ function App() {
     setBoundingBox(newBoundingBox);
   };
 
-  const handleSidebarClose = () => {
-    setSidebarOpen(false);
+  const handleSidebarToggle = () => {
+    setSidebarOpen(!sidebarOpen);
   };
 
   const handleFeatureSelect = (feature: any | null) => {
@@ -41,14 +47,96 @@ function App() {
     }
   };
 
+  const handleCopyUrl = () => {
+    if (collectionUrl) {
+      navigator.clipboard.writeText(collectionUrl);
+    }
+  };
+
   return (
-    <div>
-      <Grid container spacing={0}>
-      <Grid item xs={12}><TopMenu /></Grid>
-      <Grid item xs={12} md={5}><Sidebar open={sidebarOpen} onClose={handleSidebarClose} boundingBox={boundingBox} setBoundingBox={setBoundingBox} onCollectionExtentChange={setSelectedCollectionExtents} onLocationFeaturesChange={setLocationFeatures} onFeatureSelect={handleFeatureSelect} onSelectedCollectionChange={setSelectedCollection} onMapClick={setClickedCoords} onDataQueryChange={setDataQuery} clickedCoords={clickedCoords} locationFeatures={locationFeatures}/></Grid>
-      <Grid item xs={12} md={7}><OpenLayersMap zoomLevel={2} boundingBox={boundingBox} selectedCollectionExtents={selectedCollectionExtents} selectedCollection={selectedCollection} locationFeatures={locationFeatures} selectedFeature={selectedFeature} onUpdateBoundingBox={handleUpdateBoundingBox} onFeatureSelect={handleFeatureSelect} clickedCoords={clickedCoords} dataQuery={dataQuery} onMapClick={setClickedCoords} /></Grid>
-      </Grid>
-    </div>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+      <TopMenu onMenuClick={handleSidebarToggle} />
+      
+      <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        <Sidebar 
+          open={sidebarOpen} 
+          onClose={handleSidebarToggle} 
+          boundingBox={boundingBox} 
+          setBoundingBox={setBoundingBox} 
+          onCollectionExtentChange={setSelectedCollectionExtents} 
+          onLocationFeaturesChange={setLocationFeatures} 
+          onFeatureSelect={handleFeatureSelect} 
+          onSelectedCollectionChange={setSelectedCollection} 
+          onMapClick={setClickedCoords} 
+          onDataQueryChange={setDataQuery} 
+          clickedCoords={clickedCoords} 
+          locationFeatures={locationFeatures}
+          onCollectionUrlChange={setCollectionUrl}
+        />
+        
+        <Box 
+          component="main" 
+          sx={{ 
+            flexGrow: 1, 
+            height: '100%',
+            position: 'relative',
+            overflow: 'hidden'
+          }}
+        >
+          <OpenLayersMap 
+            zoomLevel={2} 
+            boundingBox={boundingBox} 
+            selectedCollectionExtents={selectedCollectionExtents} 
+            selectedCollection={selectedCollection} 
+            locationFeatures={locationFeatures} 
+            selectedFeature={selectedFeature} 
+            onUpdateBoundingBox={handleUpdateBoundingBox} 
+            onFeatureSelect={handleFeatureSelect} 
+            clickedCoords={clickedCoords} 
+            dataQuery={dataQuery} 
+            onMapClick={setClickedCoords} 
+          />
+        </Box>
+      </Box>
+      
+      {/* Fixed Bottom Query Bar */}
+      {collectionUrl && (
+        <Paper 
+          elevation={8}
+          sx={{ 
+            position: 'fixed',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            zIndex: 1200,
+            borderRadius: 0,
+            borderTop: '1px solid rgba(0, 0, 0, 0.12)'
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', p: 1, gap: 1 }}>
+            <TextField
+              fullWidth
+              size="small"
+              value={collectionUrl}
+              InputProps={{
+                readOnly: true,
+                sx: { fontFamily: 'monospace', fontSize: '0.875rem' }
+              }}
+              variant="outlined"
+            />
+            <Tooltip title="Copy URL">
+              <IconButton 
+                color="primary" 
+                onClick={handleCopyUrl}
+                sx={{ flexShrink: 0 }}
+              >
+                <ContentCopyIcon />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        </Paper>
+      )}
+    </Box>
   );
 }
 

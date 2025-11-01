@@ -50,6 +50,7 @@ interface SidebarProps {
   onSelectedCollectionChange?: (collection: Collection | null) => void;
   onMapClick?: (coords: [number, number] | null) => void;
   onDataQueryChange?: (dataQuery: string) => void;
+  onCollectionUrlChange?: (url: string) => void;
   clickedCoords?: [number, number] | null;
   locationFeatures?: any[] | null;
 }
@@ -70,7 +71,7 @@ const edrServices = [
   { label: 'Custom', value: '' }
 ];
 
-const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExtentChange, onLocationFeaturesChange, onFeatureSelect, onSelectedCollectionChange, onMapClick, onDataQueryChange, clickedCoords, locationFeatures }: SidebarProps) => {
+const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExtentChange, onLocationFeaturesChange, onFeatureSelect, onSelectedCollectionChange, onMapClick, onDataQueryChange, onCollectionUrlChange, clickedCoords, locationFeatures }: SidebarProps) => {
   const [apiUrl, setApiUrl] = useState('https://opendata.fmi.fi/edr');
   const [selectedService, setSelectedService] = useState('https://opendata.fmi.fi/edr');
   const [inputUrl, setInputUrl] = useState('https://opendata.fmi.fi/edr'); // Separate state for text input
@@ -89,7 +90,6 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   const [conformsTo, setConformsTo] = useState<string[] | null>(null);
   const [selectedConformanceUrl, setSelectedConformanceUrl] = useState<string | null>(null);
   const [validationTrigger, setValidationTrigger] = useState(0); // Counter to force re-validation
-  const [queryDrawerOpen, setQueryDrawerOpen] = useState(false);
   const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
   const [selectedDataQuery, setSelectedDataQuery] = useState<string>('');
   const [selectedFormat, setSelectedFormat] = useState<string>('');
@@ -177,6 +177,13 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clickedCoords]);
+
+  // Effect to notify parent when URL changes
+  useEffect(() => {
+    if (onCollectionUrlChange) {
+      onCollectionUrlChange(collectionUrl);
+    }
+  }, [collectionUrl, onCollectionUrlChange]);
 
   function handleApiUrlChange(event: React.ChangeEvent<HTMLInputElement>) {
     const newUrl = event.target.value;
@@ -381,8 +388,21 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   };
 
   return (
-    <React.Fragment>
-      <Paper style={{minWidth: 200, maxHeight: '100vh', overflow: 'auto'}}>
+    <Drawer
+      anchor="left"
+      open={open}
+      onClose={onClose}
+      variant="persistent"
+      sx={{
+        width: 400,
+        flexShrink: 0,
+        '& .MuiDrawer-paper': {
+          width: 400,
+          boxSizing: 'border-box',
+        },
+      }}
+    >
+      <Paper style={{minWidth: 200, height: '100%', overflow: 'auto'}}>
         {/* EDR Service Selector and API URL - Moved to top */}
         <Box sx={{ padding: 2, minWidth: 120, borderBottom: '1px solid rgba(0, 0, 0, 0.12)' }}>
         <FormControl fullWidth sx={{ mb: 2 }}>
@@ -1057,85 +1077,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
         ))}
       </List>
     </Paper>
-    
-    {/* Bottom Drawer for Query Builder */}
-      <Drawer
-        anchor="bottom"
-        open={queryDrawerOpen}
-        onClose={() => setQueryDrawerOpen(false)}
-        variant="persistent"
-        sx={{
-          '& .MuiDrawer-paper': {
-            height: '120px',
-            boxSizing: 'border-box',
-          },
-        }}
-      >
-        <Box sx={{ p: 2 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-            <Typography variant="h6">Query Builder</Typography>
-            <IconButton onClick={() => setQueryDrawerOpen(false)} size="small">
-              <KeyboardArrowDownIcon />
-            </IconButton>
-          </Box>
-          
-          {selectedCollection && collectionUrl ? (
-            <Box>
-              {/* Collection URL with Copy Button */}
-              <Typography variant="caption" color="text.secondary" gutterBottom display="block">
-                {selectedDataQuery ? `${selectedDataQuery} URL` : 'Collection URL'}
-              </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <TextField
-                  fullWidth
-                  value={collectionUrl}
-                  size="small"
-                  InputProps={{
-                    readOnly: true,
-                    sx: { fontSize: '0.875rem' }
-                  }}
-                />
-                <IconButton
-                  onClick={() => {
-                    navigator.clipboard.writeText(collectionUrl);
-                  }}
-                  size="small"
-                  color="primary"
-                  title="Copy URL"
-                >
-                  <ContentCopyIcon fontSize="small" />
-                </IconButton>
-              </Box>
-            </Box>
-          ) : (
-            <Typography variant="body2" color="text.secondary">
-              Select a collection to view URL
-            </Typography>
-          )}
-        </Box>
-      </Drawer>    {/* Toggle button to show drawer when closed */}
-    {!queryDrawerOpen && collectionUrl && (
-      <Box
-        sx={{
-          position: 'fixed',
-          bottom: 0,
-          right: '50%',
-          transform: 'translateX(50%)',
-          zIndex: 1200,
-        }}
-      >
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={() => setQueryDrawerOpen(true)}
-          startIcon={<KeyboardArrowUpIcon />}
-          sx={{ borderRadius: '8px 8px 0 0' }}
-        >
-          Query Builder
-        </Button>
-      </Box>
-    )}
-    </React.Fragment>
+    </Drawer>
   );
 };
 
