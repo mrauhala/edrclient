@@ -266,7 +266,7 @@ export function formatConformanceClass(url: string): string | null {
       .join(' ');
     
     // Format the conf path: convert hyphens to spaces and capitalize
-    // e.g., "core" -> "Core", "part1-core" -> "Part 1: Core"
+    // e.g., "core" -> "Part 1: Core", "part1-core" -> "Part 1: Core"
     let formattedConfPath = confPath;
     
     // Handle "partN" pattern (e.g., "part1", "part2")
@@ -280,11 +280,12 @@ export function formatConformanceClass(url: string): string | null {
         formattedConfPath = `Part ${partNum}`;
       }
     } else {
-      // Just capitalize the conf path
-      formattedConfPath = confPath
+      // No part number in URL, default to "Part 1: {name}"
+      const formattedName = confPath
         .split('-')
         .map(word => word.charAt(0).toUpperCase() + word.slice(1))
         .join(' ');
+      formattedConfPath = `Part 1: ${formattedName}`;
     }
     
     return `OGC API - ${formattedStandard} - ${formattedConfPath} (v${version})`;
