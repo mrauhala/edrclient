@@ -11,6 +11,7 @@ import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import InputLabel from '@mui/material/InputLabel';
@@ -89,6 +90,8 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   const [validationTrigger, setValidationTrigger] = useState(0); // Counter to force re-validation
   const [queryDrawerOpen, setQueryDrawerOpen] = useState(false);
   const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
+  const [selectedDataQuery, setSelectedDataQuery] = useState<string>('');
+  const [collectionUrl, setCollectionUrl] = useState<string>('');
 
   // Debounce effect for text input - only update apiUrl after 1 second of no typing
   useEffect(() => {
@@ -202,6 +205,20 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
     // Update local state for selected collection
     const selectedColl = newIndex !== null ? collection : null;
     setSelectedCollection(selectedColl);
+    
+    // Find the "data" link from collection links
+    if (selectedColl) {
+      const dataLink = selectedColl.links.find(link => link.rel === 'data');
+      if (dataLink) {
+        setCollectionUrl(dataLink.href);
+      } else {
+        // Fallback to constructed URL if no data link found
+        setCollectionUrl(apiUrl + "/collections/" + key);
+      }
+      setSelectedDataQuery(''); // Reset data query selection
+    } else {
+      setCollectionUrl('');
+    }
     
     // Open query drawer if collection is selected
     if (selectedColl) {
@@ -857,25 +874,69 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                   {selectedCollection.title}
                 </Typography>
               )}
-              {selectedCollection.links && selectedCollection.links.length > 0 && (
-                <Box sx={{ mt: 1 }}>
-                  <Typography variant="caption" color="text.secondary">
-                    Links:
-                  </Typography>
-                  {selectedCollection.links.map((link, idx) => (
-                    <Box key={idx} sx={{ ml: 1 }}>
-                      <Link
-                        href={link.href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        sx={{ fontSize: '0.75rem' }}
-                      >
-                        {link.rel || link.href}
-                      </Link>
-                    </Box>
+            </Box>
+            
+            {/* Data Query Selector */}
+            {selectedCollection.data_queries && Object.keys(selectedCollection.data_queries).length > 0 && (
+              <FormControl fullWidth sx={{ mb: 2 }}>
+                <InputLabel id="data-query-select-label">Data Query</InputLabel>
+                <Select
+                  labelId="data-query-select-label"
+                  value={selectedDataQuery}
+                  label="Data Query"
+                  onChange={(e) => {
+                    const queryType = e.target.value;
+                    setSelectedDataQuery(queryType);
+                    if (queryType && selectedCollection.data_queries[queryType]?.link) {
+                      setCollectionUrl(selectedCollection.data_queries[queryType].link.href);
+                    } else {
+                      // Reset to data link
+                      const dataLink = selectedCollection.links.find(link => link.rel === 'data');
+                      if (dataLink) {
+                        setCollectionUrl(dataLink.href);
+                      }
+                    }
+                  }}
+                  size="small"
+                >
+                  <MenuItem value="">
+                    <em>Select a data query</em>
+                  </MenuItem>
+                  {Object.keys(selectedCollection.data_queries).map((queryKey) => (
+                    <MenuItem key={queryKey} value={queryKey}>
+                      {queryKey}
+                    </MenuItem>
                   ))}
-                </Box>
-              )}
+                </Select>
+              </FormControl>
+            )}
+            
+            {/* Collection URL with Copy Button */}
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="caption" color="text.secondary" gutterBottom>
+                {selectedDataQuery ? `${selectedDataQuery} URL:` : 'Collection URL:'}
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                <TextField
+                  fullWidth
+                  value={collectionUrl}
+                  size="small"
+                  InputProps={{
+                    readOnly: true,
+                    sx: { fontSize: '0.875rem' }
+                  }}
+                />
+                <IconButton
+                  onClick={() => {
+                    navigator.clipboard.writeText(collectionUrl);
+                  }}
+                  size="small"
+                  color="primary"
+                  title="Copy URL"
+                >
+                  <ContentCopyIcon fontSize="small" />
+                </IconButton>
+              </Box>
             </Box>
           </Box>
         ) : (
