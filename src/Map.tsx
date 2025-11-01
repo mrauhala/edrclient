@@ -13,6 +13,7 @@ import { fromLonLat, toLonLat } from 'ol/proj';
 import { Style, Stroke, Fill, Circle } from 'ol/style';
 import GeoJSON from 'ol/format/GeoJSON';
 import { defaults as defaultControls } from 'ol/control';
+import { bbox as bboxStrategy } from 'ol/loadingstrategy';
 import FeatureInfo from './FeatureInfo';
 import { Collection, normalizeTemporal, formatTemporalInterval, getOverallTemporalExtent, normalizeVertical, formatVerticalInterval, getOverallVerticalExtent, getVerticalUnit } from './DataRetrievalAPI';
 
@@ -28,13 +29,15 @@ interface MapProps {
   onUpdateBoundingBox?: (boundingBox: [number, number, number, number]) => void;
   onFeatureSelect?: (feature: any | null) => void;
   onMapClick?: (coords: [number, number] | null) => void;
+  geoJsonLayers?: {url: string, title: string, visible: boolean}[];
 }
 
-const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCollectionExtents, selectedCollection, locationFeatures, selectedFeature, clickedCoords, dataQuery, onUpdateBoundingBox, onFeatureSelect, onMapClick }) => {
+const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCollectionExtents, selectedCollection, locationFeatures, selectedFeature, clickedCoords, dataQuery, onUpdateBoundingBox, onFeatureSelect, onMapClick, geoJsonLayers = [] }) => {
   const [map, setMap] = useState<Map | null>(null);
   const [vectorLayer, setVectorLayer] = useState<VectorLayer<VectorSource> | null>(null);
   const [locationLayer, setLocationLayer] = useState<VectorLayer<VectorSource> | null>(null);
   const [markerLayer, setMarkerLayer] = useState<VectorLayer<VectorSource> | null>(null);
+  const [geoJsonVectorLayers, setGeoJsonVectorLayers] = useState<{[key: string]: VectorLayer<VectorSource>}>({});
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [tooltipOverlay, setTooltipOverlay] = useState<Overlay | null>(null);
   const boundingBoxRef = useRef(boundingBox);
@@ -232,6 +235,87 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
       locationFeaturesRef.current = null;
     }
   }, [map, locationLayer, locationFeatures, selectedCollectionExtents]);
+
+  // Effect to manage GeoJSON layers based on geoJsonLayers prop
+  useEffect(() => {
+    if (!map) return;
+
+    const newLayers: {[key: string]: VectorLayer<VectorSource>} = {};
+    const currentLayerKeys = new Set(Object.keys(geoJsonVectorLayers));
+    const newLayerKeys = new Set<string>();
+
+    // Create or update layers for visible GeoJSON layers
+    geoJsonLayers.forEach((layerConfig) => {
+      const layerKey = layerConfig.url;
+      newLayerKeys.add(layerKey);
+
+      if (layerConfig.visible) {
+        // Check if layer already exists
+        if (geoJsonVectorLayers[layerKey]) {
+          // Reuse existing layer
+          newLayers[layerKey] = geoJsonVectorLayers[layerKey];
+        } else {
+          // Create new layer with bbox strategy
+          const geoJsonLayer = new VectorLayer({
+            source: new VectorSource({
+              url: function (extent) {
+                const [minX, minY, maxX, maxY] = extent;
+                // Transform extent from map projection (EPSG:3857) to WGS84 (EPSG:4326)
+                const [minLon, minLat] = toLonLat([minX, minY]);
+                const [maxLon, maxLat] = toLonLat([maxX, maxY]);
+                const bboxString = `${minLon},${minLat},${maxLon},${maxLat}`;
+                
+                // Append bbox parameter to URL
+                const separator = layerConfig.url.includes('?') ? '&' : '?';
+                return `${layerConfig.url}${separator}bbox=${bboxString}`;
+              },
+              strategy: bboxStrategy,
+              format: new GeoJSON({
+                dataProjection: 'EPSG:4326',
+                featureProjection: 'EPSG:3857',
+              }),
+            }),
+            style: new Style({
+              stroke: new Stroke({
+                color: '#FF9800',
+                width: 2,
+              }),
+              fill: new Fill({
+                color: 'rgba(255, 152, 0, 0.3)',
+              }),
+              image: new Circle({
+                radius: 6,
+                fill: new Fill({
+                  color: '#FF9800',
+                }),
+                stroke: new Stroke({
+                  color: '#ffffff',
+                  width: 2,
+                }),
+              }),
+            }),
+          });
+
+          // Add layer to map
+          map.addLayer(geoJsonLayer);
+          newLayers[layerKey] = geoJsonLayer;
+        }
+      }
+    });
+
+    // Remove layers that are no longer visible or no longer in the list
+    currentLayerKeys.forEach((layerKey) => {
+      const layerConfig = geoJsonLayers.find(l => l.url === layerKey);
+      const shouldRemove = !layerConfig || !layerConfig.visible || !newLayerKeys.has(layerKey);
+      
+      if (shouldRemove && geoJsonVectorLayers[layerKey]) {
+        map.removeLayer(geoJsonVectorLayers[layerKey]);
+      }
+    });
+
+    // Update state with new layers
+    setGeoJsonVectorLayers(newLayers);
+  }, [map, geoJsonLayers]);
 
   useEffect(() => {
     if (map && boundingBoxRef.current !== boundingBox) {

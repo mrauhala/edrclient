@@ -53,6 +53,7 @@ interface SidebarProps {
   locationFeatures?: any[] | null;
   customServices?: CustomService[];
   onServiceUrlSelect?: string | null;
+  onGeoJsonLayersChange?: (layers: {url: string, title: string, visible: boolean}[]) => void;
 }
 
 // EDR service options
@@ -72,7 +73,7 @@ const edrServices = [
   { label: 'Custom', value: '' }
 ];
 
-const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExtentChange, onLocationFeaturesChange, onFeatureSelect, onSelectedCollectionChange, onMapClick, onDataQueryChange, onCollectionUrlChange, clickedCoords, locationFeatures, customServices = [], onServiceUrlSelect = null }: SidebarProps) => {
+const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExtentChange, onLocationFeaturesChange, onFeatureSelect, onSelectedCollectionChange, onMapClick, onDataQueryChange, onCollectionUrlChange, clickedCoords, locationFeatures, customServices = [], onServiceUrlSelect = null, onGeoJsonLayersChange }: SidebarProps) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md')); // Mobile/tablet breakpoint at 900px
   const sidebarWidth = isMobile ? '100%' : 480;
@@ -125,6 +126,21 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   const [selectedParameters, setSelectedParameters] = useState<string[]>([]);
   const [collectionUrl, setCollectionUrl] = useState<string>('');
   const [showCollectionValidation, setShowCollectionValidation] = useState<{[key: string]: boolean}>({});
+  const [activeGeoJsonLayers, setActiveGeoJsonLayers] = useState<{url: string, title: string, visible: boolean}[]>([]);
+
+  // Helper function to extract GeoJSON links from a collection
+  const getGeoJsonLinks = (collection: Collection): {url: string, title: string}[] => {
+    if (!collection || !collection.links || !Array.isArray(collection.links)) {
+      return [];
+    }
+    
+    return collection.links
+      .filter(link => link.type === 'application/geo+json')
+      .map(link => ({
+        url: link.href,
+        title: link.title || link.rel || 'GeoJSON Layer'
+      }));
+  };
 
   // Debounce effect for text input - only update apiUrl after 1 second of no typing
   useEffect(() => {
@@ -150,6 +166,12 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
       setSelectedFormat('');
       setSelectedParameters([]);
       setCollectionUrl('');
+      setActiveGeoJsonLayers([]);
+      
+      // Clear GeoJSON layers
+      if (onGeoJsonLayersChange) {
+        onGeoJsonLayersChange([]);
+      }
       
       try {
         console.log('Loading collections from:', apiUrl);
@@ -315,6 +337,26 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
     const selectedColl = newIndex !== null ? collection : null;
     setSelectedCollection(selectedColl);
     
+    // Initialize GeoJSON layers for the selected collection
+    if (selectedColl) {
+      const geoJsonLinks = getGeoJsonLinks(selectedColl);
+      const initialLayers = geoJsonLinks.map(link => ({
+        url: link.url,
+        title: link.title,
+        visible: false // Initially hidden
+      }));
+      setActiveGeoJsonLayers(initialLayers);
+      if (onGeoJsonLayersChange) {
+        onGeoJsonLayersChange(initialLayers);
+      }
+    } else {
+      // Clear GeoJSON layers when collection is closed
+      setActiveGeoJsonLayers([]);
+      if (onGeoJsonLayersChange) {
+        onGeoJsonLayersChange([]);
+      }
+    }
+    
     // Find the "data" link from collection links
     if (selectedColl) {
       const dataLink = selectedColl.links.find(link => link.rel === 'data');
@@ -419,6 +461,11 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
       if (onLocationFeaturesChange) {
         onLocationFeaturesChange(null);
         setCurrentLocationCollection(null);
+      }
+      // Clear GeoJSON layers when collection is closed
+      setActiveGeoJsonLayers([]);
+      if (onGeoJsonLayersChange) {
+        onGeoJsonLayersChange([]);
       }
     }
   };
@@ -918,6 +965,51 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                       }
                     </Select>
                   </FormControl>
+                )}
+
+                {/* GeoJSON Layers List with Toggle Buttons */}
+                {activeGeoJsonLayers.length > 0 && (
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                      GeoJSON Layers
+                    </Typography>
+                    {activeGeoJsonLayers.map((layer, idx) => (
+                      <Box 
+                        key={idx} 
+                        sx={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'space-between',
+                          mb: 1,
+                          p: 1,
+                          border: '1px solid rgba(0, 0, 0, 0.12)',
+                          borderRadius: 1,
+                          backgroundColor: layer.visible ? 'rgba(33, 150, 243, 0.08)' : 'transparent'
+                        }}
+                      >
+                        <Typography variant="body2" sx={{ flex: 1 }}>
+                          {layer.title}
+                        </Typography>
+                        <Button
+                          variant={layer.visible ? 'contained' : 'outlined'}
+                          size="small"
+                          color="primary"
+                          onClick={() => {
+                            const updatedLayers = activeGeoJsonLayers.map((l, i) => 
+                              i === idx ? { ...l, visible: !l.visible } : l
+                            );
+                            setActiveGeoJsonLayers(updatedLayers);
+                            if (onGeoJsonLayersChange) {
+                              onGeoJsonLayersChange(updatedLayers);
+                            }
+                          }}
+                          sx={{ ml: 1 }}
+                        >
+                          {layer.visible ? 'Hide' : 'Show'}
+                        </Button>
+                      </Box>
+                    ))}
+                  </Box>
                 )}
 
                 {/* Location Query Info */}
