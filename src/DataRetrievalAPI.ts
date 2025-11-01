@@ -238,13 +238,26 @@ export function formatConformanceClass(url: string): string | null {
       return null;
     }
     
-    // Extract the relevant parts: ogcapi-{standard}/{version}
-    const match = url.match(/ogcapi-([^/]+)\/([^/]+)/);
+    // Extract the relevant parts after ogcapi-
+    // Pattern: http://www.opengis.net/spec/ogcapi-{standard}/{version}/conf/{part}
+    const match = url.match(/ogcapi-([^/]+)\/([^/]+)\/conf\/(.+)/);
     if (!match) {
-      return null;
+      // Fallback to simple pattern without conf path
+      const simpleMatch = url.match(/ogcapi-([^/]+)\/([^/]+)/);
+      if (!simpleMatch) {
+        return null;
+      }
+      
+      const [, standard, version] = simpleMatch;
+      const formattedStandard = standard
+        .split('-')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+      
+      return `OGC API - ${formattedStandard} (v${version})`;
     }
     
-    const [, standard, version] = match;
+    const [, standard, version, confPath] = match;
     
     // Format the standard name (capitalize and handle hyphens)
     const formattedStandard = standard
@@ -252,7 +265,29 @@ export function formatConformanceClass(url: string): string | null {
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
     
-    return `OGC API - ${formattedStandard} v${version}`;
+    // Format the conf path: convert hyphens to spaces and capitalize
+    // e.g., "core" -> "Core", "part1-core" -> "Part 1: Core"
+    let formattedConfPath = confPath;
+    
+    // Handle "partN" pattern (e.g., "part1", "part2")
+    const partMatch = confPath.match(/part(\d+)[-_]?(.+)?/i);
+    if (partMatch) {
+      const partNum = partMatch[1];
+      const partName = partMatch[2] || '';
+      if (partName) {
+        formattedConfPath = `Part ${partNum}: ${partName.charAt(0).toUpperCase() + partName.slice(1)}`;
+      } else {
+        formattedConfPath = `Part ${partNum}`;
+      }
+    } else {
+      // Just capitalize the conf path
+      formattedConfPath = confPath
+        .split('-')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+    }
+    
+    return `OGC API - ${formattedStandard} - ${formattedConfPath} (v${version})`;
   } catch (error) {
     console.warn('Error formatting conformance class:', error);
     return null;
