@@ -496,16 +496,16 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
         // Get collection bbox
         const bbox = selectedCollection?.extent?.spatial?.bbox;
         
-        if (bbox && Array.isArray(bbox) && bbox.length >= 4) {
+        if (bbox && Array.isArray(bbox) && bbox.length > 0) {
           // bbox can be either a flat array [minLon, minLat, maxLon, maxLat] 
           // or an array of arrays [[minLon, minLat, maxLon, maxLat]]
           let minLon: number, minLat: number, maxLon: number, maxLat: number;
           
           if (Array.isArray(bbox[0])) {
-            // Array of arrays format
+            // Array of arrays format (EDR standard)
             [minLon, minLat, maxLon, maxLat] = bbox[0];
           } else {
-            // Flat array format
+            // Flat array format (non-standard but some services use it)
             [minLon, minLat, maxLon, maxLat] = bbox as number[];
           }
           
