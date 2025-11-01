@@ -15,6 +15,7 @@ import GeoJSON from 'ol/format/GeoJSON';
 import { defaults as defaultControls } from 'ol/control';
 import { bbox as bboxStrategy } from 'ol/loadingstrategy';
 import FeatureInfo from './FeatureInfo';
+import GeoJsonFeatureViewer from './GeoJsonFeatureViewer';
 import { Collection, normalizeTemporal, formatTemporalInterval, getOverallTemporalExtent, normalizeVertical, formatVerticalInterval, getOverallVerticalExtent, getVerticalUnit } from './DataRetrievalAPI';
 
 interface MapProps {
@@ -30,9 +31,11 @@ interface MapProps {
   onFeatureSelect?: (feature: any | null) => void;
   onMapClick?: (coords: [number, number] | null) => void;
   geoJsonLayers?: {url: string, title: string, visible: boolean}[];
+  selectedGeoJsonFeature?: any | null;
+  onGeoJsonFeatureSelect?: (feature: any | null) => void;
 }
 
-const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCollectionExtents, selectedCollection, locationFeatures, selectedFeature, clickedCoords, dataQuery, onUpdateBoundingBox, onFeatureSelect, onMapClick, geoJsonLayers = [] }) => {
+const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCollectionExtents, selectedCollection, locationFeatures, selectedFeature, clickedCoords, dataQuery, onUpdateBoundingBox, onFeatureSelect, onMapClick, geoJsonLayers = [], selectedGeoJsonFeature, onGeoJsonFeatureSelect }) => {
   const [map, setMap] = useState<Map | null>(null);
   const [vectorLayer, setVectorLayer] = useState<VectorLayer<VectorSource> | null>(null);
   const [locationLayer, setLocationLayer] = useState<VectorLayer<VectorSource> | null>(null);
@@ -256,25 +259,35 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
           newLayers[layerKey] = geoJsonVectorLayers[layerKey];
         } else {
           // Create new layer with bbox strategy
-          const geoJsonLayer = new VectorLayer({
-            source: new VectorSource({
-              url: function (extent) {
-                const [minX, minY, maxX, maxY] = extent;
-                // Transform extent from map projection (EPSG:3857) to WGS84 (EPSG:4326)
-                const [minLon, minLat] = toLonLat([minX, minY]);
-                const [maxLon, maxLat] = toLonLat([maxX, maxY]);
-                const bboxString = `${minLon},${minLat},${maxLon},${maxLat}`;
-                
-                // Append bbox parameter to URL
-                const separator = layerConfig.url.includes('?') ? '&' : '?';
-                return `${layerConfig.url}${separator}bbox=${bboxString}`;
-              },
-              strategy: bboxStrategy,
-              format: new GeoJSON({
-                dataProjection: 'EPSG:4326',
-                featureProjection: 'EPSG:3857',
-              }),
+          const vectorSource = new VectorSource({
+            url: function (extent) {
+              const [minX, minY, maxX, maxY] = extent;
+              // Transform extent from map projection (EPSG:3857) to WGS84 (EPSG:4326)
+              const [minLon, minLat] = toLonLat([minX, minY]);
+              const [maxLon, maxLat] = toLonLat([maxX, maxY]);
+              const bboxString = `${minLon},${minLat},${maxLon},${maxLat}`;
+              
+              // Append bbox parameter to URL
+              const separator = layerConfig.url.includes('?') ? '&' : '?';
+              return `${layerConfig.url}${separator}bbox=${bboxString}`;
+            },
+            strategy: bboxStrategy,
+            format: new GeoJSON({
+              dataProjection: 'EPSG:4326',
+              featureProjection: 'EPSG:3857',
             }),
+          });
+
+          // Mark all features from this source as GeoJSON layer features
+          vectorSource.on('addfeature', (event) => {
+            if (event.feature) {
+              event.feature.set('layer', 'geojson');
+              event.feature.set('layerTitle', layerConfig.title);
+            }
+          });
+
+          const geoJsonLayer = new VectorLayer({
+            source: vectorSource,
             style: new Style({
               stroke: new Stroke({
                 color: '#FF9800',
@@ -473,10 +486,22 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
     openLayersMap.addOverlay(tooltip);
     setTooltipOverlay(tooltip);
 
-    // Add click interaction for location features
+    // Add click interaction for location features and GeoJSON features
     openLayersMap.on('click', (event) => {
       const features = openLayersMap.getFeaturesAtPixel(event.pixel);
       if (features && features.length > 0) {
+        // First, check for GeoJSON layer features
+        const geoJsonFeature = features.find(feature => {
+          const layer = feature.get('layer');
+          return layer === 'geojson';
+        });
+        
+        if (geoJsonFeature && onGeoJsonFeatureSelect) {
+          console.log('Selected GeoJSON feature:', geoJsonFeature);
+          onGeoJsonFeatureSelect(geoJsonFeature);
+          return; // Don't check for location features if GeoJSON feature was clicked
+        }
+        
         // Look for location features (features from the location layer)
         const locationFeature = features.find(feature => {
           const layer = feature.get('layer');
@@ -493,18 +518,47 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
             onFeatureSelectRef.current?.(originalFeature);
           }
         } else {
-          // Clicked somewhere else, clear selection
+          // Clicked somewhere else, clear selections
           onFeatureSelectRef.current?.(null);
+          if (onGeoJsonFeatureSelect) {
+            onGeoJsonFeatureSelect(null);
+          }
         }
       } else {
-        // No features at click point, clear selection
+        // No features at click point, clear selections
         onFeatureSelectRef.current?.(null);
+        if (onGeoJsonFeatureSelect) {
+          onGeoJsonFeatureSelect(null);
+        }
       }
     });
 
-    // Add pointer cursor when hovering over location features and show tooltip
+    // Add pointer cursor when hovering over location features and GeoJSON features, and show tooltip
     openLayersMap.on('pointermove', (event) => {
       const features = openLayersMap.getFeaturesAtPixel(event.pixel);
+      
+      // Check for GeoJSON features first
+      const geoJsonFeature = features && features.find(feature => {
+        const layer = feature.get('layer');
+        return layer === 'geojson';
+      });
+      
+      if (geoJsonFeature && tooltip) {
+        // Show tooltip with layer title and feature properties
+        const layerTitle = geoJsonFeature.get('layerTitle') || 'GeoJSON Layer';
+        const properties = geoJsonFeature.getProperties();
+        const displayName = properties.name || properties.id || properties.title || 'Feature';
+        
+        if (tooltipRef.current) {
+          tooltipRef.current.innerHTML = `${layerTitle}: ${displayName}`;
+          tooltipRef.current.style.display = 'block';
+        }
+        tooltip.setPosition(event.coordinate);
+        openLayersMap.getTargetElement().style.cursor = 'pointer';
+        return;
+      }
+      
+      // Check for location features
       const locationFeature = features && features.find(feature => {
         const layer = feature.get('layer');
         return layer === 'location' || feature.get('featureIndex') !== undefined;
@@ -745,6 +799,11 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
       <FeatureInfo 
         feature={selectedFeature} 
         onClose={() => onFeatureSelectRef.current?.(null)} 
+      />
+      
+      <GeoJsonFeatureViewer
+        feature={selectedGeoJsonFeature}
+        onClose={() => onGeoJsonFeatureSelect?.(null)}
       />
     </div>
   );
