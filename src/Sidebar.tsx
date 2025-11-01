@@ -9,6 +9,8 @@ import Collapse from '@mui/material/Collapse';
 import LayersIcon from '@mui/icons-material/Layers';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import InputLabel from '@mui/material/InputLabel';
@@ -21,6 +23,8 @@ import AlertTitle from '@mui/material/AlertTitle';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import Tooltip from '@mui/material/Tooltip';
+import Drawer from '@mui/material/Drawer';
+import IconButton from '@mui/material/IconButton';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
 import React, { useEffect, useState } from 'react';
 import { getCollections, Collection, ValidationResult, normalizeBbox, hasLocationQuery, getLocationQueryUrl, executeLocationQuery, getSupportedDataQueries, normalizeTemporal, formatConformanceClass } from './DataRetrievalAPI';
@@ -83,6 +87,8 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   const [conformsTo, setConformsTo] = useState<string[] | null>(null);
   const [selectedConformanceUrl, setSelectedConformanceUrl] = useState<string | null>(null);
   const [validationTrigger, setValidationTrigger] = useState(0); // Counter to force re-validation
+  const [queryDrawerOpen, setQueryDrawerOpen] = useState(false);
+  const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
 
   // Debounce effect for text input - only update apiUrl after 1 second of no typing
   useEffect(() => {
@@ -193,9 +199,18 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
     // Find the collection and trigger extent change
     const collection = collections[index];
     
+    // Update local state for selected collection
+    const selectedColl = newIndex !== null ? collection : null;
+    setSelectedCollection(selectedColl);
+    
+    // Open query drawer if collection is selected
+    if (selectedColl) {
+      setQueryDrawerOpen(true);
+    }
+    
     // Notify parent about selected collection change
     if (onSelectedCollectionChange) {
-      onSelectedCollectionChange(newIndex !== null ? collection : null);
+      onSelectedCollectionChange(selectedColl);
     }
     
     // Only show extent and location data if collection is being opened
@@ -279,9 +294,10 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   };
 
   return (
-    <Paper style={{minWidth: 200, maxHeight: '100vh', overflow: 'auto'}}>
-      {/* EDR Service Selector and API URL - Moved to top */}
-      <Box sx={{ padding: 2, minWidth: 120, borderBottom: '1px solid rgba(0, 0, 0, 0.12)' }}>
+    <React.Fragment>
+      <Paper style={{minWidth: 200, maxHeight: '100vh', overflow: 'auto'}}>
+        {/* EDR Service Selector and API URL - Moved to top */}
+        <Box sx={{ padding: 2, minWidth: 120, borderBottom: '1px solid rgba(0, 0, 0, 0.12)' }}>
         <FormControl fullWidth sx={{ mb: 2 }}>
           <InputLabel id="edr-service-select-label">EDR Service</InputLabel>
           <Select
@@ -805,6 +821,94 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
         ))}
       </List>
     </Paper>
+    
+    {/* Bottom Drawer for Query Builder */}
+    <Drawer
+      anchor="bottom"
+      open={queryDrawerOpen}
+      onClose={() => setQueryDrawerOpen(false)}
+      variant="persistent"
+      sx={{
+        '& .MuiDrawer-paper': {
+          height: '300px',
+          boxSizing: 'border-box',
+        },
+      }}
+    >
+      <Box sx={{ p: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h6">Query Builder</Typography>
+          <IconButton onClick={() => setQueryDrawerOpen(false)} size="small">
+            <KeyboardArrowDownIcon />
+          </IconButton>
+        </Box>
+        
+        {selectedCollection ? (
+          <Box>
+            <Typography variant="subtitle2" gutterBottom>
+              Selected Collection
+            </Typography>
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                {selectedCollection.id}
+              </Typography>
+              {selectedCollection.title && (
+                <Typography variant="body2" color="text.secondary">
+                  {selectedCollection.title}
+                </Typography>
+              )}
+              {selectedCollection.links && selectedCollection.links.length > 0 && (
+                <Box sx={{ mt: 1 }}>
+                  <Typography variant="caption" color="text.secondary">
+                    Links:
+                  </Typography>
+                  {selectedCollection.links.map((link, idx) => (
+                    <Box key={idx} sx={{ ml: 1 }}>
+                      <Link
+                        href={link.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        sx={{ fontSize: '0.75rem' }}
+                      >
+                        {link.rel || link.href}
+                      </Link>
+                    </Box>
+                  ))}
+                </Box>
+              )}
+            </Box>
+          </Box>
+        ) : (
+          <Typography variant="body2" color="text.secondary">
+            Select a collection to build queries
+          </Typography>
+        )}
+      </Box>
+    </Drawer>
+    
+    {/* Toggle button to show drawer when closed */}
+    {!queryDrawerOpen && selectedCollection && (
+      <Box
+        sx={{
+          position: 'fixed',
+          bottom: 0,
+          right: '50%',
+          transform: 'translateX(50%)',
+          zIndex: 1200,
+        }}
+      >
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={() => setQueryDrawerOpen(true)}
+          startIcon={<KeyboardArrowUpIcon />}
+          sx={{ borderRadius: '8px 8px 0 0' }}
+        >
+          Query Builder
+        </Button>
+      </Box>
+    )}
+    </React.Fragment>
   );
 };
 
