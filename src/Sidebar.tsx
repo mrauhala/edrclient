@@ -77,6 +77,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   const [landingPageTitle, setLandingPageTitle] = useState<string | null>(null);
   const [landingPageDescription, setLandingPageDescription] = useState<string | null>(null);
   const [serviceDescUrl, setServiceDescUrl] = useState<string | null>(null);
+  const [validationTrigger, setValidationTrigger] = useState(0); // Counter to force re-validation
 
   // Debounce effect for text input - only update apiUrl after 1 second of no typing
   useEffect(() => {
@@ -140,7 +141,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
 
     loadCollections();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiUrl]);
+  }, [apiUrl, validationTrigger]); // Added validationTrigger to dependencies
 
   const [openCollectionIndex, setOpenCollectionIndex] = useState<number | null>(null);
 
@@ -172,6 +173,8 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   const handleValidateClick = () => {
     // Set apiUrl to current inputUrl to trigger validation
     setApiUrl(inputUrl);
+    // Increment trigger to force re-validation even if URL hasn't changed
+    setValidationTrigger(prev => prev + 1);
   };
 
   const handleItemClick = async (index: number, key: string) => {
