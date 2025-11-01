@@ -239,7 +239,8 @@ export function formatConformanceClass(url: string): string | null {
     }
     
     // Extract the relevant parts after ogcapi-
-    // Pattern: http://www.opengis.net/spec/ogcapi-{standard}/{version}/conf/{part}
+    // Pattern: http://www.opengis.net/spec/ogcapi-{standard}-{partNum}/{version}/conf/{confName}
+    // or: http://www.opengis.net/spec/ogcapi-{standard}/{version}/conf/{confName}
     const match = url.match(/ogcapi-([^/]+)\/([^/]+)\/conf\/(.+)/);
     if (!match) {
       // Fallback to simple pattern without conf path
@@ -248,47 +249,46 @@ export function formatConformanceClass(url: string): string | null {
         return null;
       }
       
-      const [, standard, version] = simpleMatch;
-      const formattedStandard = standard
+      const [, standardWithPart, version] = simpleMatch;
+      
+      // Check if standard has a part number (e.g., "edr-1")
+      const partMatch = standardWithPart.match(/^(.+)-(\d+)$/);
+      if (partMatch) {
+        const [, standardName, partNum] = partMatch;
+        const formattedStandard = standardName.toUpperCase();
+        return `OGC API - ${formattedStandard} - Part ${partNum} (v${version})`;
+      }
+      
+      const formattedStandard = standardWithPart
         .split('-')
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .map(word => word.toUpperCase())
         .join(' ');
       
       return `OGC API - ${formattedStandard} (v${version})`;
     }
     
-    const [, standard, version, confPath] = match;
+    const [, standardWithPart, version, confPath] = match;
     
-    // Format the standard name (capitalize and handle hyphens)
-    const formattedStandard = standard
+    // Check if standard has a part number suffix (e.g., "edr-1", "common-1")
+    let standardName = standardWithPart;
+    let partNum = '1'; // Default to part 1
+    
+    const standardPartMatch = standardWithPart.match(/^(.+)-(\d+)$/);
+    if (standardPartMatch) {
+      standardName = standardPartMatch[1];
+      partNum = standardPartMatch[2];
+    }
+    
+    // Format the standard name - convert to uppercase
+    const formattedStandard = standardName.toUpperCase();
+    
+    // Format the conf path name (capitalize first letter)
+    const formattedConfName = confPath
       .split('-')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
     
-    // Format the conf path: convert hyphens to spaces and capitalize
-    // e.g., "core" -> "Part 1: Core", "part1-core" -> "Part 1: Core"
-    let formattedConfPath = confPath;
-    
-    // Handle "partN" pattern (e.g., "part1", "part2")
-    const partMatch = confPath.match(/part(\d+)[-_]?(.+)?/i);
-    if (partMatch) {
-      const partNum = partMatch[1];
-      const partName = partMatch[2] || '';
-      if (partName) {
-        formattedConfPath = `Part ${partNum}: ${partName.charAt(0).toUpperCase() + partName.slice(1)}`;
-      } else {
-        formattedConfPath = `Part ${partNum}`;
-      }
-    } else {
-      // No part number in URL, default to "Part 1: {name}"
-      const formattedName = confPath
-        .split('-')
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(' ');
-      formattedConfPath = `Part 1: ${formattedName}`;
-    }
-    
-    return `OGC API - ${formattedStandard} - ${formattedConfPath} (v${version})`;
+    return `OGC API - ${formattedStandard} - Part ${partNum}: ${formattedConfName} (v${version})`;
   } catch (error) {
     console.warn('Error formatting conformance class:', error);
     return null;
