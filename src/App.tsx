@@ -46,6 +46,7 @@ function App() {
   const [locationFeatures, setLocationFeatures] = useState<any[] | null>(null);
   const [selectedFeature, setSelectedFeature] = useState<any | null>(null);
   const [clickedCoords, setClickedCoords] = useState<[number, number] | null>(null);
+  const [selectedArea, setSelectedArea] = useState<[number, number][] | null>(null);
   const [dataQuery, setDataQuery] = useState<string>('');
   const [geoJsonLayers, setGeoJsonLayers] = useState<{url: string, title: string, visible: boolean, labelProperty?: string}[]>([]);
   const [selectedGeoJsonFeature, setSelectedGeoJsonFeature] = useState<any | null>(null);
@@ -165,6 +166,7 @@ function App() {
           onMapClick={setClickedCoords} 
           onDataQueryChange={setDataQuery} 
           clickedCoords={clickedCoords} 
+          selectedArea={selectedArea}
           locationFeatures={locationFeatures}
           onCollectionUrlChange={setCollectionUrl}
           customServices={customServices}
@@ -191,8 +193,10 @@ function App() {
             onUpdateBoundingBox={handleUpdateBoundingBox} 
             onFeatureSelect={handleFeatureSelect} 
             clickedCoords={clickedCoords} 
+            selectedArea={selectedArea}
             dataQuery={dataQuery} 
             onMapClick={setClickedCoords}
+            onAreaSelect={setSelectedArea}
             geoJsonLayers={geoJsonLayers}
             selectedGeoJsonFeature={selectedGeoJsonFeature}
             onGeoJsonFeatureSelect={setSelectedGeoJsonFeature}

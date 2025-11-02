@@ -14,6 +14,8 @@ import { Style, Stroke, Fill, Circle, Text } from 'ol/style';
 import GeoJSON from 'ol/format/GeoJSON';
 import { defaults as defaultControls } from 'ol/control';
 import { bbox as bboxStrategy } from 'ol/loadingstrategy';
+import Draw from 'ol/interaction/Draw';
+import { DrawEvent } from 'ol/interaction/Draw';
 import FeatureInfo from './FeatureInfo';
 import GeoJsonFeatureViewer from './GeoJsonFeatureViewer';
 import { Collection, normalizeTemporal, formatTemporalInterval, getOverallTemporalExtent, normalizeVertical, formatVerticalInterval, getOverallVerticalExtent, getVerticalUnit } from './DataRetrievalAPI';
@@ -26,21 +28,25 @@ interface MapProps {
   locationFeatures?: any[] | null;
   selectedFeature?: any | null;
   clickedCoords?: [number, number] | null;
+  selectedArea?: [number, number][] | null;
   dataQuery?: string;
   onUpdateBoundingBox?: (boundingBox: [number, number, number, number]) => void;
   onFeatureSelect?: (feature: any | null) => void;
   onMapClick?: (coords: [number, number] | null) => void;
+  onAreaSelect?: (area: [number, number][] | null) => void;
   geoJsonLayers?: {url: string, title: string, visible: boolean, labelProperty?: string}[];
   selectedGeoJsonFeature?: any | null;
   onGeoJsonFeatureSelect?: (feature: any | null) => void;
   onGeoJsonLayerUpdate?: (layers: {url: string, title: string, visible: boolean, labelProperty?: string}[]) => void;
 }
 
-const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCollectionExtents, selectedCollection, locationFeatures, selectedFeature, clickedCoords, dataQuery, onUpdateBoundingBox, onFeatureSelect, onMapClick, geoJsonLayers = [], selectedGeoJsonFeature, onGeoJsonFeatureSelect, onGeoJsonLayerUpdate }) => {
+const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCollectionExtents, selectedCollection, locationFeatures, selectedFeature, clickedCoords, selectedArea, dataQuery, onUpdateBoundingBox, onFeatureSelect, onMapClick, onAreaSelect, geoJsonLayers = [], selectedGeoJsonFeature, onGeoJsonFeatureSelect, onGeoJsonLayerUpdate }) => {
   const [map, setMap] = useState<Map | null>(null);
   const [vectorLayer, setVectorLayer] = useState<VectorLayer<VectorSource> | null>(null);
   const [locationLayer, setLocationLayer] = useState<VectorLayer<VectorSource> | null>(null);
   const [markerLayer, setMarkerLayer] = useState<VectorLayer<VectorSource> | null>(null);
+  const [areaLayer, setAreaLayer] = useState<VectorLayer<VectorSource> | null>(null);
+  const [drawInteraction, setDrawInteraction] = useState<Draw | null>(null);
   const [geoJsonVectorLayers, setGeoJsonVectorLayers] = useState<{[key: string]: VectorLayer<VectorSource>}>({});
   const [geoJsonMetadata, setGeoJsonMetadata] = useState<{[key: string]: {numberReturned?: number, numberMatched?: number}}>({});
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -570,6 +576,20 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
       }),
     });
 
+    // Create area layer for area query selections
+    const newAreaLayer = new VectorLayer({
+      source: new VectorSource(),
+      style: new Style({
+        stroke: new Stroke({
+          color: 'rgba(255, 0, 0, 0.8)',
+          width: 3,
+        }),
+        fill: new Fill({
+          color: 'rgba(255, 0, 0, 0.1)',
+        }),
+      }),
+    });
+
     const openLayersMap = new Map({
       target: 'map',
       controls: defaultControls({
@@ -585,6 +605,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
         newVectorLayer, // Add vector layer for bounding boxes
         newLocationLayer, // Add vector layer for location features
         newMarkerLayer, // Add marker layer for position clicks
+        newAreaLayer, // Add area layer for area selection
       ],
       view: new View({
         center: [0, 0],
@@ -596,6 +617,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
     setVectorLayer(newVectorLayer);
     setLocationLayer(newLocationLayer);
     setMarkerLayer(newMarkerLayer);
+    setAreaLayer(newAreaLayer);
 
     // Create tooltip overlay
     const tooltip = new Overlay({
@@ -785,6 +807,89 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
     };
   }, [map, dataQuery, selectedCollection, onMapClick]);
 
+  // Effect to handle area selection with drawing tool
+  useEffect(() => {
+    if (!map || !areaLayer) return;
+
+    // Remove existing draw interaction if any
+    if (drawInteraction) {
+      map.removeInteraction(drawInteraction);
+      setDrawInteraction(null);
+    }
+
+    // Only add draw interaction if data query is 'area'
+    if (dataQuery && dataQuery.toLowerCase() === 'area') {
+      const source = areaLayer.getSource();
+      if (!source) return;
+
+      // Clear previous area selection
+      source.clear();
+
+      // Create new draw interaction
+      const draw = new Draw({
+        source: source,
+        type: 'Polygon',
+      });
+
+      // Handle draw completion
+      draw.on('drawend', (event: DrawEvent) => {
+        const feature = event.feature;
+        const geometry = feature.getGeometry() as Polygon;
+        
+        // Get the coordinates in EPSG:3857 and convert to WGS84
+        const coordinates = geometry.getCoordinates()[0]; // Get outer ring
+        const lonLatCoords: [number, number][] = coordinates.map(coord => {
+          const [lon, lat] = toLonLat(coord);
+          return [lon, lat];
+        });
+
+        // Pass coordinates back to parent
+        if (onAreaSelect) {
+          onAreaSelect(lonLatCoords);
+        }
+
+        // Clear previous drawings (keep only the latest)
+        setTimeout(() => {
+          source.clear();
+          source.addFeature(feature);
+        }, 0);
+      });
+
+      map.addInteraction(draw);
+      setDrawInteraction(draw);
+
+      return () => {
+        map.removeInteraction(draw);
+      };
+    } else {
+      // Clear area layer when not in area mode
+      const source = areaLayer.getSource();
+      if (source) {
+        source.clear();
+      }
+      // Clear selected area
+      if (onAreaSelect) {
+        onAreaSelect(null);
+      }
+    }
+  }, [map, dataQuery, areaLayer, onAreaSelect]);
+
+  // Effect to display selected area
+  useEffect(() => {
+    if (areaLayer && selectedArea) {
+      const source = areaLayer.getSource();
+      if (source) {
+        source.clear();
+        
+        // Convert coordinates back to map projection and create polygon
+        const coordinates = selectedArea.map(coord => fromLonLat([coord[0], coord[1]]));
+        const polygon = new Polygon([coordinates]);
+        const feature = new Feature({ geometry: polygon });
+        source.addFeature(feature);
+      }
+    }
+  }, [selectedArea, areaLayer]);
+
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
       <div id="map" style={{ width: '100%', height: '100%' }} />
@@ -913,6 +1018,59 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
           </div>
           <div>Lat: {clickedCoords[1].toFixed(6)}°</div>
           <div>Lon: {clickedCoords[0].toFixed(6)}°</div>
+        </div>
+      )}
+
+      {/* Area Selection Info - Lower Right Corner */}
+      {selectedArea && selectedArea.length > 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '10px',
+            right: '10px',
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            color: 'white',
+            padding: '8px 12px',
+            borderRadius: '6px',
+            fontSize: '12px',
+            fontWeight: 'normal',
+            zIndex: 1000,
+            boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            fontFamily: 'monospace',
+          }}
+        >
+          <div style={{ fontWeight: 'bold', marginBottom: '4px', fontSize: '11px', opacity: 0.7 }}>
+            Selected Area
+          </div>
+          <div>{selectedArea.length} vertices</div>
+        </div>
+      )}
+
+      {/* Drawing Instruction - Top Center */}
+      {dataQuery && dataQuery.toLowerCase() === 'area' && !selectedArea && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            backgroundColor: 'rgba(0, 0, 0, 0.9)',
+            color: 'white',
+            padding: '16px 24px',
+            borderRadius: '8px',
+            fontSize: '14px',
+            fontWeight: 'normal',
+            zIndex: 1000,
+            boxShadow: '0 4px 8px rgba(0,0,0,0.5)',
+            border: '2px solid rgba(255, 0, 0, 0.6)',
+            textAlign: 'center',
+          }}
+        >
+          <div style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '16px', color: '#FF4444' }}>
+            Draw Area on Map
+          </div>
+          <div>Click to add vertices, double-click to complete</div>
         </div>
       )}
       
