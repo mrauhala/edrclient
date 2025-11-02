@@ -826,12 +826,10 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
       const source = areaLayer.getSource();
       if (!source) return;
 
-      // Clear previous area selection
-      source.clear();
+      // Don't clear the source here - let the display effect handle it
 
-      // Create new draw interaction
+      // Create new draw interaction - don't attach to source directly
       const draw = new Draw({
-        source: source,
         type: 'Polygon',
       });
 
@@ -852,11 +850,6 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
           const newAreas: [number, number][][] = [...(selectedArea || []), lonLatCoords];
           onAreaSelect(newAreas);
         }
-
-        // Don't clear - keep all drawn polygons
-        setTimeout(() => {
-          source.addFeature(feature);
-        }, 0);
       });
 
       map.addInteraction(draw);
@@ -876,7 +869,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
         onAreaSelect([]);
       }
     }
-  }, [map, dataQuery, areaLayer, onAreaSelect, selectedArea]);
+  }, [map, dataQuery, areaLayer]);
 
   // Effect to display selected areas
   useEffect(() => {
