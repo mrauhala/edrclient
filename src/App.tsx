@@ -47,6 +47,8 @@ function App() {
   const [selectedFeature, setSelectedFeature] = useState<any | null>(null);
   const [clickedCoords, setClickedCoords] = useState<[number, number] | null>(null);
   const [dataQuery, setDataQuery] = useState<string>('');
+  const [geoJsonLayers, setGeoJsonLayers] = useState<{url: string, title: string, visible: boolean, labelProperty?: string}[]>([]);
+  const [selectedGeoJsonFeature, setSelectedGeoJsonFeature] = useState<any | null>(null);
 
   // Detect system preference
   const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
@@ -167,6 +169,7 @@ function App() {
           onCollectionUrlChange={setCollectionUrl}
           customServices={customServices}
           onServiceUrlSelect={selectedServiceUrl}
+          onGeoJsonLayersChange={setGeoJsonLayers}
         />
         
         <Box 
@@ -189,7 +192,11 @@ function App() {
             onFeatureSelect={handleFeatureSelect} 
             clickedCoords={clickedCoords} 
             dataQuery={dataQuery} 
-            onMapClick={setClickedCoords} 
+            onMapClick={setClickedCoords}
+            geoJsonLayers={geoJsonLayers}
+            selectedGeoJsonFeature={selectedGeoJsonFeature}
+            onGeoJsonFeatureSelect={setSelectedGeoJsonFeature}
+            onGeoJsonLayerUpdate={setGeoJsonLayers}
           />
         </Box>
       </Box>
