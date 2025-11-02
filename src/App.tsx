@@ -45,8 +45,8 @@ function App() {
   const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
   const [locationFeatures, setLocationFeatures] = useState<any[] | null>(null);
   const [selectedFeature, setSelectedFeature] = useState<any | null>(null);
-  const [clickedCoords, setClickedCoords] = useState<[number, number] | null>(null);
-  const [selectedArea, setSelectedArea] = useState<[number, number][] | null>(null);
+  const [clickedCoords, setClickedCoords] = useState<[number, number][]>([]);
+  const [selectedArea, setSelectedArea] = useState<[number, number][][]>([]);
   const [dataQuery, setDataQuery] = useState<string>('');
   const [geoJsonLayers, setGeoJsonLayers] = useState<{url: string, title: string, visible: boolean, labelProperty?: string}[]>([]);
   const [selectedGeoJsonFeature, setSelectedGeoJsonFeature] = useState<any | null>(null);

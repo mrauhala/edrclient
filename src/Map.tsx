@@ -27,13 +27,13 @@ interface MapProps {
   selectedCollection?: Collection | null;
   locationFeatures?: any[] | null;
   selectedFeature?: any | null;
-  clickedCoords?: [number, number] | null;
-  selectedArea?: [number, number][] | null;
+  clickedCoords?: [number, number][];
+  selectedArea?: [number, number][][];
   dataQuery?: string;
   onUpdateBoundingBox?: (boundingBox: [number, number, number, number]) => void;
   onFeatureSelect?: (feature: any | null) => void;
-  onMapClick?: (coords: [number, number] | null) => void;
-  onAreaSelect?: (area: [number, number][] | null) => void;
+  onMapClick?: (coords: [number, number][]) => void;
+  onAreaSelect?: (area: [number, number][][]) => void;
   geoJsonLayers?: {url: string, title: string, visible: boolean, labelProperty?: string}[];
   selectedGeoJsonFeature?: any | null;
   onGeoJsonFeatureSelect?: (feature: any | null) => void;
@@ -751,12 +751,15 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
       if (source) {
         source.clear();
         
-        if (clickedCoords) {
-          const [lon, lat] = clickedCoords;
-          const feature = new Feature({
-            geometry: new Point(fromLonLat([lon, lat])),
+        // Add all clicked coordinates as markers
+        if (clickedCoords && clickedCoords.length > 0) {
+          clickedCoords.forEach(coords => {
+            const [lon, lat] = coords;
+            const feature = new Feature({
+              geometry: new Point(fromLonLat([lon, lat])),
+            });
+            source.addFeature(feature);
           });
-          source.addFeature(feature);
         }
       }
     }
@@ -791,9 +794,10 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
           
           // Check if click is within bbox
           if (x >= minLon && x <= maxLon && y >= minLat && y <= maxLat) {
-            // Pass coordinates back to parent
+            // Add coordinates to the array
             if (onMapClick) {
-              onMapClick([x, y]);
+              const newCoords: [number, number][] = [...(clickedCoords || []), [x, y]];
+              onMapClick(newCoords);
             }
           }
         }
@@ -843,14 +847,14 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
           return [lon, lat];
         });
 
-        // Pass coordinates back to parent
+        // Add polygon to the array
         if (onAreaSelect) {
-          onAreaSelect(lonLatCoords);
+          const newAreas: [number, number][][] = [...(selectedArea || []), lonLatCoords];
+          onAreaSelect(newAreas);
         }
 
-        // Clear previous drawings (keep only the latest)
+        // Don't clear - keep all drawn polygons
         setTimeout(() => {
-          source.clear();
           source.addFeature(feature);
         }, 0);
       });
@@ -869,23 +873,25 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
       }
       // Clear selected area
       if (onAreaSelect) {
-        onAreaSelect(null);
+        onAreaSelect([]);
       }
     }
-  }, [map, dataQuery, areaLayer, onAreaSelect]);
+  }, [map, dataQuery, areaLayer, onAreaSelect, selectedArea]);
 
-  // Effect to display selected area
+  // Effect to display selected areas
   useEffect(() => {
     if (areaLayer && selectedArea) {
       const source = areaLayer.getSource();
       if (source) {
         source.clear();
         
-        // Convert coordinates back to map projection and create polygon
-        const coordinates = selectedArea.map(coord => fromLonLat([coord[0], coord[1]]));
-        const polygon = new Polygon([coordinates]);
-        const feature = new Feature({ geometry: polygon });
-        source.addFeature(feature);
+        // Add all polygons
+        selectedArea.forEach(polygonCoords => {
+          const coordinates = polygonCoords.map(coord => fromLonLat([coord[0], coord[1]]));
+          const polygon = new Polygon([coordinates]);
+          const feature = new Feature({ geometry: polygon });
+          source.addFeature(feature);
+        });
       }
     }
   }, [selectedArea, areaLayer]);
@@ -995,7 +1001,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
       )}
       
       {/* Coordinates Legend - Lower Right Corner */}
-      {clickedCoords && (
+      {clickedCoords && clickedCoords.length > 0 && (
         <div
           style={{
             position: 'absolute',
@@ -1014,10 +1020,13 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
           }}
         >
           <div style={{ fontWeight: 'bold', marginBottom: '4px', fontSize: '11px', opacity: 0.7 }}>
-            Selected Coordinates
+            Selected Points ({clickedCoords.length})
           </div>
-          <div>Lat: {clickedCoords[1].toFixed(6)}°</div>
-          <div>Lon: {clickedCoords[0].toFixed(6)}°</div>
+          {clickedCoords.map((coords, idx) => (
+            <div key={idx} style={{ fontSize: '10px', marginTop: idx > 0 ? '4px' : '0' }}>
+              {idx + 1}. Lat: {coords[1].toFixed(6)}°, Lon: {coords[0].toFixed(6)}°
+            </div>
+          ))}
         </div>
       )}
 
@@ -1041,14 +1050,18 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
           }}
         >
           <div style={{ fontWeight: 'bold', marginBottom: '4px', fontSize: '11px', opacity: 0.7 }}>
-            Selected Area
+            Selected Polygons ({selectedArea.length})
           </div>
-          <div>{selectedArea.length} vertices</div>
+          {selectedArea.map((polygon, idx) => (
+            <div key={idx} style={{ fontSize: '10px' }}>
+              {idx + 1}. {polygon.length} vertices
+            </div>
+          ))}
         </div>
       )}
 
       {/* Position Selection Instruction - Top Center */}
-      {dataQuery && dataQuery.toLowerCase() === 'position' && !clickedCoords && (
+      {dataQuery && dataQuery.toLowerCase() === 'position' && (!clickedCoords || clickedCoords.length === 0) && (
         <div
           style={{
             position: 'absolute',
@@ -1068,14 +1081,53 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
           }}
         >
           <div style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '16px', color: '#FF4444' }}>
-            Click Point on Map
+            Click Points on Map
           </div>
-          <div>Click anywhere to select coordinates</div>
+          <div>Click to add multiple points</div>
+        </div>
+      )}
+
+      {/* Reset Button for Position Mode */}
+      {dataQuery && dataQuery.toLowerCase() === 'position' && clickedCoords && clickedCoords.length > 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '10px',
+            right: '10px',
+            zIndex: 1000,
+          }}
+        >
+          <button
+            onClick={() => {
+              if (onMapClick) {
+                onMapClick([]);
+              }
+            }}
+            style={{
+              backgroundColor: 'rgba(255, 68, 68, 0.9)',
+              color: 'white',
+              border: '2px solid rgba(255, 255, 255, 0.3)',
+              padding: '8px 16px',
+              borderRadius: '6px',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255, 68, 68, 1)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255, 68, 68, 0.9)';
+            }}
+          >
+            Clear Points
+          </button>
         </div>
       )}
 
       {/* Area Drawing Instruction - Top Center */}
-      {dataQuery && dataQuery.toLowerCase() === 'area' && !selectedArea && (
+      {dataQuery && dataQuery.toLowerCase() === 'area' && (!selectedArea || selectedArea.length === 0) && (
         <div
           style={{
             position: 'absolute',
@@ -1095,9 +1147,55 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
           }}
         >
           <div style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '16px', color: '#FF4444' }}>
-            Draw Area on Map
+            Draw Areas on Map
           </div>
-          <div>Click to add vertices, double-click to complete</div>
+          <div>Click to add vertices, double-click to complete each polygon</div>
+        </div>
+      )}
+
+      {/* Reset Button for Area Mode */}
+      {dataQuery && dataQuery.toLowerCase() === 'area' && selectedArea && selectedArea.length > 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '10px',
+            right: '10px',
+            zIndex: 1000,
+          }}
+        >
+          <button
+            onClick={() => {
+              if (onAreaSelect) {
+                onAreaSelect([]);
+              }
+              // Also clear the area layer
+              if (areaLayer) {
+                const source = areaLayer.getSource();
+                if (source) {
+                  source.clear();
+                }
+              }
+            }}
+            style={{
+              backgroundColor: 'rgba(255, 68, 68, 0.9)',
+              color: 'white',
+              border: '2px solid rgba(255, 255, 255, 0.3)',
+              padding: '8px 16px',
+              borderRadius: '6px',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255, 68, 68, 1)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255, 68, 68, 0.9)';
+            }}
+          >
+            Clear Polygons
+          </button>
         </div>
       )}
       

@@ -46,11 +46,11 @@ interface SidebarProps {
   onLocationFeaturesChange?: (features: any[] | null) => void;
   onFeatureSelect?: (feature: any) => void;
   onSelectedCollectionChange?: (collection: Collection | null) => void;
-  onMapClick?: (coords: [number, number] | null) => void;
+  onMapClick?: (coords: [number, number][]) => void;
   onDataQueryChange?: (dataQuery: string) => void;
   onCollectionUrlChange?: (url: string) => void;
-  clickedCoords?: [number, number] | null;
-  selectedArea?: [number, number][] | null;
+  clickedCoords?: [number, number][];
+  selectedArea?: [number, number][][];
   locationFeatures?: any[] | null;
   customServices?: CustomService[];
   onServiceUrlSelect?: string | null;
@@ -226,7 +226,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
           onSelectedCollectionChange(null);
         }
         if (onMapClick) {
-          onMapClick(null);
+          onMapClick([]);
         }
         if (onDataQueryChange) {
           onDataQueryChange('');
@@ -315,7 +315,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   };
 
   // Helper function to build URL with query parameters
-  const buildUrlWithParams = (baseUrl: string, format: string, parameters: string[], isDataQuery: boolean, coords: [number, number] | null = null, area: [number, number][] | null = null, queryType: string = '') => {
+  const buildUrlWithParams = (baseUrl: string, format: string, parameters: string[], isDataQuery: boolean, coords: [number, number][] | null | undefined = null, area: [number, number][][] | null | undefined = null, queryType: string = '') => {
     if (!baseUrl) return baseUrl;
     
     try {
@@ -336,14 +336,30 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
           url.searchParams.delete('parameter-name');
         }
         
-        // Add coords parameter if query type is 'position' and coords are available
-        if (queryType.toLowerCase() === 'position' && coords) {
-          const [lon, lat] = coords;
-          url.searchParams.set('coords', `POINT(${lon.toFixed(3)} ${lat.toFixed(3)})`);
+        // Add coords parameter
+        if (queryType.toLowerCase() === 'position' && coords && coords.length > 0) {
+          if (coords.length === 1) {
+            // Single POINT
+            const [lon, lat] = coords[0];
+            url.searchParams.set('coords', `POINT(${lon.toFixed(3)} ${lat.toFixed(3)})`);
+          } else {
+            // MULTIPOINT
+            const points = coords.map(c => `${c[0].toFixed(3)} ${c[1].toFixed(3)}`).join(',');
+            url.searchParams.set('coords', `MULTIPOINT((${points}))`);
+          }
         } else if (queryType.toLowerCase() === 'area' && area && area.length > 0) {
-          // Convert area coordinates to WKT POLYGON format
-          const wktCoords = area.map(coord => `${coord[0].toFixed(2)} ${coord[1].toFixed(2)}`).join(',');
-          url.searchParams.set('coords', `POLYGON((${wktCoords}))`);
+          if (area.length === 1) {
+            // Single POLYGON
+            const wktCoords = area[0].map(coord => `${coord[0].toFixed(2)} ${coord[1].toFixed(2)}`).join(',');
+            url.searchParams.set('coords', `POLYGON((${wktCoords}))`);
+          } else {
+            // MULTIPOLYGON
+            const polygons = area.map(polygon => {
+              const wktCoords = polygon.map(coord => `${coord[0].toFixed(2)} ${coord[1].toFixed(2)}`).join(',');
+              return `((${wktCoords}))`;
+            }).join(',');
+            url.searchParams.set('coords', `MULTIPOLYGON(${polygons})`);
+          }
         } else {
           url.searchParams.delete('coords');
         }
@@ -409,7 +425,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
       setSelectedDataQuery(''); // Reset data query selection
       setSelectedParameters([]); // Reset parameters when collection changes
       if (onMapClick) {
-        onMapClick(null); // Clear clicked coordinates when collection changes
+        onMapClick([]); // Clear clicked coordinates when collection changes
       }
       if (onDataQueryChange) {
         onDataQueryChange(''); // Notify parent that data query was cleared
@@ -419,7 +435,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
       setSelectedFormat(''); // Reset format when collection is deselected
       setSelectedParameters([]); // Reset parameters when collection is deselected
       if (onMapClick) {
-        onMapClick(null); // Clear clicked coordinates
+        onMapClick([]); // Clear clicked coordinates
       }
     }
     
@@ -902,7 +918,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                         }
                         // Clear clicked coordinates when changing data query
                         if (queryType.toLowerCase() !== 'position' && onMapClick) {
-                          onMapClick(null);
+                          onMapClick([]);
                         }
                         let baseUrl = '';
                         if (queryType && collection.data_queries[queryType]?.link) {
