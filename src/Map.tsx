@@ -296,11 +296,11 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
                 text: labelText,
                 offsetY: -15,
                 fill: new Fill({
-                  color: '#E65100', // Dark orange
+                  color: '#6BFB66', // Green
                 }),
                 stroke: new Stroke({
-                  color: '#9E9E9E', // Gray halo
-                  width: 3,
+                  color: '#424242', // Darker gray halo
+                  width: 1,
                 }),
                 font: 'bold 12px sans-serif',
               }) : undefined,
@@ -414,11 +414,11 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
                   text: labelText,
                   offsetY: -15,
                   fill: new Fill({
-                    color: '#E65100', // Dark orange
+                    color: '#6BFB66', // Green
                   }),
                   stroke: new Stroke({
-                    color: '#9E9E9E', // Gray halo
-                    width: 3,
+                    color: '#424242', // Darker gray halo
+                    width: 1,
                   }),
                   font: 'bold 12px sans-serif',
                 }) : undefined,
