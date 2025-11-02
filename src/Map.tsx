@@ -448,7 +448,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
 
     // Update state with new layers
     setGeoJsonVectorLayers(newLayers);
-  }, [map, geoJsonLayers]);
+  }, [map, geoJsonLayers, geoJsonVectorLayers]);
 
   useEffect(() => {
     if (map && boundingBoxRef.current !== boundingBox) {
@@ -714,7 +714,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
     return () => {
       openLayersMap.setTarget(undefined);
     };
-  }, [zoomLevel]); // Removed onFeatureSelect from dependencies to prevent map recreation
+  }, [zoomLevel, onGeoJsonFeatureSelect]); // Removed onFeatureSelect from dependencies to prevent map recreation
 
   useEffect(() => {
     if (onUpdateBoundingBox) {
