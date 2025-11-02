@@ -47,6 +47,7 @@ function App() {
   const [selectedFeature, setSelectedFeature] = useState<any | null>(null);
   const [clickedCoords, setClickedCoords] = useState<[number, number][]>([]);
   const [selectedArea, setSelectedArea] = useState<[number, number][][]>([]);
+  const [radiusKm, setRadiusKm] = useState<number>(10); // Default 10km radius
   const [dataQuery, setDataQuery] = useState<string>('');
   const [geoJsonLayers, setGeoJsonLayers] = useState<{url: string, title: string, visible: boolean, labelProperty?: string}[]>([]);
   const [selectedGeoJsonFeature, setSelectedGeoJsonFeature] = useState<any | null>(null);
@@ -167,6 +168,7 @@ function App() {
           onDataQueryChange={setDataQuery} 
           clickedCoords={clickedCoords} 
           selectedArea={selectedArea}
+          radiusKm={radiusKm}
           locationFeatures={locationFeatures}
           onCollectionUrlChange={setCollectionUrl}
           customServices={customServices}
@@ -194,6 +196,8 @@ function App() {
             onFeatureSelect={handleFeatureSelect} 
             clickedCoords={clickedCoords} 
             selectedArea={selectedArea}
+            radiusKm={radiusKm}
+            onRadiusChange={setRadiusKm}
             dataQuery={dataQuery} 
             onMapClick={setClickedCoords}
             onAreaSelect={setSelectedArea}
