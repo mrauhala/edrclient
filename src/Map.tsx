@@ -255,10 +255,65 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
       newLayerKeys.add(layerKey);
 
       if (layerConfig.visible) {
-        // Check if layer already exists
-        if (geoJsonVectorLayers[layerKey]) {
-          // Reuse existing layer
-          newLayers[layerKey] = geoJsonVectorLayers[layerKey];
+        // Check if layer already exists and if labelProperty has changed
+        const existingLayer = geoJsonVectorLayers[layerKey];
+        const needsStyleUpdate = existingLayer && 
+          existingLayer.get('labelProperty') !== layerConfig.labelProperty;
+        
+        if (existingLayer && !needsStyleUpdate) {
+          // Reuse existing layer without changes
+          newLayers[layerKey] = existingLayer;
+        } else if (existingLayer && needsStyleUpdate) {
+          // Update style function for existing layer
+          existingLayer.setStyle((feature) => {
+            const labelProperty = layerConfig.labelProperty;
+            const properties = feature.getProperties();
+            let labelText = '';
+            
+            if (labelProperty && properties[labelProperty] !== undefined && properties[labelProperty] !== null) {
+              labelText = String(properties[labelProperty]);
+            }
+            
+            return new Style({
+              stroke: new Stroke({
+                color: '#FF9800',
+                width: 2,
+              }),
+              fill: new Fill({
+                color: 'rgba(255, 152, 0, 0.3)',
+              }),
+              image: new Circle({
+                radius: 6,
+                fill: new Fill({
+                  color: '#FF9800',
+                }),
+                stroke: new Stroke({
+                  color: '#ffffff',
+                  width: 2,
+                }),
+              }),
+              text: labelText ? new Text({
+                text: labelText,
+                offsetY: -15,
+                fill: new Fill({
+                  color: '#000000',
+                }),
+                stroke: new Stroke({
+                  color: '#ffffff',
+                  width: 3,
+                }),
+                font: 'bold 12px sans-serif',
+              }) : undefined,
+            });
+          });
+          
+          // Store the labelProperty on the layer for comparison
+          existingLayer.set('labelProperty', layerConfig.labelProperty);
+          
+          // Force layer to redraw with new style
+          existingLayer.changed();
+          
+          newLayers[layerKey] = existingLayer;
         } else {
           // Create new layer with bbox strategy
           const geojsonFormat = new GeoJSON({
@@ -370,6 +425,9 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
               });
             },
           });
+
+          // Store the labelProperty on the layer for future comparison
+          geoJsonLayer.set('labelProperty', layerConfig.labelProperty);
 
           // Add layer to map
           map.addLayer(geoJsonLayer);
