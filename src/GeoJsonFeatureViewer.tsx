@@ -70,12 +70,11 @@ const GeoJsonFeatureViewer: React.FC<GeoJsonFeatureViewerProps> = ({ feature, on
         p: 2,
         zIndex: 1000,
         backdropFilter: 'blur(4px)',
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
       }}
     >
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
         <Box display="flex" alignItems="center" gap={1}>
-          <LayersIcon sx={{ color: '#FF9800' }} />
+          <LayersIcon color="warning" />
           <Typography variant="h6" component="h3">
             GeoJSON Feature
           </Typography>
