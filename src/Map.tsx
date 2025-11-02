@@ -56,11 +56,23 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
   const locationFeaturesRef = useRef(locationFeatures);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const onFeatureSelectRef = useRef(onFeatureSelect);
+  const selectedAreaRef = useRef(selectedArea);
+  const clickedCoordsRef = useRef(clickedCoords);
 
   // Keep the callback ref updated
   useEffect(() => {
     onFeatureSelectRef.current = onFeatureSelect;
   }, [onFeatureSelect]);
+
+  // Keep the area ref updated
+  useEffect(() => {
+    selectedAreaRef.current = selectedArea;
+  }, [selectedArea]);
+
+  // Keep the coords ref updated
+  useEffect(() => {
+    clickedCoordsRef.current = clickedCoords;
+  }, [clickedCoords]);
 
   // Effect to handle selected collection extents changes (multiple bboxes)
   useEffect(() => {
@@ -794,9 +806,10 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
           
           // Check if click is within bbox
           if (x >= minLon && x <= maxLon && y >= minLat && y <= maxLat) {
-            // Add coordinates to the array
+            // Add coordinates to the array - use ref to get current value
             if (onMapClick) {
-              const newCoords: [number, number][] = [...(clickedCoords || []), [x, y]];
+              const currentCoords = clickedCoordsRef.current || [];
+              const newCoords: [number, number][] = [...currentCoords, [x, y]];
               onMapClick(newCoords);
             }
           }
@@ -845,9 +858,10 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
           return [lon, lat];
         });
 
-        // Add polygon to the array
+        // Add polygon to the array - use ref to get current value
         if (onAreaSelect) {
-          const newAreas: [number, number][][] = [...(selectedArea || []), lonLatCoords];
+          const currentAreas = selectedAreaRef.current || [];
+          const newAreas: [number, number][][] = [...currentAreas, lonLatCoords];
           onAreaSelect(newAreas);
         }
       });
