@@ -53,7 +53,7 @@ interface SidebarProps {
   locationFeatures?: any[] | null;
   customServices?: CustomService[];
   onServiceUrlSelect?: string | null;
-  onGeoJsonLayersChange?: (layers: {url: string, title: string, visible: boolean}[]) => void;
+  onGeoJsonLayersChange?: (layers: {url: string, title: string, visible: boolean, labelProperty?: string}[]) => void;
 }
 
 // EDR service options
@@ -126,7 +126,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   const [selectedParameters, setSelectedParameters] = useState<string[]>([]);
   const [collectionUrl, setCollectionUrl] = useState<string>('');
   const [showCollectionValidation, setShowCollectionValidation] = useState<{[key: string]: boolean}>({});
-  const [activeGeoJsonLayers, setActiveGeoJsonLayers] = useState<{url: string, title: string, visible: boolean}[]>([]);
+  const [activeGeoJsonLayers, setActiveGeoJsonLayers] = useState<{url: string, title: string, visible: boolean, labelProperty?: string}[]>([]);
 
   // Helper function to extract GeoJSON links from a collection
   const getGeoJsonLinks = (collection: Collection): {url: string, title: string}[] => {

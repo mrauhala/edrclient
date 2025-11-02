@@ -16,9 +16,11 @@ interface GeoJsonFeatureViewerProps {
   feature: any | null;
   onClose: () => void;
   metadata?: {numberReturned?: number, numberMatched?: number};
+  onSelectLabelProperty?: (propertyName: string) => void;
+  selectedLabelProperty?: string;
 }
 
-const GeoJsonFeatureViewer: React.FC<GeoJsonFeatureViewerProps> = ({ feature, onClose, metadata }) => {
+const GeoJsonFeatureViewer: React.FC<GeoJsonFeatureViewerProps> = ({ feature, onClose, metadata, onSelectLabelProperty, selectedLabelProperty }) => {
   if (!feature) return null;
 
   const properties = feature.get ? feature.getProperties() : feature.properties || {};
@@ -159,6 +161,11 @@ const GeoJsonFeatureViewer: React.FC<GeoJsonFeatureViewerProps> = ({ feature, on
         <Typography variant="subtitle2" color="text.secondary" gutterBottom>
           Properties
         </Typography>
+        {onSelectLabelProperty && (
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, fontStyle: 'italic' }}>
+            Click a property name to use it as a map label
+          </Typography>
+        )}
         {displayProperties.length > 0 ? (
           <TableContainer sx={{ maxHeight: '50vh' }}>
             <Table size="small" stickyHeader>
@@ -173,23 +180,41 @@ const GeoJsonFeatureViewer: React.FC<GeoJsonFeatureViewerProps> = ({ feature, on
                 </TableRow>
               </TableHead>
               <TableBody>
-                {displayProperties.map(([key, value]) => (
-                  <TableRow 
-                    key={key}
-                    sx={{ '&:nth-of-type(odd)': { backgroundColor: 'action.hover' } }}
-                  >
-                    <TableCell 
-                      component="th" 
-                      scope="row"
+                {displayProperties.map(([key, value]) => {
+                  const isSelected = selectedLabelProperty === key;
+                  const isStringOrNumber = typeof value === 'string' || typeof value === 'number';
+                  
+                  return (
+                    <TableRow 
+                      key={key}
                       sx={{ 
-                        fontWeight: 'medium',
-                        verticalAlign: 'top',
-                        maxWidth: '120px',
-                        wordBreak: 'break-word'
+                        '&:nth-of-type(odd)': { backgroundColor: 'action.hover' },
+                        backgroundColor: isSelected ? 'rgba(255, 152, 0, 0.15)' : undefined,
+                        '&:hover': isStringOrNumber && onSelectLabelProperty ? { 
+                          backgroundColor: isSelected ? 'rgba(255, 152, 0, 0.25)' : 'action.selected',
+                          cursor: 'pointer'
+                        } : undefined
+                      }}
+                      onClick={() => {
+                        if (isStringOrNumber && onSelectLabelProperty) {
+                          onSelectLabelProperty(key);
+                        }
                       }}
                     >
-                      {key}
-                    </TableCell>
+                      <TableCell 
+                        component="th" 
+                        scope="row"
+                        sx={{ 
+                          fontWeight: isSelected ? 'bold' : 'medium',
+                          verticalAlign: 'top',
+                          maxWidth: '120px',
+                          wordBreak: 'break-word',
+                          color: isSelected ? 'warning.main' : 'inherit'
+                        }}
+                      >
+                        {key}
+                        {isSelected && ' 🏷️'}
+                      </TableCell>
                     <TableCell 
                       sx={{ 
                         fontFamily: typeof value === 'object' ? 'monospace' : 'inherit',
@@ -223,7 +248,8 @@ const GeoJsonFeatureViewer: React.FC<GeoJsonFeatureViewerProps> = ({ feature, on
                       )}
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           </TableContainer>

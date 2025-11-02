@@ -10,7 +10,7 @@ import Overlay from 'ol/Overlay';
 import { Feature } from 'ol';
 import { Polygon, Point } from 'ol/geom';
 import { fromLonLat, toLonLat } from 'ol/proj';
-import { Style, Stroke, Fill, Circle } from 'ol/style';
+import { Style, Stroke, Fill, Circle, Text } from 'ol/style';
 import GeoJSON from 'ol/format/GeoJSON';
 import { defaults as defaultControls } from 'ol/control';
 import { bbox as bboxStrategy } from 'ol/loadingstrategy';
@@ -30,12 +30,13 @@ interface MapProps {
   onUpdateBoundingBox?: (boundingBox: [number, number, number, number]) => void;
   onFeatureSelect?: (feature: any | null) => void;
   onMapClick?: (coords: [number, number] | null) => void;
-  geoJsonLayers?: {url: string, title: string, visible: boolean}[];
+  geoJsonLayers?: {url: string, title: string, visible: boolean, labelProperty?: string}[];
   selectedGeoJsonFeature?: any | null;
   onGeoJsonFeatureSelect?: (feature: any | null) => void;
+  onGeoJsonLayerUpdate?: (layers: {url: string, title: string, visible: boolean, labelProperty?: string}[]) => void;
 }
 
-const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCollectionExtents, selectedCollection, locationFeatures, selectedFeature, clickedCoords, dataQuery, onUpdateBoundingBox, onFeatureSelect, onMapClick, geoJsonLayers = [], selectedGeoJsonFeature, onGeoJsonFeatureSelect }) => {
+const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCollectionExtents, selectedCollection, locationFeatures, selectedFeature, clickedCoords, dataQuery, onUpdateBoundingBox, onFeatureSelect, onMapClick, geoJsonLayers = [], selectedGeoJsonFeature, onGeoJsonFeatureSelect, onGeoJsonLayerUpdate }) => {
   const [map, setMap] = useState<Map | null>(null);
   const [vectorLayer, setVectorLayer] = useState<VectorLayer<VectorSource> | null>(null);
   const [locationLayer, setLocationLayer] = useState<VectorLayer<VectorSource> | null>(null);
@@ -327,25 +328,47 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
 
           const geoJsonLayer = new VectorLayer({
             source: vectorSource,
-            style: new Style({
-              stroke: new Stroke({
-                color: '#FF9800',
-                width: 2,
-              }),
-              fill: new Fill({
-                color: 'rgba(255, 152, 0, 0.3)',
-              }),
-              image: new Circle({
-                radius: 6,
-                fill: new Fill({
-                  color: '#FF9800',
-                }),
+            style: (feature) => {
+              const labelProperty = layerConfig.labelProperty;
+              const properties = feature.getProperties();
+              let labelText = '';
+              
+              if (labelProperty && properties[labelProperty] !== undefined && properties[labelProperty] !== null) {
+                labelText = String(properties[labelProperty]);
+              }
+              
+              return new Style({
                 stroke: new Stroke({
-                  color: '#ffffff',
+                  color: '#FF9800',
                   width: 2,
                 }),
-              }),
-            }),
+                fill: new Fill({
+                  color: 'rgba(255, 152, 0, 0.3)',
+                }),
+                image: new Circle({
+                  radius: 6,
+                  fill: new Fill({
+                    color: '#FF9800',
+                  }),
+                  stroke: new Stroke({
+                    color: '#ffffff',
+                    width: 2,
+                  }),
+                }),
+                text: labelText ? new Text({
+                  text: labelText,
+                  offsetY: -15,
+                  fill: new Fill({
+                    color: '#000000',
+                  }),
+                  stroke: new Stroke({
+                    color: '#ffffff',
+                    width: 3,
+                  }),
+                  font: 'bold 12px sans-serif',
+                }) : undefined,
+              });
+            },
           });
 
           // Add layer to map
@@ -844,6 +867,17 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
         feature={selectedGeoJsonFeature}
         onClose={() => onGeoJsonFeatureSelect?.(null)}
         metadata={selectedGeoJsonFeature?.get ? geoJsonMetadata[selectedGeoJsonFeature.get('layerUrl')] : undefined}
+        selectedLabelProperty={selectedGeoJsonFeature?.get ? 
+          geoJsonLayers.find(l => l.url === selectedGeoJsonFeature.get('layerUrl'))?.labelProperty : undefined}
+        onSelectLabelProperty={(propertyName) => {
+          if (selectedGeoJsonFeature?.get && onGeoJsonLayerUpdate) {
+            const layerUrl = selectedGeoJsonFeature.get('layerUrl');
+            const updatedLayers = geoJsonLayers.map(layer => 
+              layer.url === layerUrl ? { ...layer, labelProperty: propertyName } : layer
+            );
+            onGeoJsonLayerUpdate(updatedLayers);
+          }
+        }}
       />
     </div>
   );

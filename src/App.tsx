@@ -47,7 +47,7 @@ function App() {
   const [selectedFeature, setSelectedFeature] = useState<any | null>(null);
   const [clickedCoords, setClickedCoords] = useState<[number, number] | null>(null);
   const [dataQuery, setDataQuery] = useState<string>('');
-  const [geoJsonLayers, setGeoJsonLayers] = useState<{url: string, title: string, visible: boolean}[]>([]);
+  const [geoJsonLayers, setGeoJsonLayers] = useState<{url: string, title: string, visible: boolean, labelProperty?: string}[]>([]);
   const [selectedGeoJsonFeature, setSelectedGeoJsonFeature] = useState<any | null>(null);
 
   // Detect system preference
@@ -196,6 +196,7 @@ function App() {
             geoJsonLayers={geoJsonLayers}
             selectedGeoJsonFeature={selectedGeoJsonFeature}
             onGeoJsonFeatureSelect={setSelectedGeoJsonFeature}
+            onGeoJsonLayerUpdate={setGeoJsonLayers}
           />
         </Box>
       </Box>
