@@ -1047,7 +1047,34 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
         </div>
       )}
 
-      {/* Drawing Instruction - Top Center */}
+      {/* Position Selection Instruction - Top Center */}
+      {dataQuery && dataQuery.toLowerCase() === 'position' && !clickedCoords && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            backgroundColor: 'rgba(0, 0, 0, 0.9)',
+            color: 'white',
+            padding: '16px 24px',
+            borderRadius: '8px',
+            fontSize: '14px',
+            fontWeight: 'normal',
+            zIndex: 1000,
+            boxShadow: '0 4px 8px rgba(0,0,0,0.5)',
+            border: '2px solid rgba(255, 0, 0, 0.6)',
+            textAlign: 'center',
+          }}
+        >
+          <div style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '16px', color: '#FF4444' }}>
+            Click Point on Map
+          </div>
+          <div>Click anywhere to select coordinates</div>
+        </div>
+      )}
+
+      {/* Area Drawing Instruction - Top Center */}
       {dataQuery && dataQuery.toLowerCase() === 'area' && !selectedArea && (
         <div
           style={{
