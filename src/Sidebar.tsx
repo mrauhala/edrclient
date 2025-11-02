@@ -134,12 +134,31 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
       return [];
     }
     
+    // Check if collection has temporal extent
+    const hasTemporal = collection.extent?.temporal && 
+                        (collection.extent.temporal.interval || collection.extent.temporal.values);
+    
+    // Get current timestamp in ISO format (rounded to current hour)
+    const now = new Date();
+    now.setMinutes(0, 0, 0); // Round to current hour
+    const datetime = now.toISOString().replace(/\.\d{3}Z$/, 'Z'); // Format: 2025-11-01T06:00Z
+    
     return collection.links
       .filter(link => link.type === 'application/geo+json')
-      .map(link => ({
-        url: link.href,
-        title: link.title || link.rel || 'GeoJSON Layer'
-      }));
+      .map(link => {
+        let url = link.href;
+        
+        // Add datetime parameter if collection has temporal extent
+        if (hasTemporal) {
+          const separator = url.includes('?') ? '&' : '?';
+          url = `${url}${separator}datetime=${datetime}`;
+        }
+        
+        return {
+          url: url,
+          title: link.title || link.rel || 'GeoJSON Layer'
+        };
+      });
   };
 
   // Debounce effect for text input - only update apiUrl after 1 second of no typing
