@@ -356,10 +356,14 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
           // Use the href from the feature properties as the complete URL
           url = new URL(locationFeature.properties.href);
         } else if (locationFeature.id) {
-          // If no href, append the location ID to the base URL path
+          // If no href, append the location ID to the base URL path (only if not already present)
           const pathParts = url.pathname.split('/').filter(part => part.length > 0);
-          pathParts.push(locationFeature.id);
-          url.pathname = '/' + pathParts.join('/');
+          const locationId = String(locationFeature.id);
+          // Check if the location ID is not already the last part of the path
+          if (pathParts[pathParts.length - 1] !== locationId) {
+            pathParts.push(locationId);
+            url.pathname = '/' + pathParts.join('/');
+          }
         }
       }
       
