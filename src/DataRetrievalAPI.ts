@@ -523,7 +523,7 @@ export function expandTemporalValues(temporal: Temporal | null | undefined, maxV
     
     // Check for ISO 8601 repeating interval format: R{n}/{start}/{duration}
     // Example: "R1440/2025-11-02T15:26:00Z/PT1M" means 1440 repetitions, starting at 2025-11-02T15:26:00Z, every 1 minute
-    const repeatingMatch = intervalStr.match(/^R(\d+)\/([^\/]+)\/(.+)$/);
+    const repeatingMatch = intervalStr.match(/^R(\d+)\/([^/]+)\/(.+)$/);
     if (repeatingMatch) {
       const [, repetitionsStr, startStr, durationStr] = repeatingMatch;
       const repetitions = parseInt(repetitionsStr, 10);
