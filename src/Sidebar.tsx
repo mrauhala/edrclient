@@ -1102,11 +1102,6 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                 {/* Location Query Info */}
                 {hasLocationQuery(collection) && (
                   <>
-                    <Alert severity="info" sx={{ mt: 1 }}>
-                      <AlertTitle>Location Query Available</AlertTitle>
-                      This collection supports location queries. Location features will be displayed on the map when this collection is selected.
-                    </Alert>
-                    
                     {/* Show location features list only for the current collection */}
                     {currentLocationCollection === collection.id && locationFeatures && (
                       <Box sx={{ mt: 1 }}>
