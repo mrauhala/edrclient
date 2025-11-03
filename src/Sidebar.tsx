@@ -878,55 +878,61 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                   <>
                     {collection.description && <span>{collection.description}</span>}
                     {collection.title && collection.id && (
-                      <span style={{ 
-                        fontSize: '0.875rem', 
-                        color: 'rgba(0, 0, 0, 0.6)', 
-                        display: 'block', 
-                        marginTop: collection.description ? '4px' : '0' 
-                      }}>
+                      <Box 
+                        component="span"
+                        sx={{ 
+                          fontSize: '0.875rem', 
+                          color: 'text.secondary',
+                          display: 'block', 
+                          marginTop: collection.description ? '4px' : '0' 
+                        }}
+                      >
                         ID: {collection.id}
-                      </span>
+                      </Box>
                     )}
                     {collection.itemType && (
-                      <span style={{ 
-                        fontSize: '0.875rem', 
-                        color: 'rgba(0, 0, 0, 0.6)', 
-                        display: 'block', 
-                        marginTop: '4px',
-                        fontWeight: 500
-                      }}>
+                      <Box 
+                        component="span"
+                        sx={{ 
+                          fontSize: '0.875rem', 
+                          color: 'text.secondary',
+                          display: 'block', 
+                          marginTop: '4px',
+                          fontWeight: 500
+                        }}
+                      >
                         Item Type: {collection.itemType}
-                      </span>
+                      </Box>
                     )}
                     {/* Temporal Extent Intervals */}
                     {collection.extent?.temporal && (() => {
                       const normalizedTemporal = normalizeTemporal(collection.extent.temporal);
                       if (normalizedTemporal && normalizedTemporal.intervals.length > 0) {
                         return (
-                          <div style={{ marginTop: '8px' }}>
-                            <div style={{ 
+                          <Box sx={{ marginTop: '8px' }}>
+                            <Box sx={{ 
                               fontSize: '0.75rem', 
                               fontWeight: 600,
-                              color: 'rgba(0, 0, 0, 0.7)',
+                              color: 'text.secondary',
                               marginBottom: '4px'
                             }}>
                               Temporal Intervals:
-                            </div>
+                            </Box>
                             {normalizedTemporal.intervals.map((interval, idx) => (
-                              <div 
+                              <Box 
                                 key={idx}
-                                style={{ 
+                                sx={{ 
                                   fontSize: '0.7rem', 
-                                  color: 'rgba(0, 0, 0, 0.6)',
+                                  color: 'text.secondary',
                                   fontFamily: 'monospace',
                                   paddingLeft: '8px',
                                   marginBottom: '2px'
                                 }}
                               >
                                 [{interval[0] === null ? 'null' : interval[0]}, {interval[1] === null ? 'null' : interval[1]}]
-                              </div>
+                              </Box>
                             ))}
-                          </div>
+                          </Box>
                         );
                       }
                       return null;
