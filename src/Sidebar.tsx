@@ -22,6 +22,10 @@ import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import Tooltip from '@mui/material/Tooltip';
 import Checkbox from '@mui/material/Checkbox';
+import Radio from '@mui/material/Radio';
+import RadioGroup from '@mui/material/RadioGroup';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import FormLabel from '@mui/material/FormLabel';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
@@ -128,6 +132,9 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   const [selectedFormat, setSelectedFormat] = useState<string>('');
   const [selectedParameters, setSelectedParameters] = useState<string[]>([]);
   const [selectedDatetimes, setSelectedDatetimes] = useState<string[]>([]);
+  const [datetimeMode, setDatetimeMode] = useState<'individual' | 'range'>('individual');
+  const [startDatetime, setStartDatetime] = useState<string>('');
+  const [endDatetime, setEndDatetime] = useState<string>('');
   const [collectionUrl, setCollectionUrl] = useState<string>('');
   const [showCollectionValidation, setShowCollectionValidation] = useState<{[key: string]: boolean}>({});
   const [activeGeoJsonLayers, setActiveGeoJsonLayers] = useState<{url: string, title: string, visible: boolean, labelProperty?: string}[]>([]);
@@ -189,6 +196,9 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
       setSelectedFormat('');
       setSelectedParameters([]);
       setSelectedDatetimes([]);
+      setDatetimeMode('individual');
+      setStartDatetime('');
+      setEndDatetime('');
       setCollectionUrl('');
       setActiveGeoJsonLayers([]);
       
@@ -260,7 +270,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
       // Find the current collection and rebuild the URL
       if (selectedCollection && selectedCollection.data_queries[selectedDataQuery]?.link) {
         const baseUrl = selectedCollection.data_queries[selectedDataQuery].link.href;
-        setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, null, radiusKm, selectedDataQuery, null, selectedDatetimes));
+        setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, null, radiusKm, selectedDataQuery, null, selectedDatetimes, datetimeMode, startDatetime, endDatetime));
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -273,7 +283,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
       // Find the current collection and rebuild the URL
       if (selectedCollection && selectedCollection.data_queries[selectedDataQuery]?.link) {
         const baseUrl = selectedCollection.data_queries[selectedDataQuery].link.href;
-        setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, null, selectedArea, radiusKm, selectedDataQuery, null, selectedDatetimes));
+        setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, null, selectedArea, radiusKm, selectedDataQuery, null, selectedDatetimes, datetimeMode, startDatetime, endDatetime));
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -286,7 +296,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
       // Find the current collection and rebuild the URL
       if (selectedCollection && selectedCollection.data_queries[selectedDataQuery]?.link) {
         const baseUrl = selectedCollection.data_queries[selectedDataQuery].link.href;
-        setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, null, radiusKm, selectedDataQuery, null, selectedDatetimes));
+        setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, null, radiusKm, selectedDataQuery, null, selectedDatetimes, datetimeMode, startDatetime, endDatetime));
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -299,7 +309,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
       // Find the current collection and rebuild the URL
       if (selectedCollection && selectedCollection.data_queries[selectedDataQuery]?.link) {
         const baseUrl = selectedCollection.data_queries[selectedDataQuery].link.href;
-        setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, null, null, radiusKm, selectedDataQuery, selectedFeature, selectedDatetimes));
+        setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, null, null, radiusKm, selectedDataQuery, selectedFeature, selectedDatetimes, datetimeMode, startDatetime, endDatetime));
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -312,7 +322,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
       if (selectedCollection.data_queries[selectedDataQuery]?.link) {
         const baseUrl = selectedCollection.data_queries[selectedDataQuery].link.href;
         const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-        setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetimes));
+        setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetimes, datetimeMode, startDatetime, endDatetime));
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -358,7 +368,21 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   };
 
   // Helper function to build URL with query parameters
-  const buildUrlWithParams = (baseUrl: string, format: string, parameters: string[], isDataQuery: boolean, coords: [number, number][] | null | undefined = null, area: [number, number][][] | null | undefined = null, radius: number | undefined = undefined, queryType: string = '', locationFeature: any | null = null, datetimes: string[] = []) => {
+  const buildUrlWithParams = (
+    baseUrl: string, 
+    format: string, 
+    parameters: string[], 
+    isDataQuery: boolean, 
+    coords: [number, number][] | null | undefined = null, 
+    area: [number, number][][] | null | undefined = null, 
+    radius: number | undefined = undefined, 
+    queryType: string = '', 
+    locationFeature: any | null = null, 
+    datetimes: string[] = [],
+    dtMode: 'individual' | 'range' = 'individual',
+    dtStart: string = '',
+    dtEnd: string = ''
+  ) => {
     if (!baseUrl) return baseUrl;
     
     try {
@@ -398,7 +422,11 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
         }
         
         // Add datetime parameter
-        if (datetimes && datetimes.length > 0) {
+        if (dtMode === 'range' && dtStart && dtEnd) {
+          // Time range mode: format as start/end
+          url.searchParams.set('datetime', `${dtStart}/${dtEnd}`);
+        } else if (dtMode === 'individual' && datetimes && datetimes.length > 0) {
+          // Individual times mode: comma-separated list
           url.searchParams.set('datetime', datetimes.join(','));
         } else {
           url.searchParams.delete('datetime');
@@ -511,10 +539,13 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
         baseUrl = apiUrl + "/collections/" + key;
       }
       // Collection URL - no query params added (isDataQuery = false)
-      setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, false, null, null, radiusKm, '', null, []));
+      setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, false, null, null, radiusKm, '', null, [], 'individual', '', ''));
       setSelectedDataQuery(''); // Reset data query selection
       setSelectedParameters([]); // Reset parameters when collection changes
       setSelectedDatetimes([]); // Reset datetime selection when collection changes
+      setDatetimeMode('individual'); // Reset datetime mode
+      setStartDatetime(''); // Reset start datetime
+      setEndDatetime(''); // Reset end datetime
       if (onMapClick) {
         onMapClick([]); // Clear clicked coordinates when collection changes
       }
@@ -1041,7 +1072,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                         // Apply format and parameter if data query is selected
                         const isDataQuery = !!queryType;
                         const locationFeature = queryType.toLowerCase() === 'locations' ? selectedFeature : null;
-                        const newUrl = buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, queryType, locationFeature, selectedDatetimes);
+                        const newUrl = buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, queryType, locationFeature, selectedDatetimes, datetimeMode, startDatetime, endDatetime);
                         setCollectionUrl(newUrl);
                       }}
                       size="small"
@@ -1073,7 +1104,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                         // Only add params if data query is selected
                         const isDataQuery = !!selectedDataQuery;
                         const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-                        setCollectionUrl(buildUrlWithParams(collectionUrl, format, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetimes));
+                        setCollectionUrl(buildUrlWithParams(collectionUrl, format, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetimes, datetimeMode, startDatetime, endDatetime));
                       }}
                       size="small"
                     >
@@ -1105,7 +1136,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                         // Only add params if data query is selected
                         const isDataQuery = !!selectedDataQuery;
                         const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-                        setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, parameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetimes));
+                        setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, parameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetimes, datetimeMode, startDatetime, endDatetime));
                       }}
                       size="small"
                       renderValue={(selected) => selected.join(', ')}
@@ -1131,49 +1162,184 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                   </FormControl>
                 )}
 
-                {/* Datetime Selector - Multiselect */}
+                {/* Datetime Selector */}
                 {collection.extent?.temporal && (() => {
                   const temporalValues = expandTemporalValues(collection.extent.temporal, 500);
                   return temporalValues.length > 0 ? (
-                    <FormControl fullWidth sx={{ mb: 2 }}>
-                      <InputLabel id="datetime-select-label">Date/Time</InputLabel>
-                      <Select
-                        labelId="datetime-select-label"
-                        multiple
-                        value={selectedDatetimes}
-                        label="Date/Time"
-                        onChange={(e) => {
-                          const datetimes = typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value;
-                          setSelectedDatetimes(datetimes);
-                          // Update URL with datetime parameter
-                          // Only add params if data query is selected
-                          const isDataQuery = !!selectedDataQuery;
-                          const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-                          setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, datetimes));
-                        }}
-                        size="small"
-                        renderValue={(selected) => `${selected.length} time(s) selected`}
-                        MenuProps={{
-                          PaperProps: {
-                            style: {
-                              maxHeight: 300,
-                            },
-                          },
-                        }}
-                      >
-                        {temporalValues.map((datetime) => (
-                          <MenuItem key={datetime} value={datetime}>
-                            <Checkbox checked={selectedDatetimes.indexOf(datetime) > -1} />
-                            <ListItemText 
-                              primary={datetime}
-                              primaryTypographyProps={{ 
-                                style: { fontSize: '0.85rem', fontFamily: 'monospace' } 
+                    <Box sx={{ mb: 2 }}>
+                      {/* Datetime Mode Selector */}
+                      <FormControl component="fieldset" sx={{ mb: 1 }}>
+                        <FormLabel component="legend" sx={{ fontSize: '0.875rem' }}>Date/Time Selection</FormLabel>
+                        <RadioGroup
+                          row
+                          value={datetimeMode}
+                          onChange={(e) => {
+                            const newMode = e.target.value as 'individual' | 'range';
+                            setDatetimeMode(newMode);
+                            // Clear selections when switching modes
+                            if (newMode === 'range') {
+                              setSelectedDatetimes([]);
+                            } else {
+                              setStartDatetime('');
+                              setEndDatetime('');
+                            }
+                            // Update URL
+                            const isDataQuery = !!selectedDataQuery;
+                            const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+                            setCollectionUrl(buildUrlWithParams(
+                              collectionUrl, 
+                              selectedFormat, 
+                              selectedParameters, 
+                              isDataQuery, 
+                              clickedCoords, 
+                              selectedArea, 
+                              radiusKm, 
+                              selectedDataQuery, 
+                              locationFeature, 
+                              [], 
+                              newMode,
+                              '',
+                              ''
+                            ));
+                          }}
+                          sx={{ gap: 2 }}
+                        >
+                          <FormControlLabel 
+                            value="individual" 
+                            control={<Radio size="small" />} 
+                            label={<Typography variant="body2">Individual Times</Typography>}
+                          />
+                          <FormControlLabel 
+                            value="range" 
+                            control={<Radio size="small" />} 
+                            label={<Typography variant="body2">Time Range</Typography>}
+                          />
+                        </RadioGroup>
+                      </FormControl>
+
+                      {/* Individual Times Multi-Select */}
+                      {datetimeMode === 'individual' && (
+                        <FormControl fullWidth>
+                          <InputLabel id="datetime-select-label">Select Times</InputLabel>
+                          <Select
+                            labelId="datetime-select-label"
+                            multiple
+                            value={selectedDatetimes}
+                            label="Select Times"
+                            onChange={(e) => {
+                              const datetimes = typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value;
+                              setSelectedDatetimes(datetimes);
+                              // Update URL with datetime parameter
+                              const isDataQuery = !!selectedDataQuery;
+                              const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+                              setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, datetimes, datetimeMode, startDatetime, endDatetime));
+                            }}
+                            size="small"
+                            renderValue={(selected) => `${selected.length} time(s) selected`}
+                            MenuProps={{
+                              PaperProps: {
+                                style: {
+                                  maxHeight: 300,
+                                },
+                              },
+                            }}
+                          >
+                            {temporalValues.map((datetime) => (
+                              <MenuItem key={datetime} value={datetime}>
+                                <Checkbox checked={selectedDatetimes.indexOf(datetime) > -1} />
+                                <ListItemText 
+                                  primary={datetime}
+                                  primaryTypographyProps={{ 
+                                    style: { fontSize: '0.85rem', fontFamily: 'monospace' } 
+                                  }}
+                                />
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      )}
+
+                      {/* Time Range Selectors */}
+                      {datetimeMode === 'range' && (
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                          <FormControl fullWidth size="small">
+                            <InputLabel id="start-datetime-label">Start Time</InputLabel>
+                            <Select
+                              labelId="start-datetime-label"
+                              value={startDatetime}
+                              label="Start Time"
+                              onChange={(e) => {
+                                const newStart = e.target.value;
+                                setStartDatetime(newStart);
+                                // Update URL
+                                const isDataQuery = !!selectedDataQuery;
+                                const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+                                setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetimes, datetimeMode, newStart, endDatetime));
                               }}
-                            />
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
+                              MenuProps={{
+                                PaperProps: {
+                                  style: {
+                                    maxHeight: 300,
+                                  },
+                                },
+                              }}
+                            >
+                              <MenuItem value="">
+                                <em>Select start time</em>
+                              </MenuItem>
+                              {temporalValues.map((datetime) => (
+                                <MenuItem key={datetime} value={datetime}>
+                                  <ListItemText 
+                                    primary={datetime}
+                                    primaryTypographyProps={{ 
+                                      style: { fontSize: '0.85rem', fontFamily: 'monospace' } 
+                                    }}
+                                  />
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+
+                          <FormControl fullWidth size="small">
+                            <InputLabel id="end-datetime-label">End Time</InputLabel>
+                            <Select
+                              labelId="end-datetime-label"
+                              value={endDatetime}
+                              label="End Time"
+                              onChange={(e) => {
+                                const newEnd = e.target.value;
+                                setEndDatetime(newEnd);
+                                // Update URL
+                                const isDataQuery = !!selectedDataQuery;
+                                const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+                                setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetimes, datetimeMode, startDatetime, newEnd));
+                              }}
+                              MenuProps={{
+                                PaperProps: {
+                                  style: {
+                                    maxHeight: 300,
+                                  },
+                                },
+                              }}
+                            >
+                              <MenuItem value="">
+                                <em>Select end time</em>
+                              </MenuItem>
+                              {temporalValues.map((datetime) => (
+                                <MenuItem key={datetime} value={datetime}>
+                                  <ListItemText 
+                                    primary={datetime}
+                                    primaryTypographyProps={{ 
+                                      style: { fontSize: '0.85rem', fontFamily: 'monospace' } 
+                                    }}
+                                  />
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                        </Box>
+                      )}
+                    </Box>
                   ) : null;
                 })()}
 
