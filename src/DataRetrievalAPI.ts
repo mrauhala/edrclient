@@ -307,7 +307,6 @@ export function normalizeBbox(bbox: number[][] | number[] | null | undefined): [
     // Handle EDR standard format: array of bbox arrays
     if (Array.isArray(bbox[0])) {
       const bboxArrays = bbox as number[][];
-      console.log('Processing bbox as array of bbox arrays (EDR standard):', bboxArrays);
       
       const validBboxes: [number, number, number, number][] = [];
       
@@ -320,7 +319,6 @@ export function normalizeBbox(bbox: number[][] | number[] | null | undefined): [
               typeof east === 'number' && typeof north === 'number' &&
               isFinite(west) && isFinite(south) && isFinite(east) && isFinite(north)) {
             validBboxes.push([west, south, east, north]);
-            console.log(`Valid bbox found: west=${west}, south=${south}, east=${east}, north=${north}`);
           } else {
             console.warn('Invalid bbox coordinates (not finite numbers):', singleBbox);
           }
@@ -337,7 +335,6 @@ export function normalizeBbox(bbox: number[][] | number[] | null | undefined): [
     // Handle legacy flat array format (non-standard but common)
     if (typeof bbox[0] === 'number') {
       const flatBbox = bbox as number[];
-      console.log('Processing bbox as flat array (legacy format):', flatBbox);
       
       if (flatBbox.length >= 4) {
         const [west, south, east, north] = flatBbox;
@@ -346,7 +343,6 @@ export function normalizeBbox(bbox: number[][] | number[] | null | undefined): [
         if (typeof west === 'number' && typeof south === 'number' && 
             typeof east === 'number' && typeof north === 'number' &&
             isFinite(west) && isFinite(south) && isFinite(east) && isFinite(north)) {
-          console.log(`Extracted coordinates: west=${west}, south=${south}, east=${east}, north=${north}`);
           return [[west, south, east, north]];
         } else {
           console.warn('Invalid flat bbox coordinates (not finite numbers):', flatBbox);
@@ -385,13 +381,10 @@ export function normalizeTemporal(temporal: Temporal | null | undefined): {
 
     // Process intervals if they exist
     if (temporal.interval && Array.isArray(temporal.interval)) {
-      console.log('Processing temporal intervals:', temporal.interval);
-      
       for (const interval of temporal.interval) {
         if (Array.isArray(interval) && interval.length >= 2) {
           const [start, end] = interval;
           result.intervals.push([start, end]);
-          console.log(`Valid temporal interval: ${start} to ${end}`);
         } else {
           console.warn('Invalid temporal interval format:', interval);
         }
@@ -400,11 +393,9 @@ export function normalizeTemporal(temporal: Temporal | null | undefined): {
 
     // Process values if they exist
     if (temporal.values && Array.isArray(temporal.values)) {
-      console.log('Processing temporal values:', temporal.values.length, 'values');
       result.values = temporal.values.filter(value => typeof value === 'string');
     }
 
-    console.log(`Normalized temporal extent: ${result.intervals.length} intervals, ${result.values.length} values`);
     return result;
   } catch (error) {
     console.error('Error normalizing temporal extent:', error, 'Input:', temporal);
@@ -503,8 +494,6 @@ export function normalizeVertical(vertical: Vertical | null | undefined): {
 
     // Process intervals if they exist
     if (vertical.interval && Array.isArray(vertical.interval)) {
-      console.log('Processing vertical intervals:', vertical.interval);
-      
       for (const interval of vertical.interval) {
         if (Array.isArray(interval) && interval.length >= 2) {
           // Convert string values to numbers, handle both number and string inputs
@@ -522,7 +511,6 @@ export function normalizeVertical(vertical: Vertical | null | undefined): {
           }
           
           result.intervals.push([min, max]);
-          console.log(`Valid vertical interval: ${min} to ${max}`);
         } else {
           console.warn('Invalid vertical interval format:', interval);
         }
@@ -531,7 +519,6 @@ export function normalizeVertical(vertical: Vertical | null | undefined): {
 
     // Process values if they exist - handle both string and number values
     if (vertical.values && Array.isArray(vertical.values)) {
-      console.log('Processing vertical values:', vertical.values.length, 'values');
       for (const value of vertical.values) {
         let numValue: number;
         if (typeof value === 'string') {
@@ -551,7 +538,6 @@ export function normalizeVertical(vertical: Vertical | null | undefined): {
       }
     }
 
-    console.log(`Normalized vertical extent: ${result.intervals.length} intervals, ${result.values.length} values`);
     return result;
   } catch (error) {
     console.error('Error normalizing vertical extent:', error, 'Input:', vertical);

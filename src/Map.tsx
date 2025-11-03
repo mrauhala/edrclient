@@ -81,8 +81,6 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
   // Effect to handle selected collection extents changes (multiple bboxes)
   useEffect(() => {
     if (map && selectedCollectionExtents && selectedExtentsRef.current !== selectedCollectionExtents) {
-      console.log('Processing selectedCollectionExtents:', selectedCollectionExtents);
-      
       // Clear previous bounding box rectangles
       if (vectorLayer) {
         vectorLayer.getSource()?.clear();
@@ -96,7 +94,6 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
         // Add each bbox as a separate rectangle feature
         selectedCollectionExtents.forEach((bbox, index) => {
           const [west, south, east, north] = bbox;
-          console.log(`Processing bbox ${index}:`, { west, south, east, north });
           
           // Update overall extent
           minWest = Math.min(minWest, west);
@@ -115,16 +112,12 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
             ]
           ];
           
-          console.log('Creating polygon with coordinates:', coordinates);
-          
           const polygon = new Polygon(coordinates);
           const feature = new Feature({
             geometry: polygon,
             name: `Collection Extent ${index + 1}`,
             bboxIndex: index
           });
-          
-          console.log('Adding feature to vector layer:', feature);
           
           // Add the feature to the vector layer
           vectorLayer.getSource()?.addFeature(feature);
@@ -143,9 +136,6 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
               ...fromLonLat([maxEast, maxNorth])
             ];
             
-            console.log('Zooming to overall extent:', overallExtent);
-            console.log('Overall bbox:', { minWest, minSouth, maxEast, maxNorth });
-            
             // Validate that the transformed extent is also valid
             const isValidExtent = overallExtent.every(coord => isFinite(coord)) &&
                                   overallExtent[0] !== overallExtent[2] && 
@@ -158,7 +148,6 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
               const isGlobalBbox = minWest <= -179 && minSouth <= -89 && maxEast >= 179 && maxNorth >= 89;
               
               if (isGlobalBbox) {
-                console.log('Detected global bbox, setting moderate zoom level');
                 // For global bbox, just set a reasonable zoom level instead of fitting to full extent
                 map.getView().setCenter([0, 0]);
                 map.getView().setZoom(2);
@@ -194,8 +183,6 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
       locationLayer.getSource()?.clear();
       
       if (locationFeatures && locationFeatures.length > 0) {
-        console.log(`Adding ${locationFeatures.length} location features to map`);
-        
         // Create GeoJSON format for parsing
         const geojsonFormat = new GeoJSON({
           featureProjection: 'EPSG:3857', // Map projection
@@ -687,7 +674,6 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
         });
         
         if (geoJsonFeature && onGeoJsonFeatureSelect) {
-          console.log('Selected GeoJSON feature:', geoJsonFeature);
           onGeoJsonFeatureSelect(geoJsonFeature);
           return; // Don't check for location features if GeoJSON feature was clicked
         }
@@ -704,7 +690,6 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
           const originalFeature = locationFeaturesRef.current?.[featureIndex];
           
           if (originalFeature) {
-            console.log('Selected location feature:', originalFeature);
             onFeatureSelectRef.current?.(originalFeature);
           }
         } else {
