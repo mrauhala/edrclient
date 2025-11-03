@@ -511,11 +511,8 @@ export function expandTemporalValues(temporal: Temporal | null | undefined, maxV
   const values: string[] = [];
   
   if (!temporal) {
-    console.log('expandTemporalValues: No temporal extent provided');
     return values;
   }
-  
-  console.log('expandTemporalValues: Processing temporal:', JSON.stringify(temporal, null, 2));
   
   // Helper function to expand an interval string (e.g., "2024-01-01T00:00Z/2024-01-02T00:00Z")
   const expandIntervalString = (intervalStr: string): string[] => {
@@ -550,7 +547,6 @@ export function expandTemporalValues(temporal: Temporal | null | undefined, maxV
           currentTime += durationMs;
         }
         
-        console.log(`Expanded repeating interval: ${repetitions} times, step: ${durationStr}, result: ${expanded.length} values`);
         return expanded;
       } catch (error) {
         console.warn('Error processing repeating interval:', intervalStr, error);
@@ -633,12 +629,10 @@ export function expandTemporalValues(temporal: Temporal | null | undefined, maxV
   try {
     // PRIORITIZE temporal.values if it exists
     if (temporal.values && Array.isArray(temporal.values) && temporal.values.length > 0) {
-      console.log('expandTemporalValues: Using temporal.values, count:', temporal.values.length);
       temporal.values.forEach(value => {
         if (value && typeof value === 'string') {
           // Check if value is an interval format (e.g., "2024-01-01T00:00Z/2024-01-02T00:00Z")
           if (value.includes('/')) {
-            console.log('expandTemporalValues: Expanding interval string:', value);
             const expandedValues = expandIntervalString(value);
             expandedValues.forEach(v => {
               if (!values.includes(v)) {
@@ -656,7 +650,6 @@ export function expandTemporalValues(temporal: Temporal | null | undefined, maxV
     } 
     // FALLBACK to temporal.interval ONLY if temporal.values is not available
     else if (temporal.interval && Array.isArray(temporal.interval)) {
-      console.log('expandTemporalValues: Using temporal.interval, count:', temporal.interval.length);
       for (const interval of temporal.interval) {
         if (!Array.isArray(interval) || interval.length < 2) {
           continue;
@@ -729,8 +722,6 @@ export function expandTemporalValues(temporal: Temporal | null | undefined, maxV
     
     // Sort values chronologically and remove duplicates
     const uniqueValues = Array.from(new Set(values)).sort();
-    
-    console.log('expandTemporalValues: Final count:', uniqueValues.length);
     
     // Limit to maxValues
     return uniqueValues.slice(0, maxValues);

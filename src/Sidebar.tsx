@@ -1134,7 +1134,6 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                 {/* Datetime Selector - Multiselect */}
                 {collection.extent?.temporal && (() => {
                   const temporalValues = expandTemporalValues(collection.extent.temporal, 500);
-                  console.log('Collection:', collection.id, 'Temporal:', collection.extent.temporal, 'Expanded values:', temporalValues.length);
                   return temporalValues.length > 0 ? (
                     <FormControl fullWidth sx={{ mb: 2 }}>
                       <InputLabel id="datetime-select-label">Date/Time</InputLabel>
