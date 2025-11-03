@@ -266,12 +266,6 @@ export class SchemaValidator {
         errors.forEach((error: any) => {
           const pathParts = error.path.split('/').filter((p: string) => p);
           
-          console.log('Processing validation error:', {
-            path: error.path,
-            pathParts,
-            message: error.message
-          });
-          
           // Check if error path indicates a specific collection
           if (pathParts.length >= 2 && pathParts[0] === 'collections' && !isNaN(parseInt(pathParts[1]))) {
             const collectionIndex = parseInt(pathParts[1]);
@@ -286,8 +280,6 @@ export class SchemaValidator {
                 section = pathParts[2];
               }
               
-              console.log(`Assigning error to collection '${collectionId}', section '${section}'`);
-              
               if (!collectionErrors[collectionId]) {
                 collectionErrors[collectionId] = [];
               }
@@ -298,22 +290,11 @@ export class SchemaValidator {
                 section
               });
             } else {
-              console.log('Collection not found at index', collectionIndex);
               globalErrors.push(error);
             }
           } else {
-            console.log('Error not assigned to collection (not matching pattern)');
             globalErrors.push(error);
           }
-        });
-        
-        console.log('Validation categorization complete:', {
-          totalErrors: errors.length,
-          globalErrors: globalErrors.length,
-          collectionsWithErrors: Object.keys(collectionErrors),
-          collectionErrorCounts: Object.fromEntries(
-            Object.entries(collectionErrors).map(([id, errs]) => [id, errs.length])
-          )
         });
         
         return { 

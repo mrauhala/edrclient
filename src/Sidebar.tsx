@@ -10,6 +10,8 @@ import ExpandMore from '@mui/icons-material/ExpandMore';
 import Public from '@mui/icons-material/Public';
 import AccessTime from '@mui/icons-material/AccessTime';
 import Height from '@mui/icons-material/Height';
+import BugReport from '@mui/icons-material/BugReport';
+import Badge from '@mui/material/Badge';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import InputLabel from '@mui/material/InputLabel';
@@ -867,8 +869,9 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                     {/* Validation Status Chip - First row */}
                     <div style={{ 
                       display: 'flex', 
-                      gap: '4px', 
-                      marginBottom: '6px'
+                      gap: '6px', 
+                      marginBottom: '6px',
+                      alignItems: 'center'
                     }}>
                       <Chip
                         label={`ID: ${collection.id}`}
@@ -889,6 +892,33 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                           }
                         }}
                       />
+                      {validationResult.collectionErrors && validationResult.collectionErrors[collection.id] && (
+                        <Badge 
+                          badgeContent={validationResult.collectionErrors[collection.id].length}
+                          color={
+                            validationResult.collectionErrors[collection.id]
+                              ? 'warning'
+                              : 'success'
+                          }
+                          sx={{
+                            '& .MuiBadge-badge': {
+                              fontSize: '0.6rem',
+                              height: '14px',
+                              minWidth: '14px',
+                              padding: '0 3px'
+                            }
+                          }}
+                        >
+                          <BugReport 
+                            sx={{ 
+                              fontSize: '1rem',
+                              color: validationResult.collectionErrors[collection.id]
+                                ? 'warning.main'
+                                : 'success.main'
+                            }} 
+                          />
+                        </Badge>
+                      )}
                     </div>
                     {/* Collection Title - Second row */}
                     <Typography 
