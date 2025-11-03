@@ -971,19 +971,6 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                         {collection.description}
                       </Typography>
                     )}
-                    {collection.title && collection.id && (
-                      <Box 
-                        component="span"
-                        sx={{ 
-                          fontSize: '0.875rem', 
-                          color: 'text.secondary',
-                          display: 'block', 
-                          marginTop: collection.description ? '4px' : '0' 
-                        }}
-                      >
-                        ID: {collection.id}
-                      </Box>
-                    )}
                     {collection.itemType && (
                       <Box 
                         component="span"
@@ -998,67 +985,94 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                         Item Type: {collection.itemType}
                       </Box>
                     )}
-                    {/* Temporal Extent Intervals */}
-                    {collection.extent?.temporal && (() => {
-                      const normalizedTemporal = normalizeTemporal(collection.extent.temporal);
-                      if (normalizedTemporal && normalizedTemporal.intervals.length > 0) {
-                        return (
-                          <Box sx={{ marginTop: '8px' }}>
-                            <Box sx={{ 
-                              fontSize: '0.75rem', 
-                              fontWeight: 600,
-                              color: 'text.secondary',
-                              marginBottom: '4px'
-                            }}>
-                              Temporal Intervals:
-                            </Box>
-                            {normalizedTemporal.intervals.map((interval, idx) => (
-                              <Box 
-                                key={idx}
-                                sx={{ 
-                                  fontSize: '0.7rem', 
-                                  color: 'text.secondary',
-                                  fontFamily: 'monospace',
-                                  paddingLeft: '8px',
-                                  marginBottom: '2px'
-                                }}
-                              >
-                                [{interval[0] === null ? 'null' : interval[0]}, {interval[1] === null ? 'null' : interval[1]}]
-                              </Box>
-                            ))}
-                          </Box>
-                        );
-                      }
-                      return null;
-                    })()}
                     {/* Data Query Type Badges - At the bottom */}
-                    {getSupportedDataQueries(collection).length > 0 && (
-                      <div style={{ 
-                        display: 'flex', 
-                        gap: '4px', 
-                        flexWrap: 'wrap',
-                        marginTop: '8px'
-                      }}>
-                        {getSupportedDataQueries(collection).map((queryType) => (
-                          <Chip
-                            key={queryType}
-                            label={queryType.toUpperCase()}
-                            size="small"
-                            color="primary"
-                            variant="outlined"
-                            sx={{ 
-                              height: '18px',
-                              fontSize: '0.6rem',
-                              fontWeight: 'bold',
-                              borderWidth: '1px',
-                              '& .MuiChip-label': {
-                                padding: '0 5px'
+                    <Box sx={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between',
+                      alignItems: 'flex-end',
+                      marginTop: '8px',
+                      gap: '8px'
+                    }}>
+                      {/* Data Query Chips on the left */}
+                      {getSupportedDataQueries(collection).length > 0 && (
+                        <div style={{ 
+                          display: 'flex', 
+                          gap: '4px', 
+                          flexWrap: 'wrap'
+                        }}>
+                          {getSupportedDataQueries(collection).map((queryType) => (
+                            <Chip
+                              key={queryType}
+                              label={queryType.toUpperCase()}
+                              size="small"
+                              color="primary"
+                              variant="outlined"
+                              sx={{ 
+                                height: '18px',
+                                fontSize: '0.6rem',
+                                fontWeight: 'bold',
+                                borderWidth: '1px',
+                                '& .MuiChip-label': {
+                                  padding: '0 5px'
+                                }
+                              }}
+                            />
+                          ))}
+                        </div>
+                      )}
+                      {/* Temporal Extent on the right */}
+                      {collection.extent?.temporal && (() => {
+                        const normalizedTemporal = normalizeTemporal(collection.extent.temporal);
+                        if (normalizedTemporal && normalizedTemporal.intervals.length > 0) {
+                          const formatDate = (dateStr: string | null) => {
+                            if (!dateStr || dateStr === '..') return 'open';
+                            try {
+                              const date = new Date(dateStr);
+                              // Format: "Nov 1, 2025 06:00 UTC" or just date if time is 00:00
+                              const dateOnly = date.toISOString().split('T')[0];
+                              const timeStr = date.toISOString().split('T')[1];
+                              const hasTime = timeStr && !timeStr.startsWith('00:00:00');
+                              
+                              if (hasTime) {
+                                const formatted = date.toLocaleDateString('en-US', { 
+                                  month: 'short', 
+                                  day: 'numeric', 
+                                  year: 'numeric',
+                                  timeZone: 'UTC'
+                                });
+                                const time = date.toISOString().split('T')[1].substring(0, 5);
+                                return `${formatted} ${time}`;
+                              } else {
+                                return date.toLocaleDateString('en-US', { 
+                                  month: 'short', 
+                                  day: 'numeric', 
+                                  year: 'numeric',
+                                  timeZone: 'UTC'
+                                });
                               }
-                            }}
-                          />
-                        ))}
-                      </div>
-                    )}
+                            } catch {
+                              return dateStr;
+                            }
+                          };
+                          
+                          const interval = normalizedTemporal.intervals[0]; // Show first interval
+                          const start = formatDate(interval[0]);
+                          const end = formatDate(interval[1]);
+                          
+                          return (
+                            <Box sx={{ 
+                              fontSize: '0.7rem', 
+                              color: 'text.secondary',
+                              whiteSpace: 'nowrap',
+                              fontStyle: 'italic'
+                            }}>
+                              Available: {start} – {end}
+                            </Box>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </Box>
                   </>
                 }
                 secondaryTypographyProps={{ component: 'div' }}
