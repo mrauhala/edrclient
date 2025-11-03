@@ -98,9 +98,12 @@ const SchemaInspector: React.FC = () => {
   
   return (
     <>
-      <Button variant="outlined" onClick={handleOpen} sx={{ mt: 2 }}>
-        Schema Inspector
-      </Button>
+      {/* Temporarily hidden - uncomment to enable Schema Inspector button */}
+      {false && (
+        <Button variant="outlined" onClick={handleOpen} sx={{ mt: 2 }}>
+          Schema Inspector
+        </Button>
+      )}
       
       <Dialog open={open} onClose={handleClose} maxWidth="lg" fullWidth>
         <DialogTitle>Schema Inspector</DialogTitle>
