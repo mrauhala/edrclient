@@ -170,6 +170,7 @@ function App() {
           selectedArea={selectedArea}
           radiusKm={radiusKm}
           locationFeatures={locationFeatures}
+          selectedFeature={selectedFeature}
           onCollectionUrlChange={setCollectionUrl}
           customServices={customServices}
           onServiceUrlSelect={selectedServiceUrl}
