@@ -26,7 +26,7 @@ import Select, { SelectChangeEvent } from '@mui/material/Select';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import React, { useEffect, useState, useMemo } from 'react';
-import { getCollections, Collection, ValidationResult, normalizeBbox, hasLocationQuery, getLocationQueryUrl, executeLocationQuery, getSupportedDataQueries, normalizeTemporal, formatConformanceClass } from './DataRetrievalAPI';
+import { getCollections, Collection, ValidationResult, normalizeBbox, hasLocationQuery, getLocationQueryUrl, executeLocationQuery, getSupportedDataQueries, normalizeTemporal, formatConformanceClass, expandTemporalValues } from './DataRetrievalAPI';
 import ValidationResults from './ValidationResult';
 import SchemaInspector from './SchemaInspector';
 import LocationFeatureList from './LocationFeatureList';
@@ -127,6 +127,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   const [selectedDataQuery, setSelectedDataQuery] = useState<string>('');
   const [selectedFormat, setSelectedFormat] = useState<string>('');
   const [selectedParameters, setSelectedParameters] = useState<string[]>([]);
+  const [selectedDatetimes, setSelectedDatetimes] = useState<string[]>([]);
   const [collectionUrl, setCollectionUrl] = useState<string>('');
   const [showCollectionValidation, setShowCollectionValidation] = useState<{[key: string]: boolean}>({});
   const [activeGeoJsonLayers, setActiveGeoJsonLayers] = useState<{url: string, title: string, visible: boolean, labelProperty?: string}[]>([]);
@@ -187,6 +188,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
       setSelectedDataQuery('');
       setSelectedFormat('');
       setSelectedParameters([]);
+      setSelectedDatetimes([]);
       setCollectionUrl('');
       setActiveGeoJsonLayers([]);
       
@@ -258,7 +260,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
       // Find the current collection and rebuild the URL
       if (selectedCollection && selectedCollection.data_queries[selectedDataQuery]?.link) {
         const baseUrl = selectedCollection.data_queries[selectedDataQuery].link.href;
-        setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, null, radiusKm, selectedDataQuery, null));
+        setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, null, radiusKm, selectedDataQuery, null, selectedDatetimes));
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -271,7 +273,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
       // Find the current collection and rebuild the URL
       if (selectedCollection && selectedCollection.data_queries[selectedDataQuery]?.link) {
         const baseUrl = selectedCollection.data_queries[selectedDataQuery].link.href;
-        setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, null, selectedArea, radiusKm, selectedDataQuery, null));
+        setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, null, selectedArea, radiusKm, selectedDataQuery, null, selectedDatetimes));
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -284,7 +286,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
       // Find the current collection and rebuild the URL
       if (selectedCollection && selectedCollection.data_queries[selectedDataQuery]?.link) {
         const baseUrl = selectedCollection.data_queries[selectedDataQuery].link.href;
-        setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, null, radiusKm, selectedDataQuery, null));
+        setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, null, radiusKm, selectedDataQuery, null, selectedDatetimes));
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -297,11 +299,24 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
       // Find the current collection and rebuild the URL
       if (selectedCollection && selectedCollection.data_queries[selectedDataQuery]?.link) {
         const baseUrl = selectedCollection.data_queries[selectedDataQuery].link.href;
-        setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, null, null, radiusKm, selectedDataQuery, selectedFeature));
+        setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, null, null, radiusKm, selectedDataQuery, selectedFeature, selectedDatetimes));
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedFeature]);
+
+  // Effect to rebuild URL when selected datetime changes
+  useEffect(() => {
+    if (selectedDataQuery && selectedCollection) {
+      const isDataQuery = !!selectedDataQuery;
+      if (selectedCollection.data_queries[selectedDataQuery]?.link) {
+        const baseUrl = selectedCollection.data_queries[selectedDataQuery].link.href;
+        const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+        setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetimes));
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDatetimes]);
 
   // Effect to notify parent when URL changes
   useEffect(() => {
@@ -343,7 +358,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   };
 
   // Helper function to build URL with query parameters
-  const buildUrlWithParams = (baseUrl: string, format: string, parameters: string[], isDataQuery: boolean, coords: [number, number][] | null | undefined = null, area: [number, number][][] | null | undefined = null, radius: number | undefined = undefined, queryType: string = '', locationFeature: any | null = null) => {
+  const buildUrlWithParams = (baseUrl: string, format: string, parameters: string[], isDataQuery: boolean, coords: [number, number][] | null | undefined = null, area: [number, number][][] | null | undefined = null, radius: number | undefined = undefined, queryType: string = '', locationFeature: any | null = null, datetimes: string[] = []) => {
     if (!baseUrl) return baseUrl;
     
     try {
@@ -380,6 +395,13 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
           url.searchParams.set('parameter-name', parameters.join(','));
         } else {
           url.searchParams.delete('parameter-name');
+        }
+        
+        // Add datetime parameter
+        if (datetimes && datetimes.length > 0) {
+          url.searchParams.set('datetime', datetimes.join(','));
+        } else {
+          url.searchParams.delete('datetime');
         }
         
         // Add coords parameter
@@ -432,6 +454,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
         // Remove query params when it's not a data query
         url.searchParams.delete('f');
         url.searchParams.delete('parameter-name');
+        url.searchParams.delete('datetime');
         url.searchParams.delete('coords');
         url.searchParams.delete('within');
         url.searchParams.delete('within-units');
@@ -488,9 +511,10 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
         baseUrl = apiUrl + "/collections/" + key;
       }
       // Collection URL - no query params added (isDataQuery = false)
-      setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, false, null, null, radiusKm, '', null));
+      setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, false, null, null, radiusKm, '', null, []));
       setSelectedDataQuery(''); // Reset data query selection
       setSelectedParameters([]); // Reset parameters when collection changes
+      setSelectedDatetimes([]); // Reset datetime selection when collection changes
       if (onMapClick) {
         onMapClick([]); // Clear clicked coordinates when collection changes
       }
@@ -863,6 +887,17 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                         ID: {collection.id}
                       </span>
                     )}
+                    {collection.itemType && (
+                      <span style={{ 
+                        fontSize: '0.875rem', 
+                        color: 'rgba(0, 0, 0, 0.6)', 
+                        display: 'block', 
+                        marginTop: '4px',
+                        fontWeight: 500
+                      }}>
+                        Item Type: {collection.itemType}
+                      </span>
+                    )}
                     {/* Temporal Extent Intervals */}
                     {collection.extent?.temporal && (() => {
                       const normalizedTemporal = normalizeTemporal(collection.extent.temporal);
@@ -1000,7 +1035,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                         // Apply format and parameter if data query is selected
                         const isDataQuery = !!queryType;
                         const locationFeature = queryType.toLowerCase() === 'locations' ? selectedFeature : null;
-                        const newUrl = buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, queryType, locationFeature);
+                        const newUrl = buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, queryType, locationFeature, selectedDatetimes);
                         setCollectionUrl(newUrl);
                       }}
                       size="small"
@@ -1032,7 +1067,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                         // Only add params if data query is selected
                         const isDataQuery = !!selectedDataQuery;
                         const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-                        setCollectionUrl(buildUrlWithParams(collectionUrl, format, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature));
+                        setCollectionUrl(buildUrlWithParams(collectionUrl, format, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetimes));
                       }}
                       size="small"
                     >
@@ -1064,7 +1099,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                         // Only add params if data query is selected
                         const isDataQuery = !!selectedDataQuery;
                         const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-                        setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, parameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature));
+                        setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, parameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetimes));
                       }}
                       size="small"
                       renderValue={(selected) => selected.join(', ')}
@@ -1089,6 +1124,52 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                     </Select>
                   </FormControl>
                 )}
+
+                {/* Datetime Selector - Multiselect */}
+                {collection.extent?.temporal && (() => {
+                  const temporalValues = expandTemporalValues(collection.extent.temporal, 500);
+                  return temporalValues.length > 0 ? (
+                    <FormControl fullWidth sx={{ mb: 2 }}>
+                      <InputLabel id="datetime-select-label">Date/Time</InputLabel>
+                      <Select
+                        labelId="datetime-select-label"
+                        multiple
+                        value={selectedDatetimes}
+                        label="Date/Time"
+                        onChange={(e) => {
+                          const datetimes = typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value;
+                          setSelectedDatetimes(datetimes);
+                          // Update URL with datetime parameter
+                          // Only add params if data query is selected
+                          const isDataQuery = !!selectedDataQuery;
+                          const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+                          setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, datetimes));
+                        }}
+                        size="small"
+                        renderValue={(selected) => `${selected.length} time(s) selected`}
+                        MenuProps={{
+                          PaperProps: {
+                            style: {
+                              maxHeight: 300,
+                            },
+                          },
+                        }}
+                      >
+                        {temporalValues.map((datetime) => (
+                          <MenuItem key={datetime} value={datetime}>
+                            <Checkbox checked={selectedDatetimes.indexOf(datetime) > -1} />
+                            <ListItemText 
+                              primary={datetime}
+                              primaryTypographyProps={{ 
+                                style: { fontSize: '0.85rem', fontFamily: 'monospace' } 
+                              }}
+                            />
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  ) : null;
+                })()}
 
                 {/* GeoJSON Layers List with Toggle Buttons */}
                 {activeGeoJsonLayers.length > 0 && (

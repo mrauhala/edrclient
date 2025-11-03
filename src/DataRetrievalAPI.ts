@@ -76,6 +76,7 @@ export interface Collection {
   crs: string[];
   output_formats: string[];
   parameter_names?: parameterNames[] | { [key: string]: ParameterDefinition }; // Support both formats
+  itemType?: string; // Optional item type field
 }
 
 export interface ValidationError {
@@ -471,6 +472,108 @@ export function getOverallTemporalExtent(intervals: [string | null, string | nul
   }
   
   return [overallStart, overallEnd];
+}
+
+// Utility function to expand temporal extent into individual datetime values for selection
+// This handles both interval expansion and explicit values arrays
+export function expandTemporalValues(temporal: Temporal | null | undefined, maxValues: number = 1000): string[] {
+  const values: string[] = [];
+  
+  if (!temporal) {
+    return values;
+  }
+  
+  try {
+    // First, add explicit values if they exist
+    if (temporal.values && Array.isArray(temporal.values)) {
+      temporal.values.forEach(value => {
+        if (value && typeof value === 'string') {
+          values.push(value);
+        }
+      });
+    }
+    
+    // Then, process intervals if they exist
+    if (temporal.interval && Array.isArray(temporal.interval)) {
+      for (const interval of temporal.interval) {
+        if (!Array.isArray(interval) || interval.length < 2) {
+          continue;
+        }
+        
+        const [start, end] = interval;
+        
+        // Skip open-ended intervals (we can't expand them)
+        if (start === null || end === null) {
+          continue;
+        }
+        
+        try {
+          const startDate = new Date(start);
+          const endDate = new Date(end);
+          
+          // Skip invalid dates
+          if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+            continue;
+          }
+          
+          // Calculate time difference
+          const timeDiff = endDate.getTime() - startDate.getTime();
+          
+          // Determine appropriate step size based on interval length
+          let stepMs: number;
+          
+          if (timeDiff <= 24 * 60 * 60 * 1000) {
+            // Less than 1 day: use hourly steps
+            stepMs = 60 * 60 * 1000;
+          } else if (timeDiff <= 7 * 24 * 60 * 60 * 1000) {
+            // Less than 1 week: use 3-hour steps
+            stepMs = 3 * 60 * 60 * 1000;
+          } else if (timeDiff <= 31 * 24 * 60 * 60 * 1000) {
+            // Less than 1 month: use 6-hour steps
+            stepMs = 6 * 60 * 60 * 1000;
+          } else if (timeDiff <= 365 * 24 * 60 * 60 * 1000) {
+            // Less than 1 year: use daily steps
+            stepMs = 24 * 60 * 60 * 1000;
+          } else {
+            // More than 1 year: use weekly steps
+            stepMs = 7 * 24 * 60 * 60 * 1000;
+          }
+          
+          // Generate time values
+          let currentTime = startDate.getTime();
+          let count = 0;
+          
+          while (currentTime <= endDate.getTime() && count < maxValues) {
+            const isoString = new Date(currentTime).toISOString().replace(/\.\d{3}Z$/, 'Z');
+            if (!values.includes(isoString)) {
+              values.push(isoString);
+            }
+            currentTime += stepMs;
+            count++;
+          }
+          
+          // Always include the end time if we haven't reached the limit
+          if (count < maxValues) {
+            const endIsoString = endDate.toISOString().replace(/\.\d{3}Z$/, 'Z');
+            if (!values.includes(endIsoString)) {
+              values.push(endIsoString);
+            }
+          }
+        } catch (error) {
+          console.warn('Error processing temporal interval:', interval, error);
+        }
+      }
+    }
+    
+    // Sort values chronologically and remove duplicates
+    const uniqueValues = Array.from(new Set(values)).sort();
+    
+    // Limit to maxValues
+    return uniqueValues.slice(0, maxValues);
+  } catch (error) {
+    console.error('Error expanding temporal values:', error);
+    return [];
+  }
 }
 
 // Utility function to normalize vertical extent to a standard format
