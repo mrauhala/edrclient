@@ -476,6 +476,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
 
     // Update state with new layers
     setGeoJsonVectorLayers(newLayers);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, geoJsonLayers]);
 
   useEffect(() => {
