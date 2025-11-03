@@ -955,6 +955,17 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
       // Create new draw interaction - don't attach to source directly
       const draw = new Draw({
         type: 'Polygon',
+        condition: (event: any) => {
+          // Check if clicking on a GeoJSON feature - if so, don't start drawing
+          const features = map.getFeaturesAtPixel(event.pixel);
+          if (features && features.length > 0) {
+            const hasGeoJsonFeature = features.some(feature => feature.get('layer') === 'geojson');
+            if (hasGeoJsonFeature) {
+              return false; // Don't start drawing when clicking on GeoJSON features
+            }
+          }
+          return true; // Allow drawing in all other cases
+        }
       });
 
       // Handle draw completion
