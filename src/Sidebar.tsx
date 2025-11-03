@@ -868,11 +868,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                       marginBottom: '6px'
                     }}>
                       <Chip
-                        label={
-                          validationResult.collectionErrors && validationResult.collectionErrors[collection.id]
-                            ? 'VALIDATION ERRORS'
-                            : 'VALID'
-                        }
+                        label={`ID: ${collection.id}`}
                         size="small"
                         color={
                           validationResult.collectionErrors && validationResult.collectionErrors[collection.id]
