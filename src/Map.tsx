@@ -971,6 +971,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
         onAreaSelect([]);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, dataQuery, areaLayer]);
 
   // Effect to display selected areas
