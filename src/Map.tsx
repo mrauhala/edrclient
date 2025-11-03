@@ -61,6 +61,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
   const onFeatureSelectRef = useRef(onFeatureSelect);
   const selectedAreaRef = useRef(selectedArea);
   const clickedCoordsRef = useRef(clickedCoords);
+  const geoJsonLayersRef = useRef<{url: string, title: string, visible: boolean, labelProperty?: string}[]>([]);
 
   // Keep the callback ref updated
   useEffect(() => {
@@ -266,6 +267,12 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
   useEffect(() => {
     if (!map) return;
 
+    // Check if geoJsonLayers has actually changed
+    const layersChanged = JSON.stringify(geoJsonLayers) !== JSON.stringify(geoJsonLayersRef.current);
+    if (!layersChanged) return;
+    
+    geoJsonLayersRef.current = geoJsonLayers;
+
     const newLayers: {[key: string]: VectorLayer<VectorSource>} = {};
     const currentLayerKeys = new Set(Object.keys(geoJsonVectorLayers));
     const newLayerKeys = new Set<string>();
@@ -469,7 +476,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
 
     // Update state with new layers
     setGeoJsonVectorLayers(newLayers);
-  }, [map, geoJsonLayers, geoJsonVectorLayers]);
+  }, [map, geoJsonLayers]);
 
   useEffect(() => {
     if (map && boundingBoxRef.current !== boundingBox) {
