@@ -475,7 +475,7 @@ export function getOverallTemporalExtent(intervals: [string | null, string | nul
 }
 
 // Utility function to expand temporal extent into individual datetime values for selection
-// This handles both interval expansion and explicit values arrays
+// Prioritizes temporal.values if available, falls back to temporal.interval
 export function expandTemporalValues(temporal: Temporal | null | undefined, maxValues: number = 1000): string[] {
   const values: string[] = [];
   
@@ -483,18 +483,106 @@ export function expandTemporalValues(temporal: Temporal | null | undefined, maxV
     return values;
   }
   
-  try {
-    // First, add explicit values if they exist
-    if (temporal.values && Array.isArray(temporal.values)) {
-      temporal.values.forEach(value => {
-        if (value && typeof value === 'string') {
-          values.push(value);
-        }
-      });
+  // Helper function to expand an interval string (e.g., "2024-01-01T00:00Z/2024-01-02T00:00Z")
+  const expandIntervalString = (intervalStr: string): string[] => {
+    const expanded: string[] = [];
+    
+    // Check if it's an interval format (contains "/")
+    if (!intervalStr.includes('/')) {
+      // Single datetime value
+      return [intervalStr];
     }
     
-    // Then, process intervals if they exist
-    if (temporal.interval && Array.isArray(temporal.interval)) {
+    const parts = intervalStr.split('/');
+    if (parts.length !== 2) {
+      console.warn('Invalid interval format:', intervalStr);
+      return [];
+    }
+    
+    const [start, end] = parts;
+    
+    try {
+      const startDate = new Date(start);
+      const endDate = new Date(end);
+      
+      // Skip invalid dates
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        console.warn('Invalid dates in interval:', intervalStr);
+        return [];
+      }
+      
+      // Calculate time difference
+      const timeDiff = endDate.getTime() - startDate.getTime();
+      
+      // Determine appropriate step size based on interval length
+      let stepMs: number;
+      
+      if (timeDiff <= 24 * 60 * 60 * 1000) {
+        // Less than 1 day: use hourly steps
+        stepMs = 60 * 60 * 1000;
+      } else if (timeDiff <= 7 * 24 * 60 * 60 * 1000) {
+        // Less than 1 week: use 3-hour steps
+        stepMs = 3 * 60 * 60 * 1000;
+      } else if (timeDiff <= 31 * 24 * 60 * 60 * 1000) {
+        // Less than 1 month: use 6-hour steps
+        stepMs = 6 * 60 * 60 * 1000;
+      } else if (timeDiff <= 365 * 24 * 60 * 60 * 1000) {
+        // Less than 1 year: use daily steps
+        stepMs = 24 * 60 * 60 * 1000;
+      } else {
+        // More than 1 year: use weekly steps
+        stepMs = 7 * 24 * 60 * 60 * 1000;
+      }
+      
+      // Generate time values
+      let currentTime = startDate.getTime();
+      let count = 0;
+      
+      while (currentTime <= endDate.getTime() && count < maxValues) {
+        const isoString = new Date(currentTime).toISOString().replace(/\.\d{3}Z$/, 'Z');
+        expanded.push(isoString);
+        currentTime += stepMs;
+        count++;
+      }
+      
+      // Always include the end time if we haven't reached the limit
+      if (count < maxValues) {
+        const endIsoString = endDate.toISOString().replace(/\.\d{3}Z$/, 'Z');
+        if (!expanded.includes(endIsoString)) {
+          expanded.push(endIsoString);
+        }
+      }
+    } catch (error) {
+      console.warn('Error processing interval string:', intervalStr, error);
+    }
+    
+    return expanded;
+  };
+  
+  try {
+    // PRIORITIZE temporal.values if it exists
+    if (temporal.values && Array.isArray(temporal.values) && temporal.values.length > 0) {
+      temporal.values.forEach(value => {
+        if (value && typeof value === 'string') {
+          // Check if value is an interval format (e.g., "2024-01-01T00:00Z/2024-01-02T00:00Z")
+          if (value.includes('/')) {
+            const expandedValues = expandIntervalString(value);
+            expandedValues.forEach(v => {
+              if (!values.includes(v)) {
+                values.push(v);
+              }
+            });
+          } else {
+            // Single datetime value
+            if (!values.includes(value)) {
+              values.push(value);
+            }
+          }
+        }
+      });
+    } 
+    // FALLBACK to temporal.interval ONLY if temporal.values is not available
+    else if (temporal.interval && Array.isArray(temporal.interval)) {
       for (const interval of temporal.interval) {
         if (!Array.isArray(interval) || interval.length < 2) {
           continue;
