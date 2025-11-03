@@ -474,20 +474,91 @@ export function getOverallTemporalExtent(intervals: [string | null, string | nul
   return [overallStart, overallEnd];
 }
 
+// Helper function to parse ISO 8601 duration strings (e.g., PT1M, PT1H, P1D)
+function parseDuration(durationStr: string): number | null {
+  try {
+    // ISO 8601 duration format: P[n]Y[n]M[n]DT[n]H[n]M[n]S
+    // Examples: PT1M (1 minute), PT1H (1 hour), P1D (1 day), PT30S (30 seconds)
+    
+    const match = durationStr.match(/^P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?)?$/);
+    
+    if (!match) {
+      return null;
+    }
+    
+    const [, years, months, days, hours, minutes, seconds] = match;
+    
+    let milliseconds = 0;
+    
+    // Note: Year and month durations are approximate since they vary
+    if (years) milliseconds += parseInt(years, 10) * 365 * 24 * 60 * 60 * 1000;
+    if (months) milliseconds += parseInt(months, 10) * 30 * 24 * 60 * 60 * 1000;
+    if (days) milliseconds += parseInt(days, 10) * 24 * 60 * 60 * 1000;
+    if (hours) milliseconds += parseInt(hours, 10) * 60 * 60 * 1000;
+    if (minutes) milliseconds += parseInt(minutes, 10) * 60 * 1000;
+    if (seconds) milliseconds += parseFloat(seconds) * 1000;
+    
+    return milliseconds;
+  } catch (error) {
+    console.warn('Error parsing duration:', durationStr, error);
+    return null;
+  }
+}
+
 // Utility function to expand temporal extent into individual datetime values for selection
 // Prioritizes temporal.values if available, falls back to temporal.interval
 export function expandTemporalValues(temporal: Temporal | null | undefined, maxValues: number = 1000): string[] {
   const values: string[] = [];
   
   if (!temporal) {
+    console.log('expandTemporalValues: No temporal extent provided');
     return values;
   }
+  
+  console.log('expandTemporalValues: Processing temporal:', JSON.stringify(temporal, null, 2));
   
   // Helper function to expand an interval string (e.g., "2024-01-01T00:00Z/2024-01-02T00:00Z")
   const expandIntervalString = (intervalStr: string): string[] => {
     const expanded: string[] = [];
     
-    // Check if it's an interval format (contains "/")
+    // Check for ISO 8601 repeating interval format: R{n}/{start}/{duration}
+    // Example: "R1440/2025-11-02T15:26:00Z/PT1M" means 1440 repetitions, starting at 2025-11-02T15:26:00Z, every 1 minute
+    const repeatingMatch = intervalStr.match(/^R(\d+)\/([^\/]+)\/(.+)$/);
+    if (repeatingMatch) {
+      const [, repetitionsStr, startStr, durationStr] = repeatingMatch;
+      const repetitions = parseInt(repetitionsStr, 10);
+      
+      try {
+        const startDate = new Date(startStr);
+        if (isNaN(startDate.getTime())) {
+          console.warn('Invalid start date in repeating interval:', startStr);
+          return [];
+        }
+        
+        // Parse ISO 8601 duration (PT1M, PT1H, P1D, etc.)
+        const durationMs = parseDuration(durationStr);
+        if (durationMs === null) {
+          console.warn('Invalid duration in repeating interval:', durationStr);
+          return [];
+        }
+        
+        // Generate the repeated values
+        let currentTime = startDate.getTime();
+        for (let i = 0; i < Math.min(repetitions, maxValues); i++) {
+          const isoString = new Date(currentTime).toISOString().replace(/\.\d{3}Z$/, 'Z');
+          expanded.push(isoString);
+          currentTime += durationMs;
+        }
+        
+        console.log(`Expanded repeating interval: ${repetitions} times, step: ${durationStr}, result: ${expanded.length} values`);
+        return expanded;
+      } catch (error) {
+        console.warn('Error processing repeating interval:', intervalStr, error);
+        return [];
+      }
+    }
+    
+    // Check if it's a simple interval format (contains "/")
     if (!intervalStr.includes('/')) {
       // Single datetime value
       return [intervalStr];
@@ -562,10 +633,12 @@ export function expandTemporalValues(temporal: Temporal | null | undefined, maxV
   try {
     // PRIORITIZE temporal.values if it exists
     if (temporal.values && Array.isArray(temporal.values) && temporal.values.length > 0) {
+      console.log('expandTemporalValues: Using temporal.values, count:', temporal.values.length);
       temporal.values.forEach(value => {
         if (value && typeof value === 'string') {
           // Check if value is an interval format (e.g., "2024-01-01T00:00Z/2024-01-02T00:00Z")
           if (value.includes('/')) {
+            console.log('expandTemporalValues: Expanding interval string:', value);
             const expandedValues = expandIntervalString(value);
             expandedValues.forEach(v => {
               if (!values.includes(v)) {
@@ -583,6 +656,7 @@ export function expandTemporalValues(temporal: Temporal | null | undefined, maxV
     } 
     // FALLBACK to temporal.interval ONLY if temporal.values is not available
     else if (temporal.interval && Array.isArray(temporal.interval)) {
+      console.log('expandTemporalValues: Using temporal.interval, count:', temporal.interval.length);
       for (const interval of temporal.interval) {
         if (!Array.isArray(interval) || interval.length < 2) {
           continue;
@@ -655,6 +729,8 @@ export function expandTemporalValues(temporal: Temporal | null | undefined, maxV
     
     // Sort values chronologically and remove duplicates
     const uniqueValues = Array.from(new Set(values)).sort();
+    
+    console.log('expandTemporalValues: Final count:', uniqueValues.length);
     
     // Limit to maxValues
     return uniqueValues.slice(0, maxValues);
