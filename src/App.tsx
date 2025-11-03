@@ -1,6 +1,7 @@
 import Sidebar from './Sidebar';
 import TopMenu from './TopMenu';
 import SettingsDrawer, { CustomService } from './SettingsDrawer';
+import DataModal from './DataModal';
 import { useState, useMemo, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
@@ -10,10 +11,13 @@ import { Collection } from './DataRetrievalAPI';
 import Paper from '@mui/material/Paper';
 import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
+import Button from '@mui/material/Button';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
+import axios from 'axios';
 
 
 function App() {
@@ -51,6 +55,13 @@ function App() {
   const [dataQuery, setDataQuery] = useState<string>('');
   const [geoJsonLayers, setGeoJsonLayers] = useState<{url: string, title: string, visible: boolean, labelProperty?: string}[]>([]);
   const [selectedGeoJsonFeature, setSelectedGeoJsonFeature] = useState<any | null>(null);
+
+  // Modal state
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalData, setModalData] = useState<string | null>(null);
+  const [modalContentType, setModalContentType] = useState<string | null>(null);
+  const [modalLoading, setModalLoading] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
 
   // Detect system preference
   const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
@@ -139,6 +150,79 @@ function App() {
     if (collectionUrl) {
       navigator.clipboard.writeText(collectionUrl);
     }
+  };
+
+  const handleFetchData = async () => {
+    if (!collectionUrl) return;
+    
+    setModalOpen(true);
+    setModalLoading(true);
+    setModalError(null);
+    setModalData(null);
+    setModalContentType(null);
+
+    try {
+      const response = await axios.get(collectionUrl, {
+        responseType: 'text',
+        headers: {
+          'Accept': '*/*'
+        }
+      });
+
+      const contentType = response.headers['content-type'] || '';
+      setModalContentType(contentType);
+      
+      // Convert response to string if needed
+      const responseData = typeof response.data === 'string' 
+        ? response.data 
+        : JSON.stringify(response.data, null, 2);
+      
+      setModalData(responseData);
+
+      // If it's GeoJSON, add it as a layer
+      if (contentType.includes('json') && collectionUrl.includes('f=GeoJSON')) {
+        try {
+          const geoJsonData = typeof response.data === 'string' 
+            ? JSON.parse(response.data) 
+            : response.data;
+          
+          if (geoJsonData.type === 'FeatureCollection' || geoJsonData.type === 'Feature') {
+            // Generate a title from the URL or use a default
+            const urlParts = collectionUrl.split('/');
+            const collectionName = urlParts.find(part => part.includes('collections'))
+              ? urlParts[urlParts.indexOf(urlParts.find(part => part.includes('collections'))!) + 1]
+              : 'Fetched Data';
+            
+            const newLayer = {
+              url: collectionUrl,
+              title: `${collectionName} (Fetched)`,
+              visible: true,
+              labelProperty: 'name'
+            };
+
+            // Add layer if it doesn't already exist
+            setGeoJsonLayers(prev => {
+              const exists = prev.some(layer => layer.url === collectionUrl);
+              if (exists) {
+                return prev;
+              }
+              return [...prev, newLayer];
+            });
+          }
+        } catch (e) {
+          console.error('Error parsing GeoJSON:', e);
+        }
+      }
+    } catch (error: any) {
+      console.error('Error fetching data:', error);
+      setModalError(error.message || 'Failed to fetch data');
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const handleCloseModal = () => {
+    setModalOpen(false);
   };
 
   return (
@@ -246,6 +330,17 @@ function App() {
                   <ContentCopyIcon />
                 </IconButton>
               </Tooltip>
+              <Tooltip title="Fetch Data">
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={handleFetchData}
+                  startIcon={<CloudDownloadIcon />}
+                  sx={{ flexShrink: 0, whiteSpace: 'nowrap' }}
+                >
+                  Fetch
+                </Button>
+              </Tooltip>
             </>
           ) : (
             <Typography variant="body2" color="text.secondary" sx={{ pl: 1 }}>
@@ -265,6 +360,16 @@ function App() {
         onUpdateService={handleUpdateService}
         onRemoveService={handleRemoveService}
         onServiceSelect={handleServiceSelect}
+      />
+
+      <DataModal
+        open={modalOpen}
+        onClose={handleCloseModal}
+        data={modalData}
+        contentType={modalContentType}
+        isLoading={modalLoading}
+        error={modalError}
+        url={collectionUrl}
       />
     </Box>
     </ThemeProvider>
