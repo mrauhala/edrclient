@@ -861,34 +861,36 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
               <ListItemText 
                 primary={
                   <div>
-                    {/* Data Query Type Badges - First row */}
-                    {getSupportedDataQueries(collection).length > 0 && (
-                      <div style={{ 
-                        display: 'flex', 
-                        gap: '4px', 
-                        flexWrap: 'wrap',
-                        marginBottom: '6px'
-                      }}>
-                        {getSupportedDataQueries(collection).map((queryType) => (
-                          <Chip
-                            key={queryType}
-                            label={queryType.toUpperCase()}
-                            size="small"
-                            color="primary"
-                            variant="outlined"
-                            sx={{ 
-                              height: '18px',
-                              fontSize: '0.6rem',
-                              fontWeight: 'bold',
-                              borderWidth: '1px',
-                              '& .MuiChip-label': {
-                                padding: '0 5px'
-                              }
-                            }}
-                          />
-                        ))}
-                      </div>
-                    )}
+                    {/* Validation Status Chip - First row */}
+                    <div style={{ 
+                      display: 'flex', 
+                      gap: '4px', 
+                      marginBottom: '6px'
+                    }}>
+                      <Chip
+                        label={
+                          validationResult.collectionErrors && validationResult.collectionErrors[collection.id]
+                            ? 'VALIDATION ERRORS'
+                            : 'VALID'
+                        }
+                        size="small"
+                        color={
+                          validationResult.collectionErrors && validationResult.collectionErrors[collection.id]
+                            ? 'error'
+                            : 'success'
+                        }
+                        variant="outlined"
+                        sx={{ 
+                          height: '18px',
+                          fontSize: '0.6rem',
+                          fontWeight: 'bold',
+                          borderWidth: '1px',
+                          '& .MuiChip-label': {
+                            padding: '0 5px'
+                          }
+                        }}
+                      />
+                    </div>
                     {/* Collection Title - Second row */}
                     <Typography 
                       variant="subtitle1" 
@@ -971,68 +973,34 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                       }
                       return null;
                     })()}
-                    {/* Extent Type Badges - Last row */}
-                    {(() => {
-                      const standardExtentBadges: { label: string; color: 'secondary' | 'info' }[] = [];
-                      const customExtentBadges: { label: string; color: 'secondary' | 'info' }[] = [];
-                      
-                      // Check for spatial extent
-                      if (collection.extent?.spatial?.bbox && 
-                          Array.isArray(collection.extent.spatial.bbox) && 
-                          collection.extent.spatial.bbox.length > 0) {
-                        standardExtentBadges.push({ label: 'Spatial', color: 'secondary' });
-                      }
-                      // Check for temporal extent
-                      if (collection.extent?.temporal && 
-                          (collection.extent.temporal.interval || collection.extent.temporal.values)) {
-                        standardExtentBadges.push({ label: 'Temporal', color: 'secondary' });
-                      }
-                      // Check for vertical extent
-                      if (collection.extent?.vertical && 
-                          (collection.extent.vertical.interval || collection.extent.vertical.values)) {
-                        standardExtentBadges.push({ label: 'Vertical', color: 'secondary' });
-                      }
-                      // Check for custom dimensions
-                      if (collection.extent?.custom && Array.isArray(collection.extent.custom)) {
-                        collection.extent.custom.forEach((customDim) => {
-                          if (customDim.id) {
-                            customExtentBadges.push({ 
-                              label: customDim.id, 
-                              color: 'info' 
-                            });
-                          }
-                        });
-                      }
-                      
-                      const allBadges = [...standardExtentBadges, ...customExtentBadges];
-                      
-                      return allBadges.length > 0 ? (
-                        <div style={{ 
-                          display: 'flex', 
-                          gap: '4px', 
-                          flexWrap: 'wrap',
-                          marginTop: '8px'
-                        }}>
-                          {allBadges.map((badge, idx) => (
-                            <Chip
-                              key={`${badge.label}-${idx}`}
-                              label={badge.label}
-                              size="small"
-                              color={badge.color}
-                              variant="filled"
-                              sx={{ 
-                                height: '18px',
-                                fontSize: '0.6rem',
-                                fontWeight: 'bold',
-                                '& .MuiChip-label': {
-                                  padding: '0 5px'
-                                }
-                              }}
-                            />
-                          ))}
-                        </div>
-                      ) : null;
-                    })()}
+                    {/* Data Query Type Badges - At the bottom */}
+                    {getSupportedDataQueries(collection).length > 0 && (
+                      <div style={{ 
+                        display: 'flex', 
+                        gap: '4px', 
+                        flexWrap: 'wrap',
+                        marginTop: '8px'
+                      }}>
+                        {getSupportedDataQueries(collection).map((queryType) => (
+                          <Chip
+                            key={queryType}
+                            label={queryType.toUpperCase()}
+                            size="small"
+                            color="primary"
+                            variant="outlined"
+                            sx={{ 
+                              height: '18px',
+                              fontSize: '0.6rem',
+                              fontWeight: 'bold',
+                              borderWidth: '1px',
+                              '& .MuiChip-label': {
+                                padding: '0 5px'
+                              }
+                            }}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </>
                 }
                 secondaryTypographyProps={{ component: 'div' }}
