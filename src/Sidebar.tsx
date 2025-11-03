@@ -292,7 +292,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
 
   // Effect to rebuild URL when selected location feature changes
   useEffect(() => {
-    if (selectedDataQuery && selectedDataQuery.toLowerCase() === 'location' && selectedFeature) {
+    if (selectedDataQuery && selectedDataQuery.toLowerCase() === 'locations' && selectedFeature) {
       const isDataQuery = !!selectedDataQuery;
       // Find the current collection and rebuild the URL
       if (selectedCollection && selectedCollection.data_queries[selectedDataQuery]?.link) {
@@ -350,7 +350,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
       let url = new URL(baseUrl);
       
       // Handle location query type - add location ID or use href from feature
-      if (queryType.toLowerCase() === 'location' && locationFeature) {
+      if (queryType.toLowerCase() === 'locations' && locationFeature) {
         // First, check if the feature has an href property
         if (locationFeature.properties?.href) {
           // Use the href from the feature properties as the complete URL
@@ -418,7 +418,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
             }).join(',');
             url.searchParams.set('coords', `MULTIPOLYGON(${polygons})`);
           }
-        } else if (queryType.toLowerCase() !== 'location') {
+        } else if (queryType.toLowerCase() !== 'locations') {
           // Don't delete coords for location queries
           url.searchParams.delete('coords');
           url.searchParams.delete('within');
@@ -995,7 +995,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                         }
                         // Apply format and parameter if data query is selected
                         const isDataQuery = !!queryType;
-                        const locationFeature = queryType.toLowerCase() === 'location' ? selectedFeature : null;
+                        const locationFeature = queryType.toLowerCase() === 'locations' ? selectedFeature : null;
                         const newUrl = buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, queryType, locationFeature);
                         setCollectionUrl(newUrl);
                       }}
@@ -1027,7 +1027,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                         // Update URL with format parameter while preserving current base URL
                         // Only add params if data query is selected
                         const isDataQuery = !!selectedDataQuery;
-                        const locationFeature = selectedDataQuery.toLowerCase() === 'location' ? selectedFeature : null;
+                        const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
                         setCollectionUrl(buildUrlWithParams(collectionUrl, format, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature));
                       }}
                       size="small"
@@ -1059,7 +1059,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                         // Update URL with parameter-name parameter
                         // Only add params if data query is selected
                         const isDataQuery = !!selectedDataQuery;
-                        const locationFeature = selectedDataQuery.toLowerCase() === 'location' ? selectedFeature : null;
+                        const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
                         setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, parameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature));
                       }}
                       size="small"
