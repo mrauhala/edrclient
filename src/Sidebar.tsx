@@ -891,9 +891,10 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                     )}
                     {/* Collection Title - Second row */}
                     <div style={{ 
-                      fontSize: '1rem',
-                      fontWeight: 500,
-                      lineHeight: 1.3
+                      fontSize: '1.1rem',
+                      fontWeight: 600,
+                      lineHeight: 1.3,
+                      marginBottom: '6px'
                     }}>
                       {collection.title ? collection.title : collection.id}
                     </div>
