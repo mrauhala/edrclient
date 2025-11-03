@@ -7,6 +7,9 @@ import ListItemButton from '@mui/material/ListItemButton';
 import Collapse from '@mui/material/Collapse';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
+import Public from '@mui/icons-material/Public';
+import AccessTime from '@mui/icons-material/AccessTime';
+import Height from '@mui/icons-material/Height';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import InputLabel from '@mui/material/InputLabel';
@@ -901,24 +904,36 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                     </Typography>
                     {/* Extent Type Badges - Between title and description */}
                     {(() => {
-                      const standardExtentBadges: { label: string; color: 'secondary' | 'info' }[] = [];
-                      const customExtentBadges: { label: string; color: 'secondary' | 'info' }[] = [];
+                      const standardExtentBadges: { label: string; color: 'secondary' | 'info'; icon?: React.ReactElement }[] = [];
+                      const customExtentBadges: { label: string; color: 'secondary' | 'info'; icon?: React.ReactElement }[] = [];
                       
                       // Check for spatial extent
                       if (collection.extent?.spatial?.bbox && 
                           Array.isArray(collection.extent.spatial.bbox) && 
                           collection.extent.spatial.bbox.length > 0) {
-                        standardExtentBadges.push({ label: 'Spatial', color: 'secondary' });
+                        standardExtentBadges.push({ 
+                          label: 'Spatial', 
+                          color: 'secondary',
+                          icon: <Public sx={{ fontSize: '0.7rem' }} />
+                        });
                       }
                       // Check for temporal extent
                       if (collection.extent?.temporal && 
                           (collection.extent.temporal.interval || collection.extent.temporal.values)) {
-                        standardExtentBadges.push({ label: 'Temporal', color: 'secondary' });
+                        standardExtentBadges.push({ 
+                          label: 'Temporal', 
+                          color: 'secondary',
+                          icon: <AccessTime sx={{ fontSize: '0.7rem' }} />
+                        });
                       }
                       // Check for vertical extent
                       if (collection.extent?.vertical && 
                           (collection.extent.vertical.interval || collection.extent.vertical.values)) {
-                        standardExtentBadges.push({ label: 'Vertical', color: 'secondary' });
+                        standardExtentBadges.push({ 
+                          label: 'Vertical', 
+                          color: 'secondary',
+                          icon: <Height sx={{ fontSize: '0.7rem' }} />
+                        });
                       }
                       // Check for custom dimensions
                       if (collection.extent?.custom && Array.isArray(collection.extent.custom)) {
@@ -926,7 +941,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                           if (customDim.id) {
                             customExtentBadges.push({ 
                               label: customDim.id, 
-                              color: 'info' 
+                              color: 'info'
                             });
                           }
                         });
@@ -945,6 +960,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                             <Chip
                               key={`${badge.label}-${idx}`}
                               label={badge.label}
+                              icon={badge.icon}
                               size="small"
                               color={badge.color}
                               variant="filled"
@@ -954,6 +970,9 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                                 fontWeight: 'bold',
                                 '& .MuiChip-label': {
                                   padding: '0 5px'
+                                },
+                                '& .MuiChip-icon': {
+                                  marginLeft: '4px'
                                 }
                               }}
                             />
