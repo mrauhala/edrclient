@@ -13,7 +13,6 @@ import { fromLonLat, toLonLat } from 'ol/proj';
 import { Style, Stroke, Fill, Circle, Text } from 'ol/style';
 import GeoJSON from 'ol/format/GeoJSON';
 import { defaults as defaultControls } from 'ol/control';
-import { bbox as bboxStrategy } from 'ol/loadingstrategy';
 import Draw from 'ol/interaction/Draw';
 import { DrawEvent } from 'ol/interaction/Draw';
 import FeatureInfo from './FeatureInfo';
@@ -36,10 +35,10 @@ interface MapProps {
   onMapClick?: (coords: [number, number][]) => void;
   onAreaSelect?: (area: [number, number][][]) => void;
   onRadiusChange?: (radius: number) => void;
-  geoJsonLayers?: {url: string, title: string, visible: boolean, labelProperty?: string}[];
+  geoJsonLayers?: {url: string, title: string, visible: boolean, labelProperty?: string, data?: any}[];
   selectedGeoJsonFeature?: any | null;
   onGeoJsonFeatureSelect?: (feature: any | null) => void;
-  onGeoJsonLayerUpdate?: (layers: {url: string, title: string, visible: boolean, labelProperty?: string}[]) => void;
+  onGeoJsonLayerUpdate?: (layers: {url: string, title: string, visible: boolean, labelProperty?: string, data?: any}[]) => void;
 }
 
 const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCollectionExtents, selectedCollection, locationFeatures, selectedFeature, clickedCoords, selectedArea, radiusKm, dataQuery, onUpdateBoundingBox, onFeatureSelect, onMapClick, onAreaSelect, onRadiusChange, geoJsonLayers = [], selectedGeoJsonFeature, onGeoJsonFeatureSelect, onGeoJsonLayerUpdate }) => {
@@ -61,7 +60,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
   const onFeatureSelectRef = useRef(onFeatureSelect);
   const selectedAreaRef = useRef(selectedArea);
   const clickedCoordsRef = useRef(clickedCoords);
-  const geoJsonLayersRef = useRef<{url: string, title: string, visible: boolean, labelProperty?: string}[]>([]);
+  const geoJsonLayersRef = useRef<{url: string, title: string, visible: boolean, labelProperty?: string, data?: any}[]>([]);
 
   // Keep the callback ref updated
   useEffect(() => {
@@ -337,7 +336,45 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
           });
 
           const vectorSource = new VectorSource({
-            url: function (extent) {
+            format: geojsonFormat
+          });
+
+          // Mark all features from this source as GeoJSON layer features
+          // IMPORTANT: Attach event listener BEFORE adding features
+          vectorSource.on('addfeature', (event) => {
+            if (event.feature) {
+              event.feature.set('layer', 'geojson');
+              event.feature.set('layerTitle', layerConfig.title);
+              event.feature.set('layerUrl', layerConfig.url);
+            }
+          });
+
+          // If data is pre-fetched, use it directly instead of loading from URL
+          if (layerConfig.data) {
+            try {
+              // Capture metadata from the response
+              if (layerConfig.data.numberReturned !== undefined || layerConfig.data.numberMatched !== undefined) {
+                setGeoJsonMetadata(prev => ({
+                  ...prev,
+                  [layerKey]: {
+                    numberReturned: layerConfig.data.numberReturned,
+                    numberMatched: layerConfig.data.numberMatched
+                  }
+                }));
+              }
+              
+              // Parse features using GeoJSON format
+              const features = geojsonFormat.readFeatures(layerConfig.data, {
+                featureProjection: 'EPSG:3857'
+              });
+              
+              vectorSource.addFeatures(features);
+            } catch (error) {
+              console.error('Error parsing pre-fetched GeoJSON:', error);
+            }
+          } else {
+            // Use URL and bbox strategy for layers without pre-fetched data
+            vectorSource.setUrl(function (extent) {
               const [minX, minY, maxX, maxY] = extent;
               // Transform extent from map projection (EPSG:3857) to WGS84 (EPSG:4326)
               const [minLon, minLat] = toLonLat([minX, minY]);
@@ -347,10 +384,8 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
               // Append bbox parameter to URL
               const separator = layerConfig.url.includes('?') ? '&' : '?';
               return `${layerConfig.url}${separator}bbox=${bboxString}`;
-            },
-            strategy: bboxStrategy,
-            format: geojsonFormat,
-            loader: function(extent, resolution, projection, success, failure) {
+            });
+            vectorSource.setLoader(function(extent, resolution, projection, success, failure) {
               const [minX, minY, maxX, maxY] = extent;
               const [minLon, minLat] = toLonLat([minX, minY]);
               const [maxLon, maxLat] = toLonLat([maxX, maxY]);
@@ -384,17 +419,8 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
                   console.error('Error loading GeoJSON:', error);
                   if (failure) failure();
                 });
-            }
-          });
-
-          // Mark all features from this source as GeoJSON layer features
-          vectorSource.on('addfeature', (event) => {
-            if (event.feature) {
-              event.feature.set('layer', 'geojson');
-              event.feature.set('layerTitle', layerConfig.title);
-              event.feature.set('layerUrl', layerConfig.url);
-            }
-          });
+            });
+          }
 
           const geoJsonLayer = new VectorLayer({
             source: vectorSource,
@@ -857,6 +883,15 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
     if (!map) return;
 
     const handleMapClick = (event: any) => {
+      // Check if clicking on a GeoJSON feature - if so, don't add position marker
+      const features = map.getFeaturesAtPixel(event.pixel);
+      if (features && features.length > 0) {
+        const hasGeoJsonFeature = features.some(feature => feature.get('layer') === 'geojson');
+        if (hasGeoJsonFeature) {
+          return; // Don't add position marker when clicking on GeoJSON features
+        }
+      }
+      
       // Only handle clicks if data query is 'position' or 'radius'
       if (dataQuery && (dataQuery.toLowerCase() === 'position' || dataQuery.toLowerCase() === 'radius')) {
         // Check if click is within collection bbox
@@ -919,6 +954,17 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
       // Create new draw interaction - don't attach to source directly
       const draw = new Draw({
         type: 'Polygon',
+        condition: (event: any) => {
+          // Check if clicking on a GeoJSON feature - if so, don't start drawing
+          const features = map.getFeaturesAtPixel(event.pixel);
+          if (features && features.length > 0) {
+            const hasGeoJsonFeature = features.some(feature => feature.get('layer') === 'geojson');
+            if (hasGeoJsonFeature) {
+              return false; // Don't start drawing when clicking on GeoJSON features
+            }
+          }
+          return true; // Allow drawing in all other cases
+        }
       });
 
       // Handle draw completion
@@ -1038,7 +1084,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
               if (overallExtent) {
                 return (
                   <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.8)', marginBottom: '4px' }}>
-                    <div style={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.9)' }}>Time Coverage:</div>
+                    <div style={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.9)' }}>Available:</div>
                     <div>{formatTemporalInterval(overallExtent[0], overallExtent[1])}</div>
                     {normalizedTemporal.intervals.length > 1 && (
                       <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.7)' }}>

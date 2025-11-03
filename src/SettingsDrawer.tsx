@@ -4,6 +4,8 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Button from '@mui/material/Button';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
@@ -152,29 +154,34 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
           <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600, letterSpacing: '0.5px' }}>
             MODE
           </Typography>
-          <Box
-            sx={{
-              display: 'flex',
-              gap: 1,
-              flexDirection: 'row',
+          <ToggleButtonGroup
+            value={themeMode}
+            exclusive
+            onChange={(event, newMode) => {
+              if (newMode !== null) {
+                handleModeClick(newMode as 'light' | 'dark' | 'system');
+              }
             }}
+            fullWidth
+            size="small"
+            color="primary"
           >
             {modes.map((mode) => (
-              <Button
+              <ToggleButton
                 key={mode.value}
-                size="small"
-                variant={themeMode === mode.value ? 'contained' : 'outlined'}
-                onClick={() => handleModeClick(mode.value as 'light' | 'dark' | 'system')}
-                startIcon={mode.icon}
+                value={mode.value}
                 sx={{
-                  flex: 1,
                   textTransform: 'none',
+                  display: 'flex',
+                  gap: 1,
+                  alignItems: 'center',
                 }}
               >
+                {mode.icon}
                 <Typography variant="caption">{mode.label}</Typography>
-              </Button>
+              </ToggleButton>
             ))}
-          </Box>
+          </ToggleButtonGroup>
 
           <Divider sx={{ my: 3 }} />
 

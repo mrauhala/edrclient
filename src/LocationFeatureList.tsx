@@ -98,6 +98,7 @@ const LocationFeatureList: React.FC<LocationFeatureListProps> = ({ features, onF
                         )}
                       </Box>
                     }
+                    secondaryTypographyProps={{ component: 'div' }}
                   />
                 </ListItemButton>
               </ListItem>

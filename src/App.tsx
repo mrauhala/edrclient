@@ -180,7 +180,14 @@ function App() {
       setModalData(responseData);
 
       // If it's GeoJSON, add it as a layer
-      if (contentType.includes('json') && collectionUrl.includes('f=GeoJSON')) {
+      // Check for various GeoJSON format indicators (case-insensitive)
+      const isGeoJson = contentType.includes('json') && (
+        collectionUrl.toLowerCase().includes('f=geojson') ||
+        collectionUrl.toLowerCase().includes('f=application/geo%2bjson') ||
+        collectionUrl.toLowerCase().includes('f=application/geo+json')
+      );
+      
+      if (isGeoJson) {
         try {
           const geoJsonData = typeof response.data === 'string' 
             ? JSON.parse(response.data) 
@@ -197,7 +204,8 @@ function App() {
               url: collectionUrl,
               title: `${collectionName} (Fetched)`,
               visible: true,
-              labelProperty: 'name'
+              labelProperty: 'name',
+              data: geoJsonData  // Pass the pre-fetched data
             };
 
             // Add layer if it doesn't already exist

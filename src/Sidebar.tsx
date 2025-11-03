@@ -2,13 +2,16 @@ import Paper from '@mui/material/Paper';
 import List from '@mui/material/List';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
-import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import ListItemButton from '@mui/material/ListItemButton';
 import Collapse from '@mui/material/Collapse';
-import LayersIcon from '@mui/icons-material/Layers';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
+import Public from '@mui/icons-material/Public';
+import AccessTime from '@mui/icons-material/AccessTime';
+import Height from '@mui/icons-material/Height';
+import BugReport from '@mui/icons-material/BugReport';
+import Badge from '@mui/material/Badge';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import InputLabel from '@mui/material/InputLabel';
@@ -22,11 +25,15 @@ import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import Tooltip from '@mui/material/Tooltip';
 import Checkbox from '@mui/material/Checkbox';
+import Radio from '@mui/material/Radio';
+import RadioGroup from '@mui/material/RadioGroup';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import FormLabel from '@mui/material/FormLabel';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import React, { useEffect, useState, useMemo } from 'react';
-import { getCollections, Collection, ValidationResult, normalizeBbox, hasLocationQuery, getLocationQueryUrl, executeLocationQuery, getSupportedDataQueries, normalizeTemporal, formatConformanceClass } from './DataRetrievalAPI';
+import { getCollections, Collection, ValidationResult, normalizeBbox, hasLocationQuery, getLocationQueryUrl, executeLocationQuery, getSupportedDataQueries, normalizeTemporal, formatConformanceClass, expandTemporalValues } from './DataRetrievalAPI';
 import ValidationResults from './ValidationResult';
 import SchemaInspector from './SchemaInspector';
 import LocationFeatureList from './LocationFeatureList';
@@ -56,7 +63,7 @@ interface SidebarProps {
   selectedFeature?: any | null;
   customServices?: CustomService[];
   onServiceUrlSelect?: string | null;
-  onGeoJsonLayersChange?: (layers: {url: string, title: string, visible: boolean, labelProperty?: string}[]) => void;
+  onGeoJsonLayersChange?: (layers: {url: string, title: string, visible: boolean, labelProperty?: string, data?: any}[]) => void;
 }
 
 // EDR service options
@@ -127,9 +134,13 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   const [selectedDataQuery, setSelectedDataQuery] = useState<string>('');
   const [selectedFormat, setSelectedFormat] = useState<string>('');
   const [selectedParameters, setSelectedParameters] = useState<string[]>([]);
+  const [selectedDatetimes, setSelectedDatetimes] = useState<string[]>([]);
+  const [datetimeMode, setDatetimeMode] = useState<'individual' | 'range'>('individual');
+  const [startDatetime, setStartDatetime] = useState<string>('');
+  const [endDatetime, setEndDatetime] = useState<string>('');
   const [collectionUrl, setCollectionUrl] = useState<string>('');
   const [showCollectionValidation, setShowCollectionValidation] = useState<{[key: string]: boolean}>({});
-  const [activeGeoJsonLayers, setActiveGeoJsonLayers] = useState<{url: string, title: string, visible: boolean, labelProperty?: string}[]>([]);
+  const [activeGeoJsonLayers, setActiveGeoJsonLayers] = useState<{url: string, title: string, visible: boolean, labelProperty?: string, data?: any}[]>([]);
 
   // Helper function to extract GeoJSON links from a collection
   const getGeoJsonLinks = (collection: Collection): {url: string, title: string}[] => {
@@ -187,6 +198,10 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
       setSelectedDataQuery('');
       setSelectedFormat('');
       setSelectedParameters([]);
+      setSelectedDatetimes([]);
+      setDatetimeMode('individual');
+      setStartDatetime('');
+      setEndDatetime('');
       setCollectionUrl('');
       setActiveGeoJsonLayers([]);
       
@@ -258,7 +273,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
       // Find the current collection and rebuild the URL
       if (selectedCollection && selectedCollection.data_queries[selectedDataQuery]?.link) {
         const baseUrl = selectedCollection.data_queries[selectedDataQuery].link.href;
-        setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, null, radiusKm, selectedDataQuery, null));
+        setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, null, radiusKm, selectedDataQuery, null, selectedDatetimes, datetimeMode, startDatetime, endDatetime));
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -271,7 +286,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
       // Find the current collection and rebuild the URL
       if (selectedCollection && selectedCollection.data_queries[selectedDataQuery]?.link) {
         const baseUrl = selectedCollection.data_queries[selectedDataQuery].link.href;
-        setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, null, selectedArea, radiusKm, selectedDataQuery, null));
+        setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, null, selectedArea, radiusKm, selectedDataQuery, null, selectedDatetimes, datetimeMode, startDatetime, endDatetime));
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -284,7 +299,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
       // Find the current collection and rebuild the URL
       if (selectedCollection && selectedCollection.data_queries[selectedDataQuery]?.link) {
         const baseUrl = selectedCollection.data_queries[selectedDataQuery].link.href;
-        setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, null, radiusKm, selectedDataQuery, null));
+        setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, null, radiusKm, selectedDataQuery, null, selectedDatetimes, datetimeMode, startDatetime, endDatetime));
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -297,11 +312,24 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
       // Find the current collection and rebuild the URL
       if (selectedCollection && selectedCollection.data_queries[selectedDataQuery]?.link) {
         const baseUrl = selectedCollection.data_queries[selectedDataQuery].link.href;
-        setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, null, null, radiusKm, selectedDataQuery, selectedFeature));
+        setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, null, null, radiusKm, selectedDataQuery, selectedFeature, selectedDatetimes, datetimeMode, startDatetime, endDatetime));
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedFeature]);
+
+  // Effect to rebuild URL when selected datetime changes
+  useEffect(() => {
+    if (selectedDataQuery && selectedCollection) {
+      const isDataQuery = !!selectedDataQuery;
+      if (selectedCollection.data_queries[selectedDataQuery]?.link) {
+        const baseUrl = selectedCollection.data_queries[selectedDataQuery].link.href;
+        const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+        setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetimes, datetimeMode, startDatetime, endDatetime));
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDatetimes]);
 
   // Effect to notify parent when URL changes
   useEffect(() => {
@@ -343,7 +371,21 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   };
 
   // Helper function to build URL with query parameters
-  const buildUrlWithParams = (baseUrl: string, format: string, parameters: string[], isDataQuery: boolean, coords: [number, number][] | null | undefined = null, area: [number, number][][] | null | undefined = null, radius: number | undefined = undefined, queryType: string = '', locationFeature: any | null = null) => {
+  const buildUrlWithParams = (
+    baseUrl: string, 
+    format: string, 
+    parameters: string[], 
+    isDataQuery: boolean, 
+    coords: [number, number][] | null | undefined = null, 
+    area: [number, number][][] | null | undefined = null, 
+    radius: number | undefined = undefined, 
+    queryType: string = '', 
+    locationFeature: any | null = null, 
+    datetimes: string[] = [],
+    dtMode: 'individual' | 'range' = 'individual',
+    dtStart: string = '',
+    dtEnd: string = ''
+  ) => {
     if (!baseUrl) return baseUrl;
     
     try {
@@ -380,6 +422,17 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
           url.searchParams.set('parameter-name', parameters.join(','));
         } else {
           url.searchParams.delete('parameter-name');
+        }
+        
+        // Add datetime parameter
+        if (dtMode === 'range' && dtStart && dtEnd) {
+          // Time range mode: format as start/end
+          url.searchParams.set('datetime', `${dtStart}/${dtEnd}`);
+        } else if (dtMode === 'individual' && datetimes && datetimes.length > 0) {
+          // Individual times mode: comma-separated list
+          url.searchParams.set('datetime', datetimes.join(','));
+        } else {
+          url.searchParams.delete('datetime');
         }
         
         // Add coords parameter
@@ -432,6 +485,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
         // Remove query params when it's not a data query
         url.searchParams.delete('f');
         url.searchParams.delete('parameter-name');
+        url.searchParams.delete('datetime');
         url.searchParams.delete('coords');
         url.searchParams.delete('within');
         url.searchParams.delete('within-units');
@@ -488,9 +542,13 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
         baseUrl = apiUrl + "/collections/" + key;
       }
       // Collection URL - no query params added (isDataQuery = false)
-      setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, false, null, null, radiusKm, '', null));
+      setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, false, null, null, radiusKm, '', null, [], 'individual', '', ''));
       setSelectedDataQuery(''); // Reset data query selection
       setSelectedParameters([]); // Reset parameters when collection changes
+      setSelectedDatetimes([]); // Reset datetime selection when collection changes
+      setDatetimeMode('individual'); // Reset datetime mode
+      setStartDatetime(''); // Reset start datetime
+      setEndDatetime(''); // Reset end datetime
       if (onMapClick) {
         onMapClick([]); // Clear clicked coordinates when collection changes
       }
@@ -805,117 +863,107 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
             {collections.map((collection, index) => (
           <React.Fragment key={collection.id || index}>
             <ListItemButton onClick={() => handleItemClick(index, collection.id)}>
-              <ListItemIcon>
-                <LayersIcon />
-              </ListItemIcon>
               <ListItemText 
                 primary={
                   <div>
-                    {/* Data Query Type Badges - First row */}
-                    {getSupportedDataQueries(collection).length > 0 && (
-                      <div style={{ 
-                        display: 'flex', 
-                        gap: '4px', 
-                        flexWrap: 'wrap',
-                        marginBottom: '6px'
-                      }}>
-                        {getSupportedDataQueries(collection).map((queryType) => (
-                          <Chip
-                            key={queryType}
-                            label={queryType.toUpperCase()}
-                            size="small"
-                            color="primary"
-                            variant="outlined"
-                            sx={{ 
-                              height: '18px',
-                              fontSize: '0.6rem',
-                              fontWeight: 'bold',
-                              borderWidth: '1px',
-                              '& .MuiChip-label': {
-                                padding: '0 5px'
-                              }
-                            }}
-                          />
-                        ))}
-                      </div>
-                    )}
-                    {/* Collection Title - Second row */}
+                    {/* Validation Status Chip - First row */}
                     <div style={{ 
-                      fontSize: '1rem',
-                      fontWeight: 500,
-                      lineHeight: 1.3
+                      display: 'flex', 
+                      gap: '6px', 
+                      marginBottom: '6px',
+                      alignItems: 'center'
                     }}>
-                      {collection.title ? collection.title : collection.id}
+                      <Chip
+                        label={`ID: ${collection.id}`}
+                        size="small"
+                        color={
+                          validationResult.collectionErrors && validationResult.collectionErrors[collection.id]
+                            ? 'warning'
+                            : 'success'
+                        }
+                        variant="outlined"
+                        sx={{ 
+                          height: '18px',
+                          fontSize: '0.6rem',
+                          fontWeight: 'bold',
+                          borderWidth: '1px',
+                          '& .MuiChip-label': {
+                            padding: '0 5px'
+                          }
+                        }}
+                      />
+                      {validationResult.collectionErrors && validationResult.collectionErrors[collection.id] && (
+                        <Badge 
+                          badgeContent={validationResult.collectionErrors[collection.id].length}
+                          color={
+                            validationResult.collectionErrors[collection.id]
+                              ? 'warning'
+                              : 'success'
+                          }
+                          sx={{
+                            '& .MuiBadge-badge': {
+                              fontSize: '0.6rem',
+                              height: '14px',
+                              minWidth: '14px',
+                              padding: '0 3px'
+                            }
+                          }}
+                        >
+                          <BugReport 
+                            sx={{ 
+                              fontSize: '1rem',
+                              color: validationResult.collectionErrors[collection.id]
+                                ? 'warning.main'
+                                : 'success.main'
+                            }} 
+                          />
+                        </Badge>
+                      )}
                     </div>
-                  </div>
-                }
-                primaryTypographyProps={{ component: 'div' }}
-                secondary={
-                  <>
-                    {collection.description && <span>{collection.description}</span>}
-                    {collection.title && collection.id && (
-                      <span style={{ 
-                        fontSize: '0.875rem', 
-                        color: 'rgba(0, 0, 0, 0.6)', 
-                        display: 'block', 
-                        marginTop: collection.description ? '4px' : '0' 
-                      }}>
-                        ID: {collection.id}
-                      </span>
-                    )}
-                    {/* Temporal Extent Intervals */}
-                    {collection.extent?.temporal && (() => {
-                      const normalizedTemporal = normalizeTemporal(collection.extent.temporal);
-                      if (normalizedTemporal && normalizedTemporal.intervals.length > 0) {
-                        return (
-                          <div style={{ marginTop: '8px' }}>
-                            <div style={{ 
-                              fontSize: '0.75rem', 
-                              fontWeight: 600,
-                              color: 'rgba(0, 0, 0, 0.7)',
-                              marginBottom: '4px'
-                            }}>
-                              Temporal Intervals:
-                            </div>
-                            {normalizedTemporal.intervals.map((interval, idx) => (
-                              <div 
-                                key={idx}
-                                style={{ 
-                                  fontSize: '0.7rem', 
-                                  color: 'rgba(0, 0, 0, 0.6)',
-                                  fontFamily: 'monospace',
-                                  paddingLeft: '8px',
-                                  marginBottom: '2px'
-                                }}
-                              >
-                                [{interval[0] === null ? 'null' : interval[0]}, {interval[1] === null ? 'null' : interval[1]}]
-                              </div>
-                            ))}
-                          </div>
-                        );
-                      }
-                      return null;
-                    })()}
-                    {/* Extent Type Badges - Last row */}
+                    {/* Collection Title - Second row */}
+                    <Typography 
+                      variant="subtitle1" 
+                      component="div"
+                      sx={{ 
+                        fontWeight: 600,
+                        lineHeight: 1.3,
+                        marginBottom: '6px'
+                      }}
+                    >
+                      {collection.title ? collection.title : collection.id}
+                    </Typography>
+                    {/* Extent Type Badges - Between title and description */}
                     {(() => {
-                      const standardExtentBadges: { label: string; color: 'secondary' | 'info' }[] = [];
-                      const customExtentBadges: { label: string; color: 'secondary' | 'info' }[] = [];
+                      const standardExtentBadges: { label: string; color: 'primary' | 'secondary'; icon?: React.ReactElement }[] = [];
+                      const customExtentBadges: { label: string; color: 'primary' | 'secondary'; icon?: React.ReactElement }[] = [];
                       
                       // Check for spatial extent
                       if (collection.extent?.spatial?.bbox && 
                           Array.isArray(collection.extent.spatial.bbox) && 
                           collection.extent.spatial.bbox.length > 0) {
-                        standardExtentBadges.push({ label: 'Spatial', color: 'secondary' });
+                        standardExtentBadges.push({ 
+                          label: 'Spatial', 
+                          color: 'primary',
+                          icon: <Public sx={{ fontSize: '0.7rem' }} />
+                        });
                       }
                       // Check for temporal extent
                       if (collection.extent?.temporal && 
                           (collection.extent.temporal.interval || collection.extent.temporal.values)) {
-                        standardExtentBadges.push({ label: 'Temporal', color: 'secondary' });
+                        standardExtentBadges.push({ 
+                          label: 'Temporal', 
+                          color: 'primary',
+                          icon: <AccessTime sx={{ fontSize: '0.7rem' }} />
+                        });
                       }
                       // Check for vertical extent
                       if (collection.extent?.vertical && 
                           (collection.extent.vertical.interval || collection.extent.vertical.values)) {
-                        standardExtentBadges.push({ label: 'Vertical', color: 'secondary' });
+                        standardExtentBadges.push({ 
+                          label: 'Vertical', 
+                          color: 'primary',
+                          icon: <Height sx={{ fontSize: '0.7rem' }} />
+                        });
                       }
                       // Check for custom dimensions
                       if (collection.extent?.custom && Array.isArray(collection.extent.custom)) {
@@ -923,7 +971,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                           if (customDim.id) {
                             customExtentBadges.push({ 
                               label: customDim.id, 
-                              color: 'info' 
+                              color: 'secondary'
                             });
                           }
                         });
@@ -936,12 +984,13 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                           display: 'flex', 
                           gap: '4px', 
                           flexWrap: 'wrap',
-                          marginTop: '8px'
+                          marginBottom: '6px'
                         }}>
                           {allBadges.map((badge, idx) => (
                             <Chip
                               key={`${badge.label}-${idx}`}
                               label={badge.label}
+                              icon={badge.icon}
                               size="small"
                               color={badge.color}
                               variant="filled"
@@ -951,6 +1000,9 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                                 fontWeight: 'bold',
                                 '& .MuiChip-label': {
                                   padding: '0 5px'
+                                },
+                                '& .MuiChip-icon': {
+                                  marginLeft: '4px'
                                 }
                               }}
                             />
@@ -958,6 +1010,117 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                         </div>
                       ) : null;
                     })()}
+                  </div>
+                }
+                primaryTypographyProps={{ component: 'div' }}
+                secondary={
+                  <>
+                    {collection.description && (
+                      <Typography variant="body2" component="span">
+                        {collection.description}
+                      </Typography>
+                    )}
+                    {collection.itemType && (
+                      <Box 
+                        component="span"
+                        sx={{ 
+                          fontSize: '0.875rem', 
+                          color: 'text.secondary',
+                          display: 'block', 
+                          marginTop: '4px',
+                          fontWeight: 500
+                        }}
+                      >
+                        Item Type: {collection.itemType}
+                      </Box>
+                    )}
+                    {/* Data Query Type Badges - At the bottom */}
+                    <Box sx={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between',
+                      alignItems: 'flex-end',
+                      marginTop: '8px',
+                      gap: '8px'
+                    }}>
+                      {/* Data Query Chips on the left */}
+                      {getSupportedDataQueries(collection).length > 0 && (
+                        <div style={{ 
+                          display: 'flex', 
+                          gap: '4px', 
+                          flexWrap: 'wrap'
+                        }}>
+                          {getSupportedDataQueries(collection).map((queryType) => (
+                            <Chip
+                              key={queryType}
+                              label={queryType.toUpperCase()}
+                              size="small"
+                              color="primary"
+                              variant="outlined"
+                              sx={{ 
+                                height: '18px',
+                                fontSize: '0.6rem',
+                                fontWeight: 'bold',
+                                borderWidth: '1px',
+                                '& .MuiChip-label': {
+                                  padding: '0 5px'
+                                }
+                              }}
+                            />
+                          ))}
+                        </div>
+                      )}
+                      {/* Temporal Extent on the right */}
+                      {collection.extent?.temporal && (() => {
+                        const normalizedTemporal = normalizeTemporal(collection.extent.temporal);
+                        if (normalizedTemporal && normalizedTemporal.intervals.length > 0) {
+                          const formatDate = (dateStr: string | null) => {
+                            if (!dateStr || dateStr === '..') return 'open';
+                            try {
+                              const date = new Date(dateStr);
+                              // Format: "Nov 1, 2025 06:00" or just date if time is 00:00
+                              const timeStr = date.toISOString().split('T')[1];
+                              const hasTime = timeStr && !timeStr.startsWith('00:00:00');
+                              
+                              if (hasTime) {
+                                const formatted = date.toLocaleDateString('en-US', { 
+                                  month: 'short', 
+                                  day: 'numeric', 
+                                  year: 'numeric',
+                                  timeZone: 'UTC'
+                                });
+                                const time = date.toISOString().split('T')[1].substring(0, 5);
+                                return `${formatted} ${time}`;
+                              } else {
+                                return date.toLocaleDateString('en-US', { 
+                                  month: 'short', 
+                                  day: 'numeric', 
+                                  year: 'numeric',
+                                  timeZone: 'UTC'
+                                });
+                              }
+                            } catch {
+                              return dateStr;
+                            }
+                          };
+                          
+                          const interval = normalizedTemporal.intervals[0]; // Show first interval
+                          const start = formatDate(interval[0]);
+                          const end = formatDate(interval[1]);
+                          
+                          return (
+                            <Box sx={{ 
+                              fontSize: '0.7rem', 
+                              color: 'text.secondary',
+                              whiteSpace: 'nowrap',
+                              fontStyle: 'italic'
+                            }}>
+                              Available: {start} – {end}
+                            </Box>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </Box>
                   </>
                 }
                 secondaryTypographyProps={{ component: 'div' }}
@@ -1000,7 +1163,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                         // Apply format and parameter if data query is selected
                         const isDataQuery = !!queryType;
                         const locationFeature = queryType.toLowerCase() === 'locations' ? selectedFeature : null;
-                        const newUrl = buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, queryType, locationFeature);
+                        const newUrl = buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, queryType, locationFeature, selectedDatetimes, datetimeMode, startDatetime, endDatetime);
                         setCollectionUrl(newUrl);
                       }}
                       size="small"
@@ -1032,7 +1195,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                         // Only add params if data query is selected
                         const isDataQuery = !!selectedDataQuery;
                         const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-                        setCollectionUrl(buildUrlWithParams(collectionUrl, format, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature));
+                        setCollectionUrl(buildUrlWithParams(collectionUrl, format, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetimes, datetimeMode, startDatetime, endDatetime));
                       }}
                       size="small"
                     >
@@ -1064,7 +1227,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                         // Only add params if data query is selected
                         const isDataQuery = !!selectedDataQuery;
                         const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-                        setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, parameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature));
+                        setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, parameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetimes, datetimeMode, startDatetime, endDatetime));
                       }}
                       size="small"
                       renderValue={(selected) => selected.join(', ')}
@@ -1089,6 +1252,187 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                     </Select>
                   </FormControl>
                 )}
+
+                {/* Datetime Selector */}
+                {collection.extent?.temporal && (() => {
+                  const temporalValues = expandTemporalValues(collection.extent.temporal, 500);
+                  return temporalValues.length > 0 ? (
+                    <Box sx={{ mb: 2 }}>
+                      {/* Datetime Mode Selector */}
+                      <FormControl component="fieldset" sx={{ mb: 1 }}>
+                        <FormLabel component="legend" sx={{ fontSize: '0.875rem' }}>Date/Time Selection</FormLabel>
+                        <RadioGroup
+                          row
+                          value={datetimeMode}
+                          onChange={(e) => {
+                            const newMode = e.target.value as 'individual' | 'range';
+                            setDatetimeMode(newMode);
+                            // Clear selections when switching modes
+                            if (newMode === 'range') {
+                              setSelectedDatetimes([]);
+                            } else {
+                              setStartDatetime('');
+                              setEndDatetime('');
+                            }
+                            // Update URL
+                            const isDataQuery = !!selectedDataQuery;
+                            const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+                            setCollectionUrl(buildUrlWithParams(
+                              collectionUrl, 
+                              selectedFormat, 
+                              selectedParameters, 
+                              isDataQuery, 
+                              clickedCoords, 
+                              selectedArea, 
+                              radiusKm, 
+                              selectedDataQuery, 
+                              locationFeature, 
+                              [], 
+                              newMode,
+                              '',
+                              ''
+                            ));
+                          }}
+                          sx={{ gap: 2 }}
+                        >
+                          <FormControlLabel 
+                            value="individual" 
+                            control={<Radio size="small" />} 
+                            label={<Typography variant="body2">Individual Times</Typography>}
+                          />
+                          <FormControlLabel 
+                            value="range" 
+                            control={<Radio size="small" />} 
+                            label={<Typography variant="body2">Time Range</Typography>}
+                          />
+                        </RadioGroup>
+                      </FormControl>
+
+                      {/* Individual Times Multi-Select */}
+                      {datetimeMode === 'individual' && (
+                        <FormControl fullWidth>
+                          <InputLabel id="datetime-select-label">Select Times</InputLabel>
+                          <Select
+                            labelId="datetime-select-label"
+                            multiple
+                            value={selectedDatetimes}
+                            label="Select Times"
+                            onChange={(e) => {
+                              const datetimes = typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value;
+                              setSelectedDatetimes(datetimes);
+                              // Update URL with datetime parameter
+                              const isDataQuery = !!selectedDataQuery;
+                              const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+                              setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, datetimes, datetimeMode, startDatetime, endDatetime));
+                            }}
+                            size="small"
+                            renderValue={(selected) => `${selected.length} time(s) selected`}
+                            MenuProps={{
+                              PaperProps: {
+                                style: {
+                                  maxHeight: 300,
+                                },
+                              },
+                            }}
+                          >
+                            {temporalValues.map((datetime) => (
+                              <MenuItem key={datetime} value={datetime}>
+                                <Checkbox checked={selectedDatetimes.indexOf(datetime) > -1} />
+                                <ListItemText 
+                                  primary={datetime}
+                                  primaryTypographyProps={{ 
+                                    style: { fontSize: '0.85rem', fontFamily: 'monospace' } 
+                                  }}
+                                />
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      )}
+
+                      {/* Time Range Selectors */}
+                      {datetimeMode === 'range' && (
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                          <FormControl fullWidth size="small">
+                            <InputLabel id="start-datetime-label">Start Time</InputLabel>
+                            <Select
+                              labelId="start-datetime-label"
+                              value={startDatetime}
+                              label="Start Time"
+                              onChange={(e) => {
+                                const newStart = e.target.value;
+                                setStartDatetime(newStart);
+                                // Update URL
+                                const isDataQuery = !!selectedDataQuery;
+                                const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+                                setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetimes, datetimeMode, newStart, endDatetime));
+                              }}
+                              MenuProps={{
+                                PaperProps: {
+                                  style: {
+                                    maxHeight: 300,
+                                  },
+                                },
+                              }}
+                            >
+                              <MenuItem value="">
+                                <em>Select start time</em>
+                              </MenuItem>
+                              {temporalValues.map((datetime) => (
+                                <MenuItem key={datetime} value={datetime}>
+                                  <ListItemText 
+                                    primary={datetime}
+                                    primaryTypographyProps={{ 
+                                      style: { fontSize: '0.85rem', fontFamily: 'monospace' } 
+                                    }}
+                                  />
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+
+                          <FormControl fullWidth size="small">
+                            <InputLabel id="end-datetime-label">End Time</InputLabel>
+                            <Select
+                              labelId="end-datetime-label"
+                              value={endDatetime}
+                              label="End Time"
+                              onChange={(e) => {
+                                const newEnd = e.target.value;
+                                setEndDatetime(newEnd);
+                                // Update URL
+                                const isDataQuery = !!selectedDataQuery;
+                                const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+                                setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetimes, datetimeMode, startDatetime, newEnd));
+                              }}
+                              MenuProps={{
+                                PaperProps: {
+                                  style: {
+                                    maxHeight: 300,
+                                  },
+                                },
+                              }}
+                            >
+                              <MenuItem value="">
+                                <em>Select end time</em>
+                              </MenuItem>
+                              {temporalValues.map((datetime) => (
+                                <MenuItem key={datetime} value={datetime}>
+                                  <ListItemText 
+                                    primary={datetime}
+                                    primaryTypographyProps={{ 
+                                      style: { fontSize: '0.85rem', fontFamily: 'monospace' } 
+                                    }}
+                                  />
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                        </Box>
+                      )}
+                    </Box>
+                  ) : null;
+                })()}
 
                 {/* GeoJSON Layers List with Toggle Buttons */}
                 {activeGeoJsonLayers.length > 0 && (

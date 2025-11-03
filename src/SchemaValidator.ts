@@ -267,7 +267,7 @@ export class SchemaValidator {
           const pathParts = error.path.split('/').filter((p: string) => p);
           
           // Check if error path indicates a specific collection
-          if (pathParts.length >= 3 && pathParts[0] === 'collections' && !isNaN(parseInt(pathParts[1]))) {
+          if (pathParts.length >= 2 && pathParts[0] === 'collections' && !isNaN(parseInt(pathParts[1]))) {
             const collectionIndex = parseInt(pathParts[1]);
             
             // Try to get collection ID from the data
