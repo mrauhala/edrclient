@@ -2,7 +2,7 @@ import Sidebar from './Sidebar';
 import TopMenu from './TopMenu';
 import SettingsDrawer, { CustomService } from './SettingsDrawer';
 import DataModal from './DataModal';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import Box from '@mui/material/Box';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -84,9 +84,9 @@ function App() {
     return themeMode;
   }, [themeMode, prefersDarkMode]);
 
-  const handleUpdateBoundingBox = (newBoundingBox: [number, number, number, number]) => {
+  const handleUpdateBoundingBox = useCallback((newBoundingBox: [number, number, number, number]) => {
     setBoundingBox(newBoundingBox);
-  };
+  }, []);
 
   const handleSidebarToggle = () => {
     setSidebarOpen(!sidebarOpen);

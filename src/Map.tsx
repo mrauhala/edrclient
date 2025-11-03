@@ -778,12 +778,6 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
     };
   }, [zoomLevel, onGeoJsonFeatureSelect]); // Removed onFeatureSelect from dependencies to prevent map recreation
 
-  useEffect(() => {
-    if (onUpdateBoundingBox) {
-      onUpdateBoundingBox(boundingBoxRef.current);
-    }
-  }, [onUpdateBoundingBox]);
-
   // Effect to update marker when clicked coordinates change
   useEffect(() => {
     if (markerLayer) {
