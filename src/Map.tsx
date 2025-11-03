@@ -13,7 +13,6 @@ import { fromLonLat, toLonLat } from 'ol/proj';
 import { Style, Stroke, Fill, Circle, Text } from 'ol/style';
 import GeoJSON from 'ol/format/GeoJSON';
 import { defaults as defaultControls } from 'ol/control';
-import { bbox as bboxStrategy } from 'ol/loadingstrategy';
 import Draw from 'ol/interaction/Draw';
 import { DrawEvent } from 'ol/interaction/Draw';
 import FeatureInfo from './FeatureInfo';

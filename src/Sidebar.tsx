@@ -1077,8 +1077,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                             if (!dateStr || dateStr === '..') return 'open';
                             try {
                               const date = new Date(dateStr);
-                              // Format: "Nov 1, 2025 06:00 UTC" or just date if time is 00:00
-                              const dateOnly = date.toISOString().split('T')[0];
+                              // Format: "Nov 1, 2025 06:00" or just date if time is 00:00
                               const timeStr = date.toISOString().split('T')[1];
                               const hasTime = timeStr && !timeStr.startsWith('00:00:00');
                               
