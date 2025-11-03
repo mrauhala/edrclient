@@ -904,8 +904,8 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                     </Typography>
                     {/* Extent Type Badges - Between title and description */}
                     {(() => {
-                      const standardExtentBadges: { label: string; color: 'secondary' | 'info'; icon?: React.ReactElement }[] = [];
-                      const customExtentBadges: { label: string; color: 'secondary' | 'info'; icon?: React.ReactElement }[] = [];
+                      const standardExtentBadges: { label: string; color: 'primary' | 'secondary'; icon?: React.ReactElement }[] = [];
+                      const customExtentBadges: { label: string; color: 'primary' | 'secondary'; icon?: React.ReactElement }[] = [];
                       
                       // Check for spatial extent
                       if (collection.extent?.spatial?.bbox && 
@@ -913,7 +913,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                           collection.extent.spatial.bbox.length > 0) {
                         standardExtentBadges.push({ 
                           label: 'Spatial', 
-                          color: 'secondary',
+                          color: 'primary',
                           icon: <Public sx={{ fontSize: '0.7rem' }} />
                         });
                       }
@@ -922,7 +922,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                           (collection.extent.temporal.interval || collection.extent.temporal.values)) {
                         standardExtentBadges.push({ 
                           label: 'Temporal', 
-                          color: 'secondary',
+                          color: 'primary',
                           icon: <AccessTime sx={{ fontSize: '0.7rem' }} />
                         });
                       }
@@ -931,7 +931,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                           (collection.extent.vertical.interval || collection.extent.vertical.values)) {
                         standardExtentBadges.push({ 
                           label: 'Vertical', 
-                          color: 'secondary',
+                          color: 'primary',
                           icon: <Height sx={{ fontSize: '0.7rem' }} />
                         });
                       }
@@ -941,7 +941,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                           if (customDim.id) {
                             customExtentBadges.push({ 
                               label: customDim.id, 
-                              color: 'info'
+                              color: 'secondary'
                             });
                           }
                         });
