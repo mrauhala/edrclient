@@ -1085,7 +1085,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
               if (overallExtent) {
                 return (
                   <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.8)', marginBottom: '4px' }}>
-                    <div style={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.9)' }}>Time Coverage:</div>
+                    <div style={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.9)' }}>Available:</div>
                     <div>{formatTemporalInterval(overallExtent[0], overallExtent[1])}</div>
                     {normalizedTemporal.intervals.length > 1 && (
                       <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.7)' }}>

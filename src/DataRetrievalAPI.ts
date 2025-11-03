@@ -410,20 +410,45 @@ export function normalizeTemporal(temporal: Temporal | null | undefined): {
 
 // Utility function to format temporal intervals for display
 export function formatTemporalInterval(start: string | null, end: string | null): string {
-  if (start === null && end === null) {
-    return 'All time';
-  } else if (start === null) {
-    return `Until ${formatDateString(end)}`;
-  } else if (end === null) {
-    return `From ${formatDateString(start)}`;
-  } else {
-    return `${formatDateString(start)} to ${formatDateString(end)}`;
-  }
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr || dateStr === '..') return 'open';
+    try {
+      const date = new Date(dateStr);
+      // Format: "Nov 1, 2025 06:00" or just date if time is 00:00
+      const timeStr = date.toISOString().split('T')[1];
+      const hasTime = timeStr && !timeStr.startsWith('00:00:00');
+      
+      if (hasTime) {
+        const formatted = date.toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric', 
+          year: 'numeric',
+          timeZone: 'UTC'
+        });
+        const time = date.toISOString().split('T')[1].substring(0, 5);
+        return `${formatted} ${time}`;
+      } else {
+        return date.toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric', 
+          year: 'numeric',
+          timeZone: 'UTC'
+        });
+      }
+    } catch {
+      return dateStr;
+    }
+  };
+  
+  const formattedStart = formatDate(start);
+  const formattedEnd = formatDate(end);
+  
+  return `${formattedStart} – ${formattedEnd}`;
 }
 
 // Utility function to format ISO 8601 date strings for human-readable display
 export function formatDateString(dateString: string | null): string {
-  if (!dateString) return 'Open';
+  if (!dateString || dateString === '..') return 'open';
   
   try {
     const date = new Date(dateString);
@@ -431,15 +456,27 @@ export function formatDateString(dateString: string | null): string {
       return dateString; // Return original if parsing fails
     }
     
-    // Format as locale-specific date and time
-    return date.toLocaleString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZoneName: 'short'
-    });
+    // Format: "Nov 1, 2025 06:00" or just date if time is 00:00 in UTC
+    const timeStr = date.toISOString().split('T')[1];
+    const hasTime = timeStr && !timeStr.startsWith('00:00:00');
+    
+    if (hasTime) {
+      const formatted = date.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        year: 'numeric',
+        timeZone: 'UTC'
+      });
+      const time = date.toISOString().split('T')[1].substring(0, 5);
+      return `${formatted} ${time}`;
+    } else {
+      return date.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        year: 'numeric',
+        timeZone: 'UTC'
+      });
+    }
   } catch (error) {
     console.warn('Error formatting date string:', dateString, error);
     return dateString;
