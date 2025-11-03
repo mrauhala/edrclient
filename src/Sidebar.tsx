@@ -2,11 +2,9 @@ import Paper from '@mui/material/Paper';
 import List from '@mui/material/List';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
-import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import ListItemButton from '@mui/material/ListItemButton';
 import Collapse from '@mui/material/Collapse';
-import LayersIcon from '@mui/icons-material/Layers';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
 import Box from '@mui/material/Box';
@@ -860,9 +858,6 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
             {collections.map((collection, index) => (
           <React.Fragment key={collection.id || index}>
             <ListItemButton onClick={() => handleItemClick(index, collection.id)}>
-              <ListItemIcon>
-                <LayersIcon />
-              </ListItemIcon>
               <ListItemText 
                 primary={
                   <div>
