@@ -386,6 +386,10 @@ export function normalizeTemporal(temporal: Temporal | null | undefined): {
         if (Array.isArray(interval) && interval.length >= 2) {
           const [start, end] = interval;
           result.intervals.push([start, end]);
+        } else if (typeof interval === 'string') {
+          // Some APIs incorrectly put individual datetime values in the interval array
+          // Treat these as values instead
+          result.values.push(interval);
         } else {
           console.warn('Invalid temporal interval format:', interval);
         }
