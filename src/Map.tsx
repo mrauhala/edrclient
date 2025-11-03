@@ -14,6 +14,8 @@ import { Style, Stroke, Fill, Circle, Text } from 'ol/style';
 import GeoJSON from 'ol/format/GeoJSON';
 import { defaults as defaultControls } from 'ol/control';
 import { bbox as bboxStrategy } from 'ol/loadingstrategy';
+import Draw from 'ol/interaction/Draw';
+import { DrawEvent } from 'ol/interaction/Draw';
 import FeatureInfo from './FeatureInfo';
 import GeoJsonFeatureViewer from './GeoJsonFeatureViewer';
 import { Collection, normalizeTemporal, formatTemporalInterval, getOverallTemporalExtent, normalizeVertical, formatVerticalInterval, getOverallVerticalExtent, getVerticalUnit } from './DataRetrievalAPI';
@@ -25,22 +27,29 @@ interface MapProps {
   selectedCollection?: Collection | null;
   locationFeatures?: any[] | null;
   selectedFeature?: any | null;
-  clickedCoords?: [number, number] | null;
+  clickedCoords?: [number, number][];
+  selectedArea?: [number, number][][];
+  radiusKm?: number;
   dataQuery?: string;
   onUpdateBoundingBox?: (boundingBox: [number, number, number, number]) => void;
   onFeatureSelect?: (feature: any | null) => void;
-  onMapClick?: (coords: [number, number] | null) => void;
+  onMapClick?: (coords: [number, number][]) => void;
+  onAreaSelect?: (area: [number, number][][]) => void;
+  onRadiusChange?: (radius: number) => void;
   geoJsonLayers?: {url: string, title: string, visible: boolean, labelProperty?: string}[];
   selectedGeoJsonFeature?: any | null;
   onGeoJsonFeatureSelect?: (feature: any | null) => void;
   onGeoJsonLayerUpdate?: (layers: {url: string, title: string, visible: boolean, labelProperty?: string}[]) => void;
 }
 
-const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCollectionExtents, selectedCollection, locationFeatures, selectedFeature, clickedCoords, dataQuery, onUpdateBoundingBox, onFeatureSelect, onMapClick, geoJsonLayers = [], selectedGeoJsonFeature, onGeoJsonFeatureSelect, onGeoJsonLayerUpdate }) => {
+const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCollectionExtents, selectedCollection, locationFeatures, selectedFeature, clickedCoords, selectedArea, radiusKm, dataQuery, onUpdateBoundingBox, onFeatureSelect, onMapClick, onAreaSelect, onRadiusChange, geoJsonLayers = [], selectedGeoJsonFeature, onGeoJsonFeatureSelect, onGeoJsonLayerUpdate }) => {
   const [map, setMap] = useState<Map | null>(null);
   const [vectorLayer, setVectorLayer] = useState<VectorLayer<VectorSource> | null>(null);
   const [locationLayer, setLocationLayer] = useState<VectorLayer<VectorSource> | null>(null);
   const [markerLayer, setMarkerLayer] = useState<VectorLayer<VectorSource> | null>(null);
+  const [areaLayer, setAreaLayer] = useState<VectorLayer<VectorSource> | null>(null);
+  const [radiusLayer, setRadiusLayer] = useState<VectorLayer<VectorSource> | null>(null);
+  const [drawInteraction, setDrawInteraction] = useState<Draw | null>(null);
   const [geoJsonVectorLayers, setGeoJsonVectorLayers] = useState<{[key: string]: VectorLayer<VectorSource>}>({});
   const [geoJsonMetadata, setGeoJsonMetadata] = useState<{[key: string]: {numberReturned?: number, numberMatched?: number}}>({});
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -50,11 +59,23 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
   const locationFeaturesRef = useRef(locationFeatures);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const onFeatureSelectRef = useRef(onFeatureSelect);
+  const selectedAreaRef = useRef(selectedArea);
+  const clickedCoordsRef = useRef(clickedCoords);
 
   // Keep the callback ref updated
   useEffect(() => {
     onFeatureSelectRef.current = onFeatureSelect;
   }, [onFeatureSelect]);
+
+  // Keep the area ref updated
+  useEffect(() => {
+    selectedAreaRef.current = selectedArea;
+  }, [selectedArea]);
+
+  // Keep the coords ref updated
+  useEffect(() => {
+    clickedCoordsRef.current = clickedCoords;
+  }, [clickedCoords]);
 
   // Effect to handle selected collection extents changes (multiple bboxes)
   useEffect(() => {
@@ -570,6 +591,43 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
       }),
     });
 
+    // Create area layer for area query selections
+    const newAreaLayer = new VectorLayer({
+      source: new VectorSource(),
+      style: new Style({
+        stroke: new Stroke({
+          color: 'rgba(255, 0, 0, 0.8)',
+          width: 3,
+        }),
+        fill: new Fill({
+          color: 'rgba(255, 0, 0, 0.1)',
+        }),
+      }),
+    });
+
+    const newRadiusLayer = new VectorLayer({
+      source: new VectorSource(),
+      style: new Style({
+        stroke: new Stroke({
+          color: 'rgba(0, 123, 255, 0.8)',
+          width: 2,
+        }),
+        fill: new Fill({
+          color: 'rgba(0, 123, 255, 0.2)',
+        }),
+        image: new Circle({
+          radius: 6,
+          fill: new Fill({
+            color: 'rgba(0, 123, 255, 1)',
+          }),
+          stroke: new Stroke({
+            color: 'white',
+            width: 2,
+          }),
+        }),
+      }),
+    });
+
     const openLayersMap = new Map({
       target: 'map',
       controls: defaultControls({
@@ -585,6 +643,8 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
         newVectorLayer, // Add vector layer for bounding boxes
         newLocationLayer, // Add vector layer for location features
         newMarkerLayer, // Add marker layer for position clicks
+        newAreaLayer, // Add area layer for area selection
+        newRadiusLayer, // Add radius layer for radius query circles
       ],
       view: new View({
         center: [0, 0],
@@ -596,6 +656,8 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
     setVectorLayer(newVectorLayer);
     setLocationLayer(newLocationLayer);
     setMarkerLayer(newMarkerLayer);
+    setAreaLayer(newAreaLayer);
+    setRadiusLayer(newRadiusLayer);
 
     // Create tooltip overlay
     const tooltip = new Overlay({
@@ -729,24 +791,87 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
       if (source) {
         source.clear();
         
-        if (clickedCoords) {
-          const [lon, lat] = clickedCoords;
-          const feature = new Feature({
-            geometry: new Point(fromLonLat([lon, lat])),
+        // Add all clicked coordinates as markers
+        if (clickedCoords && clickedCoords.length > 0) {
+          clickedCoords.forEach(coords => {
+            const [lon, lat] = coords;
+            const feature = new Feature({
+              geometry: new Point(fromLonLat([lon, lat])),
+            });
+            source.addFeature(feature);
           });
-          source.addFeature(feature);
         }
       }
     }
   }, [clickedCoords, markerLayer]);
 
-  // Effect to handle map clicks for position queries
+  // Effect to update radius circles when clicked coordinates or radius change
+  useEffect(() => {
+    if (radiusLayer && dataQuery && dataQuery.toLowerCase() === 'radius') {
+      const source = radiusLayer.getSource();
+      if (source) {
+        source.clear();
+        
+        // Add geodesic circles for all clicked coordinates
+        if (clickedCoords && clickedCoords.length > 0 && radiusKm) {
+          clickedCoords.forEach(coords => {
+            const [lon, lat] = coords;
+            const center = fromLonLat([lon, lat]);
+            
+            // Create a geodesic circle
+            // We need to calculate points on the circle using getDistance
+            const pointsOnCircle = 64; // Number of points to approximate the circle
+            const circleCoords: [number, number][] = [];
+            
+            for (let i = 0; i < pointsOnCircle; i++) {
+              const angle = (i / pointsOnCircle) * 2 * Math.PI;
+              
+              // Calculate a point at the specified radius from center
+              // We use a simple approximation: move radiusKm in the direction of angle
+              // For more accuracy, we could use geodesic calculations
+              const lonOffset = (radiusKm * 1000) / (111320 * Math.cos(lat * Math.PI / 180)) * Math.cos(angle);
+              const latOffset = (radiusKm * 1000) / 110540 * Math.sin(angle);
+              
+              const pointLon = lon + lonOffset;
+              const pointLat = lat + latOffset;
+              const point = fromLonLat([pointLon, pointLat]);
+              circleCoords.push(point as [number, number]);
+            }
+            
+            // Close the circle
+            circleCoords.push(circleCoords[0]);
+            
+            // Create polygon from circle coordinates
+            const circlePolygon = new Polygon([circleCoords]);
+            const circleFeature = new Feature({
+              geometry: circlePolygon,
+            });
+            source.addFeature(circleFeature);
+            
+            // Also add a point marker at the center
+            const centerFeature = new Feature({
+              geometry: new Point(center),
+            });
+            source.addFeature(centerFeature);
+          });
+        }
+      }
+    } else if (radiusLayer && dataQuery && dataQuery.toLowerCase() !== 'radius') {
+      // Clear radius layer when not in radius mode
+      const source = radiusLayer.getSource();
+      if (source) {
+        source.clear();
+      }
+    }
+  }, [clickedCoords, radiusLayer, radiusKm, dataQuery]);
+
+  // Effect to handle map clicks for position and radius queries
   useEffect(() => {
     if (!map) return;
 
     const handleMapClick = (event: any) => {
-      // Only handle clicks if data query is 'position'
-      if (dataQuery && dataQuery.toLowerCase() === 'position') {
+      // Only handle clicks if data query is 'position' or 'radius'
+      if (dataQuery && (dataQuery.toLowerCase() === 'position' || dataQuery.toLowerCase() === 'radius')) {
         // Check if click is within collection bbox
         const coords = map.getCoordinateFromPixel(event.pixel);
         const [x, y] = toLonLat(coords);
@@ -769,9 +894,11 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
           
           // Check if click is within bbox
           if (x >= minLon && x <= maxLon && y >= minLat && y <= maxLat) {
-            // Pass coordinates back to parent
+            // Add coordinates to the array - use ref to get current value
             if (onMapClick) {
-              onMapClick([x, y]);
+              const currentCoords = clickedCoordsRef.current || [];
+              const newCoords: [number, number][] = [...currentCoords, [x, y]];
+              onMapClick(newCoords);
             }
           }
         }
@@ -784,6 +911,86 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
       map.un('singleclick', handleMapClick);
     };
   }, [map, dataQuery, selectedCollection, onMapClick]);
+
+  // Effect to handle area selection with drawing tool
+  useEffect(() => {
+    if (!map || !areaLayer) return;
+
+    // Remove existing draw interaction if any
+    if (drawInteraction) {
+      map.removeInteraction(drawInteraction);
+      setDrawInteraction(null);
+    }
+
+    // Only add draw interaction if data query is 'area'
+    if (dataQuery && dataQuery.toLowerCase() === 'area') {
+      const source = areaLayer.getSource();
+      if (!source) return;
+
+      // Don't clear the source here - let the display effect handle it
+
+      // Create new draw interaction - don't attach to source directly
+      const draw = new Draw({
+        type: 'Polygon',
+      });
+
+      // Handle draw completion
+      draw.on('drawend', (event: DrawEvent) => {
+        const feature = event.feature;
+        const geometry = feature.getGeometry() as Polygon;
+        
+        // Get the coordinates in EPSG:3857 and convert to WGS84
+        const coordinates = geometry.getCoordinates()[0]; // Get outer ring
+        const lonLatCoords: [number, number][] = coordinates.map(coord => {
+          const [lon, lat] = toLonLat(coord);
+          return [lon, lat];
+        });
+
+        // Add polygon to the array - use ref to get current value
+        if (onAreaSelect) {
+          const currentAreas = selectedAreaRef.current || [];
+          const newAreas: [number, number][][] = [...currentAreas, lonLatCoords];
+          onAreaSelect(newAreas);
+        }
+      });
+
+      map.addInteraction(draw);
+      setDrawInteraction(draw);
+
+      return () => {
+        map.removeInteraction(draw);
+      };
+    } else {
+      // Clear area layer when not in area mode
+      const source = areaLayer.getSource();
+      if (source) {
+        source.clear();
+      }
+      // Clear selected area
+      if (onAreaSelect) {
+        onAreaSelect([]);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, dataQuery, areaLayer]);
+
+  // Effect to display selected areas
+  useEffect(() => {
+    if (areaLayer && selectedArea) {
+      const source = areaLayer.getSource();
+      if (source) {
+        source.clear();
+        
+        // Add all polygons
+        selectedArea.forEach(polygonCoords => {
+          const coordinates = polygonCoords.map(coord => fromLonLat([coord[0], coord[1]]));
+          const polygon = new Polygon([coordinates]);
+          const feature = new Feature({ geometry: polygon });
+          source.addFeature(feature);
+        });
+      }
+    }
+  }, [selectedArea, areaLayer]);
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
@@ -890,7 +1097,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
       )}
       
       {/* Coordinates Legend - Lower Right Corner */}
-      {clickedCoords && (
+      {clickedCoords && clickedCoords.length > 0 && (
         <div
           style={{
             position: 'absolute',
@@ -909,10 +1116,317 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
           }}
         >
           <div style={{ fontWeight: 'bold', marginBottom: '4px', fontSize: '11px', opacity: 0.7 }}>
-            Selected Coordinates
+            Selected Points ({clickedCoords.length})
           </div>
-          <div>Lat: {clickedCoords[1].toFixed(6)}°</div>
-          <div>Lon: {clickedCoords[0].toFixed(6)}°</div>
+          {clickedCoords.map((coords, idx) => (
+            <div key={idx} style={{ fontSize: '10px', marginTop: idx > 0 ? '4px' : '0' }}>
+              {idx + 1}. Lat: {coords[1].toFixed(6)}°, Lon: {coords[0].toFixed(6)}°
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Area Selection Info - Lower Right Corner */}
+      {selectedArea && selectedArea.length > 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '10px',
+            right: '10px',
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            color: 'white',
+            padding: '8px 12px',
+            borderRadius: '6px',
+            fontSize: '12px',
+            fontWeight: 'normal',
+            zIndex: 1000,
+            boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            fontFamily: 'monospace',
+          }}
+        >
+          <div style={{ fontWeight: 'bold', marginBottom: '4px', fontSize: '11px', opacity: 0.7 }}>
+            Selected Polygons ({selectedArea.length})
+          </div>
+          {selectedArea.map((polygon, idx) => (
+            <div key={idx} style={{ fontSize: '10px' }}>
+              {idx + 1}. {polygon.length} vertices
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Position Selection Instruction - Top Center */}
+      {dataQuery && dataQuery.toLowerCase() === 'position' && (!clickedCoords || clickedCoords.length === 0) && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            backgroundColor: 'rgba(0, 0, 0, 0.9)',
+            color: 'white',
+            padding: '16px 24px',
+            borderRadius: '8px',
+            fontSize: '14px',
+            fontWeight: 'normal',
+            zIndex: 1000,
+            boxShadow: '0 4px 8px rgba(0,0,0,0.5)',
+            border: '2px solid rgba(255, 0, 0, 0.6)',
+            textAlign: 'center',
+          }}
+        >
+          <div style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '16px', color: '#FF4444' }}>
+            Click Points on Map
+          </div>
+          <div>Click to add multiple points</div>
+        </div>
+      )}
+
+      {/* Reset Button for Position Mode */}
+      {dataQuery && dataQuery.toLowerCase() === 'position' && clickedCoords && clickedCoords.length > 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '10px',
+            right: '10px',
+            zIndex: 1000,
+          }}
+        >
+          <button
+            onClick={() => {
+              if (onMapClick) {
+                onMapClick([]);
+              }
+            }}
+            style={{
+              backgroundColor: 'rgba(255, 68, 68, 0.9)',
+              color: 'white',
+              border: '2px solid rgba(255, 255, 255, 0.3)',
+              padding: '8px 16px',
+              borderRadius: '6px',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255, 68, 68, 1)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255, 68, 68, 0.9)';
+            }}
+          >
+            Clear Points
+          </button>
+        </div>
+      )}
+
+      {/* Area Drawing Instruction - Top Center */}
+      {dataQuery && dataQuery.toLowerCase() === 'area' && (!selectedArea || selectedArea.length === 0) && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            backgroundColor: 'rgba(0, 0, 0, 0.9)',
+            color: 'white',
+            padding: '16px 24px',
+            borderRadius: '8px',
+            fontSize: '14px',
+            fontWeight: 'normal',
+            zIndex: 1000,
+            boxShadow: '0 4px 8px rgba(0,0,0,0.5)',
+            border: '2px solid rgba(255, 0, 0, 0.6)',
+            textAlign: 'center',
+          }}
+        >
+          <div style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '16px', color: '#FF4444' }}>
+            Draw Areas on Map
+          </div>
+          <div>Click to add vertices, double-click to complete each polygon</div>
+        </div>
+      )}
+
+      {/* Reset Button for Area Mode */}
+      {dataQuery && dataQuery.toLowerCase() === 'area' && selectedArea && selectedArea.length > 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '10px',
+            right: '10px',
+            zIndex: 1000,
+          }}
+        >
+          <button
+            onClick={() => {
+              if (onAreaSelect) {
+                onAreaSelect([]);
+              }
+              // Also clear the area layer
+              if (areaLayer) {
+                const source = areaLayer.getSource();
+                if (source) {
+                  source.clear();
+                }
+              }
+            }}
+            style={{
+              backgroundColor: 'rgba(255, 68, 68, 0.9)',
+              color: 'white',
+              border: '2px solid rgba(255, 255, 255, 0.3)',
+              padding: '8px 16px',
+              borderRadius: '6px',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255, 68, 68, 1)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255, 68, 68, 0.9)';
+            }}
+          >
+            Clear Polygons
+          </button>
+        </div>
+      )}
+
+      {/* Radius Selection Info - Lower Right Corner */}
+      {dataQuery && dataQuery.toLowerCase() === 'radius' && clickedCoords && clickedCoords.length > 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '10px',
+            right: '10px',
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            color: 'white',
+            padding: '8px 12px',
+            borderRadius: '6px',
+            fontSize: '12px',
+            fontWeight: 'normal',
+            zIndex: 1000,
+            boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
+            border: '1px solid rgba(0, 123, 255, 0.5)',
+            fontFamily: 'monospace',
+          }}
+        >
+          <div style={{ fontWeight: 'bold', marginBottom: '4px', fontSize: '11px', opacity: 0.7 }}>
+            Selected Points ({clickedCoords.length})
+          </div>
+          {clickedCoords.map((coords, idx) => (
+            <div key={idx} style={{ fontSize: '10px', marginTop: idx > 0 ? '4px' : '0' }}>
+              {idx + 1}. Lat: {coords[1].toFixed(6)}°, Lon: {coords[0].toFixed(6)}°
+            </div>
+          ))}
+          <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.2)', fontWeight: 'bold' }}>
+            Radius: {radiusKm} km
+          </div>
+        </div>
+      )}
+
+      {/* Radius Selection Instruction - Top Center */}
+      {dataQuery && dataQuery.toLowerCase() === 'radius' && (!clickedCoords || clickedCoords.length === 0) && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            backgroundColor: 'rgba(0, 0, 0, 0.9)',
+            color: 'white',
+            padding: '16px 24px',
+            borderRadius: '8px',
+            fontSize: '14px',
+            fontWeight: 'normal',
+            zIndex: 1000,
+            boxShadow: '0 4px 8px rgba(0,0,0,0.5)',
+            border: '2px solid rgba(0, 123, 255, 0.6)',
+            textAlign: 'center',
+          }}
+        >
+          <div style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '16px', color: '#007BFF' }}>
+            Click Points on Map
+          </div>
+          <div>Click to add multiple points with radius {radiusKm} km</div>
+        </div>
+      )}
+
+      {/* Reset Button and Radius Control for Radius Mode */}
+      {dataQuery && dataQuery.toLowerCase() === 'radius' && clickedCoords && clickedCoords.length > 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '10px',
+            right: '10px',
+            zIndex: 1000,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px',
+          }}
+        >
+          <button
+            onClick={() => {
+              if (onMapClick) {
+                onMapClick([]);
+              }
+            }}
+            style={{
+              backgroundColor: 'rgba(255, 68, 68, 0.9)',
+              color: 'white',
+              border: '2px solid rgba(255, 255, 255, 0.3)',
+              padding: '8px 16px',
+              borderRadius: '6px',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255, 68, 68, 1)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255, 68, 68, 0.9)';
+            }}
+          >
+            Clear Points
+          </button>
+          
+          {/* Radius Control */}
+          <div
+            style={{
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              color: 'white',
+              border: '2px solid rgba(0, 123, 255, 0.5)',
+              padding: '12px',
+              borderRadius: '6px',
+              fontSize: '12px',
+              boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
+            }}
+          >
+            <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>Radius: {radiusKm} km</div>
+            <input
+              type="range"
+              min="1"
+              max="500"
+              value={radiusKm}
+              onChange={(e) => {
+                if (onRadiusChange) {
+                  onRadiusChange(Number(e.target.value));
+                }
+              }}
+              style={{
+                width: '150px',
+                cursor: 'pointer',
+              }}
+            />
+            <div style={{ marginTop: '4px', fontSize: '10px', opacity: 0.7 }}>
+              1 - 500 km
+            </div>
+          </div>
         </div>
       )}
       
