@@ -890,20 +890,27 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                       </div>
                     )}
                     {/* Collection Title - Second row */}
-                    <div style={{ 
-                      fontSize: '1.1rem',
-                      fontWeight: 600,
-                      lineHeight: 1.3,
-                      marginBottom: '6px'
-                    }}>
+                    <Typography 
+                      variant="subtitle1" 
+                      component="div"
+                      sx={{ 
+                        fontWeight: 600,
+                        lineHeight: 1.3,
+                        marginBottom: '6px'
+                      }}
+                    >
                       {collection.title ? collection.title : collection.id}
-                    </div>
+                    </Typography>
                   </div>
                 }
                 primaryTypographyProps={{ component: 'div' }}
                 secondary={
                   <>
-                    {collection.description && <span>{collection.description}</span>}
+                    {collection.description && (
+                      <Typography variant="body2" component="span">
+                        {collection.description}
+                      </Typography>
+                    )}
                     {collection.title && collection.id && (
                       <Box 
                         component="span"
