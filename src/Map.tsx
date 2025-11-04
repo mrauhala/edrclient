@@ -375,9 +375,9 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
               console.error('Error parsing pre-fetched GeoJSON:', error);
             }
           } else {
-            // Use URL function with bbox strategy for layers without pre-fetched data
-            // The bbox strategy will automatically call this function with the current extent
-            vectorSource.setUrl(function (extent) {
+            // Use custom loader with bbox strategy for layers without pre-fetched data
+            // The bbox strategy will automatically call this loader with the current extent
+            const loader = function(extent: any, resolution: any, projection: any) {
               const [minX, minY, maxX, maxY] = extent;
               // Transform extent from map projection (EPSG:3857) to WGS84 (EPSG:4326)
               const [minLon, minLat] = toLonLat([minX, minY]);
@@ -395,8 +395,36 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
               }
               
               console.log('Loading GeoJSON with bbox:', finalUrl);
-              return finalUrl;
-            });
+              
+              fetch(finalUrl)
+                .then(response => response.json())
+                .then(data => {
+                  // Capture metadata from the response
+                  if (data.numberReturned !== undefined || data.numberMatched !== undefined) {
+                    setGeoJsonMetadata(prev => ({
+                      ...prev,
+                      [layerKey]: {
+                        numberReturned: data.numberReturned,
+                        numberMatched: data.numberMatched
+                      }
+                    }));
+                  }
+                  
+                  // Parse and add features
+                  const features = geojsonFormat.readFeatures(data, {
+                    featureProjection: projection
+                  });
+                  
+                  // Add features to the source - bboxStrategy will handle deduplication
+                  vectorSource.addFeatures(features);
+                })
+                .catch(error => {
+                  console.error('Error loading GeoJSON:', error);
+                  vectorSource.removeLoadedExtent(extent);
+                });
+            };
+            
+            vectorSource.setLoader(loader);
           }
 
           const geoJsonLayer = new VectorLayer({
