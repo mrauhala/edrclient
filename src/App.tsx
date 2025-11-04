@@ -53,7 +53,7 @@ function App() {
   const [selectedArea, setSelectedArea] = useState<[number, number][][]>([]);
   const [radiusKm, setRadiusKm] = useState<number>(10); // Default 10km radius
   const [dataQuery, setDataQuery] = useState<string>('');
-  const [geoJsonLayers, setGeoJsonLayers] = useState<{url: string, title: string, visible: boolean, labelProperty?: string}[]>([]);
+  const [geoJsonLayers, setGeoJsonLayers] = useState<{url: string, title: string, visible: boolean, labelProperty?: string, apiKey?: string, apiKeyParam?: string}[]>([]);
   const [selectedGeoJsonFeature, setSelectedGeoJsonFeature] = useState<any | null>(null);
 
   // Modal state

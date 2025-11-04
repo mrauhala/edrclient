@@ -36,10 +36,10 @@ interface MapProps {
   onMapClick?: (coords: [number, number][]) => void;
   onAreaSelect?: (area: [number, number][][]) => void;
   onRadiusChange?: (radius: number) => void;
-  geoJsonLayers?: {url: string, title: string, visible: boolean, labelProperty?: string, data?: any}[];
+  geoJsonLayers?: {url: string, title: string, visible: boolean, labelProperty?: string, data?: any, apiKey?: string, apiKeyParam?: string}[];
   selectedGeoJsonFeature?: any | null;
   onGeoJsonFeatureSelect?: (feature: any | null) => void;
-  onGeoJsonLayerUpdate?: (layers: {url: string, title: string, visible: boolean, labelProperty?: string, data?: any}[]) => void;
+  onGeoJsonLayerUpdate?: (layers: {url: string, title: string, visible: boolean, labelProperty?: string, data?: any, apiKey?: string, apiKeyParam?: string}[]) => void;
 }
 
 const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCollectionExtents, selectedCollection, locationFeatures, selectedFeature, clickedCoords, selectedArea, radiusKm, dataQuery, onUpdateBoundingBox, onFeatureSelect, onMapClick, onAreaSelect, onRadiusChange, geoJsonLayers = [], selectedGeoJsonFeature, onGeoJsonFeatureSelect, onGeoJsonLayerUpdate }) => {
@@ -61,7 +61,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
   const onFeatureSelectRef = useRef(onFeatureSelect);
   const selectedAreaRef = useRef(selectedArea);
   const clickedCoordsRef = useRef(clickedCoords);
-  const geoJsonLayersRef = useRef<{url: string, title: string, visible: boolean, labelProperty?: string, data?: any}[]>([]);
+  const geoJsonLayersRef = useRef<{url: string, title: string, visible: boolean, labelProperty?: string, data?: any, apiKey?: string, apiKeyParam?: string}[]>([]);
 
   // Keep the callback ref updated
   useEffect(() => {
@@ -384,9 +384,15 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
               const [maxLon, maxLat] = toLonLat([maxX, maxY]);
               const bboxString = `${minLon},${minLat},${maxLon},${maxLat}`;
               
-              // Append bbox parameter to URL
+              // Start building URL with bbox parameter
               const separator = layerConfig.url.includes('?') ? '&' : '?';
-              const finalUrl = `${layerConfig.url}${separator}bbox=${bboxString}`;
+              let finalUrl = `${layerConfig.url}${separator}bbox=${bboxString}`;
+              
+              // Add API key if provided
+              if (layerConfig.apiKey) {
+                const paramName = layerConfig.apiKeyParam || 'api-key';
+                finalUrl = `${finalUrl}&${paramName}=${layerConfig.apiKey}`;
+              }
               
               console.log('Loading GeoJSON with bbox:', finalUrl);
               return finalUrl;

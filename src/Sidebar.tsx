@@ -63,7 +63,7 @@ interface SidebarProps {
   selectedFeature?: any | null;
   customServices?: CustomService[];
   onServiceUrlSelect?: string | null;
-  onGeoJsonLayersChange?: (layers: {url: string, title: string, visible: boolean, labelProperty?: string, data?: any}[]) => void;
+  onGeoJsonLayersChange?: (layers: {url: string, title: string, visible: boolean, labelProperty?: string, data?: any, apiKey?: string, apiKeyParam?: string}[]) => void;
 }
 
 // EDR service options
@@ -159,7 +159,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   const [endDatetime, setEndDatetime] = useState<string>('');
   const [collectionUrl, setCollectionUrl] = useState<string>('');
   const [showCollectionValidation, setShowCollectionValidation] = useState<{[key: string]: boolean}>({});
-  const [activeGeoJsonLayers, setActiveGeoJsonLayers] = useState<{url: string, title: string, visible: boolean, labelProperty?: string, data?: any}[]>([]);
+  const [activeGeoJsonLayers, setActiveGeoJsonLayers] = useState<{url: string, title: string, visible: boolean, labelProperty?: string, data?: any, apiKey?: string, apiKeyParam?: string}[]>([]);
 
   // Helper function to extract GeoJSON links from a collection
   const getGeoJsonLinks = (collection: Collection): {url: string, title: string}[] => {
@@ -535,10 +535,13 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
     // Initialize GeoJSON layers for the selected collection
     if (selectedColl) {
       const geoJsonLinks = getGeoJsonLinks(selectedColl);
+      const auth = getAuthCredentials(apiUrl);
       const initialLayers = geoJsonLinks.map(link => ({
         url: link.url,
         title: link.title,
-        visible: false // Initially hidden
+        visible: false, // Initially hidden
+        apiKey: auth?.apiKey,
+        apiKeyParam: auth?.apiKeyParam
       }));
       setActiveGeoJsonLayers(initialLayers);
       if (onGeoJsonLayersChange) {
