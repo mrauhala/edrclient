@@ -27,6 +27,8 @@ export interface CustomService {
   id: string;
   name: string;
   url: string;
+  username?: string;
+  password?: string;
 }
 
 interface SettingsDrawerProps {
@@ -55,6 +57,8 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [serviceName, setServiceName] = useState('');
   const [serviceUrl, setServiceUrl] = useState('');
+  const [serviceUsername, setServiceUsername] = useState('');
+  const [servicePassword, setServicePassword] = useState('');
   const [editingService, setEditingService] = useState<CustomService | null>(null);
 
   const handleModeClick = (mode: 'light' | 'dark' | 'system') => {
@@ -65,6 +69,8 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
     setEditingService(null);
     setServiceName('');
     setServiceUrl('');
+    setServiceUsername('');
+    setServicePassword('');
     setDialogOpen(true);
   };
 
@@ -72,6 +78,8 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
     setEditingService(service);
     setServiceName(service.name);
     setServiceUrl(service.url);
+    setServiceUsername(service.username || '');
+    setServicePassword(service.password || '');
     setDialogOpen(true);
   };
 
@@ -79,6 +87,8 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
     setDialogOpen(false);
     setServiceName('');
     setServiceUrl('');
+    setServiceUsername('');
+    setServicePassword('');
     setEditingService(null);
   };
 
@@ -89,7 +99,9 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
         const updatedService: CustomService = {
           ...editingService,
           name: serviceName.trim(),
-          url: serviceUrl.trim()
+          url: serviceUrl.trim(),
+          username: serviceUsername.trim() || undefined,
+          password: servicePassword.trim() || undefined
         };
         onUpdateService(updatedService);
       } else {
@@ -97,7 +109,9 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
         const newService: CustomService = {
           id: Date.now().toString(),
           name: serviceName.trim(),
-          url: serviceUrl.trim()
+          url: serviceUrl.trim(),
+          username: serviceUsername.trim() || undefined,
+          password: servicePassword.trim() || undefined
         };
         onAddService(newService);
         // Auto-select the newly added service
@@ -274,6 +288,28 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
             value={serviceUrl}
             onChange={(e) => setServiceUrl(e.target.value)}
             placeholder="https://example.com/api"
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            margin="dense"
+            label="Username (Optional)"
+            type="text"
+            fullWidth
+            variant="outlined"
+            value={serviceUsername}
+            onChange={(e) => setServiceUsername(e.target.value)}
+            placeholder="Enter username for HTTP Basic Auth"
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            margin="dense"
+            label="Password (Optional)"
+            type="password"
+            fullWidth
+            variant="outlined"
+            value={servicePassword}
+            onChange={(e) => setServicePassword(e.target.value)}
+            placeholder="Enter password for HTTP Basic Auth"
           />
         </DialogContent>
         <DialogActions>

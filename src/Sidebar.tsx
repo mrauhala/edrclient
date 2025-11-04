@@ -93,6 +93,18 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   const [inputUrl, setInputUrl] = useState('https://opendata.fmi.fi/edr'); // Separate state for text input
   const [queryUrl, setQueryUrl] = useState('https://opendata.fmi.fi/edr');
 
+  // Helper function to get auth credentials for a given URL
+  const getAuthCredentials = (url: string) => {
+    const service = customServices.find(s => s.url === url);
+    if (service && service.username) {
+      return {
+        username: service.username,
+        password: service.password
+      };
+    }
+    return undefined;
+  };
+
   // Effect to handle external service URL selection (from settings)
   useEffect(() => {
     if (onServiceUrlSelect) {
@@ -212,7 +224,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
       
       try {
         console.log('Loading collections from:', apiUrl);
-        const result = await getCollections(apiUrl);
+        const result = await getCollections(apiUrl, getAuthCredentials(apiUrl));
         
         // Always update collections, even if empty (to clear previous results)
         setCollections(result.collections || []);
@@ -609,7 +621,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
         
         if (locationQueryUrl) {
           try {
-            const locationResult = await executeLocationQuery(locationQueryUrl);
+            const locationResult = await executeLocationQuery(locationQueryUrl, getAuthCredentials(apiUrl));
             if (locationResult && locationResult.features) {
               onLocationFeaturesChange(locationResult.features);
               setCurrentLocationCollection(collection.id); // Track which collection has location features

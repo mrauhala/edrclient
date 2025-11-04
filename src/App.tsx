@@ -146,6 +146,18 @@ function App() {
     }
   };
 
+  // Helper function to get auth credentials for a given URL
+  const getAuthCredentials = (url: string) => {
+    const service = customServices.find(s => url.includes(s.url));
+    if (service && service.username) {
+      return {
+        username: service.username,
+        password: service.password || ''
+      };
+    }
+    return undefined;
+  };
+
   const handleCopyUrl = () => {
     if (collectionUrl) {
       navigator.clipboard.writeText(collectionUrl);
@@ -162,12 +174,23 @@ function App() {
     setModalContentType(null);
 
     try {
-      const response = await axios.get(collectionUrl, {
+      const auth = getAuthCredentials(collectionUrl);
+      const config: any = {
         responseType: 'text',
         headers: {
           'Accept': '*/*'
         }
-      });
+      };
+      
+      // Add basic auth if credentials are available
+      if (auth && auth.username) {
+        config.auth = {
+          username: auth.username,
+          password: auth.password
+        };
+      }
+      
+      const response = await axios.get(collectionUrl, config);
 
       const contentType = response.headers['content-type'] || '';
       setModalContentType(contentType);

@@ -1,6 +1,24 @@
 import axios from 'axios';
 import SchemaValidator from './SchemaValidator';
 
+export interface AuthCredentials {
+    username?: string;
+    password?: string;
+}
+
+// Helper function to create axios config with basic auth if credentials are provided
+function getAxiosConfig(auth?: AuthCredentials) {
+  if (auth && auth.username) {
+    return {
+      auth: {
+        username: auth.username,
+        password: auth.password || ''
+      }
+    };
+  }
+  return {};
+}
+
 export interface DataQuery {
     link: Link;
 }
@@ -197,7 +215,7 @@ export function getLocationQueryUrl(collection: Collection): string | null {
 }
 
 // Function to execute a location query
-export async function executeLocationQuery(queryUrl: string): Promise<LocationQueryResult | null> {
+export async function executeLocationQuery(queryUrl: string, auth?: AuthCredentials): Promise<LocationQueryResult | null> {
   try {
     console.log('Executing location query:', queryUrl);
     
@@ -207,7 +225,7 @@ export async function executeLocationQuery(queryUrl: string): Promise<LocationQu
       url.searchParams.set('f', 'json');
     }
     
-    const response = await axios.get(url.toString());
+    const response = await axios.get(url.toString(), getAxiosConfig(auth));
     const data = response.data;
     
     // Validate that we got GeoJSON
@@ -938,7 +956,7 @@ export function getOverallExtent(bboxes: [number, number, number, number][]): [n
   return [minWest, minSouth, maxEast, maxNorth];
 }
 
-export async function getCollections(apiUrl: string): Promise<GetCollectionsResult> {
+export async function getCollections(apiUrl: string, auth?: AuthCredentials): Promise<GetCollectionsResult> {
   // Initialize the schema validator outside the try block so it's accessible in the catch block
   const validator = SchemaValidator.getInstance();
   
@@ -961,7 +979,7 @@ export async function getCollections(apiUrl: string): Promise<GetCollectionsResu
       landingPageUrl.searchParams.set('f', 'json');
     }
     
-    const landingPageResponse = await axios.get<LandingPage>(landingPageUrl.toString());
+    const landingPageResponse = await axios.get<LandingPage>(landingPageUrl.toString(), getAxiosConfig(auth));
     const landingPageData = landingPageResponse.data;
 
     // Validate the landing page
@@ -1028,7 +1046,7 @@ export async function getCollections(apiUrl: string): Promise<GetCollectionsResu
       collectionsUrlWithFormat.searchParams.set('f', 'json');
     }
     
-    const response = await axios.get<CollectionsResponse>(collectionsUrlWithFormat.toString());
+    const response = await axios.get<CollectionsResponse>(collectionsUrlWithFormat.toString(), getAxiosConfig(auth));
     const data = response.data;
 
     let collections: Collection[] = [];
@@ -1062,7 +1080,7 @@ export async function getCollections(apiUrl: string): Promise<GetCollectionsResu
         if (!conformanceUrlWithFormat.searchParams.has('f')) {
           conformanceUrlWithFormat.searchParams.set('f', 'json');
         }
-        const conformanceResponse = await axios.get<{ conformsTo: string[] }>(conformanceUrlWithFormat.toString());
+        const conformanceResponse = await axios.get<{ conformsTo: string[] }>(conformanceUrlWithFormat.toString(), getAxiosConfig(auth));
         
         // Validate conformance response
         conformanceValidation = await validator.validateConformance(conformanceResponse.data);
