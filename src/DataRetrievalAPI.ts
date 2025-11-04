@@ -4,6 +4,8 @@ import SchemaValidator from './SchemaValidator';
 export interface AuthCredentials {
     username?: string;
     password?: string;
+    apiKey?: string;
+    apiKeyParam?: string;
 }
 
 // Helper function to create axios config with basic auth if credentials are provided
@@ -17,6 +19,17 @@ function getAxiosConfig(auth?: AuthCredentials) {
     };
   }
   return {};
+}
+
+// Helper function to add API key to URL if provided
+function addApiKeyToUrl(url: string, auth?: AuthCredentials): string {
+  if (auth && auth.apiKey) {
+    const urlObj = new URL(url);
+    const paramName = auth.apiKeyParam || 'api-key';
+    urlObj.searchParams.set(paramName, auth.apiKey);
+    return urlObj.toString();
+  }
+  return url;
 }
 
 export interface DataQuery {
@@ -225,7 +238,10 @@ export async function executeLocationQuery(queryUrl: string, auth?: AuthCredenti
       url.searchParams.set('f', 'json');
     }
     
-    const response = await axios.get(url.toString(), getAxiosConfig(auth));
+    // Add API key if provided
+    const finalUrl = addApiKeyToUrl(url.toString(), auth);
+    
+    const response = await axios.get(finalUrl, getAxiosConfig(auth));
     const data = response.data;
     
     // Validate that we got GeoJSON
@@ -979,7 +995,10 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
       landingPageUrl.searchParams.set('f', 'json');
     }
     
-    const landingPageResponse = await axios.get<LandingPage>(landingPageUrl.toString(), getAxiosConfig(auth));
+    // Add API key if provided
+    const finalLandingPageUrl = addApiKeyToUrl(landingPageUrl.toString(), auth);
+    
+    const landingPageResponse = await axios.get<LandingPage>(finalLandingPageUrl, getAxiosConfig(auth));
     const landingPageData = landingPageResponse.data;
 
     // Validate the landing page
@@ -1046,7 +1065,10 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
       collectionsUrlWithFormat.searchParams.set('f', 'json');
     }
     
-    const response = await axios.get<CollectionsResponse>(collectionsUrlWithFormat.toString(), getAxiosConfig(auth));
+    // Add API key if provided
+    const finalCollectionsUrl = addApiKeyToUrl(collectionsUrlWithFormat.toString(), auth);
+    
+    const response = await axios.get<CollectionsResponse>(finalCollectionsUrl, getAxiosConfig(auth));
     const data = response.data;
 
     let collections: Collection[] = [];
@@ -1080,7 +1102,11 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
         if (!conformanceUrlWithFormat.searchParams.has('f')) {
           conformanceUrlWithFormat.searchParams.set('f', 'json');
         }
-        const conformanceResponse = await axios.get<{ conformsTo: string[] }>(conformanceUrlWithFormat.toString(), getAxiosConfig(auth));
+        
+        // Add API key if provided
+        const finalConformanceUrl = addApiKeyToUrl(conformanceUrlWithFormat.toString(), auth);
+        
+        const conformanceResponse = await axios.get<{ conformsTo: string[] }>(finalConformanceUrl, getAxiosConfig(auth));
         
         // Validate conformance response
         conformanceValidation = await validator.validateConformance(conformanceResponse.data);

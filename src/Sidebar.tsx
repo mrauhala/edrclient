@@ -96,11 +96,18 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   // Helper function to get auth credentials for a given URL
   const getAuthCredentials = (url: string) => {
     const service = customServices.find(s => s.url === url);
-    if (service && service.username) {
-      return {
-        username: service.username,
-        password: service.password
-      };
+    if (service) {
+      if (service.apiKey) {
+        return {
+          apiKey: service.apiKey,
+          apiKeyParam: service.apiKeyParam
+        };
+      } else if (service.username) {
+        return {
+          username: service.username,
+          password: service.password
+        };
+      }
     }
     return undefined;
   };
