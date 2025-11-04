@@ -181,6 +181,13 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
       .map(link => {
         let url = link.href;
         
+        // Add bbox parameter from current map view
+        if (boundingBox && boundingBox.length === 4) {
+          const [minLon, minLat, maxLon, maxLat] = boundingBox;
+          const separator = url.includes('?') ? '&' : '?';
+          url = `${url}${separator}bbox=${minLon},${minLat},${maxLon},${maxLat}`;
+        }
+        
         // Add datetime parameter if collection has temporal extent
         if (hasTemporal) {
           const separator = url.includes('?') ? '&' : '?';
@@ -1481,8 +1488,22 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                           size="small"
                           color="primary"
                           onClick={() => {
+                            // When showing a layer, regenerate URL with current bbox
+                            let updatedUrl = layer.url;
+                            
+                            if (!layer.visible && boundingBox && boundingBox.length === 4) {
+                              // Remove old bbox parameter if exists
+                              const urlObj = new URL(updatedUrl);
+                              urlObj.searchParams.delete('bbox');
+                              
+                              // Add current bbox
+                              const [minLon, minLat, maxLon, maxLat] = boundingBox;
+                              urlObj.searchParams.set('bbox', `${minLon},${minLat},${maxLon},${maxLat}`);
+                              updatedUrl = urlObj.toString();
+                            }
+                            
                             const updatedLayers = activeGeoJsonLayers.map((l, i) => 
-                              i === idx ? { ...l, visible: !l.visible } : l
+                              i === idx ? { ...l, visible: !l.visible, url: updatedUrl } : l
                             );
                             setActiveGeoJsonLayers(updatedLayers);
                             if (onGeoJsonLayersChange) {
