@@ -15,6 +15,7 @@ import GeoJSON from 'ol/format/GeoJSON';
 import { defaults as defaultControls } from 'ol/control';
 import Draw from 'ol/interaction/Draw';
 import { DrawEvent } from 'ol/interaction/Draw';
+import { bbox as bboxStrategy } from 'ol/loadingstrategy';
 import FeatureInfo from './FeatureInfo';
 import GeoJsonFeatureViewer from './GeoJsonFeatureViewer';
 import { Collection, normalizeTemporal, formatTemporalInterval, getOverallTemporalExtent, normalizeVertical, formatVerticalInterval, getOverallVerticalExtent, getVerticalUnit } from './DataRetrievalAPI';
@@ -336,7 +337,8 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
           });
 
           const vectorSource = new VectorSource({
-            format: geojsonFormat
+            format: geojsonFormat,
+            strategy: bboxStrategy
           });
 
           // Mark all features from this source as GeoJSON layer features
@@ -373,7 +375,8 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
               console.error('Error parsing pre-fetched GeoJSON:', error);
             }
           } else {
-            // Use URL and bbox strategy for layers without pre-fetched data
+            // Use URL function with bbox strategy for layers without pre-fetched data
+            // The bbox strategy will automatically call this function with the current extent
             vectorSource.setUrl(function (extent) {
               const [minX, minY, maxX, maxY] = extent;
               // Transform extent from map projection (EPSG:3857) to WGS84 (EPSG:4326)
@@ -383,42 +386,10 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
               
               // Append bbox parameter to URL
               const separator = layerConfig.url.includes('?') ? '&' : '?';
-              return `${layerConfig.url}${separator}bbox=${bboxString}`;
-            });
-            vectorSource.setLoader(function(extent, resolution, projection, success, failure) {
-              const [minX, minY, maxX, maxY] = extent;
-              const [minLon, minLat] = toLonLat([minX, minY]);
-              const [maxLon, maxLat] = toLonLat([maxX, maxY]);
-              const bboxString = `${minLon},${minLat},${maxLon},${maxLat}`;
-              const separator = layerConfig.url.includes('?') ? '&' : '?';
-              const url = `${layerConfig.url}${separator}bbox=${bboxString}`;
-
-              fetch(url)
-                .then(response => response.json())
-                .then(data => {
-                  // Capture metadata from the response
-                  if (data.numberReturned !== undefined || data.numberMatched !== undefined) {
-                    setGeoJsonMetadata(prev => ({
-                      ...prev,
-                      [layerKey]: {
-                        numberReturned: data.numberReturned,
-                        numberMatched: data.numberMatched
-                      }
-                    }));
-                  }
-                  
-                  // Parse features using GeoJSON format
-                  const features = geojsonFormat.readFeatures(data, {
-                    featureProjection: projection
-                  });
-                  
-                  vectorSource.addFeatures(features);
-                  if (success) success(features);
-                })
-                .catch(error => {
-                  console.error('Error loading GeoJSON:', error);
-                  if (failure) failure();
-                });
+              const finalUrl = `${layerConfig.url}${separator}bbox=${bboxString}`;
+              
+              console.log('Loading GeoJSON with bbox:', finalUrl);
+              return finalUrl;
             });
           }
 
