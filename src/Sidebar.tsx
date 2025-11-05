@@ -696,16 +696,11 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
           minWidth: isMobile ? '100vw' : 480, 
           width: sidebarWidth,
           height: '100%', 
-          overflowY: 'scroll', // Enable scrolling
+          overflowY: 'scroll',
           overflowX: 'hidden',
           borderRight: '1px solid rgba(0, 0, 0, 0.12)',
-          // Hide scrollbar while keeping scroll functionality
-          '&::-webkit-scrollbar': {
-            display: 'none',
-          },
-          scrollbarWidth: 'none', // Firefox
-          msOverflowStyle: 'none', // IE and Edge
         }}
+        className="sidebar-scrollable"
       >
         {/* EDR Service Selector and API URL - Moved to top */}
         <Box sx={{ padding: 2, minWidth: 120, borderBottom: '1px solid rgba(0, 0, 0, 0.12)' }}>
