@@ -13,48 +13,43 @@ code {
 }
 
 /* Custom scrollbar styling - subtle and minimal */
+/* Only applied to non-Safari browsers via .custom-scrollbar class added by JavaScript */
 /* Light theme (default) */
-* {
+.custom-scrollbar * {
   /* Firefox */
   scrollbar-width: thin;
   scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
 }
 
-/* Webkit browsers (Chrome, Edge) - but NOT Safari */
-/* Safari is detected by supporting -webkit-appearance but not Chrome-specific features */
-/* We use @supports to apply scrollbar styles only to non-Safari webkit browsers */
-@supports (not (-webkit-touch-callout: none)) {
-  /* Chrome, Edge, etc - not Safari */
-  *::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
-
-  *::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  *::-webkit-scrollbar-thumb {
-    background-color: rgba(0, 0, 0, 0.2);
-    border-radius: 4px;
-  }
-
-  *::-webkit-scrollbar-thumb:hover {
-    background-color: rgba(0, 0, 0, 0.3);
-  }
-
-  /* Dark theme - using data-theme attribute set by App.tsx */
-  [data-theme="dark"] *::-webkit-scrollbar-thumb {
-    background-color: rgba(255, 255, 255, 0.2);
-  }
-
-  [data-theme="dark"] *::-webkit-scrollbar-thumb:hover {
-    background-color: rgba(255, 255, 255, 0.3);
-  }
+/* Webkit browsers (Chrome, Edge) - Safari excluded via JavaScript */
+.custom-scrollbar *::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
 
-/* Dark theme for Firefox */
-[data-theme="dark"] * {
+.custom-scrollbar *::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar *::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.custom-scrollbar *::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 0, 0, 0.3);
+}
+
+/* Dark theme - using data-theme attribute set by App.tsx */
+[data-theme="dark"].custom-scrollbar * {
   /* Firefox */
   scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+[data-theme="dark"].custom-scrollbar *::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+[data-theme="dark"].custom-scrollbar *::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.3);
 }

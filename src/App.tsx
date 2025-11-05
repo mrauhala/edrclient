@@ -278,6 +278,17 @@ function App() {
     document.documentElement.setAttribute('data-theme', actualMode);
   }, [actualMode]);
 
+  // Detect Safari and conditionally apply custom scrollbar styles
+  useEffect(() => {
+    // Detect Safari: has webkit but not chrome
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    
+    if (!isSafari) {
+      // Only add custom scrollbar class for non-Safari browsers
+      document.documentElement.classList.add('custom-scrollbar');
+    }
+  }, []);
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
