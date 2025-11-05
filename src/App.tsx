@@ -150,7 +150,11 @@ function App() {
   const getAuthCredentials = (url: string) => {
     const service = customServices.find(s => url.includes(s.url));
     if (service) {
-      if (service.apiKey) {
+      if (service.bearerToken) {
+        return {
+          bearerToken: service.bearerToken
+        };
+      } else if (service.apiKey) {
         return {
           apiKey: service.apiKey,
           apiKeyParam: service.apiKeyParam
@@ -199,8 +203,12 @@ function App() {
         }
       };
       
+      // Add Bearer token if provided
+      if (auth && (auth as any).bearerToken) {
+        config.headers['Authorization'] = `Bearer ${(auth as any).bearerToken}`;
+      }
       // Add basic auth if credentials are available
-      if (auth && (auth as any).username) {
+      else if (auth && (auth as any).username) {
         config.auth = {
           username: (auth as any).username,
           password: (auth as any).password
@@ -320,6 +328,7 @@ function App() {
           customServices={customServices}
           onServiceUrlSelect={selectedServiceUrl}
           onGeoJsonLayersChange={setGeoJsonLayers}
+          getAuthCredentials={getAuthCredentials}
         />
         
         <Box 

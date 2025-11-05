@@ -6,19 +6,30 @@ export interface AuthCredentials {
     password?: string;
     apiKey?: string;
     apiKeyParam?: string;
+    bearerToken?: string;
 }
 
 // Helper function to create axios config with basic auth if credentials are provided
 function getAxiosConfig(auth?: AuthCredentials) {
-  if (auth && auth.username) {
-    return {
-      auth: {
+  const config: any = {};
+  
+  if (auth) {
+    // Bearer token authentication (takes precedence)
+    if (auth.bearerToken) {
+      config.headers = {
+        'Authorization': `Bearer ${auth.bearerToken}`
+      };
+    }
+    // Basic authentication
+    else if (auth.username) {
+      config.auth = {
         username: auth.username,
         password: auth.password || ''
-      }
-    };
+      };
+    }
   }
-  return {};
+  
+  return config;
 }
 
 // Helper function to add API key to URL if provided
