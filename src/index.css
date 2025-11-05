@@ -20,36 +20,41 @@ code {
   scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
 }
 
-/* Webkit browsers (Chrome, Safari, Edge) */
-/* Only style scrollbars, don't force them to be always visible */
-*::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+/* Webkit browsers (Chrome, Edge) - but NOT Safari */
+/* Safari is detected by supporting -webkit-appearance but not Chrome-specific features */
+/* We use @supports to apply scrollbar styles only to non-Safari webkit browsers */
+@supports (not (-webkit-touch-callout: none)) {
+  /* Chrome, Edge, etc - not Safari */
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(0, 0, 0, 0.3);
+  }
+
+  /* Dark theme - using data-theme attribute set by App.tsx */
+  [data-theme="dark"] *::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+
+  [data-theme="dark"] *::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+  }
 }
 
-*::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-*::-webkit-scrollbar-thumb {
-  background-color: rgba(0, 0, 0, 0.2);
-  border-radius: 4px;
-}
-
-*::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(0, 0, 0, 0.3);
-}
-
-/* Dark theme - using data-theme attribute set by App.tsx */
+/* Dark theme for Firefox */
 [data-theme="dark"] * {
   /* Firefox */
   scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
-}
-
-[data-theme="dark"] *::-webkit-scrollbar-thumb {
-  background-color: rgba(255, 255, 255, 0.2);
-}
-
-[data-theme="dark"] *::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(255, 255, 255, 0.3);
 }
