@@ -53,7 +53,7 @@ function App() {
   const [selectedArea, setSelectedArea] = useState<[number, number][][]>([]);
   const [radiusKm, setRadiusKm] = useState<number>(10); // Default 10km radius
   const [dataQuery, setDataQuery] = useState<string>('');
-  const [geoJsonLayers, setGeoJsonLayers] = useState<{url: string, title: string, visible: boolean, labelProperty?: string}[]>([]);
+  const [geoJsonLayers, setGeoJsonLayers] = useState<{url: string, title: string, visible: boolean, labelProperty?: string, apiKey?: string, apiKeyParam?: string}[]>([]);
   const [selectedGeoJsonFeature, setSelectedGeoJsonFeature] = useState<any | null>(null);
 
   // Modal state
@@ -146,6 +146,25 @@ function App() {
     }
   };
 
+  // Helper function to get auth credentials for a given URL
+  const getAuthCredentials = (url: string) => {
+    const service = customServices.find(s => url.includes(s.url));
+    if (service) {
+      if (service.apiKey) {
+        return {
+          apiKey: service.apiKey,
+          apiKeyParam: service.apiKeyParam
+        };
+      } else if (service.username) {
+        return {
+          username: service.username,
+          password: service.password || ''
+        };
+      }
+    }
+    return undefined;
+  };
+
   const handleCopyUrl = () => {
     if (collectionUrl) {
       navigator.clipboard.writeText(collectionUrl);
@@ -162,12 +181,33 @@ function App() {
     setModalContentType(null);
 
     try {
-      const response = await axios.get(collectionUrl, {
+      const auth = getAuthCredentials(collectionUrl);
+      
+      // Add API key to URL if provided
+      let finalUrl = collectionUrl;
+      if (auth && (auth as any).apiKey) {
+        const urlObj = new URL(collectionUrl);
+        const paramName = (auth as any).apiKeyParam || 'api-key';
+        urlObj.searchParams.set(paramName, (auth as any).apiKey);
+        finalUrl = urlObj.toString();
+      }
+      
+      const config: any = {
         responseType: 'text',
         headers: {
           'Accept': '*/*'
         }
-      });
+      };
+      
+      // Add basic auth if credentials are available
+      if (auth && (auth as any).username) {
+        config.auth = {
+          username: (auth as any).username,
+          password: (auth as any).password
+        };
+      }
+      
+      const response = await axios.get(finalUrl, config);
 
       const contentType = response.headers['content-type'] || '';
       setModalContentType(contentType);

@@ -15,6 +15,7 @@ import GeoJSON from 'ol/format/GeoJSON';
 import { defaults as defaultControls } from 'ol/control';
 import Draw from 'ol/interaction/Draw';
 import { DrawEvent } from 'ol/interaction/Draw';
+import { bbox as bboxStrategy } from 'ol/loadingstrategy';
 import FeatureInfo from './FeatureInfo';
 import GeoJsonFeatureViewer from './GeoJsonFeatureViewer';
 import { Collection, normalizeTemporal, formatTemporalInterval, getOverallTemporalExtent, normalizeVertical, formatVerticalInterval, getOverallVerticalExtent, getVerticalUnit } from './DataRetrievalAPI';
@@ -35,10 +36,10 @@ interface MapProps {
   onMapClick?: (coords: [number, number][]) => void;
   onAreaSelect?: (area: [number, number][][]) => void;
   onRadiusChange?: (radius: number) => void;
-  geoJsonLayers?: {url: string, title: string, visible: boolean, labelProperty?: string, data?: any}[];
+  geoJsonLayers?: {url: string, title: string, visible: boolean, labelProperty?: string, data?: any, apiKey?: string, apiKeyParam?: string}[];
   selectedGeoJsonFeature?: any | null;
   onGeoJsonFeatureSelect?: (feature: any | null) => void;
-  onGeoJsonLayerUpdate?: (layers: {url: string, title: string, visible: boolean, labelProperty?: string, data?: any}[]) => void;
+  onGeoJsonLayerUpdate?: (layers: {url: string, title: string, visible: boolean, labelProperty?: string, data?: any, apiKey?: string, apiKeyParam?: string}[]) => void;
 }
 
 const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCollectionExtents, selectedCollection, locationFeatures, selectedFeature, clickedCoords, selectedArea, radiusKm, dataQuery, onUpdateBoundingBox, onFeatureSelect, onMapClick, onAreaSelect, onRadiusChange, geoJsonLayers = [], selectedGeoJsonFeature, onGeoJsonFeatureSelect, onGeoJsonLayerUpdate }) => {
@@ -60,7 +61,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
   const onFeatureSelectRef = useRef(onFeatureSelect);
   const selectedAreaRef = useRef(selectedArea);
   const clickedCoordsRef = useRef(clickedCoords);
-  const geoJsonLayersRef = useRef<{url: string, title: string, visible: boolean, labelProperty?: string, data?: any}[]>([]);
+  const geoJsonLayersRef = useRef<{url: string, title: string, visible: boolean, labelProperty?: string, data?: any, apiKey?: string, apiKeyParam?: string}[]>([]);
 
   // Keep the callback ref updated
   useEffect(() => {
@@ -336,7 +337,8 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
           });
 
           const vectorSource = new VectorSource({
-            format: geojsonFormat
+            format: geojsonFormat,
+            strategy: bboxStrategy
           });
 
           // Mark all features from this source as GeoJSON layer features
@@ -373,27 +375,28 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
               console.error('Error parsing pre-fetched GeoJSON:', error);
             }
           } else {
-            // Use URL and bbox strategy for layers without pre-fetched data
-            vectorSource.setUrl(function (extent) {
+            // Use custom loader with bbox strategy for layers without pre-fetched data
+            // The bbox strategy will automatically call this loader with the current extent
+            const loader = function(extent: any, resolution: any, projection: any) {
               const [minX, minY, maxX, maxY] = extent;
               // Transform extent from map projection (EPSG:3857) to WGS84 (EPSG:4326)
               const [minLon, minLat] = toLonLat([minX, minY]);
               const [maxLon, maxLat] = toLonLat([maxX, maxY]);
               const bboxString = `${minLon},${minLat},${maxLon},${maxLat}`;
               
-              // Append bbox parameter to URL
+              // Start building URL with bbox parameter
               const separator = layerConfig.url.includes('?') ? '&' : '?';
-              return `${layerConfig.url}${separator}bbox=${bboxString}`;
-            });
-            vectorSource.setLoader(function(extent, resolution, projection, success, failure) {
-              const [minX, minY, maxX, maxY] = extent;
-              const [minLon, minLat] = toLonLat([minX, minY]);
-              const [maxLon, maxLat] = toLonLat([maxX, maxY]);
-              const bboxString = `${minLon},${minLat},${maxLon},${maxLat}`;
-              const separator = layerConfig.url.includes('?') ? '&' : '?';
-              const url = `${layerConfig.url}${separator}bbox=${bboxString}`;
-
-              fetch(url)
+              let finalUrl = `${layerConfig.url}${separator}bbox=${bboxString}`;
+              
+              // Add API key if provided
+              if (layerConfig.apiKey) {
+                const paramName = layerConfig.apiKeyParam || 'api-key';
+                finalUrl = `${finalUrl}&${paramName}=${layerConfig.apiKey}`;
+              }
+              
+              console.log('Loading GeoJSON with bbox:', finalUrl);
+              
+              fetch(finalUrl)
                 .then(response => response.json())
                 .then(data => {
                   // Capture metadata from the response
@@ -407,19 +410,21 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
                     }));
                   }
                   
-                  // Parse features using GeoJSON format
+                  // Parse and add features
                   const features = geojsonFormat.readFeatures(data, {
                     featureProjection: projection
                   });
                   
+                  // Add features to the source - bboxStrategy will handle deduplication
                   vectorSource.addFeatures(features);
-                  if (success) success(features);
                 })
                 .catch(error => {
                   console.error('Error loading GeoJSON:', error);
-                  if (failure) failure();
+                  vectorSource.removeLoadedExtent(extent);
                 });
-            });
+            };
+            
+            vectorSource.setLoader(loader);
           }
 
           const geoJsonLayer = new VectorLayer({

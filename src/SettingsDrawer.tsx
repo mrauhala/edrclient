@@ -22,11 +22,20 @@ import DialogActions from '@mui/material/DialogActions';
 import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
 import ListItemText from '@mui/material/ListItemText';
+import Radio from '@mui/material/Radio';
+import RadioGroup from '@mui/material/RadioGroup';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import FormControl from '@mui/material/FormControl';
+import FormLabel from '@mui/material/FormLabel';
 
 export interface CustomService {
   id: string;
   name: string;
   url: string;
+  username?: string;
+  password?: string;
+  apiKey?: string;
+  apiKeyParam?: string; // The query parameter name for the API key (default: 'api-key')
 }
 
 interface SettingsDrawerProps {
@@ -55,6 +64,11 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [serviceName, setServiceName] = useState('');
   const [serviceUrl, setServiceUrl] = useState('');
+  const [serviceUsername, setServiceUsername] = useState('');
+  const [servicePassword, setServicePassword] = useState('');
+  const [serviceApiKey, setServiceApiKey] = useState('');
+  const [serviceApiKeyParam, setServiceApiKeyParam] = useState('api-key');
+  const [authMethod, setAuthMethod] = useState<'none' | 'basic' | 'apikey'>('none');
   const [editingService, setEditingService] = useState<CustomService | null>(null);
 
   const handleModeClick = (mode: 'light' | 'dark' | 'system') => {
@@ -65,6 +79,11 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
     setEditingService(null);
     setServiceName('');
     setServiceUrl('');
+    setServiceUsername('');
+    setServicePassword('');
+    setServiceApiKey('');
+    setServiceApiKeyParam('api-key');
+    setAuthMethod('none');
     setDialogOpen(true);
   };
 
@@ -72,6 +91,20 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
     setEditingService(service);
     setServiceName(service.name);
     setServiceUrl(service.url);
+    setServiceUsername(service.username || '');
+    setServicePassword(service.password || '');
+    setServiceApiKey(service.apiKey || '');
+    setServiceApiKeyParam(service.apiKeyParam || 'api-key');
+    
+    // Determine auth method based on what's set
+    if (service.apiKey) {
+      setAuthMethod('apikey');
+    } else if (service.username) {
+      setAuthMethod('basic');
+    } else {
+      setAuthMethod('none');
+    }
+    
     setDialogOpen(true);
   };
 
@@ -79,6 +112,11 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
     setDialogOpen(false);
     setServiceName('');
     setServiceUrl('');
+    setServiceUsername('');
+    setServicePassword('');
+    setServiceApiKey('');
+    setServiceApiKeyParam('api-key');
+    setAuthMethod('none');
     setEditingService(null);
   };
 
@@ -89,7 +127,11 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
         const updatedService: CustomService = {
           ...editingService,
           name: serviceName.trim(),
-          url: serviceUrl.trim()
+          url: serviceUrl.trim(),
+          username: authMethod === 'basic' ? (serviceUsername.trim() || undefined) : undefined,
+          password: authMethod === 'basic' ? (servicePassword.trim() || undefined) : undefined,
+          apiKey: authMethod === 'apikey' ? (serviceApiKey.trim() || undefined) : undefined,
+          apiKeyParam: authMethod === 'apikey' ? (serviceApiKeyParam.trim() || 'api-key') : undefined
         };
         onUpdateService(updatedService);
       } else {
@@ -97,7 +139,11 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
         const newService: CustomService = {
           id: Date.now().toString(),
           name: serviceName.trim(),
-          url: serviceUrl.trim()
+          url: serviceUrl.trim(),
+          username: authMethod === 'basic' ? (serviceUsername.trim() || undefined) : undefined,
+          password: authMethod === 'basic' ? (servicePassword.trim() || undefined) : undefined,
+          apiKey: authMethod === 'apikey' ? (serviceApiKey.trim() || undefined) : undefined,
+          apiKeyParam: authMethod === 'apikey' ? (serviceApiKeyParam.trim() || 'api-key') : undefined
         };
         onAddService(newService);
         // Auto-select the newly added service
@@ -274,7 +320,73 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
             value={serviceUrl}
             onChange={(e) => setServiceUrl(e.target.value)}
             placeholder="https://example.com/api"
+            sx={{ mb: 3 }}
           />
+          
+          <FormControl component="fieldset" sx={{ mb: 2 }}>
+            <FormLabel component="legend">Authentication Method</FormLabel>
+            <RadioGroup
+              value={authMethod}
+              onChange={(e) => setAuthMethod(e.target.value as 'none' | 'basic' | 'apikey')}
+            >
+              <FormControlLabel value="none" control={<Radio />} label="None" />
+              <FormControlLabel value="basic" control={<Radio />} label="HTTP Basic Auth" />
+              <FormControlLabel value="apikey" control={<Radio />} label="API Key (Query Parameter)" />
+            </RadioGroup>
+          </FormControl>
+
+          {authMethod === 'basic' && (
+            <>
+              <TextField
+                margin="dense"
+                label="Username"
+                type="text"
+                fullWidth
+                variant="outlined"
+                value={serviceUsername}
+                onChange={(e) => setServiceUsername(e.target.value)}
+                placeholder="Enter username for HTTP Basic Auth"
+                sx={{ mb: 2 }}
+              />
+              <TextField
+                margin="dense"
+                label="Password"
+                type="password"
+                fullWidth
+                variant="outlined"
+                value={servicePassword}
+                onChange={(e) => setServicePassword(e.target.value)}
+                placeholder="Enter password for HTTP Basic Auth"
+              />
+            </>
+          )}
+          
+          {authMethod === 'apikey' && (
+            <>
+              <TextField
+                margin="dense"
+                label="API Key"
+                type="text"
+                fullWidth
+                variant="outlined"
+                value={serviceApiKey}
+                onChange={(e) => setServiceApiKey(e.target.value)}
+                placeholder="Enter your API key"
+                sx={{ mb: 2 }}
+              />
+              <TextField
+                margin="dense"
+                label="Query Parameter Name"
+                type="text"
+                fullWidth
+                variant="outlined"
+                value={serviceApiKeyParam}
+                onChange={(e) => setServiceApiKeyParam(e.target.value)}
+                placeholder="api-key"
+                helperText="The query parameter name (e.g., 'api-key', 'apikey', 'key')"
+              />
+            </>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDialog}>Cancel</Button>

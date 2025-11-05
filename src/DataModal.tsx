@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
@@ -7,6 +7,10 @@ import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
+import CodeIcon from '@mui/icons-material/Code';
+import PreviewIcon from '@mui/icons-material/Preview';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Tooltip from '@mui/material/Tooltip';
@@ -36,6 +40,95 @@ const DataModal: React.FC<DataModalProps> = ({
   url 
 }) => {
   const theme = useTheme();
+  const [viewMode, setViewMode] = useState<'code' | 'preview'>('code');
+  const [transformedHtml, setTransformedHtml] = useState<string | null>(null);
+  const [transformError, setTransformError] = useState<string | null>(null);
+  
+  // Check if data is IWXXM XML
+  const isIWXXM = useCallback(() => {
+    if (!data || !contentType) return false;
+    return contentType.includes('xml') && 
+           (data.includes('iwxxm/3.0') || data.includes('iwxxm/2.1') || 
+            data.includes('METAR') || data.includes('TAF') || data.includes('SIGMET'));
+  }, [data, contentType]);
+  
+  // Transform XML using XSLT
+  const performXSLTransform = useCallback(async () => {
+    try {
+      setTransformError(null);
+      
+      // Load XSLT stylesheet
+      const xsltResponse = await fetch('/iwxxm-transform.xsl');
+      if (!xsltResponse.ok) {
+        throw new Error('Failed to load XSLT stylesheet');
+      }
+      const xsltText = await xsltResponse.text();
+      
+      // Parse XML and XSLT
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(data!, 'text/xml');
+      
+      // Check for XML parsing errors
+      const xmlParseError = xmlDoc.getElementsByTagName('parsererror');
+      if (xmlParseError.length > 0) {
+        throw new Error('XML parsing error: ' + xmlParseError[0].textContent);
+      }
+      
+      const xsltDoc = parser.parseFromString(xsltText, 'text/xml');
+      
+      // Check for XSLT parsing errors
+      const xsltParseError = xsltDoc.getElementsByTagName('parsererror');
+      if (xsltParseError.length > 0) {
+        throw new Error('XSLT parsing error: ' + xsltParseError[0].textContent);
+      }
+      
+      // Perform transformation
+      const xsltProcessor = new XSLTProcessor();
+      xsltProcessor.importStylesheet(xsltDoc);
+      
+      // Use transformToDocument instead of transformToFragment
+      const resultDoc = xsltProcessor.transformToDocument(xmlDoc);
+      
+      if (!resultDoc || !resultDoc.documentElement) {
+        throw new Error('XSLT transformation produced no result');
+      }
+      
+      // Check if the result has actual content
+      const body = resultDoc.querySelector('body');
+      
+      if (!body || !body.innerHTML.trim()) {
+        throw new Error('XSLT transformation produced empty output');
+      }
+      
+      // Get both the styles from head and content from body
+      const head = resultDoc.querySelector('head');
+      const styles = head?.innerHTML || '';
+      const bodyContent = body.innerHTML;
+      
+      // Combine styles and body content
+      const htmlString = styles + bodyContent;
+      
+      setTransformedHtml(htmlString);
+    } catch (err) {
+      console.error('XSLT transformation error:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setTransformError(`Failed to transform XML: ${errorMessage}`);
+      setViewMode('code');
+    }
+  }, [data]);
+  
+  // Effect to trigger transformation when switching to preview mode
+  useEffect(() => {
+    if (viewMode === 'preview' && isIWXXM() && data) {
+      performXSLTransform();
+    }
+  }, [viewMode, data, isIWXXM, performXSLTransform]);
+  
+  const handleViewModeChange = (event: React.MouseEvent<HTMLElement>, newMode: 'code' | 'preview' | null) => {
+    if (newMode !== null) {
+      setViewMode(newMode);
+    }
+  };
   
   const handleCopyData = () => {
     if (data) {
@@ -140,9 +233,35 @@ const DataModal: React.FC<DataModalProps> = ({
               justifyContent: 'space-between',
               alignItems: 'center'
             }}>
-              <Typography variant="body2" color="text.secondary">
-                Content Type: {getContentTypeLabel()}
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Typography variant="body2" color="text.secondary">
+                  Content Type: {getContentTypeLabel()}
+                </Typography>
+                
+                {isIWXXM() && (
+                  <ToggleButtonGroup
+                    value={viewMode}
+                    exclusive
+                    onChange={handleViewModeChange}
+                    size="small"
+                    color="primary"
+                  >
+                    <ToggleButton value="code">
+                      <Tooltip title="View raw code">
+                        <CodeIcon fontSize="small" sx={{ mr: 0.5 }} />
+                      </Tooltip>
+                      Code
+                    </ToggleButton>
+                    <ToggleButton value="preview">
+                      <Tooltip title="View formatted preview">
+                        <PreviewIcon fontSize="small" sx={{ mr: 0.5 }} />
+                      </Tooltip>
+                      Preview
+                    </ToggleButton>
+                  </ToggleButtonGroup>
+                )}
+              </Box>
+              
               <Tooltip title="Copy to clipboard">
                 <IconButton size="small" onClick={handleCopyData}>
                   <ContentCopyIcon fontSize="small" />
@@ -150,39 +269,52 @@ const DataModal: React.FC<DataModalProps> = ({
               </Tooltip>
             </Box>
             
+            {transformError && (
+              <Alert severity="warning" sx={{ m: 1 }}>
+                {transformError}
+              </Alert>
+            )}
+            
             <Box sx={{ 
               flex: 1, 
               overflow: 'auto',
               p: 0,
               backgroundColor: 'background.paper'
             }}>
-              {shouldUseSyntaxHighlighting() ? (
-                <SyntaxHighlighter
-                  language={getLanguage()}
-                  style={theme.palette.mode === 'dark' ? vscDarkPlus : vs}
-                  customStyle={{
-                    margin: 0,
-                    padding: '16px',
-                    fontSize: '0.875rem',
-                    backgroundColor: 'transparent',
-                  }}
-                  showLineNumbers
-                  wrapLines
-                  wrapLongLines
-                >
-                  {formatData()}
-                </SyntaxHighlighter>
+              {viewMode === 'preview' && transformedHtml ? (
+                <div 
+                  dangerouslySetInnerHTML={{ __html: transformedHtml }}
+                  style={{ padding: '16px' }}
+                />
               ) : (
-                <pre style={{ 
-                  margin: 0, 
-                  padding: '16px',
-                  fontFamily: 'monospace', 
-                  fontSize: '0.875rem',
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word'
-                }}>
-                  {formatData()}
-                </pre>
+                shouldUseSyntaxHighlighting() ? (
+                  <SyntaxHighlighter
+                    language={getLanguage()}
+                    style={theme.palette.mode === 'dark' ? vscDarkPlus : vs}
+                    customStyle={{
+                      margin: 0,
+                      padding: '16px',
+                      fontSize: '0.875rem',
+                      backgroundColor: 'transparent',
+                    }}
+                    showLineNumbers
+                    wrapLines
+                    wrapLongLines
+                  >
+                    {formatData()}
+                  </SyntaxHighlighter>
+                ) : (
+                  <pre style={{ 
+                    margin: 0, 
+                    padding: '16px',
+                    fontFamily: 'monospace', 
+                    fontSize: '0.875rem',
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word'
+                  }}>
+                    {formatData()}
+                  </pre>
+                )
               )}
             </Box>
           </Box>

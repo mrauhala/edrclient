@@ -63,7 +63,7 @@ interface SidebarProps {
   selectedFeature?: any | null;
   customServices?: CustomService[];
   onServiceUrlSelect?: string | null;
-  onGeoJsonLayersChange?: (layers: {url: string, title: string, visible: boolean, labelProperty?: string, data?: any}[]) => void;
+  onGeoJsonLayersChange?: (layers: {url: string, title: string, visible: boolean, labelProperty?: string, data?: any, apiKey?: string, apiKeyParam?: string}[]) => void;
 }
 
 // EDR service options
@@ -92,6 +92,25 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   const [selectedService, setSelectedService] = useState('https://opendata.fmi.fi/edr');
   const [inputUrl, setInputUrl] = useState('https://opendata.fmi.fi/edr'); // Separate state for text input
   const [queryUrl, setQueryUrl] = useState('https://opendata.fmi.fi/edr');
+
+  // Helper function to get auth credentials for a given URL
+  const getAuthCredentials = (url: string) => {
+    const service = customServices.find(s => s.url === url);
+    if (service) {
+      if (service.apiKey) {
+        return {
+          apiKey: service.apiKey,
+          apiKeyParam: service.apiKeyParam
+        };
+      } else if (service.username) {
+        return {
+          username: service.username,
+          password: service.password
+        };
+      }
+    }
+    return undefined;
+  };
 
   // Effect to handle external service URL selection (from settings)
   useEffect(() => {
@@ -140,7 +159,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   const [endDatetime, setEndDatetime] = useState<string>('');
   const [collectionUrl, setCollectionUrl] = useState<string>('');
   const [showCollectionValidation, setShowCollectionValidation] = useState<{[key: string]: boolean}>({});
-  const [activeGeoJsonLayers, setActiveGeoJsonLayers] = useState<{url: string, title: string, visible: boolean, labelProperty?: string, data?: any}[]>([]);
+  const [activeGeoJsonLayers, setActiveGeoJsonLayers] = useState<{url: string, title: string, visible: boolean, labelProperty?: string, data?: any, apiKey?: string, apiKeyParam?: string}[]>([]);
 
   // Helper function to extract GeoJSON links from a collection
   const getGeoJsonLinks = (collection: Collection): {url: string, title: string}[] => {
@@ -161,6 +180,8 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
       .filter(link => link.type === 'application/geo+json')
       .map(link => {
         let url = link.href;
+        
+        // NOTE: Do NOT add bbox here - OpenLayers will handle it dynamically with bboxStrategy
         
         // Add datetime parameter if collection has temporal extent
         if (hasTemporal) {
@@ -212,7 +233,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
       
       try {
         console.log('Loading collections from:', apiUrl);
-        const result = await getCollections(apiUrl);
+        const result = await getCollections(apiUrl, getAuthCredentials(apiUrl));
         
         // Always update collections, even if empty (to clear previous results)
         setCollections(result.collections || []);
@@ -514,10 +535,13 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
     // Initialize GeoJSON layers for the selected collection
     if (selectedColl) {
       const geoJsonLinks = getGeoJsonLinks(selectedColl);
+      const auth = getAuthCredentials(apiUrl);
       const initialLayers = geoJsonLinks.map(link => ({
         url: link.url,
         title: link.title,
-        visible: false // Initially hidden
+        visible: false, // Initially hidden
+        apiKey: auth?.apiKey,
+        apiKeyParam: auth?.apiKeyParam
       }));
       setActiveGeoJsonLayers(initialLayers);
       if (onGeoJsonLayersChange) {
@@ -609,7 +633,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
         
         if (locationQueryUrl) {
           try {
-            const locationResult = await executeLocationQuery(locationQueryUrl);
+            const locationResult = await executeLocationQuery(locationQueryUrl, getAuthCredentials(apiUrl));
             if (locationResult && locationResult.features) {
               onLocationFeaturesChange(locationResult.features);
               setCurrentLocationCollection(collection.id); // Track which collection has location features
@@ -1462,6 +1486,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                           size="small"
                           color="primary"
                           onClick={() => {
+                            // Toggle visibility - OpenLayers will handle bbox dynamically
                             const updatedLayers = activeGeoJsonLayers.map((l, i) => 
                               i === idx ? { ...l, visible: !l.visible } : l
                             );
