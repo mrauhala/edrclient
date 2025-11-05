@@ -24,6 +24,8 @@ code {
 *::-webkit-scrollbar {
   width: 8px;
   height: 8px;
+  /* Force scrollbar to be visible in Safari */
+  -webkit-appearance: none;
 }
 
 *::-webkit-scrollbar-track {
@@ -35,6 +37,8 @@ code {
   border-radius: 4px;
   border: 2px solid transparent;
   background-clip: content-box;
+  /* Minimum contrast for Safari */
+  min-height: 40px;
 }
 
 *::-webkit-scrollbar-thumb:hover {
