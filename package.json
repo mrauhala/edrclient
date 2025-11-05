@@ -7,6 +7,7 @@
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^7.3.4",
     "@mui/material": "^7.3.4",
+    "@mui/x-charts": "^8.17.0",
     "@types/node": "^16.18.14",
     "@types/ol": "^7.0.0",
     "@types/react": "^18.2.0",
@@ -22,7 +23,6 @@
     "react-scripts": "5.0.1",
     "react-syntax-highlighter": "^16.1.0",
     "swagger-ui-react": "^5.30.0",
-    "typescript": "^4.9.5",
     "url": "^0.11.3",
     "web-vitals": "^3.5.0"
   },
@@ -34,8 +34,10 @@
     "css-select": "^5.1.0",
     "@svgr/webpack": "^8.1.0",
     "resolve-url-loader": "^5.0.0",
+    "typescript": "^5.1.0",
     "react-scripts": {
-      "webpack-dev-server": "^4.15.1"
+      "webpack-dev-server": "^4.15.1",
+      "typescript": "^5.1.0"
     }
   },
   "scripts": {
