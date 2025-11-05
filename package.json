@@ -7,6 +7,7 @@
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^7.3.4",
     "@mui/material": "^7.3.4",
+    "@mui/x-charts": "^8.17.0",
     "@types/node": "^16.18.14",
     "@types/ol": "^7.0.0",
     "@types/react": "^18.2.0",

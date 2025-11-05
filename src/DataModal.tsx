@@ -19,6 +19,7 @@ import Alert from '@mui/material/Alert';
 import { useTheme } from '@mui/material/styles';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import CoverageJsonChart from './CoverageJsonChart';
 
 interface DataModalProps {
   open: boolean;
@@ -51,6 +52,38 @@ const DataModal: React.FC<DataModalProps> = ({
            (data.includes('iwxxm/3.0') || data.includes('iwxxm/2.1') || 
             data.includes('METAR') || data.includes('TAF') || data.includes('SIGMET'));
   }, [data, contentType]);
+  
+  // Check if data is CoverageJSON PointSeries or Grid with single point
+  const isCoverageJsonPointSeries = useCallback(() => {
+    if (!data || !contentType) return false;
+    if (!contentType.includes('json')) return false;
+    
+    try {
+      const parsed = JSON.parse(data);
+      if (parsed.type !== 'Coverage') return false;
+      
+      const domainType = parsed.domain?.domainType;
+      
+      // PointSeries is supported
+      if (domainType === 'PointSeries') return true;
+      
+      // Grid with single x,y point is also supported
+      if (domainType === 'Grid') {
+        const xValues = parsed.domain?.axes?.x?.values;
+        const yValues = parsed.domain?.axes?.y?.values;
+        return xValues?.length === 1 && yValues?.length === 1;
+      }
+      
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }, [data, contentType]);
+  
+  // Check if we should show code/preview toggle
+  const shouldShowToggle = useCallback(() => {
+    return isIWXXM() || isCoverageJsonPointSeries();
+  }, [isIWXXM, isCoverageJsonPointSeries]);
   
   // Transform XML using XSLT
   const performXSLTransform = useCallback(async () => {
@@ -238,7 +271,7 @@ const DataModal: React.FC<DataModalProps> = ({
                   Content Type: {getContentTypeLabel()}
                 </Typography>
                 
-                {isIWXXM() && (
+                {shouldShowToggle() && (
                   <ToggleButtonGroup
                     value={viewMode}
                     exclusive
@@ -281,11 +314,13 @@ const DataModal: React.FC<DataModalProps> = ({
               p: 0,
               backgroundColor: 'background.paper'
             }}>
-              {viewMode === 'preview' && transformedHtml ? (
+              {viewMode === 'preview' && isIWXXM() && transformedHtml ? (
                 <div 
                   dangerouslySetInnerHTML={{ __html: transformedHtml }}
                   style={{ padding: '16px' }}
                 />
+              ) : viewMode === 'preview' && isCoverageJsonPointSeries() ? (
+                <CoverageJsonChart data={data} />
               ) : (
                 shouldUseSyntaxHighlighting() ? (
                   <SyntaxHighlighter
