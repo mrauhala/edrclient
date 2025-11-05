@@ -36,6 +36,7 @@ export interface CustomService {
   password?: string;
   apiKey?: string;
   apiKeyParam?: string; // The query parameter name for the API key (default: 'api-key')
+  bearerToken?: string;
 }
 
 interface SettingsDrawerProps {
@@ -68,7 +69,8 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
   const [servicePassword, setServicePassword] = useState('');
   const [serviceApiKey, setServiceApiKey] = useState('');
   const [serviceApiKeyParam, setServiceApiKeyParam] = useState('api-key');
-  const [authMethod, setAuthMethod] = useState<'none' | 'basic' | 'apikey'>('none');
+  const [serviceBearerToken, setServiceBearerToken] = useState('');
+  const [authMethod, setAuthMethod] = useState<'none' | 'basic' | 'apikey' | 'bearer'>('none');
   const [editingService, setEditingService] = useState<CustomService | null>(null);
 
   const handleModeClick = (mode: 'light' | 'dark' | 'system') => {
@@ -83,6 +85,7 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
     setServicePassword('');
     setServiceApiKey('');
     setServiceApiKeyParam('api-key');
+    setServiceBearerToken('');
     setAuthMethod('none');
     setDialogOpen(true);
   };
@@ -95,9 +98,12 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
     setServicePassword(service.password || '');
     setServiceApiKey(service.apiKey || '');
     setServiceApiKeyParam(service.apiKeyParam || 'api-key');
+    setServiceBearerToken(service.bearerToken || '');
     
     // Determine auth method based on what's set
-    if (service.apiKey) {
+    if (service.bearerToken) {
+      setAuthMethod('bearer');
+    } else if (service.apiKey) {
       setAuthMethod('apikey');
     } else if (service.username) {
       setAuthMethod('basic');
@@ -116,6 +122,7 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
     setServicePassword('');
     setServiceApiKey('');
     setServiceApiKeyParam('api-key');
+    setServiceBearerToken('');
     setAuthMethod('none');
     setEditingService(null);
   };
@@ -131,7 +138,8 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
           username: authMethod === 'basic' ? (serviceUsername.trim() || undefined) : undefined,
           password: authMethod === 'basic' ? (servicePassword.trim() || undefined) : undefined,
           apiKey: authMethod === 'apikey' ? (serviceApiKey.trim() || undefined) : undefined,
-          apiKeyParam: authMethod === 'apikey' ? (serviceApiKeyParam.trim() || 'api-key') : undefined
+          apiKeyParam: authMethod === 'apikey' ? (serviceApiKeyParam.trim() || 'api-key') : undefined,
+          bearerToken: authMethod === 'bearer' ? (serviceBearerToken.trim() || undefined) : undefined
         };
         onUpdateService(updatedService);
       } else {
@@ -143,7 +151,8 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
           username: authMethod === 'basic' ? (serviceUsername.trim() || undefined) : undefined,
           password: authMethod === 'basic' ? (servicePassword.trim() || undefined) : undefined,
           apiKey: authMethod === 'apikey' ? (serviceApiKey.trim() || undefined) : undefined,
-          apiKeyParam: authMethod === 'apikey' ? (serviceApiKeyParam.trim() || 'api-key') : undefined
+          apiKeyParam: authMethod === 'apikey' ? (serviceApiKeyParam.trim() || 'api-key') : undefined,
+          bearerToken: authMethod === 'bearer' ? (serviceBearerToken.trim() || undefined) : undefined
         };
         onAddService(newService);
         // Auto-select the newly added service
@@ -327,10 +336,11 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
             <FormLabel component="legend">Authentication Method</FormLabel>
             <RadioGroup
               value={authMethod}
-              onChange={(e) => setAuthMethod(e.target.value as 'none' | 'basic' | 'apikey')}
+              onChange={(e) => setAuthMethod(e.target.value as 'none' | 'basic' | 'apikey' | 'bearer')}
             >
               <FormControlLabel value="none" control={<Radio />} label="None" />
               <FormControlLabel value="basic" control={<Radio />} label="HTTP Basic Auth" />
+              <FormControlLabel value="bearer" control={<Radio />} label="Bearer Token" />
               <FormControlLabel value="apikey" control={<Radio />} label="API Key (Query Parameter)" />
             </RadioGroup>
           </FormControl>
@@ -359,6 +369,20 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                 placeholder="Enter password for HTTP Basic Auth"
               />
             </>
+          )}
+          
+          {authMethod === 'bearer' && (
+            <TextField
+              margin="dense"
+              label="Bearer Token"
+              type="text"
+              fullWidth
+              variant="outlined"
+              value={serviceBearerToken}
+              onChange={(e) => setServiceBearerToken(e.target.value)}
+              placeholder="Enter your Bearer token"
+              helperText="The token will be sent in the Authorization header as 'Bearer <token>'"
+            />
           )}
           
           {authMethod === 'apikey' && (

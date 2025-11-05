@@ -43,6 +43,7 @@ import CollectionValidationErrors from './CollectionValidationErrors';
 import SwaggerUIViewer from './SwaggerUIViewer';
 import ConformanceViewer from './ConformanceViewer';
 import { CustomService } from './SettingsDrawer';
+import { AuthCredentials } from './DataRetrievalAPI';
 
 interface SidebarProps {
   open: boolean;
@@ -64,6 +65,7 @@ interface SidebarProps {
   customServices?: CustomService[];
   onServiceUrlSelect?: string | null;
   onGeoJsonLayersChange?: (layers: {url: string, title: string, visible: boolean, labelProperty?: string, data?: any, apiKey?: string, apiKeyParam?: string}[]) => void;
+  getAuthCredentials: (url: string) => AuthCredentials | undefined;
 }
 
 // EDR service options
@@ -83,7 +85,7 @@ const edrServices = [
   { label: 'Custom', value: '' }
 ];
 
-const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExtentChange, onLocationFeaturesChange, onFeatureSelect, onSelectedCollectionChange, onMapClick, onDataQueryChange, onCollectionUrlChange, clickedCoords, selectedArea, radiusKm, locationFeatures, selectedFeature, customServices = [], onServiceUrlSelect = null, onGeoJsonLayersChange }: SidebarProps) => {
+const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExtentChange, onLocationFeaturesChange, onFeatureSelect, onSelectedCollectionChange, onMapClick, onDataQueryChange, onCollectionUrlChange, clickedCoords, selectedArea, radiusKm, locationFeatures, selectedFeature, customServices = [], onServiceUrlSelect = null, onGeoJsonLayersChange, getAuthCredentials }: SidebarProps) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md')); // Mobile/tablet breakpoint at 900px
   const sidebarWidth = isMobile ? '100%' : 480;
@@ -92,25 +94,6 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   const [selectedService, setSelectedService] = useState('https://opendata.fmi.fi/edr');
   const [inputUrl, setInputUrl] = useState('https://opendata.fmi.fi/edr'); // Separate state for text input
   const [queryUrl, setQueryUrl] = useState('https://opendata.fmi.fi/edr');
-
-  // Helper function to get auth credentials for a given URL
-  const getAuthCredentials = (url: string) => {
-    const service = customServices.find(s => s.url === url);
-    if (service) {
-      if (service.apiKey) {
-        return {
-          apiKey: service.apiKey,
-          apiKeyParam: service.apiKeyParam
-        };
-      } else if (service.username) {
-        return {
-          username: service.username,
-          password: service.password
-        };
-      }
-    }
-    return undefined;
-  };
 
   // Effect to handle external service URL selection (from settings)
   useEffect(() => {
