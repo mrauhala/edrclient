@@ -11,6 +11,10 @@ import Public from '@mui/icons-material/Public';
 import AccessTime from '@mui/icons-material/AccessTime';
 import Height from '@mui/icons-material/Height';
 import BugReport from '@mui/icons-material/BugReport';
+import CloudQueue from '@mui/icons-material/CloudQueue';
+import Person from '@mui/icons-material/Person';
+import Lock from '@mui/icons-material/Lock';
+import ListItemIcon from '@mui/material/ListItemIcon';
 import Badge from '@mui/material/Badge';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -109,13 +113,24 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
     const customServiceItems = customServices.map(service => ({
       label: service.name,
       value: service.url,
-      isCustom: true
+      isCustom: true,
+      hasAuth: !!(service.username || service.password || service.apiKey || service.bearerToken)
     }));
     
+    // Sort system services alphabetically (excluding "Custom")
+    const sortedSystemServices = [...edrServices.filter(s => s.value !== '')].sort((a, b) => 
+      a.label.localeCompare(b.label)
+    );
+    
+    // Sort custom services alphabetically
+    const sortedCustomServices = [...customServiceItems].sort((a, b) => 
+      a.label.localeCompare(b.label)
+    );
+    
     return [
-      ...edrServices.filter(s => s.value !== ''), // System services except "Custom"
-      ...customServiceItems,
-      { label: 'Custom', value: '', isCustom: false } // Keep "Custom" at the end
+      ...sortedSystemServices.map(s => ({ ...s, isCustom: false, hasAuth: false })),
+      ...sortedCustomServices,
+      { label: 'Custom', value: '', isCustom: false, hasAuth: false } // Keep "Custom" at the end
     ];
   }, [customServices]);
   const [collections, setCollections] = useState<Collection[]>([]);
@@ -695,10 +710,47 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
             value={selectedService}
             label="EDR Service"
             onChange={handleServiceChange}
+            renderValue={(value) => {
+              const service = allServices.find(s => s.value === value);
+              return (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  {service?.isCustom ? (
+                    <Person fontSize="small" color="primary" />
+                  ) : (
+                    <CloudQueue fontSize="small" color="action" />
+                  )}
+                  <span>{service?.label || value}</span>
+                  {service?.hasAuth && (
+                    <Lock fontSize="small" sx={{ ml: 'auto', opacity: 0.6 }} />
+                  )}
+                </Box>
+              );
+            }}
           >
             {allServices.map((service) => (
-              <MenuItem key={service.value || 'custom'} value={service.value}>
-                {service.label}
+              <MenuItem 
+                key={service.value || 'custom'} 
+                value={service.value}
+                sx={{
+                  color: service.isCustom ? 'primary.main' : 'text.primary',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+                  <ListItemIcon sx={{ minWidth: 36 }}>
+                    {service.isCustom ? (
+                      <Person fontSize="small" color="primary" />
+                    ) : (
+                      <CloudQueue fontSize="small" color="action" />
+                    )}
+                  </ListItemIcon>
+                  {service.label}
+                </Box>
+                {service.hasAuth && (
+                  <Lock fontSize="small" sx={{ ml: 1, opacity: 0.6 }} />
+                )}
               </MenuItem>
             ))}
           </Select>
