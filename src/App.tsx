@@ -273,6 +273,19 @@ function App() {
     setModalOpen(false);
   };
 
+  // Update document data-theme attribute when theme changes
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', actualMode);
+  }, [actualMode]);
+
+  // Detect Safari and add data attribute for conditional styling
+  useEffect(() => {
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    if (isSafari) {
+      document.documentElement.setAttribute('data-browser', 'safari');
+    }
+  }, []);
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
