@@ -273,6 +273,11 @@ function App() {
     setModalOpen(false);
   };
 
+  // Update document data-theme attribute when theme changes
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', actualMode);
+  }, [actualMode]);
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
