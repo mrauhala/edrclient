@@ -696,7 +696,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
           minWidth: isMobile ? '100vw' : 480, 
           width: sidebarWidth,
           height: '100%', 
-          overflow: 'auto',
+          overflow: 'overlay', // Use overlay instead of auto for overlay scrollbars
           borderRight: '1px solid rgba(0, 0, 0, 0.12)',
         }}
       >
