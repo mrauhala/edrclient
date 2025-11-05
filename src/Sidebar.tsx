@@ -696,8 +696,15 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
           minWidth: isMobile ? '100vw' : 480, 
           width: sidebarWidth,
           height: '100%', 
-          overflow: 'overlay', // Use overlay instead of auto for overlay scrollbars
+          overflowY: 'scroll', // Enable scrolling
+          overflowX: 'hidden',
           borderRight: '1px solid rgba(0, 0, 0, 0.12)',
+          // Hide scrollbar while keeping scroll functionality
+          '&::-webkit-scrollbar': {
+            display: 'none',
+          },
+          scrollbarWidth: 'none', // Firefox
+          msOverflowStyle: 'none', // IE and Edge
         }}
       >
         {/* EDR Service Selector and API URL - Moved to top */}
