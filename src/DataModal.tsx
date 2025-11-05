@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
@@ -45,21 +45,15 @@ const DataModal: React.FC<DataModalProps> = ({
   const [transformError, setTransformError] = useState<string | null>(null);
   
   // Check if data is IWXXM XML
-  const isIWXXM = () => {
+  const isIWXXM = useCallback(() => {
     if (!data || !contentType) return false;
     return contentType.includes('xml') && 
            (data.includes('iwxxm/3.0') || data.includes('iwxxm/2.1') || 
             data.includes('METAR') || data.includes('TAF') || data.includes('SIGMET'));
-  };
+  }, [data, contentType]);
   
   // Transform XML using XSLT
-  useEffect(() => {
-    if (viewMode === 'preview' && isIWXXM() && data) {
-      performXSLTransform();
-    }
-  }, [viewMode, data]);
-  
-  const performXSLTransform = async () => {
+  const performXSLTransform = useCallback(async () => {
     try {
       setTransformError(null);
       
@@ -121,7 +115,14 @@ const DataModal: React.FC<DataModalProps> = ({
       setTransformError(`Failed to transform XML: ${errorMessage}`);
       setViewMode('code');
     }
-  };
+  }, [data]);
+  
+  // Effect to trigger transformation when switching to preview mode
+  useEffect(() => {
+    if (viewMode === 'preview' && isIWXXM() && data) {
+      performXSLTransform();
+    }
+  }, [viewMode, data, isIWXXM, performXSLTransform]);
   
   const handleViewModeChange = (event: React.MouseEvent<HTMLElement>, newMode: 'code' | 'preview' | null) => {
     if (newMode !== null) {
