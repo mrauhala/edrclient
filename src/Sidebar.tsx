@@ -37,7 +37,7 @@ import Select, { SelectChangeEvent } from '@mui/material/Select';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import React, { useEffect, useState, useMemo } from 'react';
-import { getCollections, Collection, ValidationResult, normalizeBbox, hasLocationQuery, getLocationQueryUrl, executeLocationQuery, getSupportedDataQueries, normalizeTemporal, formatConformanceClass, expandTemporalValues } from './DataRetrievalAPI';
+import { getCollections, Collection, ValidationResult, normalizeBbox, hasLocationQuery, getLocationQueryUrl, executeLocationQuery, getSupportedDataQueries, normalizeTemporal, formatConformanceClass, expandTemporalValues, Link as ApiLink } from './DataRetrievalAPI';
 import ValidationResults from './ValidationResult';
 import SchemaInspector from './SchemaInspector';
 import LocationFeatureList from './LocationFeatureList';
@@ -84,9 +84,9 @@ const edrServices = [
   { label: 'EDR SmartMet Kenya', value: 'https://data-kenya.smartmet.org/edr' },
   { label: 'EDR SmartMet Ethiopia', value: 'https://data-ethiopia.smartmet.org' },
   { label: 'EDR DMI Open Data', value: 'https://api.meteogate.eu/dk/edr' },
-  { label: 'DWD WIS2 GDC', value: 'https://wis2.dwd.de/gdc/' },
-  { label: 'Canada WIS2 GDC', value: 'https://wis2-gdc.weather.gc.ca' },
-  { label: 'China WIS2 GDC', value: 'https://gdc.wis.cma.cn' },
+  { label: 'GDC WIS2 Germany', value: 'https://wis2.dwd.de/gdc/' },
+  { label: 'GDC WIS2 Canada', value: 'https://wis2-gdc.weather.gc.ca' },
+  { label: 'GDC WIS2 China', value: 'https://gdc.wis.cma.cn' },
   { label: 'Custom', value: '' }
 ];
 
@@ -146,8 +146,11 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   const [landingPageDescription, setLandingPageDescription] = useState<string | null>(null);
   const [serviceDescUrl, setServiceDescUrl] = useState<string | null>(null);
   const [conformsTo, setConformsTo] = useState<string[] | null>(null);
+  const [landingPageLinks, setLandingPageLinks] = useState<ApiLink[] | null>(null);
   const [selectedConformanceUrl, setSelectedConformanceUrl] = useState<string | null>(null);
   const [validationTrigger, setValidationTrigger] = useState(0); // Counter to force re-validation
+  const [showServiceLinks, setShowServiceLinks] = useState(false); // State for collapsible links section
+  const [showConformanceClasses, setShowConformanceClasses] = useState(false); // State for collapsible conformance section
   const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
   const [selectedDataQuery, setSelectedDataQuery] = useState<string>('');
   const [selectedFormat, setSelectedFormat] = useState<string>('');
@@ -251,6 +254,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
         setLandingPageDescription(result.landingPageDescription || null);
         setServiceDescUrl(result.serviceDescUrl || null);
         setConformsTo(result.conformsTo || null);
+        setLandingPageLinks(result.landingPageLinks || null);
         
         // Clear any previous extent/location data when switching services
         if (onCollectionExtentChange) {
@@ -819,37 +823,110 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
             
             if (uniqueConformance.length > 0) {
               return (
-                <Box sx={{ mb: 2, p: 2, backgroundColor: 'rgba(76, 175, 80, 0.08)', borderRadius: 1 }}>
-                  <Typography variant="subtitle2" sx={{ color: 'success.main', fontWeight: 600, mb: 1 }}>
-                    Conformance Classes
-                  </Typography>
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                    {uniqueConformance.map((item, index) => (
-                      <Tooltip key={index} title={item.url} arrow>
-                        <Chip
-                          label={item.formatted}
-                          size="small"
-                          color="success"
-                          variant="outlined"
-                          onClick={() => setSelectedConformanceUrl(item.url)}
-                          clickable
-                          sx={{ 
-                            fontSize: '0.7rem',
-                            height: '22px',
-                            cursor: 'pointer',
-                            '&:hover': {
-                              backgroundColor: 'rgba(76, 175, 80, 0.2)',
-                            }
-                          }}
-                        />
-                      </Tooltip>
-                    ))}
-                  </Box>
+                <Box sx={{ mb: 2 }}>
+                  <ListItemButton 
+                    onClick={() => setShowConformanceClasses(!showConformanceClasses)}
+                    sx={{ 
+                      p: 1.5, 
+                      backgroundColor: 'rgba(76, 175, 80, 0.08)', 
+                      borderRadius: 1,
+                      '&:hover': {
+                        backgroundColor: 'rgba(76, 175, 80, 0.15)',
+                      }
+                    }}
+                  >
+                    <ListItemText 
+                      primary={
+                        <Typography variant="subtitle2" sx={{ color: 'success.main', fontWeight: 600 }}>
+                          Conformance Classes ({uniqueConformance.length})
+                        </Typography>
+                      }
+                    />
+                    {showConformanceClasses ? <ExpandLess /> : <ExpandMore />}
+                  </ListItemButton>
+                  <Collapse in={showConformanceClasses} timeout="auto" unmountOnExit>
+                    <Box sx={{ p: 2, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                      {uniqueConformance.map((item, index) => (
+                        <Tooltip key={index} title={item.url} arrow>
+                          <Chip
+                            label={item.formatted}
+                            size="small"
+                            color="success"
+                            variant="outlined"
+                            onClick={() => setSelectedConformanceUrl(item.url)}
+                            clickable
+                            sx={{ 
+                              fontSize: '0.7rem',
+                              height: '22px',
+                              cursor: 'pointer',
+                              '&:hover': {
+                                backgroundColor: 'rgba(76, 175, 80, 0.2)',
+                              }
+                            }}
+                          />
+                        </Tooltip>
+                      ))}
+                    </Box>
+                  </Collapse>
                 </Box>
               );
             }
             return null;
           })()}
+          
+          {/* Service Links Section */}
+          {landingPageLinks && landingPageLinks.length > 0 && (
+            <Box sx={{ mb: 2 }}>
+              <ListItemButton 
+                onClick={() => setShowServiceLinks(!showServiceLinks)}
+                sx={{ 
+                  p: 1.5, 
+                  backgroundColor: 'rgba(156, 39, 176, 0.08)', 
+                  borderRadius: 1,
+                  '&:hover': {
+                    backgroundColor: 'rgba(156, 39, 176, 0.15)',
+                  }
+                }}
+              >
+                <ListItemText 
+                  primary={
+                    <Typography variant="subtitle2" sx={{ color: 'secondary.main', fontWeight: 600 }}>
+                      Service Links ({landingPageLinks.length})
+                    </Typography>
+                  }
+                />
+                {showServiceLinks ? <ExpandLess /> : <ExpandMore />}
+              </ListItemButton>
+              <Collapse in={showServiceLinks} timeout="auto" unmountOnExit>
+                <List component="div" disablePadding>
+                  {landingPageLinks.map((link, index) => (
+                    <ListItemButton
+                      key={index}
+                      sx={{ pl: 3, py: 0.5 }}
+                      component="a"
+                      href={link.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <ListItemText
+                        primary={
+                          <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
+                            {link.title || link.rel || 'Link'}
+                          </Typography>
+                        }
+                        secondary={
+                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                            {link.rel && `rel: ${link.rel}`}
+                            {link.type && ` • type: ${link.type}`}
+                          </Typography>
+                        }
+                      />
+                    </ListItemButton>
+                  ))}
+                </List>
+              </Collapse>
+            </Box>
+          )}
           
           <Box sx={{ mb: 2 }}>
             {landingPageUrl && (

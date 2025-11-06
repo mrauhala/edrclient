@@ -173,6 +173,7 @@ export interface GetCollectionsResult {
   landingPageDescription?: string;
   serviceDescUrl?: string;
   conformsTo?: string[]; // OGC API conformance classes
+  landingPageLinks?: Link[]; // Links from the landing page
 }
 
 export interface LocationQueryResult {
@@ -1172,7 +1173,8 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
       landingPageTitle: landingPageData?.title,
       landingPageDescription: landingPageData?.description,
       serviceDescUrl: serviceDescUrl || undefined,
-      conformsTo: conformsTo
+      conformsTo: conformsTo,
+      landingPageLinks: landingPageData?.links
     };
   } catch (error) {
     console.error('Error fetching collections:', error);
