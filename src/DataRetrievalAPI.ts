@@ -116,7 +116,7 @@ export interface Collection {
   data_queries: DataQueries;
   extent?: Extent; // Made optional to handle missing or empty extent
   crs: string[];
-  output_formats: string[];
+  output_formats: string[] | null; // Can be null in non-conforming APIs
   parameter_names?: parameterNames[] | { [key: string]: ParameterDefinition }; // Support both formats
   itemType?: string; // Optional item type field
 }
