@@ -36,6 +36,11 @@ import FormLabel from '@mui/material/FormLabel';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
+import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import dayjs, { Dayjs } from 'dayjs';
+import utc from 'dayjs/plugin/utc';
 import React, { useEffect, useState, useMemo } from 'react';
 import { getCollections, Collection, ValidationResult, normalizeBbox, hasLocationQuery, getLocationQueryUrl, executeLocationQuery, getSupportedDataQueries, normalizeTemporal, formatConformanceClass, expandTemporalValues, Link as ApiLink } from './DataRetrievalAPI';
 import ValidationResults from './ValidationResult';
@@ -48,6 +53,9 @@ import SwaggerUIViewer from './SwaggerUIViewer';
 import ConformanceViewer from './ConformanceViewer';
 import { CustomService } from './SettingsDrawer';
 import { AuthCredentials } from './DataRetrievalAPI';
+
+// Configure dayjs to use UTC plugin
+dayjs.extend(utc);
 
 interface SidebarProps {
   open: boolean;
@@ -1577,55 +1585,47 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                             </>
                           ) : (
                             /* Show date/time pickers if no values exist */
-                            <>
-                              <TextField
-                                fullWidth
-                                size="small"
+                            <LocalizationProvider dateAdapter={AdapterDayjs}>
+                              <DateTimePicker
                                 label="Start Date/Time"
-                                type="datetime-local"
-                                value={startDatetime ? startDatetime.substring(0, 16) : ''} // Convert ISO to datetime-local format
-                                onChange={(e) => {
-                                  const newStart = e.target.value;
+                                value={startDatetime ? dayjs.utc(startDatetime) : null}
+                                onChange={(newValue: Dayjs | null) => {
                                   // Convert to ISO 8601 format (YYYY-MM-DDTHH:mm:ssZ)
-                                  const isoStart = newStart ? `${newStart}:00Z` : '';
+                                  const isoStart = newValue ? newValue.utc().format('YYYY-MM-DDTHH:mm:ss[Z]') : '';
                                   setStartDatetime(isoStart);
                                   // Update URL
                                   const isDataQuery = !!selectedDataQuery;
                                   const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
                                   setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, isoStart, endDatetime));
                                 }}
-                                InputLabelProps={{
-                                  shrink: true,
-                                }}
-                                inputProps={{
-                                  step: 300, // 5 min
+                                slotProps={{
+                                  textField: {
+                                    fullWidth: true,
+                                    size: 'small',
+                                  },
                                 }}
                               />
 
-                              <TextField
-                                fullWidth
-                                size="small"
+                              <DateTimePicker
                                 label="End Date/Time"
-                                type="datetime-local"
-                                value={endDatetime ? endDatetime.substring(0, 16) : ''} // Convert ISO to datetime-local format
-                                onChange={(e) => {
-                                  const newEnd = e.target.value;
+                                value={endDatetime ? dayjs.utc(endDatetime) : null}
+                                onChange={(newValue: Dayjs | null) => {
                                   // Convert to ISO 8601 format (YYYY-MM-DDTHH:mm:ssZ)
-                                  const isoEnd = newEnd ? `${newEnd}:00Z` : '';
+                                  const isoEnd = newValue ? newValue.utc().format('YYYY-MM-DDTHH:mm:ss[Z]') : '';
                                   setEndDatetime(isoEnd);
                                   // Update URL
                                   const isDataQuery = !!selectedDataQuery;
                                   const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
                                   setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, isoEnd));
                                 }}
-                                InputLabelProps={{
-                                  shrink: true,
-                                }}
-                                inputProps={{
-                                  step: 300, // 5 min
+                                slotProps={{
+                                  textField: {
+                                    fullWidth: true,
+                                    size: 'small',
+                                  },
                                 }}
                               />
-                            </>
+                            </LocalizationProvider>
                           )}
                         </Box>
                       )}
