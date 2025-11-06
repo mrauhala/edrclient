@@ -206,6 +206,24 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
       });
   };
 
+  // Helper function to get effective output formats (data query level overrides collection level)
+  const getEffectiveOutputFormats = (collection: Collection, dataQueryType: string): string[] => {
+    // Check if data query has its own output_formats
+    if (dataQueryType && 
+        collection.data_queries[dataQueryType]?.link?.variables?.output_formats &&
+        Array.isArray(collection.data_queries[dataQueryType].link.variables.output_formats) &&
+        collection.data_queries[dataQueryType].link.variables.output_formats.length > 0) {
+      return collection.data_queries[dataQueryType].link.variables.output_formats;
+    }
+    
+    // Fall back to collection-level output_formats
+    if (collection.output_formats && Array.isArray(collection.output_formats)) {
+      return collection.output_formats;
+    }
+    
+    return [];
+  };
+
   // Debounce effect for text input - only update apiUrl after 1 second of no typing
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -368,12 +386,30 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
     if (selectedDataQuery && selectedCollection) {
       const isDataQuery = !!selectedDataQuery;
       if (selectedCollection.data_queries[selectedDataQuery]?.link) {
-        // Auto-select default output format if user hasn't selected one
+        // Get effective output formats for this data query
+        const effectiveFormats = getEffectiveOutputFormats(selectedCollection, selectedDataQuery);
+        
+        // Determine which format to use
         let formatToUse = selectedFormat;
-        if (!selectedFormat && selectedCollection.data_queries[selectedDataQuery]?.link?.variables?.default_output_format) {
+        
+        // Check if current selection is still valid
+        if (selectedFormat && !effectiveFormats.includes(selectedFormat)) {
+          // Current selection no longer available, need to pick a new one
+          formatToUse = '';
+        }
+        
+        // If no valid format selected, try to use default_output_format
+        if (!formatToUse && selectedCollection.data_queries[selectedDataQuery]?.link?.variables?.default_output_format) {
           const defaultFormat = selectedCollection.data_queries[selectedDataQuery].link.variables.default_output_format!;
-          setSelectedFormat(defaultFormat);
-          formatToUse = defaultFormat;
+          // Only use default if it's in the available formats
+          if (effectiveFormats.includes(defaultFormat)) {
+            formatToUse = defaultFormat;
+          }
+        }
+        
+        // Update format state if it changed
+        if (formatToUse !== selectedFormat) {
+          setSelectedFormat(formatToUse);
         }
         
         const baseUrl = selectedCollection.data_queries[selectedDataQuery].link.href;
@@ -1378,12 +1414,30 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                         const queryType = e.target.value;
                         setSelectedDataQuery(queryType);
                         
-                        // Auto-select default output format if user hasn't selected one
+                        // Get effective output formats for this data query
+                        const effectiveFormats = getEffectiveOutputFormats(collection, queryType);
+                        
+                        // Determine which format to use
                         let formatToUse = selectedFormat;
-                        if (queryType && collection.data_queries[queryType]?.link?.variables?.default_output_format && !selectedFormat) {
+                        
+                        // Check if current selection is still valid
+                        if (selectedFormat && !effectiveFormats.includes(selectedFormat)) {
+                          // Current selection no longer available, need to pick a new one
+                          formatToUse = '';
+                        }
+                        
+                        // If no valid format selected, try to use default_output_format
+                        if (!formatToUse && queryType && collection.data_queries[queryType]?.link?.variables?.default_output_format) {
                           const defaultFormat = collection.data_queries[queryType].link.variables.default_output_format;
-                          setSelectedFormat(defaultFormat);
-                          formatToUse = defaultFormat;
+                          // Only use default if it's in the available formats
+                          if (effectiveFormats.includes(defaultFormat)) {
+                            formatToUse = defaultFormat;
+                          }
+                        }
+                        
+                        // Update format state if it changed
+                        if (formatToUse !== selectedFormat) {
+                          setSelectedFormat(formatToUse);
                         }
                         
                         // Notify parent about data query change
@@ -1425,35 +1479,38 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                 )}
 
                 {/* Format Selector */}
-                { collection.output_formats && Array.isArray(collection.output_formats) && collection.output_formats.length > 0 && (
-                  <FormControl fullWidth sx={{ mb: 2 }}>
-                    <InputLabel id="format-select-label">Output Format</InputLabel>
-                    <Select
-                      labelId="format-select-label"
-                      value={selectedFormat}
-                      label="Output Format"
-                      onChange={(e) => {
-                        const format = e.target.value;
-                        setSelectedFormat(format);
-                        // Update URL with format parameter while preserving current base URL
-                        // Only add params if data query is selected
-                        const isDataQuery = !!selectedDataQuery;
-                        const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-                        setCollectionUrl(buildUrlWithParams(collectionUrl, format, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime));
-                      }}
-                      size="small"
-                    >
-                      <MenuItem value="">
-                        <em>Select a format</em>
-                      </MenuItem>
-                      {collection.output_formats.map((format) => (
-                        <MenuItem key={format} value={format}>
-                          {format}
+                {(() => {
+                  const effectiveFormats = getEffectiveOutputFormats(collection, selectedDataQuery);
+                  return effectiveFormats.length > 0 && (
+                    <FormControl fullWidth sx={{ mb: 2 }}>
+                      <InputLabel id="format-select-label">Output Format</InputLabel>
+                      <Select
+                        labelId="format-select-label"
+                        value={selectedFormat}
+                        label="Output Format"
+                        onChange={(e) => {
+                          const format = e.target.value;
+                          setSelectedFormat(format);
+                          // Update URL with format parameter while preserving current base URL
+                          // Only add params if data query is selected
+                          const isDataQuery = !!selectedDataQuery;
+                          const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+                          setCollectionUrl(buildUrlWithParams(collectionUrl, format, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime));
+                        }}
+                        size="small"
+                      >
+                        <MenuItem value="">
+                          <em>Select a format</em>
                         </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                )}
+                        {effectiveFormats.map((format) => (
+                          <MenuItem key={format} value={format}>
+                            {format}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  );
+                })()}
 
                 {/* Parameter Selector - Multiselect */}
                 { typeof collection.parameter_names !== "undefined" && (
