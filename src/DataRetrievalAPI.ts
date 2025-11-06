@@ -45,6 +45,7 @@ function addApiKeyToUrl(url: string, auth?: AuthCredentials): string {
 
 export interface DataQuery {
     link: Link;
+    default_output_format?: string; // Optional default output format for this data query
 }
 
 export interface DataQueries {

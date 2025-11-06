@@ -368,12 +368,20 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
     if (selectedDataQuery && selectedCollection) {
       const isDataQuery = !!selectedDataQuery;
       if (selectedCollection.data_queries[selectedDataQuery]?.link) {
+        // Auto-select default output format if user hasn't selected one
+        let formatToUse = selectedFormat;
+        if (!selectedFormat && selectedCollection.data_queries[selectedDataQuery]?.default_output_format) {
+          const defaultFormat = selectedCollection.data_queries[selectedDataQuery].default_output_format!;
+          setSelectedFormat(defaultFormat);
+          formatToUse = defaultFormat;
+        }
+        
         const baseUrl = selectedCollection.data_queries[selectedDataQuery].link.href;
         const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
         // Check if we should use range datetime
         const hasValues = selectedCollection.extent?.temporal?.values && selectedCollection.extent.temporal.values.length > 0;
         const effectiveMode = !hasValues ? 'range' : datetimeMode;
-        const newUrl = buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, effectiveMode, startDatetime, endDatetime);
+        const newUrl = buildUrlWithParams(baseUrl, formatToUse, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, effectiveMode, startDatetime, endDatetime);
         console.log('Data query changed, updating URL with persisted parameters:', newUrl);
         setCollectionUrl(newUrl);
       }
@@ -1369,6 +1377,15 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                       onChange={(e) => {
                         const queryType = e.target.value;
                         setSelectedDataQuery(queryType);
+                        
+                        // Auto-select default output format if user hasn't selected one
+                        let formatToUse = selectedFormat;
+                        if (queryType && collection.data_queries[queryType]?.default_output_format && !selectedFormat) {
+                          const defaultFormat = collection.data_queries[queryType].default_output_format;
+                          setSelectedFormat(defaultFormat);
+                          formatToUse = defaultFormat;
+                        }
+                        
                         // Notify parent about data query change
                         if (onDataQueryChange) {
                           onDataQueryChange(queryType);
@@ -1387,10 +1404,10 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                             baseUrl = dataLink.href;
                           }
                         }
-                        // Apply format and parameter if data query is selected
+                        // Apply format and parameter if data query is selected (use formatToUse which may be the default)
                         const isDataQuery = !!queryType;
                         const locationFeature = queryType.toLowerCase() === 'locations' ? selectedFeature : null;
-                        const newUrl = buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, queryType, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime);
+                        const newUrl = buildUrlWithParams(baseUrl, formatToUse, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, queryType, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime);
                         setCollectionUrl(newUrl);
                       }}
                       size="small"
