@@ -1598,6 +1598,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                                   const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
                                   setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, isoStart, endDatetime));
                                 }}
+                                ampm={false}
                                 slotProps={{
                                   textField: {
                                     fullWidth: true,
@@ -1618,6 +1619,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                                   const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
                                   setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, isoEnd));
                                 }}
+                                ampm={false}
                                 slotProps={{
                                   textField: {
                                     fullWidth: true,
