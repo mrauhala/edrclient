@@ -363,6 +363,19 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDatetime]);
 
+  // Effect to rebuild URL when start/end datetime changes (for range mode)
+  useEffect(() => {
+    if (selectedDataQuery && selectedCollection && datetimeMode === 'range') {
+      const isDataQuery = !!selectedDataQuery;
+      if (selectedCollection.data_queries[selectedDataQuery]?.link) {
+        const baseUrl = selectedCollection.data_queries[selectedDataQuery].link.href;
+        const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+        setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime));
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startDatetime, endDatetime]);
+
   // Effect to notify parent when URL changes
   useEffect(() => {
     if (onCollectionUrlChange) {
@@ -1593,10 +1606,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                                   // Convert to ISO 8601 format (YYYY-MM-DDTHH:mm:ssZ)
                                   const isoStart = newValue ? newValue.utc().format('YYYY-MM-DDTHH:mm:ss[Z]') : '';
                                   setStartDatetime(isoStart);
-                                  // Update URL
-                                  const isDataQuery = !!selectedDataQuery;
-                                  const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-                                  setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, isoStart, endDatetime));
+                                  // URL will be updated by useEffect
                                 }}
                                 ampm={false}
                                 slotProps={{
@@ -1614,10 +1624,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                                   // Convert to ISO 8601 format (YYYY-MM-DDTHH:mm:ssZ)
                                   const isoEnd = newValue ? newValue.utc().format('YYYY-MM-DDTHH:mm:ss[Z]') : '';
                                   setEndDatetime(isoEnd);
-                                  // Update URL
-                                  const isDataQuery = !!selectedDataQuery;
-                                  const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-                                  setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, isoEnd));
+                                  // URL will be updated by useEffect
                                 }}
                                 ampm={false}
                                 slotProps={{
