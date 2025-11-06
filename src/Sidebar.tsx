@@ -365,6 +365,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
 
   // Effect to rebuild URL when start/end datetime changes (for range mode or when no values exist)
   useEffect(() => {
+    console.log('DateTime range useEffect triggered', { startDatetime, endDatetime, selectedDataQuery, datetimeMode });
     if (selectedDataQuery && selectedCollection) {
       const isDataQuery = !!selectedDataQuery;
       if (selectedCollection.data_queries[selectedDataQuery]?.link) {
@@ -372,10 +373,16 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
         const hasValues = selectedCollection.extent?.temporal?.values && selectedCollection.extent.temporal.values.length > 0;
         const shouldUseRange = datetimeMode === 'range' || !hasValues;
         
+        console.log('DateTime check:', { hasValues, shouldUseRange, datetimeMode });
+        
         if (shouldUseRange && (startDatetime || endDatetime)) {
           const baseUrl = selectedCollection.data_queries[selectedDataQuery].link.href;
           const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-          setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime));
+          // Use 'range' mode when !hasValues even if datetimeMode is 'individual'
+          const effectiveMode = !hasValues ? 'range' : datetimeMode;
+          const newUrl = buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, effectiveMode, startDatetime, endDatetime);
+          console.log('Setting collection URL with datetime:', newUrl);
+          setCollectionUrl(newUrl);
         }
       }
     }
@@ -476,13 +483,17 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
         }
         
         // Add datetime parameter
+        console.log('buildUrlWithParams datetime params:', { dtMode, dtStart, dtEnd, datetime });
         if (dtMode === 'range' && dtStart && dtEnd) {
           // Time range mode: format as start/end
+          console.log('Setting datetime range:', `${dtStart}/${dtEnd}`);
           url.searchParams.set('datetime', `${dtStart}/${dtEnd}`);
         } else if (dtMode === 'individual' && datetime) {
           // Individual time mode: single datetime value
+          console.log('Setting individual datetime:', datetime);
           url.searchParams.set('datetime', datetime);
         } else {
+          console.log('Deleting datetime parameter');
           url.searchParams.delete('datetime');
         }
         
