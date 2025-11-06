@@ -370,8 +370,8 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
       if (selectedCollection.data_queries[selectedDataQuery]?.link) {
         // Auto-select default output format if user hasn't selected one
         let formatToUse = selectedFormat;
-        if (!selectedFormat && selectedCollection.data_queries[selectedDataQuery]?.default_output_format) {
-          const defaultFormat = selectedCollection.data_queries[selectedDataQuery].default_output_format!;
+        if (!selectedFormat && selectedCollection.data_queries[selectedDataQuery]?.link?.variables?.default_output_format) {
+          const defaultFormat = selectedCollection.data_queries[selectedDataQuery].link.variables.default_output_format!;
           setSelectedFormat(defaultFormat);
           formatToUse = defaultFormat;
         }
@@ -1380,8 +1380,8 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                         
                         // Auto-select default output format if user hasn't selected one
                         let formatToUse = selectedFormat;
-                        if (queryType && collection.data_queries[queryType]?.default_output_format && !selectedFormat) {
-                          const defaultFormat = collection.data_queries[queryType].default_output_format;
+                        if (queryType && collection.data_queries[queryType]?.link?.variables?.default_output_format && !selectedFormat) {
+                          const defaultFormat = collection.data_queries[queryType].link.variables.default_output_format;
                           setSelectedFormat(defaultFormat);
                           formatToUse = defaultFormat;
                         }

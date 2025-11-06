@@ -45,11 +45,16 @@ function addApiKeyToUrl(url: string, auth?: AuthCredentials): string {
 
 export interface DataQuery {
     link: Link;
-    default_output_format?: string; // Optional default output format for this data query
 }
 
 export interface DataQueries {
     [key: string]: DataQuery;
+}
+
+export interface QueryVariables {
+    default_output_format?: string;
+    output_formats?: string[];
+    [key: string]: any; // Allow other query-specific variables
 }
 
 export interface Link {
@@ -57,7 +62,7 @@ export interface Link {
     href: string;
     rel: string;
     type: string;
-    variables: any;
+    variables?: QueryVariables;
 }
 
 export interface Spatial {
