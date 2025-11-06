@@ -1398,7 +1398,8 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                   const hasValues = collection.extent.temporal.values && collection.extent.temporal.values.length > 0;
                   const hasInterval = collection.extent.temporal.interval && collection.extent.temporal.interval.length > 0;
                   
-                  return temporalValues.length > 0 ? (
+                  // Show temporal selection UI if collection has temporal extent (values OR interval)
+                  return (hasValues || hasInterval) ? (
                     <Box sx={{ mb: 2 }}>
                       <FormLabel component="legend" sx={{ fontSize: '0.875rem', mb: 1 }}>Date/Time Selection</FormLabel>
                       
@@ -1495,81 +1496,137 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                       {/* Time Range Selectors - show when in range mode OR when only intervals exist (no values) */}
                       {(datetimeMode === 'range' || !hasValues) && (
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                          <FormControl fullWidth size="small">
-                            <InputLabel id="start-datetime-label">Start Time</InputLabel>
-                            <Select
-                              labelId="start-datetime-label"
-                              value={startDatetime}
-                              label="Start Time"
-                              onChange={(e) => {
-                                const newStart = e.target.value;
-                                setStartDatetime(newStart);
-                                // Update URL
-                                const isDataQuery = !!selectedDataQuery;
-                                const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-                                setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, newStart, endDatetime));
-                              }}
-                              MenuProps={{
-                                PaperProps: {
-                                  style: {
-                                    maxHeight: 300,
-                                  },
-                                },
-                              }}
-                            >
-                              <MenuItem value="">
-                                <em>Select start time</em>
-                              </MenuItem>
-                              {temporalValues.map((datetime) => (
-                                <MenuItem key={datetime} value={datetime}>
-                                  <ListItemText 
-                                    primary={datetime}
-                                    primaryTypographyProps={{ 
-                                      style: { fontSize: '0.85rem', fontFamily: 'monospace' } 
-                                    }}
-                                  />
-                                </MenuItem>
-                              ))}
-                            </Select>
-                          </FormControl>
+                          {/* Show dropdowns with list if we have actual values */}
+                          {hasValues ? (
+                            <>
+                              <FormControl fullWidth size="small">
+                                <InputLabel id="start-datetime-label">Start Time</InputLabel>
+                                <Select
+                                  labelId="start-datetime-label"
+                                  value={startDatetime}
+                                  label="Start Time"
+                                  onChange={(e) => {
+                                    const newStart = e.target.value;
+                                    setStartDatetime(newStart);
+                                    // Update URL
+                                    const isDataQuery = !!selectedDataQuery;
+                                    const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+                                    setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, newStart, endDatetime));
+                                  }}
+                                  MenuProps={{
+                                    PaperProps: {
+                                      style: {
+                                        maxHeight: 300,
+                                      },
+                                    },
+                                  }}
+                                >
+                                  <MenuItem value="">
+                                    <em>Select start time</em>
+                                  </MenuItem>
+                                  {temporalValues.map((datetime) => (
+                                    <MenuItem key={datetime} value={datetime}>
+                                      <ListItemText 
+                                        primary={datetime}
+                                        primaryTypographyProps={{ 
+                                          style: { fontSize: '0.85rem', fontFamily: 'monospace' } 
+                                        }}
+                                      />
+                                    </MenuItem>
+                                  ))}
+                                </Select>
+                              </FormControl>
 
-                          <FormControl fullWidth size="small">
-                            <InputLabel id="end-datetime-label">End Time</InputLabel>
-                            <Select
-                              labelId="end-datetime-label"
-                              value={endDatetime}
-                              label="End Time"
-                              onChange={(e) => {
-                                const newEnd = e.target.value;
-                                setEndDatetime(newEnd);
-                                // Update URL
-                                const isDataQuery = !!selectedDataQuery;
-                                const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-                                setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, newEnd));
-                              }}
-                              MenuProps={{
-                                PaperProps: {
-                                  style: {
-                                    maxHeight: 300,
-                                  },
-                                },
-                              }}
-                            >
-                              <MenuItem value="">
-                                <em>Select end time</em>
-                              </MenuItem>
-                              {temporalValues.map((datetime) => (
-                                <MenuItem key={datetime} value={datetime}>
-                                  <ListItemText 
-                                    primary={datetime}
-                                    primaryTypographyProps={{ 
-                                      style: { fontSize: '0.85rem', fontFamily: 'monospace' } 
-                                    }}
-                                  />
-                                </MenuItem>
-                              ))}
-                            </Select>
-                          </FormControl>
+                              <FormControl fullWidth size="small">
+                                <InputLabel id="end-datetime-label">End Time</InputLabel>
+                                <Select
+                                  labelId="end-datetime-label"
+                                  value={endDatetime}
+                                  label="End Time"
+                                  onChange={(e) => {
+                                    const newEnd = e.target.value;
+                                    setEndDatetime(newEnd);
+                                    // Update URL
+                                    const isDataQuery = !!selectedDataQuery;
+                                    const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+                                    setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, newEnd));
+                                  }}
+                                  MenuProps={{
+                                    PaperProps: {
+                                      style: {
+                                        maxHeight: 300,
+                                      },
+                                    },
+                                  }}
+                                >
+                                  <MenuItem value="">
+                                    <em>Select end time</em>
+                                  </MenuItem>
+                                  {temporalValues.map((datetime) => (
+                                    <MenuItem key={datetime} value={datetime}>
+                                      <ListItemText 
+                                        primary={datetime}
+                                        primaryTypographyProps={{ 
+                                          style: { fontSize: '0.85rem', fontFamily: 'monospace' } 
+                                        }}
+                                      />
+                                    </MenuItem>
+                                  ))}
+                                </Select>
+                              </FormControl>
+                            </>
+                          ) : (
+                            /* Show date/time pickers if no values exist */
+                            <>
+                              <TextField
+                                fullWidth
+                                size="small"
+                                label="Start Date/Time"
+                                type="datetime-local"
+                                value={startDatetime ? startDatetime.substring(0, 16) : ''} // Convert ISO to datetime-local format
+                                onChange={(e) => {
+                                  const newStart = e.target.value;
+                                  // Convert to ISO 8601 format (YYYY-MM-DDTHH:mm:ssZ)
+                                  const isoStart = newStart ? `${newStart}:00Z` : '';
+                                  setStartDatetime(isoStart);
+                                  // Update URL
+                                  const isDataQuery = !!selectedDataQuery;
+                                  const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+                                  setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, isoStart, endDatetime));
+                                }}
+                                InputLabelProps={{
+                                  shrink: true,
+                                }}
+                                inputProps={{
+                                  step: 300, // 5 min
+                                }}
+                              />
+
+                              <TextField
+                                fullWidth
+                                size="small"
+                                label="End Date/Time"
+                                type="datetime-local"
+                                value={endDatetime ? endDatetime.substring(0, 16) : ''} // Convert ISO to datetime-local format
+                                onChange={(e) => {
+                                  const newEnd = e.target.value;
+                                  // Convert to ISO 8601 format (YYYY-MM-DDTHH:mm:ssZ)
+                                  const isoEnd = newEnd ? `${newEnd}:00Z` : '';
+                                  setEndDatetime(isoEnd);
+                                  // Update URL
+                                  const isDataQuery = !!selectedDataQuery;
+                                  const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+                                  setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, isoEnd));
+                                }}
+                                InputLabelProps={{
+                                  shrink: true,
+                                }}
+                                inputProps={{
+                                  step: 300, // 5 min
+                                }}
+                              />
+                            </>
+                          )}
                         </Box>
                       )}
                     </Box>
