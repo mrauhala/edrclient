@@ -1320,7 +1320,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                 )}
 
                 {/* Format Selector */}
-                { typeof collection.output_formats !== "undefined" && (
+                { collection.output_formats && Array.isArray(collection.output_formats) && collection.output_formats.length > 0 && (
                   <FormControl fullWidth sx={{ mb: 2 }}>
                     <InputLabel id="format-select-label">Output Format</InputLabel>
                     <Select
@@ -1783,7 +1783,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                 : <Alert severity="success"><AlertTitle>H: CRS</AlertTitle>{collection.crs}</Alert>
               }
               
-              { typeof collection.output_formats == "undefined" 
+              { (!collection.output_formats || !Array.isArray(collection.output_formats))
                 ? <Alert severity="error"><AlertTitle>I: OUTPUT_FORMATS</AlertTitle>Every collection within a collections array MUST have an output_formats parameter.</Alert>
                 : (
                   <Alert severity="success">
