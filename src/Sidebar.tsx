@@ -363,6 +363,24 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDatetime]);
 
+  // Effect to rebuild URL when data query changes (to apply persisted parameters)
+  useEffect(() => {
+    if (selectedDataQuery && selectedCollection) {
+      const isDataQuery = !!selectedDataQuery;
+      if (selectedCollection.data_queries[selectedDataQuery]?.link) {
+        const baseUrl = selectedCollection.data_queries[selectedDataQuery].link.href;
+        const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+        // Check if we should use range datetime
+        const hasValues = selectedCollection.extent?.temporal?.values && selectedCollection.extent.temporal.values.length > 0;
+        const effectiveMode = !hasValues ? 'range' : datetimeMode;
+        const newUrl = buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, effectiveMode, startDatetime, endDatetime);
+        console.log('Data query changed, updating URL with persisted parameters:', newUrl);
+        setCollectionUrl(newUrl);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDataQuery]);
+
   // Effect to rebuild URL when start/end datetime changes (for range mode or when no values exist)
   useEffect(() => {
     console.log('DateTime range useEffect triggered', { startDatetime, endDatetime, selectedDataQuery, datetimeMode });
@@ -388,6 +406,38 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startDatetime, endDatetime]);
+
+  // Effect to rebuild URL when format changes
+  useEffect(() => {
+    if (selectedDataQuery && selectedCollection && selectedFormat) {
+      const isDataQuery = !!selectedDataQuery;
+      if (selectedCollection.data_queries[selectedDataQuery]?.link) {
+        const baseUrl = selectedCollection.data_queries[selectedDataQuery].link.href;
+        const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+        const hasValues = selectedCollection.extent?.temporal?.values && selectedCollection.extent.temporal.values.length > 0;
+        const effectiveMode = !hasValues ? 'range' : datetimeMode;
+        const newUrl = buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, effectiveMode, startDatetime, endDatetime);
+        setCollectionUrl(newUrl);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedFormat]);
+
+  // Effect to rebuild URL when parameters change
+  useEffect(() => {
+    if (selectedDataQuery && selectedCollection && selectedParameters.length > 0) {
+      const isDataQuery = !!selectedDataQuery;
+      if (selectedCollection.data_queries[selectedDataQuery]?.link) {
+        const baseUrl = selectedCollection.data_queries[selectedDataQuery].link.href;
+        const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+        const hasValues = selectedCollection.extent?.temporal?.values && selectedCollection.extent.temporal.values.length > 0;
+        const effectiveMode = !hasValues ? 'range' : datetimeMode;
+        const newUrl = buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, effectiveMode, startDatetime, endDatetime);
+        setCollectionUrl(newUrl);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedParameters]);
 
   // Effect to notify parent when URL changes
   useEffect(() => {
