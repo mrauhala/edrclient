@@ -51,12 +51,18 @@ export interface DataQueries {
     [key: string]: DataQuery;
 }
 
+export interface QueryVariables {
+    default_output_format?: string;
+    output_formats?: string[];
+    [key: string]: any; // Allow other query-specific variables
+}
+
 export interface Link {
     title?: string;
     href: string;
     rel: string;
     type: string;
-    variables: any;
+    variables?: QueryVariables;
 }
 
 export interface Spatial {
