@@ -414,10 +414,8 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
         
         const baseUrl = selectedCollection.data_queries[selectedDataQuery].link.href;
         const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-        // Check if we should use range datetime
-        const hasValues = selectedCollection.extent?.temporal?.values && selectedCollection.extent.temporal.values.length > 0;
-        const effectiveMode = !hasValues ? 'range' : datetimeMode;
-        const newUrl = buildUrlWithParams(baseUrl, formatToUse, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, effectiveMode, startDatetime, endDatetime);
+        // Use the current datetime mode (user can now choose individual or range)
+        const newUrl = buildUrlWithParams(baseUrl, formatToUse, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime);
         console.log('Data query changed, updating URL with persisted parameters:', newUrl);
         setCollectionUrl(newUrl);
       }
@@ -1566,98 +1564,119 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                     <Box sx={{ mb: 2 }}>
                       <FormLabel component="legend" sx={{ fontSize: '0.875rem', mb: 1 }}>Date/Time Selection</FormLabel>
                       
-                      {/* Datetime Mode Selector - only show if both values and interval exist */}
-                      {hasValues && hasInterval && (
-                        <FormControl component="fieldset" sx={{ mb: 1 }}>
-                          <RadioGroup
-                            row
-                            value={datetimeMode}
-                            onChange={(e) => {
-                              const newMode = e.target.value as 'individual' | 'range';
-                              setDatetimeMode(newMode);
-                              // Clear selections when switching modes
-                              if (newMode === 'range') {
-                                setSelectedDatetime('');
-                              } else {
-                                setStartDatetime('');
-                                setEndDatetime('');
-                              }
-                              // Update URL
-                              const isDataQuery = !!selectedDataQuery;
-                              const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-                              setCollectionUrl(buildUrlWithParams(
-                                collectionUrl, 
-                                selectedFormat, 
-                                selectedParameters, 
-                                isDataQuery, 
-                                clickedCoords, 
-                                selectedArea, 
-                                radiusKm, 
-                                selectedDataQuery, 
-                                locationFeature, 
-                                '', 
-                                newMode,
-                                '',
-                                ''
-                              ));
-                            }}
-                            sx={{ gap: 2 }}
-                          >
-                            <FormControlLabel 
-                              value="individual" 
-                              control={<Radio size="small" />} 
-                              label={<Typography variant="body2">Individual Times</Typography>}
-                            />
-                            <FormControlLabel 
-                              value="range" 
-                              control={<Radio size="small" />} 
-                              label={<Typography variant="body2">Time Range</Typography>}
-                            />
-                          </RadioGroup>
-                        </FormControl>
-                      )}
+                      {/* Datetime Mode Selector - always show when temporal extent exists */}
+                      <FormControl component="fieldset" sx={{ mb: 1 }}>
+                        <RadioGroup
+                          row
+                          value={datetimeMode}
+                          onChange={(e) => {
+                            const newMode = e.target.value as 'individual' | 'range';
+                            setDatetimeMode(newMode);
+                            // Clear selections when switching modes
+                            if (newMode === 'range') {
+                              setSelectedDatetime('');
+                            } else {
+                              setStartDatetime('');
+                              setEndDatetime('');
+                            }
+                            // Update URL
+                            const isDataQuery = !!selectedDataQuery;
+                            const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+                            setCollectionUrl(buildUrlWithParams(
+                              collectionUrl, 
+                              selectedFormat, 
+                              selectedParameters, 
+                              isDataQuery, 
+                              clickedCoords, 
+                              selectedArea, 
+                              radiusKm, 
+                              selectedDataQuery, 
+                              locationFeature, 
+                              '', 
+                              newMode,
+                              '',
+                              ''
+                            ));
+                          }}
+                          sx={{ gap: 2 }}
+                        >
+                          <FormControlLabel 
+                            value="individual" 
+                            control={<Radio size="small" />} 
+                            label={<Typography variant="body2">Individual Times</Typography>}
+                          />
+                          <FormControlLabel 
+                            value="range" 
+                            control={<Radio size="small" />} 
+                            label={<Typography variant="body2">Time Range</Typography>}
+                          />
+                        </RadioGroup>
+                      </FormControl>
 
-                      {/* Individual Times Single-Select - only show if values exist */}
-                      {hasValues && datetimeMode === 'individual' && (
-                        <FormControl fullWidth>
-                          <InputLabel id="datetime-select-label">Select Time</InputLabel>
-                          <Select
-                            labelId="datetime-select-label"
-                            value={selectedDatetime}
-                            label="Select Time"
-                            onChange={(e) => {
-                              const datetime = e.target.value as string;
-                              setSelectedDatetime(datetime);
-                              // Update URL with datetime parameter
-                              const isDataQuery = !!selectedDataQuery;
-                              const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-                              setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, datetime, datetimeMode, startDatetime, endDatetime));
-                            }}
-                            size="small"
-                            MenuProps={{
-                              PaperProps: {
-                                style: {
-                                  maxHeight: 300,
+                      {/* Individual Times - show dropdown if values exist, otherwise show DateTimePicker */}
+                      {datetimeMode === 'individual' && (
+                        hasValues ? (
+                          <FormControl fullWidth>
+                            <InputLabel id="datetime-select-label">Select Time</InputLabel>
+                            <Select
+                              labelId="datetime-select-label"
+                              value={selectedDatetime}
+                              label="Select Time"
+                              onChange={(e) => {
+                                const datetime = e.target.value as string;
+                                setSelectedDatetime(datetime);
+                                // Update URL with datetime parameter
+                                const isDataQuery = !!selectedDataQuery;
+                                const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+                                setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, datetime, datetimeMode, startDatetime, endDatetime));
+                              }}
+                              size="small"
+                              MenuProps={{
+                                PaperProps: {
+                                  style: {
+                                    maxHeight: 300,
+                                  },
                                 },
-                              },
-                            }}
-                          >
-                            {temporalValues.map((datetime) => (
-                              <MenuItem key={datetime} value={datetime}>
-                                <ListItemText 
-                                  primary={datetime}
-                                  primaryTypographyProps={{ 
-                                    style: { fontSize: '0.85rem', fontFamily: 'monospace' } 
-                                  }}
-                                />
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
+                              }}
+                            >
+                              {temporalValues.map((datetime) => (
+                                <MenuItem key={datetime} value={datetime}>
+                                  <ListItemText 
+                                    primary={datetime}
+                                    primaryTypographyProps={{ 
+                                      style: { fontSize: '0.85rem', fontFamily: 'monospace' } 
+                                    }}
+                                  />
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                        ) : (
+                          <LocalizationProvider dateAdapter={AdapterDayjs}>
+                            <DateTimePicker
+                              label="Date/Time"
+                              value={selectedDatetime ? dayjs.utc(selectedDatetime) : null}
+                              onChange={(newValue: Dayjs | null) => {
+                                // Convert to ISO 8601 format (YYYY-MM-DDTHH:mm:ssZ)
+                                const isoDatetime = newValue ? newValue.utc().format('YYYY-MM-DDTHH:mm:ss[Z]') : '';
+                                setSelectedDatetime(isoDatetime);
+                                // URL will be updated by useEffect
+                              }}
+                              format="DD/MM/YYYY HH:mm"
+                              ampm={false}
+                              slotProps={{
+                                textField: {
+                                  fullWidth: true,
+                                  size: 'small',
+                                },
+                              }}
+                            />
+                          </LocalizationProvider>
+                        )
                       )}
 
-                      {/* Time Range Selectors - show when in range mode OR when only intervals exist (no values) */}
-                      {(datetimeMode === 'range' || !hasValues) && (
+                      {/* Time Range Selectors - show when in range mode */}
+                      {datetimeMode === 'range' && (
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                           {/* Show dropdowns with list if we have actual values */}
                           {hasValues ? (
