@@ -89,7 +89,7 @@ const edrServices = [
   { label: 'EDR Met Office Labs', value: 'https://labs.metoffice.gov.uk/edr' },
   { label: 'EDR Meteogate Observations', value: 'https://observations.meteogate.eu' },
   { label: 'EDR SmartMet Kenya', value: 'https://data-kenya.smartmet.org/edr' },
-  { label: 'EDR SmartMet Ethiopia', value: 'https://data-ethiopia.smartmet.org' },
+  { label: 'EDR SmartMet Ethiopia', value: 'https://data-ethiopia.smartmet.org/edr' },
   { label: 'EDR DMI Open Data', value: 'https://api.meteogate.eu/dk/edr' },
   { label: 'GDC WIS2 Germany', value: 'https://wis2.dwd.de/gdc/' },
   { label: 'GDC WIS2 Canada', value: 'https://wis2-gdc.weather.gc.ca' },
