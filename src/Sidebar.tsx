@@ -1750,6 +1750,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                                   setStartDatetime(isoStart);
                                   // URL will be updated by useEffect
                                 }}
+                                format="DD/MM/YYYY HH:mm"
                                 ampm={false}
                                 slotProps={{
                                   textField: {
@@ -1768,6 +1769,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                                   setEndDatetime(isoEnd);
                                   // URL will be updated by useEffect
                                 }}
+                                format="DD/MM/YYYY HH:mm"
                                 ampm={false}
                                 slotProps={{
                                   textField: {
