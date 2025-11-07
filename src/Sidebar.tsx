@@ -1603,7 +1603,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                           <FormControlLabel 
                             value="individual" 
                             control={<Radio size="small" />} 
-                            label={<Typography variant="body2">Individual Times</Typography>}
+                            label={<Typography variant="body2">Individual Time</Typography>}
                           />
                           <FormControlLabel 
                             value="range" 
@@ -1613,7 +1613,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                         </RadioGroup>
                       </FormControl>
 
-                      {/* Individual Times - show dropdown if values exist, otherwise show DateTimePicker */}
+                      {/* Individual Time - show dropdown if values exist, otherwise show DateTimePicker */}
                       {datetimeMode === 'individual' && (
                         hasValues ? (
                           <FormControl fullWidth>
