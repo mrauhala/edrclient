@@ -703,6 +703,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
       // Collection URL - no query params added (isDataQuery = false)
       setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, false, null, null, radiusKm, '', null, '', 'individual', '', ''));
       setSelectedDataQuery(''); // Reset data query selection
+      setSelectedFormat(''); // Reset format when collection changes
       setSelectedParameters([]); // Reset parameters when collection changes
       setSelectedDatetime(''); // Reset datetime selection when collection changes
       setDatetimeMode('individual'); // Reset datetime mode
