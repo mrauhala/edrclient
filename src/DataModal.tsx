@@ -315,9 +315,15 @@ const DataModal: React.FC<DataModalProps> = ({
               backgroundColor: 'background.paper'
             }}>
               {viewMode === 'preview' && isIWXXM() && transformedHtml ? (
-                <div 
-                  dangerouslySetInnerHTML={{ __html: transformedHtml }}
-                  style={{ padding: '16px' }}
+                <iframe
+                  srcDoc={transformedHtml}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    border: 'none',
+                    display: 'block'
+                  }}
+                  title="IWXXM Preview"
                 />
               ) : viewMode === 'preview' && isCoverageJsonPointSeries() ? (
                 <CoverageJsonChart data={data} />
