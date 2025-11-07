@@ -83,9 +83,9 @@ interface SidebarProps {
 // EDR service options
 const edrServices = [
   { label: 'EDR FMI Open Data', value: 'https://opendata.fmi.fi/edr' },
-  { label: 'SWIM Met Norway', value: 'https://swim.met.no' },
+  { label: 'EDR SWIM MET Norway', value: 'https://swim.met.no' },
   { label: 'Norwegian Met Office Isobaric', value: 'https://edrisobaric.k8s.met.no' },
-  { label: 'SWIM iblsoft (Test empty bbox)', value: 'https://swim.iblsoft.com/edr' },
+  { label: 'EDR SWIM IBL', value: 'https://swim.iblsoft.com/edr' },
   { label: 'Met Office Labs', value: 'https://labs.metoffice.gov.uk/edr' },
   { label: 'Aviation Weather (WIFS)', value: 'https://aviationweather.gov/wifs/api' },
   { label: 'Meteogate Observations', value: 'https://observations.meteogate.eu' },
