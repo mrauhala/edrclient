@@ -315,11 +315,22 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
 
   const [openCollectionIndex, setOpenCollectionIndex] = useState<number | null>(null);
 
-  // Effect to rebuild URL when clicked coordinates change
+  // Effect to rebuild URL when clicked coordinates change (position)
   useEffect(() => {
     if (selectedDataQuery && selectedDataQuery.toLowerCase() === 'position' && clickedCoords) {
       const isDataQuery = !!selectedDataQuery;
-      // Find the current collection and rebuild the URL
+      if (selectedCollection && selectedCollection.data_queries[selectedDataQuery]?.link) {
+        const baseUrl = selectedCollection.data_queries[selectedDataQuery].link.href;
+        setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, null, radiusKm, selectedDataQuery, null, selectedDatetime, datetimeMode, startDatetime, endDatetime));
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clickedCoords]);
+
+  // Effect to rebuild URL when trajectory coordinates change
+  useEffect(() => {
+    if (selectedDataQuery && selectedDataQuery.toLowerCase() === 'trajectory' && clickedCoords && clickedCoords.length > 1) {
+      const isDataQuery = !!selectedDataQuery;
       if (selectedCollection && selectedCollection.data_queries[selectedDataQuery]?.link) {
         const baseUrl = selectedCollection.data_queries[selectedDataQuery].link.href;
         setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, null, radiusKm, selectedDataQuery, null, selectedDatetime, datetimeMode, startDatetime, endDatetime));
@@ -599,6 +610,10 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
             const points = coords.map(c => `(${c[0].toFixed(3)} ${c[1].toFixed(3)})`).join(',');
             url.searchParams.set('coords', `MULTIPOINT(${points})`);
           }
+        } else if (queryType.toLowerCase() === 'trajectory' && coords && coords.length > 1) {
+          // LINESTRING for trajectory
+          const linestring = coords.map(c => `${c[0].toFixed(3)} ${c[1].toFixed(3)}`).join(', ');
+          url.searchParams.set('coords', `LINESTRING(${linestring})`);
         } else if (queryType.toLowerCase() === 'radius' && coords && coords.length > 0) {
           // Radius query uses POINT/MULTIPOINT like position
           if (coords.length === 1) {

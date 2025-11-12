@@ -1,3 +1,4 @@
+// ...existing imports...
 import React, { useState, useEffect, useRef } from 'react';
 import 'ol/ol.css';
 import Map from 'ol/Map';
@@ -8,7 +9,7 @@ import VectorSource from 'ol/source/Vector';
 import XYZ from 'ol/source/XYZ';
 import Overlay from 'ol/Overlay';
 import { Feature } from 'ol';
-import { Polygon, Point } from 'ol/geom';
+import { Polygon, Point, LineString } from 'ol/geom';
 import { fromLonLat, toLonLat } from 'ol/proj';
 import { Style, Stroke, Fill, Circle, Text } from 'ol/style';
 import GeoJSON from 'ol/format/GeoJSON';
@@ -19,6 +20,7 @@ import { bbox as bboxStrategy } from 'ol/loadingstrategy';
 import FeatureInfo from './FeatureInfo';
 import GeoJsonFeatureViewer from './GeoJsonFeatureViewer';
 import { Collection, normalizeTemporal, formatTemporalInterval, getOverallTemporalExtent, normalizeVertical, formatVerticalInterval, getOverallVerticalExtent, getVerticalUnit } from './DataRetrievalAPI';
+
 
 interface MapProps {
   zoomLevel: number;
@@ -62,6 +64,17 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
   const selectedAreaRef = useRef(selectedArea);
   const clickedCoordsRef = useRef(clickedCoords);
   const geoJsonLayersRef = useRef<{url: string, title: string, visible: boolean, labelProperty?: string, data?: any, apiKey?: string, apiKeyParam?: string}[]>([]);
+
+  // Effect to reset trajectory state when leaving trajectory mode
+  useEffect(() => {
+    if (dataQuery && dataQuery.toLowerCase() !== 'trajectory') {
+      if (markerLayer) {
+        const source = markerLayer.getSource();
+        if (source) source.clear();
+      }
+    }
+  }, [dataQuery, markerLayer]);
+
 
   // Keep the callback ref updated
   useEffect(() => {
@@ -802,28 +815,39 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
     };
   }, [zoomLevel, onGeoJsonFeatureSelect]); // Removed onFeatureSelect from dependencies to prevent map recreation
 
-  // Effect to update marker when clicked coordinates change
+  // Effect to update marker/trajectory when clicked coordinates change (for position, radius, trajectory)
   useEffect(() => {
-    if (markerLayer) {
+    if (markerLayer && dataQuery) {
       const source = markerLayer.getSource();
       if (source) {
         source.clear();
-        
-        // Add all clicked coordinates as markers
-        if (clickedCoords && clickedCoords.length > 0) {
+        if (dataQuery.toLowerCase() === 'position' && clickedCoords && clickedCoords.length > 0) {
           clickedCoords.forEach(coords => {
             const [lon, lat] = coords;
             const feature = new Feature({
-              geometry: new Point(fromLonLat([lon, lat])),
+              geometry: new Point(fromLonLat([lon, lat]))
             });
             source.addFeature(feature);
           });
         }
+        if (dataQuery.toLowerCase() === 'trajectory' && clickedCoords && clickedCoords.length > 1) {
+          const lineCoords = clickedCoords.map(([lon, lat]) => fromLonLat([lon, lat]));
+          const lineFeature = new Feature({
+            geometry: new LineString(lineCoords)
+          });
+          lineFeature.setStyle(new Style({
+            stroke: new Stroke({
+              color: '#00BFFF',
+              width: 3
+            })
+          }));
+          source.addFeature(lineFeature);
+        }
       }
     }
-  }, [clickedCoords, markerLayer]);
+  }, [clickedCoords, markerLayer, dataQuery]);
 
-  // Effect to update radius circles when clicked coordinates or radius change
+  // Effect to update radius circles when clicked coords or radius change
   useEffect(() => {
     if (radiusLayer && dataQuery && dataQuery.toLowerCase() === 'radius') {
       const source = radiusLayer.getSource();
@@ -897,31 +921,20 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
         }
       }
       
-      // Only handle clicks if data query is 'position' or 'radius'
-      if (dataQuery && (dataQuery.toLowerCase() === 'position' || dataQuery.toLowerCase() === 'radius')) {
-        // Check if click is within collection bbox
+      // Handle clicks for position, radius, and trajectory queries
+      if (dataQuery && (dataQuery.toLowerCase() === 'position' || dataQuery.toLowerCase() === 'radius' || dataQuery.toLowerCase() === 'trajectory')) {
         const coords = map.getCoordinateFromPixel(event.pixel);
         const [x, y] = toLonLat(coords);
-        
-        // Get collection bbox
         const bbox = selectedCollection?.extent?.spatial?.bbox;
-        
         if (bbox && Array.isArray(bbox) && bbox.length > 0) {
-          // bbox can be either a flat array [minLon, minLat, maxLon, maxLat] 
-          // or an array of arrays [[minLon, minLat, maxLon, maxLat]]
           let minLon: number, minLat: number, maxLon: number, maxLat: number;
-          
           if (Array.isArray(bbox[0])) {
-            // Array of arrays format (EDR standard)
             [minLon, minLat, maxLon, maxLat] = bbox[0];
           } else {
-            // Flat array format (non-standard but some services use it)
             [minLon, minLat, maxLon, maxLat] = bbox as number[];
           }
-          
-          // Check if click is within bbox
           if (x >= minLon && x <= maxLon && y >= minLat && y <= maxLat) {
-            // Add coordinates to the array - use ref to get current value
+            // For all three query types, update clickedCoords
             if (onMapClick) {
               const currentCoords = clickedCoordsRef.current || [];
               const newCoords: [number, number][] = [...currentCoords, [x, y]];
@@ -939,9 +952,9 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
     };
   }, [map, dataQuery, selectedCollection, onMapClick]);
 
-  // Effect to handle area selection with drawing tool
+  // Effect to handle area and trajectory selection with drawing tool
   useEffect(() => {
-    if (!map || !areaLayer) return;
+    if (!map) return;
 
     // Remove existing draw interaction if any
     if (drawInteraction) {
@@ -949,42 +962,33 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
       setDrawInteraction(null);
     }
 
-    // Only add draw interaction if data query is 'area'
-    if (dataQuery && dataQuery.toLowerCase() === 'area') {
+    // Area query: Polygon drawing
+    if (dataQuery && dataQuery.toLowerCase() === 'area' && areaLayer) {
       const source = areaLayer.getSource();
       if (!source) return;
 
-      // Don't clear the source here - let the display effect handle it
-
-      // Create new draw interaction - don't attach to source directly
       const draw = new Draw({
         type: 'Polygon',
         condition: (event: any) => {
-          // Check if clicking on a GeoJSON feature - if so, don't start drawing
           const features = map.getFeaturesAtPixel(event.pixel);
           if (features && features.length > 0) {
             const hasGeoJsonFeature = features.some(feature => feature.get('layer') === 'geojson');
             if (hasGeoJsonFeature) {
-              return false; // Don't start drawing when clicking on GeoJSON features
+              return false;
             }
           }
-          return true; // Allow drawing in all other cases
+          return true;
         }
       });
 
-      // Handle draw completion
       draw.on('drawend', (event: DrawEvent) => {
         const feature = event.feature;
         const geometry = feature.getGeometry() as Polygon;
-        
-        // Get the coordinates in EPSG:3857 and convert to WGS84
-        const coordinates = geometry.getCoordinates()[0]; // Get outer ring
+        const coordinates = geometry.getCoordinates()[0];
         const lonLatCoords: [number, number][] = coordinates.map(coord => {
           const [lon, lat] = toLonLat(coord);
           return [lon, lat];
         });
-
-        // Add polygon to the array - use ref to get current value
         if (onAreaSelect) {
           const currentAreas = selectedAreaRef.current || [];
           const newAreas: [number, number][][] = [...currentAreas, lonLatCoords];
@@ -998,19 +1002,63 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
       return () => {
         map.removeInteraction(draw);
       };
-    } else {
-      // Clear area layer when not in area mode
-      const source = areaLayer.getSource();
-      if (source) {
-        source.clear();
+    }
+
+    // Trajectory query: LineString drawing
+    if (dataQuery && dataQuery.toLowerCase() === 'trajectory' && markerLayer) {
+      const source = markerLayer.getSource();
+      if (!source) return;
+
+      const draw = new Draw({
+        type: 'LineString',
+        condition: (event: any) => {
+          const features = map.getFeaturesAtPixel(event.pixel);
+          if (features && features.length > 0) {
+            const hasGeoJsonFeature = features.some(feature => feature.get('layer') === 'geojson');
+            if (hasGeoJsonFeature) {
+              return false;
+            }
+          }
+          return true;
+        }
+      });
+
+      draw.on('drawend', (event: DrawEvent) => {
+        const feature = event.feature;
+        const geometry = feature.getGeometry() as LineString;
+        const coordinates = geometry.getCoordinates();
+        const lonLatCoords: [number, number][] = coordinates.map(coord => {
+          const [lon, lat] = toLonLat(coord);
+          return [lon, lat];
+        });
+        if (onMapClick) {
+          onMapClick(lonLatCoords);
+        }
+      });
+
+      map.addInteraction(draw);
+      setDrawInteraction(draw);
+
+      return () => {
+        map.removeInteraction(draw);
+      };
+    }
+
+    // Clear layers and state when not in area/trajectory mode
+    if ((dataQuery && dataQuery.toLowerCase() !== 'area' && areaLayer) || (dataQuery && dataQuery.toLowerCase() !== 'trajectory' && markerLayer)) {
+      if (areaLayer) {
+        const source = areaLayer.getSource();
+        if (source) source.clear();
+        if (onAreaSelect) onAreaSelect([]);
       }
-      // Clear selected area
-      if (onAreaSelect) {
-        onAreaSelect([]);
+      if (markerLayer) {
+        const source = markerLayer.getSource();
+        if (source) source.clear();
+        if (onMapClick) onMapClick([]);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, dataQuery, areaLayer]);
+  }, [map, dataQuery, areaLayer, markerLayer]);
 
   // Effect to display selected areas
   useEffect(() => {
@@ -1032,8 +1080,34 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-      <div id="map" style={{ width: '100%', height: '100%' }} />
-      
+      <div id="map" key="main-map" style={{ width: '100%', height: '100%' }} />
+
+      {/* Trajectory controls outside map container (commented out for isolation) */}
+      {/*
+      {map && dataQuery && dataQuery.toLowerCase() === 'trajectory' && (
+        <div style={{ position: 'absolute', top: 10, right: 10, zIndex: 1100, background: 'rgba(0,0,0,0.8)', padding: '10px', borderRadius: '8px', color: 'white' }}>
+          <div style={{ marginBottom: '8px' }}>Click on the map to add trajectory points.</div>
+          <button
+            style={{ marginRight: '8px', padding: '6px 12px', borderRadius: '4px', border: 'none', background: '#00BFFF', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}
+            onClick={() => {
+              if (onMapClick && trajectoryCoords.length > 1) {
+                onMapClick(trajectoryCoords);
+              }
+            }}
+            disabled={trajectoryCoords.length < 2}
+          >
+            Finish Trajectory
+          </button>
+          <button
+            style={{ padding: '6px 12px', borderRadius: '4px', border: 'none', background: '#444', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}
+            onClick={() => setTrajectoryCoords([])}
+          >
+            Reset
+          </button>
+        </div>
+      )}
+      */}
+
       {/* Tooltip element */}
       <div
         ref={tooltipRef}
@@ -1221,6 +1295,33 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
         </div>
       )}
 
+        {/* Trajectory Selection Instruction - Top Center */}
+        {dataQuery && dataQuery.toLowerCase() === 'trajectory' && (!clickedCoords || clickedCoords.length === 0) && (
+          <div
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              backgroundColor: 'rgba(0, 0, 0, 0.9)',
+              color: 'white',
+              padding: '16px 24px',
+              borderRadius: '8px',
+              fontSize: '14px',
+              fontWeight: 'normal',
+              zIndex: 1000,
+              boxShadow: '0 4px 8px rgba(0,0,0,0.5)',
+              border: '2px solid rgba(255, 0, 0, 0.6)',
+              textAlign: 'center',
+            }}
+          >
+            <div style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '16px', color: '#FF4444' }}>
+              Draw Trajectory on Map
+            </div>
+            <div>Click and drag to draw a trajectory (double-click to finish)</div>
+          </div>
+        )}
+
       {/* Reset Button for Position Mode */}
       {dataQuery && dataQuery.toLowerCase() === 'position' && clickedCoords && clickedCoords.length > 0 && (
         <div
@@ -1259,6 +1360,49 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
           </button>
         </div>
       )}
+
+        {/* Reset Button for Trajectory Mode */}
+        {dataQuery && dataQuery.toLowerCase() === 'trajectory' && clickedCoords && clickedCoords.length > 0 && (
+          <div
+            style={{
+              position: 'absolute',
+              top: '10px',
+              right: '10px',
+              zIndex: 1000,
+            }}
+          >
+            <button
+              onClick={() => {
+                if (onMapClick) {
+                  onMapClick([]);
+                }
+                if (markerLayer) {
+                  const source = markerLayer.getSource();
+                  if (source) source.clear();
+                }
+              }}
+              style={{
+                backgroundColor: 'rgba(255, 68, 68, 0.9)',
+                color: 'white',
+                border: '2px solid rgba(255, 255, 255, 0.3)',
+                padding: '8px 16px',
+                borderRadius: '6px',
+                fontSize: '14px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(255, 68, 68, 1)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(255, 68, 68, 0.9)';
+              }}
+            >
+              Clear Trajectory
+            </button>
+          </div>
+        )}
 
       {/* Area Drawing Instruction - Top Center */}
       {dataQuery && dataQuery.toLowerCase() === 'area' && (!selectedArea || selectedArea.length === 0) && (
