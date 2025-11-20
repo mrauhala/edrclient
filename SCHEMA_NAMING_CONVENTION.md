@@ -58,6 +58,12 @@ OGC APIs are organized as:
 - **Schemas**: landingPage, conformance (no collections)
 - **Directory**: `schemas/individual/common-p1-v1.0/`
 
+### 6. OGC API Records Part 1 v1.0 ✨ NEW
+- **Conformance**: `/spec/ogcapi-records-1/1.0/conf/core`
+- **Schemas**: landingPage, catalogs (as collections)
+- **Directory**: `schemas/individual/records-p1-v1.0/`
+- **Note**: Records uses catalogs instead of collections, no conformance schema available
+
 ## TypeScript Types
 
 ```typescript
@@ -66,7 +72,8 @@ type SchemaType =
   | 'features-p2-v1.0'
   | 'edr-p1-v1.0'
   | 'edr-p1-v1.1'
-  | 'common-p1-v1.0';
+  | 'common-p1-v1.0'
+  | 'records-p1-v1.0';
 ```
 
 ## Display Names
@@ -77,6 +84,7 @@ User-friendly names shown in UI and logs:
 - "OGC API EDR Part 1 v1.0"
 - "OGC API EDR Part 1 v1.1"
 - "OGC API Common Part 1 v1.0"
+- "OGC API Records Part 1 v1.0"
 
 ## Benefits
 

@@ -2,7 +2,7 @@ import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 
 // Schema type definitions
-type SchemaType = 'edr-p1-v1.0' | 'edr-p1-v1.1' | 'features-p1-v1.0' | 'features-p2-v1.0' | 'common-p1-v1.0';
+type SchemaType = 'edr-p1-v1.0' | 'edr-p1-v1.1' | 'features-p1-v1.0' | 'features-p2-v1.0' | 'common-p1-v1.0' | 'records-p1-v1.0';
 
 interface SchemaConfig {
   type: SchemaType;
@@ -64,6 +64,16 @@ const SCHEMA_CONFIGS: SchemaConfig[] = [
       landingPage: '/schemas/individual/common-p1-v1.0/landingPage.json',
       conformance: '/schemas/individual/common-p1-v1.0/confClasses.json'
       // Note: Common doesn't define collections
+    }
+  },
+  {
+    type: 'records-p1-v1.0',
+    conformancePattern: '/spec/ogcapi-records-1/1.0/conf/core',
+    displayName: 'OGC API Records Part 1 v1.0',
+    schemas: {
+      landingPage: '/schemas/individual/records-p1-v1.0/landingPage.json',
+      collections: '/schemas/individual/records-p1-v1.0/catalogs.json'
+      // Note: Records doesn't have a conformance schema
     }
   }
 ];

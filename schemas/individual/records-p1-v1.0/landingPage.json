@@ -1,0 +1,129 @@
+{
+  "allOf": [
+    {
+      "type": "object",
+      "required": [
+        "links"
+      ],
+      "properties": {
+        "title": {
+          "type": "string",
+          "example": "Buildings in Bonn"
+        },
+        "description": {
+          "type": "string",
+          "example": "Access to data about buildings in the city of Bonn via a Web API that conforms to the OGC API Features specification."
+        },
+        "links": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "href",
+              "rel"
+            ],
+            "properties": {
+              "href": {
+                "type": "string",
+                "example": "http://data.example.com/buildings/123"
+              },
+              "rel": {
+                "type": "string",
+                "example": "alternate"
+              },
+              "type": {
+                "type": "string",
+                "example": "application/geo+json"
+              },
+              "hreflang": {
+                "type": "string",
+                "example": "en"
+              },
+              "title": {
+                "type": "string",
+                "example": "Trierer Strasse 70, 53115 Bonn"
+              },
+              "length": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "properties": {
+        "linkTemplates": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "rel": {
+                    "type": "string",
+                    "description": "The type or semantics of the relation."
+                  },
+                  "type": {
+                    "type": "string",
+                    "description": "A hint indicating what the media type of the\nresult of dereferencing the link should be."
+                  },
+                  "hreflang": {
+                    "type": "string",
+                    "description": "A hint indicating what the language of the\nresult of dereferencing the link should be."
+                  },
+                  "title": {
+                    "type": "string",
+                    "description": "Used to label the destination of a link\nsuch that it can be used as a human-readable\nidentifier."
+                  },
+                  "length": {
+                    "type": "integer"
+                  },
+                  "profile": {
+                    "type": "array",
+                    "description": "One or more identifiers that provide information about additional\nsemantics (constraints, conventions, extensions), in addition to \nthose defined by the media type, that are associated with the\ntarget resource.",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "created": {
+                    "type": "string",
+                    "description": "Date of creation of the resource pointed to\nby the link.",
+                    "format": "date-time"
+                  },
+                  "updated": {
+                    "type": "string",
+                    "description": "Most recent date on which the resource pointed\nto by the link was changed.",
+                    "format": "date-time"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "required": [
+                  "uriTemplate"
+                ],
+                "properties": {
+                  "uriTemplate": {
+                    "type": "string",
+                    "description": "Supplies a resolvable URI to a remote resource\n(or resource fragment)."
+                  },
+                  "varBase": {
+                    "type": "string",
+                    "description": "The base URI to which the variable name can be\nappended to retrieve the definition of the\nvariable as a JSON Schema fragment.",
+                    "format": "uri-reference"
+                  },
+                  "variables": {
+                    "type": "object",
+                    "description": "This object contains one key per substitution\nvariable in the templated URL.  Each key defines\nthe schema of one substitution variable using a\nJSON Schema fragment and can thus include things\nlike the data type of the variable, enumerations,\nminimum values, maximum values, etc."
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

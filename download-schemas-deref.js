@@ -74,6 +74,18 @@ const schemas = [
     name: 'Common Part 1 v1.0 - Conformance',
     url: 'https://schemas.opengis.net/ogcapi/common/part1/1.0/openapi/schemas/confClasses.yaml',
     output: 'schemas/individual/common-p1-v1.0/confClasses.json'
+  },
+  
+  // OGC API Records Part 1 v1.0 - top level structure (no conformance schema available)
+  {
+    name: 'Records Part 1 v1.0 - Landing Page',
+    url: 'https://schemas.opengis.net/ogcapi/records/part1/1.0/openapi/schemas/landingPage.yaml',
+    output: 'schemas/individual/records-p1-v1.0/landingPage.json'
+  },
+  {
+    name: 'Records Part 1 v1.0 - Catalogs',
+    url: 'https://schemas.opengis.net/ogcapi/records/part1/1.0/openapi/schemas/catalogs.yaml',
+    output: 'schemas/individual/records-p1-v1.0/catalogs.json'
   }
 ];
 
