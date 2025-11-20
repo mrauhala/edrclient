@@ -995,11 +995,6 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
   const validator = SchemaValidator.getInstance();
   
   try {
-    // Load the schema if not already loaded
-    if (!validator.isLoaded()) {
-      await validator.loadSchema();
-    }
-
     // Check if this is DMI service (to avoid f=json bug)
     const isDMI = apiUrl.includes('api.meteogate.eu/dk/edr');
 
@@ -1019,11 +1014,7 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
     const landingPageResponse = await axios.get<LandingPage>(finalLandingPageUrl, getAxiosConfig(auth));
     const landingPageData = landingPageResponse.data;
 
-    // Validate the landing page
-    const landingPageValidation = await validator.validateLandingPage(landingPageData);
-    console.log(`Landing page validation result: ${landingPageValidation.valid ? 'Valid' : 'Invalid'}`);
-
-    // Step 2: Extract the collections URL from landing page links
+    // Step 2: Extract the collections URL and conformance URL from landing page links
     let collectionsUrl: string | null = null;
     let serviceDescUrl: string | null = null;
     let conformanceUrl: string | null = null;
@@ -1073,8 +1064,41 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
       collectionsUrl = `${apiUrl}/collections`;
     }
 
-    // Step 3: Fetch collections from the discovered URL
-    console.log('Step 2: Fetching collections from:', collectionsUrl);
+    // Step 3: Fetch conformance classes to determine which schema to use
+    let conformsTo: string[] | undefined = undefined;
+    if (conformanceUrl) {
+      try {
+        console.log('Step 2: Fetching conformance to determine schema type:', conformanceUrl);
+        const conformanceUrlWithFormat = new URL(conformanceUrl);
+        if (!conformanceUrlWithFormat.searchParams.has('f')) {
+          conformanceUrlWithFormat.searchParams.set('f', 'json');
+        }
+        
+        // Add API key if provided
+        const finalConformanceUrl = addApiKeyToUrl(conformanceUrlWithFormat.toString(), auth);
+        
+        const conformanceResponse = await axios.get<{ conformsTo: string[] }>(finalConformanceUrl, getAxiosConfig(auth));
+        
+        if (conformanceResponse.data && conformanceResponse.data.conformsTo) {
+          conformsTo = conformanceResponse.data.conformsTo;
+          console.log(`Found ${conformsTo.length} conformance classes:`, conformsTo);
+        }
+      } catch (error) {
+        console.warn('Error fetching conformance, will use default schema:', error);
+        // Don't fail - we'll use the default schema
+      }
+    }
+
+    // Step 4: Load the appropriate schema based on conformance classes
+    // Always call this to ensure we have the right schema type
+    await validator.loadSchemaBasedOnConformance(conformsTo);
+
+    // Step 5: Validate landing page with the loaded schema
+    const landingPageValidation = await validator.validateLandingPage(landingPageData);
+    console.log(`Landing page validation result: ${landingPageValidation.valid ? 'Valid' : 'Invalid'}`);
+
+    // Step 6: Fetch collections from the discovered URL
+    console.log('Step 3: Fetching collections from:', collectionsUrl);
     
     // Add f=json format parameter if not already present
     // Skip for DMI service as it incorrectly includes f=json in the href paths
@@ -1105,38 +1129,17 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
       }
     }
 
-    // Step 4: Validate collections
+    // Step 7: Validate collections
     const collectionsValidation = await validator.validateCollections(data);
     console.log(`Collections validation result: ${collectionsValidation.valid ? 'Valid' : 'Invalid'}`);
     console.log(`Loaded schema count: ${validator.getLoadedSchemaCount()}`);
     
-    // Step 5: Fetch conformance classes if conformance URL is available
-    let conformsTo: string[] | undefined = undefined;
+    // Step 8: Validate conformance response if we fetched it
     let conformanceValidation: { valid: boolean; errors: any[] | null } = { valid: true, errors: null };
-    if (conformanceUrl) {
-      try {
-        console.log('Step 5: Fetching conformance from:', conformanceUrl);
-        const conformanceUrlWithFormat = new URL(conformanceUrl);
-        if (!conformanceUrlWithFormat.searchParams.has('f')) {
-          conformanceUrlWithFormat.searchParams.set('f', 'json');
-        }
-        
-        // Add API key if provided
-        const finalConformanceUrl = addApiKeyToUrl(conformanceUrlWithFormat.toString(), auth);
-        
-        const conformanceResponse = await axios.get<{ conformsTo: string[] }>(finalConformanceUrl, getAxiosConfig(auth));
-        
-        // Validate conformance response
-        conformanceValidation = await validator.validateConformance(conformanceResponse.data);
-        
-        if (conformanceResponse.data && conformanceResponse.data.conformsTo) {
-          conformsTo = conformanceResponse.data.conformsTo;
-          console.log(`Found ${conformsTo.length} conformance classes`);
-        }
-      } catch (error) {
-        console.warn('Error fetching conformance, continuing without it:', error);
-        // Don't fail the whole request if conformance fetch fails
-      }
+    if (conformanceUrl && conformsTo) {
+      // Validate conformance response we already fetched
+      conformanceValidation = await validator.validateConformance({ conformsTo });
+      console.log(`Conformance validation result: ${conformanceValidation.valid ? 'Valid' : 'Invalid'}`);
     }
     
     // Combine all validation results
