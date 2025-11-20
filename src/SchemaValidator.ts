@@ -2,7 +2,7 @@ import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 
 // Schema type definitions
-type SchemaType = 'edr-1.0' | 'edr-1.1' | 'features-1.0' | 'common-1.0';
+type SchemaType = 'edr-p1-v1.0' | 'edr-p1-v1.1' | 'features-p1-v1.0' | 'features-p2-v1.0' | 'common-p1-v1.0';
 
 interface SchemaConfig {
   type: SchemaType;
@@ -18,42 +18,51 @@ interface SchemaConfig {
 // Configuration for all supported schemas - using individual schema files
 const SCHEMA_CONFIGS: SchemaConfig[] = [
   {
-    type: 'features-1.0',
+    type: 'features-p1-v1.0',
     conformancePattern: '/spec/ogcapi-features-1/1.0/conf/core',
-    displayName: 'OGC API Features 1.0',
+    displayName: 'OGC API Features Part 1 v1.0',
     schemas: {
-      landingPage: '/schemas/individual/features-1.0/landingPage.json',
-      collections: '/schemas/individual/features-1.0/collections.json',
-      conformance: '/schemas/individual/features-1.0/confClasses.json'
+      landingPage: '/schemas/individual/features-p1-v1.0/landingPage.json',
+      collections: '/schemas/individual/features-p1-v1.0/collections.json',
+      conformance: '/schemas/individual/features-p1-v1.0/confClasses.json'
     }
   },
   {
-    type: 'edr-1.1',
+    type: 'features-p2-v1.0',
+    conformancePattern: '/spec/ogcapi-features-2/1.0/conf/crs',
+    displayName: 'OGC API Features Part 2 v1.0 (CRS)',
+    schemas: {
+      // Features Part 2 only defines CRS extensions for collections, no landing page or conformance
+      collections: '/schemas/individual/features-p2-v1.0/collections.json'
+    }
+  },
+  {
+    type: 'edr-p1-v1.1',
     conformancePattern: '/spec/ogcapi-edr-1/1.1/conf/core',
-    displayName: 'OGC API EDR 1.1',
+    displayName: 'OGC API EDR Part 1 v1.1',
     schemas: {
-      landingPage: '/schemas/individual/edr-1.1/landingPage.json',
-      collections: '/schemas/individual/edr-1.1/collections.json',
-      conformance: '/schemas/individual/edr-1.1/confClasses.json'
+      landingPage: '/schemas/individual/edr-p1-v1.1/landingPage.json',
+      collections: '/schemas/individual/edr-p1-v1.1/collections.json',
+      conformance: '/schemas/individual/edr-p1-v1.1/confClasses.json'
     }
   },
   {
-    type: 'edr-1.0',
+    type: 'edr-p1-v1.0',
     conformancePattern: '/spec/ogcapi-edr-1/1.0/conf/core',
-    displayName: 'OGC API EDR 1.0',
+    displayName: 'OGC API EDR Part 1 v1.0',
     schemas: {
-      landingPage: '/schemas/individual/edr-1.0/landingPage.json',
-      collections: '/schemas/individual/edr-1.0/collections.json',
-      conformance: '/schemas/individual/edr-1.0/confClasses.json'
+      landingPage: '/schemas/individual/edr-p1-v1.0/landingPage.json',
+      collections: '/schemas/individual/edr-p1-v1.0/collections.json',
+      conformance: '/schemas/individual/edr-p1-v1.0/confClasses.json'
     }
   },
   {
-    type: 'common-1.0',
+    type: 'common-p1-v1.0',
     conformancePattern: '/spec/ogcapi-common-1/1.0/conf/core',
-    displayName: 'OGC API Common 1.0',
+    displayName: 'OGC API Common Part 1 v1.0',
     schemas: {
-      landingPage: '/schemas/individual/common-1.0/landingPage.json',
-      conformance: '/schemas/individual/common-1.0/confClasses.json'
+      landingPage: '/schemas/individual/common-p1-v1.0/landingPage.json',
+      conformance: '/schemas/individual/common-p1-v1.0/confClasses.json'
       // Note: Common doesn't define collections
     }
   }
@@ -102,11 +111,11 @@ export class SchemaValidator {
    */
   public async loadSchemaBasedOnConformance(conformsTo?: string[]): Promise<boolean> {
     if (!conformsTo || conformsTo.length === 0) {
-      console.log('🎯 No conformance classes provided, defaulting to EDR 1.1 schema');
+      console.log('🎯 No conformance classes provided, defaulting to EDR Part 1 v1.1 schema');
       // Clear existing schemas before loading default
       this.loadedSchemas.clear();
       this.validators.clear();
-      return this.loadSingleSchema('edr-1.1');
+      return this.loadSingleSchema('edr-p1-v1.1');
     }
 
     console.log(`🎯 Analyzing ${conformsTo.length} conformance classes...`);
@@ -121,11 +130,11 @@ export class SchemaValidator {
     }
 
     if (matchingSchemas.length === 0) {
-      console.log('🎯 No matching conformance classes found, defaulting to EDR 1.1 schema');
+      console.log('🎯 No matching conformance classes found, defaulting to EDR Part 1 v1.1 schema');
       // Clear existing schemas before loading default
       this.loadedSchemas.clear();
       this.validators.clear();
-      return this.loadSingleSchema('edr-1.1');
+      return this.loadSingleSchema('edr-p1-v1.1');
     }
 
     // Clear existing schemas to ensure only matching schemas are loaded
