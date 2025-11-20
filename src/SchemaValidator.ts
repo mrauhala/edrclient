@@ -268,6 +268,16 @@ export class SchemaValidator {
     
     let overallValid = true;
     const allErrors: any[] = [];
+    const collectionErrors: { [collectionId: string]: any[] } = {};
+
+    // Extract collection IDs from the data for mapping errors
+    const collections = data?.collections || [];
+    const collectionIndexMap: { [index: number]: string } = {};
+    collections.forEach((col: any, index: number) => {
+      if (col.id) {
+        collectionIndexMap[index] = col.id;
+      }
+    });
 
     // Validate against each loaded schema
     this.validators.forEach((validatorSet, schemaType) => {
@@ -296,6 +306,22 @@ export class SchemaValidator {
               message: `${error.instancePath || error.dataPath || ''}: ${error.message}`,
               keyword: error.keyword
             }));
+            
+            // Group errors by collection
+            errors.forEach((err: any) => {
+              // Parse path to extract collection index: /collections/0/... or /collections/1/...
+              const pathMatch = err.path.match(/^\/collections\/(\d+)/);
+              if (pathMatch) {
+                const collectionIndex = parseInt(pathMatch[1], 10);
+                const collectionId = collectionIndexMap[collectionIndex];
+                if (collectionId) {
+                  if (!collectionErrors[collectionId]) {
+                    collectionErrors[collectionId] = [];
+                  }
+                  collectionErrors[collectionId].push(err);
+                }
+              }
+            });
             
             // Log first few errors for this schema
             console.warn(`      Errors from ${displayName}:`);
@@ -328,7 +354,8 @@ export class SchemaValidator {
 
     return {
       valid: overallValid,
-      errors: allErrors.length > 0 ? allErrors : null
+      errors: allErrors.length > 0 ? allErrors : null,
+      collectionErrors: Object.keys(collectionErrors).length > 0 ? collectionErrors : undefined
     };
   }
 
