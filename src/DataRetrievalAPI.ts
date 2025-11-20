@@ -59,9 +59,9 @@ export interface QueryVariables {
 
 export interface Link {
     title?: string;
-    href: string;
-    rel: string;
-    type: string;
+    href?: string; // Optional to handle invalid/missing hrefs gracefully
+    rel?: string; // Optional to handle missing rel
+    type?: string; // Optional to handle missing type
     variables?: QueryVariables;
 }
 
@@ -238,7 +238,7 @@ export function getLocationQueryUrl(collection: Collection): string | null {
     }
     
     const locationsQuery = collection.data_queries['locations'];
-    return locationsQuery && locationsQuery.link ? locationsQuery.link.href : null;
+    return locationsQuery && locationsQuery.link && locationsQuery.link.href ? locationsQuery.link.href : null;
   } catch (error) {
     console.warn('Error getting location query URL:', error);
     return null;
