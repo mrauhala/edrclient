@@ -12,11 +12,19 @@ const ValidationResults: React.FC<ValidationResultsProps> = ({ validation, expan
   const schemaInfo = (
     <Box sx={{ mt: 1 }}>
       <Chip 
-        label={`Schemas: ${validation.schemaCount || 0}`} 
+        label={`Schema Types: ${validation.schemaCount || 0}`} 
         color="info" 
         size="small" 
         sx={{ mr: 1 }} 
       />
+      {validation.schemaUrls && validation.schemaUrls.length > 0 && (
+        <Chip 
+          label={`Schema Files: ${validation.schemaUrls.length}`} 
+          color="info" 
+          size="small" 
+          variant="outlined"
+        />
+      )}
     </Box>
   );
 
