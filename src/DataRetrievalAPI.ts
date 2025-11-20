@@ -43,6 +43,37 @@ function addApiKeyToUrl(url: string, auth?: AuthCredentials): string {
   return url;
 }
 
+// Helper function to normalize href which can be a string or an object with language codes
+// Returns the first available string value, or null if href is invalid
+export function normalizeHref(href: string | { [lang: string]: string } | undefined): string | null {
+  if (!href) {
+    return null;
+  }
+  
+  if (typeof href === 'string') {
+    return href;
+  }
+  
+  // If href is an object (e.g., {en: "...", fr: "..."}), return the first available value
+  if (typeof href === 'object') {
+    // Try common language codes first
+    const preferredLangs = ['en', 'en-US', 'en-CA', 'fr', 'de', 'es'];
+    for (const lang of preferredLangs) {
+      if (href[lang]) {
+        return href[lang];
+      }
+    }
+    
+    // If no preferred language found, return the first available value
+    const values = Object.values(href);
+    if (values.length > 0 && typeof values[0] === 'string') {
+      return values[0];
+    }
+  }
+  
+  return null;
+}
+
 export interface DataQuery {
     link: Link;
 }
@@ -59,7 +90,7 @@ export interface QueryVariables {
 
 export interface Link {
     title?: string;
-    href?: string; // Optional to handle invalid/missing hrefs gracefully
+    href?: string | { [lang: string]: string }; // Can be string or object with language codes (e.g., {en: "...", fr: "..."})
     rel?: string; // Optional to handle missing rel
     type?: string; // Optional to handle missing type
     variables?: QueryVariables;
@@ -238,7 +269,8 @@ export function getLocationQueryUrl(collection: Collection): string | null {
     }
     
     const locationsQuery = collection.data_queries['locations'];
-    return locationsQuery && locationsQuery.link && locationsQuery.link.href ? locationsQuery.link.href : null;
+    const href = locationsQuery?.link?.href;
+    return normalizeHref(href);
   } catch (error) {
     console.warn('Error getting location query URL:', error);
     return null;
@@ -1038,10 +1070,15 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
                        link.rel === 'http://www.opengis.net/def/rel/ogc/1.0/conformance'
       );
       
-      if (dataLink && dataLink.href) {
-        collectionsUrl = dataLink.href;
-        console.log('Found collections URL from landing page:', collectionsUrl);
-      } else {
+      if (dataLink) {
+        const normalizedHref = normalizeHref(dataLink.href);
+        if (normalizedHref) {
+          collectionsUrl = normalizedHref;
+          console.log('Found collections URL from landing page:', collectionsUrl);
+        }
+      }
+      
+      if (!collectionsUrl) {
         console.warn('No data link found in landing page. Available links:', 
           landingPageData.links.map((l: Link) => ({ rel: l.rel, href: l.href })));
         
@@ -1050,14 +1087,20 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
         console.log('Using fallback collections URL:', collectionsUrl);
       }
       
-      if (serviceDescLink && serviceDescLink.href) {
-        serviceDescUrl = serviceDescLink.href;
-        console.log('Found service description URL from landing page:', serviceDescUrl);
+      if (serviceDescLink) {
+        const normalizedHref = normalizeHref(serviceDescLink.href);
+        if (normalizedHref) {
+          serviceDescUrl = normalizedHref;
+          console.log('Found service description URL from landing page:', serviceDescUrl);
+        }
       }
       
-      if (conformanceLink && conformanceLink.href) {
-        conformanceUrl = conformanceLink.href;
-        console.log('Found conformance URL from landing page:', conformanceUrl);
+      if (conformanceLink) {
+        const normalizedHref = normalizeHref(conformanceLink.href);
+        if (normalizedHref) {
+          conformanceUrl = normalizedHref;
+          console.log('Found conformance URL from landing page:', conformanceUrl);
+        }
       }
     } else {
       console.warn('Landing page has no links array. Using fallback.');
@@ -1099,6 +1142,11 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
 
     // Step 6: Fetch collections from the discovered URL
     console.log('Step 3: Fetching collections from:', collectionsUrl);
+    
+    // Ensure collectionsUrl is not null before proceeding
+    if (!collectionsUrl) {
+      throw new Error('Collections URL could not be determined');
+    }
     
     // Add f=json format parameter if not already present
     // Skip for DMI service as it incorrectly includes f=json in the href paths
@@ -1177,7 +1225,7 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
       collections: collections,
       validation: combinedValidation,
       landingPageUrl: apiUrl,
-      collectionsUrl: collectionsUrl,
+      collectionsUrl: collectionsUrl || undefined,
       conformanceUrl: conformanceUrl || undefined,
       landingPageTitle: landingPageData?.title,
       landingPageDescription: landingPageData?.description,
