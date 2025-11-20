@@ -86,6 +86,7 @@ const edrServices = [
   { label: 'EDR SWIM MET Norway', value: 'https://swim.met.no' },
   { label: 'Norwegian Met Office Isobaric', value: 'https://edrisobaric.k8s.met.no' },
   { label: 'EDR SWIM IBL', value: 'https://swim.iblsoft.com/edr' },
+  { label: 'EDR SWIM SMHI', value: 'https://aviation.smhi.se' },
   { label: 'EDR Met Office Labs', value: 'https://labs.metoffice.gov.uk/edr' },
   { label: 'EDR Meteogate Observations', value: 'https://observations.meteogate.eu' },
   { label: 'EDR SmartMet Kenya', value: 'https://data-kenya.smartmet.org/edr' },
