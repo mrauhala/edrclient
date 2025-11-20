@@ -98,10 +98,14 @@ export class SchemaValidator {
 
   /**
    * Detect and load all schemas that match the conformance classes
+   * Clears previously loaded schemas to ensure only matching schemas are used
    */
   public async loadSchemaBasedOnConformance(conformsTo?: string[]): Promise<boolean> {
     if (!conformsTo || conformsTo.length === 0) {
       console.log('🎯 No conformance classes provided, defaulting to EDR 1.1 schema');
+      // Clear existing schemas before loading default
+      this.loadedSchemas.clear();
+      this.validators.clear();
       return this.loadSingleSchema('edr-1.1');
     }
 
@@ -118,20 +122,22 @@ export class SchemaValidator {
 
     if (matchingSchemas.length === 0) {
       console.log('🎯 No matching conformance classes found, defaulting to EDR 1.1 schema');
+      // Clear existing schemas before loading default
+      this.loadedSchemas.clear();
+      this.validators.clear();
       return this.loadSingleSchema('edr-1.1');
     }
+
+    // Clear existing schemas to ensure only matching schemas are loaded
+    console.log(`🧹 Clearing previously loaded schemas...`);
+    this.loadedSchemas.clear();
+    this.validators.clear();
 
     // Load all matching schemas
     console.log(`📥 Loading ${matchingSchemas.length} schema(s)...`);
     let allSuccess = true;
     
     for (const config of matchingSchemas) {
-      // Skip if already loaded
-      if (this.loadedSchemas.has(config.type)) {
-        console.log(`   ✅ ${config.displayName} already loaded`);
-        continue;
-      }
-
       const success = await this.loadSingleSchema(config.type);
       if (!success) {
         console.warn(`   ⚠️  Failed to load ${config.displayName}`);
@@ -234,7 +240,12 @@ export class SchemaValidator {
       };
     }
 
-    console.log(`🔍 Validating collections against ${this.validators.size} schema(s)...`);
+    console.log(`\n🔍 Validating collections against ${this.validators.size} schema(s)...`);
+    const schemaNames = Array.from(this.validators.keys()).map(type => {
+      const config = SCHEMA_CONFIGS.find(c => c.type === type);
+      return config?.displayName || type;
+    }).join(', ');
+    console.log(`   Schemas: ${schemaNames}\n`);
     
     let overallValid = true;
     const allErrors: any[] = [];
@@ -254,17 +265,28 @@ export class SchemaValidator {
         if (isValid) {
           console.log(`   ✅ ${displayName}: Valid`);
         } else {
-          console.warn(`   ⚠️  ${displayName}: Validation issues found`);
+          console.warn(`   ❌ ${displayName}: Validation FAILED`);
           overallValid = false;
           
           // Add schema-specific errors
           if (validatorSet.collections.errors) {
             const errors = validatorSet.collections.errors.map((error: any) => ({
               schema: displayName,
+              schemaType: schemaType,
               path: error.instancePath || error.dataPath || 'root',
               message: `${error.instancePath || error.dataPath || ''}: ${error.message}`,
               keyword: error.keyword
             }));
+            
+            // Log first few errors for this schema
+            console.warn(`      Errors from ${displayName}:`);
+            errors.slice(0, 3).forEach((err: any) => {
+              console.warn(`        • ${err.message}`);
+            });
+            if (errors.length > 3) {
+              console.warn(`        ... and ${errors.length - 3} more errors`);
+            }
+            
             allErrors.push(...errors);
           }
         }
@@ -273,10 +295,17 @@ export class SchemaValidator {
         overallValid = false;
         allErrors.push({
           schema: displayName,
+          schemaType: schemaType,
           message: error instanceof Error ? error.message : 'Unknown validation error'
         });
       }
     });
+
+    if (overallValid) {
+      console.log(`\n✅ All validations passed!\n`);
+    } else {
+      console.warn(`\n⚠️  Validation completed with ${allErrors.length} error(s) across ${this.validators.size} schema(s)\n`);
+    }
 
     return {
       valid: overallValid,

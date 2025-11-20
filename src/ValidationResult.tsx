@@ -124,6 +124,9 @@ const ValidationResults: React.FC<ValidationResultsProps> = ({ validation, expan
             {validation.errors && validation.errors.map((error, index) => (
               <ListItem key={index} sx={{ py: 0 }}>
                 <Typography variant="caption" color="text.secondary">
+                  {error.schema && (
+                    <strong>[{error.schema}] </strong>
+                  )}
                   {error.message}
                 </Typography>
               </ListItem>
