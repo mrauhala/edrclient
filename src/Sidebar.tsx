@@ -1061,10 +1061,15 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                           </Typography>
                         }
                         secondary={
-                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-                            {link.rel && `rel: ${link.rel}`}
-                            {link.type && ` • type: ${link.type}`}
-                          </Typography>
+                          <>
+                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem', display: 'block' }}>
+                              {link.rel && `rel: ${link.rel}`}
+                              {link.type && ` • type: ${link.type}`}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem', display: 'block', wordBreak: 'break-all' }}>
+                              {link.href}
+                            </Typography>
+                          </>
                         }
                       />
                     </ListItemButton>
@@ -1073,27 +1078,6 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
               </Collapse>
             </Box>
           )}
-          
-          <Box sx={{ mb: 2 }}>
-            {landingPageUrl && (
-              <div style={{ marginBottom: '8px' }}>
-                <strong>Landing Page:</strong> {landingPageUrl}
-              </div>
-            )}
-            {collectionsUrl && (
-              <div style={{ marginBottom: '8px' }}>
-                <strong>Collections URL:</strong> {collectionsUrl}
-              </div>
-            )}
-            {conformanceUrl && (
-              <div>
-                <strong>Conformance URL:</strong> {conformanceUrl}
-              </div>
-            )}
-            {!landingPageUrl && !collectionsUrl && (
-              <div>Current query URL: {queryUrl}</div>
-            )}
-          </Box>
           
           <ValidationResults 
             validation={validationResult} 
