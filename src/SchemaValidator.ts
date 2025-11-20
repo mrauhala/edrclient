@@ -6,36 +6,56 @@ type SchemaType = 'edr-1.0' | 'edr-1.1' | 'features-1.0' | 'common-1.0';
 
 interface SchemaConfig {
   type: SchemaType;
-  url: string;
   conformancePattern: string;
   displayName: string;
+  schemas: {
+    landingPage?: string;
+    collections?: string;
+    conformance?: string;
+  };
 }
 
-// Configuration for all supported schemas
+// Configuration for all supported schemas - using individual schema files
 const SCHEMA_CONFIGS: SchemaConfig[] = [
   {
     type: 'features-1.0',
-    url: '/schemas/ogcapi/ogcapi-features-1-1.0-conf-core.json',
     conformancePattern: '/spec/ogcapi-features-1/1.0/conf/core',
-    displayName: 'OGC API Features 1.0'
+    displayName: 'OGC API Features 1.0',
+    schemas: {
+      landingPage: '/schemas/individual/features-1.0/landingPage.json',
+      collections: '/schemas/individual/features-1.0/collections.json',
+      conformance: '/schemas/individual/features-1.0/confClasses.json'
+    }
   },
   {
     type: 'edr-1.1',
-    url: '/schemas/ogcapi/ogcapi-edr-1-1.1-conf-core.json',
     conformancePattern: '/spec/ogcapi-edr-1/1.1/conf/core',
-    displayName: 'OGC API EDR 1.1'
+    displayName: 'OGC API EDR 1.1',
+    schemas: {
+      landingPage: '/schemas/individual/edr-1.1/landingPage.json',
+      collections: '/schemas/individual/edr-1.1/collections.json',
+      conformance: '/schemas/individual/edr-1.1/confClasses.json'
+    }
   },
   {
     type: 'edr-1.0',
-    url: '/schemas/ogcapi/ogcapi-edr-1-1.0-conf-core.json',
     conformancePattern: '/spec/ogcapi-edr-1/1.0/conf/core',
-    displayName: 'OGC API EDR 1.0'
+    displayName: 'OGC API EDR 1.0',
+    schemas: {
+      landingPage: '/schemas/individual/edr-1.0/landingPage.json',
+      collections: '/schemas/individual/edr-1.0/collections.json',
+      conformance: '/schemas/individual/edr-1.0/confClasses.json'
+    }
   },
   {
     type: 'common-1.0',
-    url: '/schemas/ogcapi/ogcapi-common-1-1.0-conf-core.json',
     conformancePattern: '/spec/ogcapi-common-1/1.0/conf/core',
-    displayName: 'OGC API Common 1.0'
+    displayName: 'OGC API Common 1.0',
+    schemas: {
+      landingPage: '/schemas/individual/common-1.0/landingPage.json',
+      conformance: '/schemas/individual/common-1.0/confClasses.json'
+      // Note: Common doesn't define collections
+    }
   }
 ];
 
@@ -45,10 +65,16 @@ interface ValidatorSet {
   conformance?: any;
 }
 
-// This class handles validation against multiple OGC API OpenAPI schemas
+interface SchemaSet {
+  collections?: any;
+  landingPage?: any;
+  conformance?: any;
+}
+
+// This class handles validation against multiple OGC API individual schemas
 export class SchemaValidator {
   private static instance: SchemaValidator;
-  private loadedSchemas: Map<SchemaType, any> = new Map();
+  private loadedSchemas: Map<SchemaType, SchemaSet> = new Map();
   private validators: Map<SchemaType, ValidatorSet> = new Map();
   private schemaLoadError: string | null = null;
   private ajv: Ajv;
@@ -118,7 +144,7 @@ export class SchemaValidator {
   }
 
   /**
-   * Load a single schema by type
+   * Load individual schema files for a specific schema type
    */
   private async loadSingleSchema(schemaType: SchemaType): Promise<boolean> {
     const config = SCHEMA_CONFIGS.find(c => c.type === schemaType);
@@ -128,27 +154,66 @@ export class SchemaValidator {
     }
 
     try {
-      console.log(`   📥 Loading ${config.displayName} from: ${config.url}`);
+      console.log(`   📥 Loading ${config.displayName} individual schemas...`);
       
-      const response = await fetch(config.url);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch schema: ${response.status} ${response.statusText}`);
+      const schemaSet: SchemaSet = {};
+      const validatorSet: ValidatorSet = {};
+      let loadedCount = 0;
+
+      // Load landing page schema if available
+      if (config.schemas.landingPage) {
+        try {
+          const response = await fetch(config.schemas.landingPage);
+          if (response.ok) {
+            schemaSet.landingPage = await response.json();
+            validatorSet.landingPage = this.ajv.compile(schemaSet.landingPage);
+            console.log(`      ✓ Landing page schema loaded`);
+            loadedCount++;
+          }
+        } catch (error) {
+          console.warn(`      ⚠️  Failed to load landing page schema:`, error);
+        }
       }
 
-      const schema = await response.json();
-
-      // Verify structure
-      if (!schema.paths && !schema.components) {
-        throw new Error('Invalid OpenAPI specification structure');
+      // Load collections schema if available
+      if (config.schemas.collections) {
+        try {
+          const response = await fetch(config.schemas.collections);
+          if (response.ok) {
+            schemaSet.collections = await response.json();
+            validatorSet.collections = this.ajv.compile(schemaSet.collections);
+            console.log(`      ✓ Collections schema loaded`);
+            loadedCount++;
+          }
+        } catch (error) {
+          console.warn(`      ⚠️  Failed to load collections schema:`, error);
+        }
       }
 
-      // Store the schema
-      this.loadedSchemas.set(schemaType, schema);
-      
-      // Prepare validators for this schema
-      this.prepareValidators(schemaType, schema);
+      // Load conformance schema if available
+      if (config.schemas.conformance) {
+        try {
+          const response = await fetch(config.schemas.conformance);
+          if (response.ok) {
+            schemaSet.conformance = await response.json();
+            validatorSet.conformance = this.ajv.compile(schemaSet.conformance);
+            console.log(`      ✓ Conformance schema loaded`);
+            loadedCount++;
+          }
+        } catch (error) {
+          console.warn(`      ⚠️  Failed to load conformance schema:`, error);
+        }
+      }
 
-      console.log(`   ✅ ${config.displayName} loaded successfully`);
+      if (loadedCount === 0) {
+        throw new Error('No schemas could be loaded');
+      }
+
+      // Store the schemas and validators
+      this.loadedSchemas.set(schemaType, schemaSet);
+      this.validators.set(schemaType, validatorSet);
+
+      console.log(`   ✅ ${config.displayName}: ${loadedCount} schema(s) loaded`);
       return true;
 
     } catch (error) {
@@ -156,126 +221,6 @@ export class SchemaValidator {
       this.schemaLoadError = error instanceof Error ? error.message : 'Unknown error';
       return false;
     }
-  }
-
-  /**
-   * Prepare validators (collections, landing page, conformance) for a schema
-   */
-  private prepareValidators(schemaType: SchemaType, schema: any): void {
-    const validatorSet: ValidatorSet = {};
-
-    // Try to prepare collections validator
-    const collectionsSchema = this.extractCollectionsSchema(schema);
-    if (collectionsSchema) {
-      try {
-        validatorSet.collections = this.ajv.compile(collectionsSchema);
-        console.log(`      ✓ Collections validator ready`);
-      } catch (error) {
-        console.warn(`      ⚠️  Failed to compile collections validator:`, error);
-      }
-    }
-
-    // Try to prepare landing page validator
-    const landingPageSchema = this.extractLandingPageSchema(schema);
-    if (landingPageSchema) {
-      try {
-        validatorSet.landingPage = this.ajv.compile(landingPageSchema);
-        console.log(`      ✓ Landing page validator ready`);
-      } catch (error) {
-        console.warn(`      ⚠️  Failed to compile landing page validator:`, error);
-      }
-    }
-
-    // Try to prepare conformance validator
-    const conformanceSchema = this.extractConformanceSchema(schema);
-    if (conformanceSchema) {
-      try {
-        validatorSet.conformance = this.ajv.compile(conformanceSchema);
-        console.log(`      ✓ Conformance validator ready`);
-      } catch (error) {
-        console.warn(`      ⚠️  Failed to compile conformance validator:`, error);
-      }
-    }
-
-    this.validators.set(schemaType, validatorSet);
-  }
-
-  /**
-   * Extract collections schema from OpenAPI spec
-   */
-  private extractCollectionsSchema(schema: any): any {
-    // Try paths first (EDR style)
-    if (schema.paths?.['/collections']?.get?.responses?.['200']?.content) {
-      const content = schema.paths['/collections'].get.responses['200'].content;
-      if (content['application/json']?.schema) {
-        return content['application/json'].schema;
-      }
-      // Try any available content type
-      for (const contentType of Object.keys(content)) {
-        if (content[contentType]?.schema) {
-          return content[contentType].schema;
-        }
-      }
-    }
-
-    // Try components/schemas (OGC Features style)
-    if (schema.components?.schemas?.collections) {
-      return schema.components.schemas.collections;
-    }
-
-    return null;
-  }
-
-  /**
-   * Extract landing page schema from OpenAPI spec
-   */
-  private extractLandingPageSchema(schema: any): any {
-    // Try paths first
-    if (schema.paths?.['/']?.get?.responses?.['200']?.content) {
-      const content = schema.paths['/'].get.responses['200'].content;
-      if (content['application/json']?.schema) {
-        return content['application/json'].schema;
-      }
-      // Try any available content type
-      for (const contentType of Object.keys(content)) {
-        if (content[contentType]?.schema) {
-          return content[contentType].schema;
-        }
-      }
-    }
-
-    // Try components/schemas
-    if (schema.components?.schemas?.landingPage) {
-      return schema.components.schemas.landingPage;
-    }
-
-    return null;
-  }
-
-  /**
-   * Extract conformance schema from OpenAPI spec
-   */
-  private extractConformanceSchema(schema: any): any {
-    // Try paths first
-    if (schema.paths?.['/conformance']?.get?.responses?.['200']?.content) {
-      const content = schema.paths['/conformance'].get.responses['200'].content;
-      if (content['application/json']?.schema) {
-        return content['application/json'].schema;
-      }
-      // Try any available content type
-      for (const contentType of Object.keys(content)) {
-        if (content[contentType]?.schema) {
-          return content[contentType].schema;
-        }
-      }
-    }
-
-    // Try components/schemas
-    if (schema.components?.schemas?.confClasses) {
-      return schema.components.schemas.confClasses;
-    }
-
-    return null;
   }
 
   /**
@@ -471,10 +416,12 @@ export class SchemaValidator {
 
   public getLoadedSchemaUrls(): string[] {
     const urls: string[] = [];
-    this.loadedSchemas.forEach((schema, schemaType) => {
+    this.loadedSchemas.forEach((schemaSet, schemaType) => {
       const config = SCHEMA_CONFIGS.find(c => c.type === schemaType);
       if (config) {
-        urls.push(config.url);
+        if (config.schemas.landingPage) urls.push(config.schemas.landingPage);
+        if (config.schemas.collections) urls.push(config.schemas.collections);
+        if (config.schemas.conformance) urls.push(config.schemas.conformance);
       }
     });
     return urls;
