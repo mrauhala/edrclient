@@ -7,7 +7,7 @@ import Alert from '@mui/material/Alert';
 import Link from '@mui/material/Link';
 import AlertTitle from '@mui/material/AlertTitle';
 import React from 'react';
-import { DataQueries, getSupportedDataQueries, Collection } from './DataRetrievalAPI';
+import { DataQueries, getSupportedDataQueries, Collection, normalizeHref } from './DataRetrievalAPI';
 
 
 interface QueryFormProps {
@@ -30,7 +30,10 @@ const QueryForm = ({ queries, queryUrl, setQueryUrl, collection }: QueryFormProp
     setQuery(event.target.value as string);
     const selectedKey = event.target.value;
     if (queries[selectedKey]?.link?.href) {
-      setQueryUrl(queries[selectedKey].link.href);
+      const normalizedHref = normalizeHref(queries[selectedKey].link.href);
+      if (normalizedHref) {
+        setQueryUrl(normalizedHref);
+      }
     }
   };
 
@@ -38,11 +41,14 @@ const QueryForm = ({ queries, queryUrl, setQueryUrl, collection }: QueryFormProp
     <Box sx={{ padding: 0, minWidth: 120 }}>
     <Alert severity="success">
       <AlertTitle>F: DATA_QUERIES</AlertTitle>
-      {supportedQueryKeys.map((key) => (
-        <div key={key}>
-          <Link href={queries[key].link.href}>{queries[key].link.title ? queries[key].link.title : queries[key].link.rel}</Link> ({queries[key].link.rel})
-        </div>
-      ))}
+      {supportedQueryKeys.map((key) => {
+        const normalizedHref = normalizeHref(queries[key]?.link?.href);
+        return normalizedHref ? (
+          <div key={key}>
+            <Link href={normalizedHref}>{queries[key].link.title ? queries[key].link.title : queries[key].link.rel}</Link> ({queries[key].link.rel})
+          </div>
+        ) : null;
+      })}
     </Alert>
     <>
       {supportedQueryKeys.length > 0 ?

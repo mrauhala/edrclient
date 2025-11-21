@@ -1,20 +1,104 @@
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 
-// This class handles validation against EDR OpenAPI schemas
+// Schema type definitions
+type SchemaType = 'edr-p1-v1.0' | 'edr-p1-v1.1' | 'features-p1-v1.0' | 'features-p2-v1.0' | 'common-p1-v1.0' | 'records-p1-v1.0';
+
+interface SchemaConfig {
+  type: SchemaType;
+  conformancePattern: string;
+  displayName: string;
+  schemas: {
+    landingPage?: string;
+    collections?: string;
+    conformance?: string;
+  };
+}
+
+// Configuration for all supported schemas - using individual schema files
+const SCHEMA_CONFIGS: SchemaConfig[] = [
+  {
+    type: 'features-p1-v1.0',
+    conformancePattern: '/spec/ogcapi-features-1/1.0/conf/core',
+    displayName: 'OGC API Features Part 1 v1.0',
+    schemas: {
+      landingPage: '/schemas/individual/features-p1-v1.0/landingPage.json',
+      collections: '/schemas/individual/features-p1-v1.0/collections.json',
+      conformance: '/schemas/individual/features-p1-v1.0/confClasses.json'
+    }
+  },
+  {
+    type: 'features-p2-v1.0',
+    conformancePattern: '/spec/ogcapi-features-2/1.0/conf/crs',
+    displayName: 'OGC API Features Part 2 v1.0 (CRS)',
+    schemas: {
+      // Features Part 2 only defines CRS extensions for collections, no landing page or conformance
+      collections: '/schemas/individual/features-p2-v1.0/collections.json'
+    }
+  },
+  {
+    type: 'edr-p1-v1.1',
+    conformancePattern: '/spec/ogcapi-edr-1/1.1/conf/core',
+    displayName: 'OGC API EDR Part 1 v1.1',
+    schemas: {
+      landingPage: '/schemas/individual/edr-p1-v1.1/landingPage.json',
+      collections: '/schemas/individual/edr-p1-v1.1/collections.json',
+      conformance: '/schemas/individual/edr-p1-v1.1/confClasses.json'
+    }
+  },
+  {
+    type: 'edr-p1-v1.0',
+    conformancePattern: '/spec/ogcapi-edr-1/1.0/conf/core',
+    displayName: 'OGC API EDR Part 1 v1.0',
+    schemas: {
+      landingPage: '/schemas/individual/edr-p1-v1.0/landingPage.json',
+      collections: '/schemas/individual/edr-p1-v1.0/collections.json',
+      conformance: '/schemas/individual/edr-p1-v1.0/confClasses.json'
+    }
+  },
+  {
+    type: 'common-p1-v1.0',
+    conformancePattern: '/spec/ogcapi-common-1/1.0/conf/core',
+    displayName: 'OGC API Common Part 1 v1.0',
+    schemas: {
+      landingPage: '/schemas/individual/common-p1-v1.0/landingPage.json',
+      conformance: '/schemas/individual/common-p1-v1.0/confClasses.json'
+      // Note: Common doesn't define collections
+    }
+  },
+  {
+    type: 'records-p1-v1.0',
+    conformancePattern: '/spec/ogcapi-records-1/1.0/conf/core',
+    displayName: 'OGC API Records Part 1 v1.0',
+    schemas: {
+      landingPage: '/schemas/individual/records-p1-v1.0/landingPage.json',
+      collections: '/schemas/individual/records-p1-v1.0/catalogs.json'
+      // Note: Records doesn't have a conformance schema
+    }
+  }
+];
+
+interface ValidatorSet {
+  collections?: any;
+  landingPage?: any;
+  conformance?: any;
+}
+
+interface SchemaSet {
+  collections?: any;
+  landingPage?: any;
+  conformance?: any;
+}
+
+// This class handles validation against multiple OGC API individual schemas
 export class SchemaValidator {
   private static instance: SchemaValidator;
-  private isSchemaLoaded: boolean = false;
+  private loadedSchemas: Map<SchemaType, SchemaSet> = new Map();
+  private validators: Map<SchemaType, ValidatorSet> = new Map();
   private schemaLoadError: string | null = null;
-  private loadedSchemaUrls: string[] = [];
-  private schema: any = null;
   private ajv: Ajv;
-  private collectionsValidate: any = null;
-  private landingPageValidate: any = null;
-  private conformanceValidate: any = null;
 
   private constructor() {
-    // Initialize AJV for data validation
     this.ajv = new Ajv({
       allErrors: true,
       verbose: true,
@@ -31,382 +115,419 @@ export class SchemaValidator {
     return SchemaValidator.instance;
   }
 
-  public async loadSchema(schemaUrl: string = 'https://schemas.opengis.net/ogcapi/edr/1.1/openapi/ogcapi-environmental-data-retrieval-1.bundled.json'): Promise<boolean> {
+  /**
+   * Detect and load all schemas that match the conformance classes
+   * Clears previously loaded schemas to ensure only matching schemas are used
+   */
+  public async loadSchemaBasedOnConformance(conformsTo?: string[]): Promise<boolean> {
+    if (!conformsTo || conformsTo.length === 0) {
+      console.log('🎯 No conformance classes provided, defaulting to EDR Part 1 v1.1 schema');
+      // Clear existing schemas before loading default
+      this.loadedSchemas.clear();
+      this.validators.clear();
+      return this.loadSingleSchema('edr-p1-v1.1');
+    }
+
+    console.log(`🎯 Analyzing ${conformsTo.length} conformance classes...`);
+    
+    // Find all matching schemas
+    const matchingSchemas: SchemaConfig[] = [];
+    for (const config of SCHEMA_CONFIGS) {
+      if (conformsTo.some(url => url.endsWith(config.conformancePattern))) {
+        matchingSchemas.push(config);
+        console.log(`   ✓ Found: ${config.displayName}`);
+      }
+    }
+
+    if (matchingSchemas.length === 0) {
+      console.log('🎯 No matching conformance classes found, defaulting to EDR Part 1 v1.1 schema');
+      // Clear existing schemas before loading default
+      this.loadedSchemas.clear();
+      this.validators.clear();
+      return this.loadSingleSchema('edr-p1-v1.1');
+    }
+
+    // Clear existing schemas to ensure only matching schemas are loaded
+    console.log(`🧹 Clearing previously loaded schemas...`);
+    this.loadedSchemas.clear();
+    this.validators.clear();
+
+    // Load all matching schemas
+    console.log(`📥 Loading ${matchingSchemas.length} schema(s)...`);
+    let allSuccess = true;
+    
+    for (const config of matchingSchemas) {
+      const success = await this.loadSingleSchema(config.type);
+      if (!success) {
+        console.warn(`   ⚠️  Failed to load ${config.displayName}`);
+        allSuccess = false;
+      }
+    }
+
+    console.log(`✅ Schema loading complete. ${this.loadedSchemas.size} schema(s) ready for validation.`);
+    return allSuccess;
+  }
+
+  /**
+   * Load individual schema files for a specific schema type
+   */
+  private async loadSingleSchema(schemaType: SchemaType): Promise<boolean> {
+    const config = SCHEMA_CONFIGS.find(c => c.type === schemaType);
+    if (!config) {
+      console.error(`❌ Unknown schema type: ${schemaType}`);
+      return false;
+    }
+
     try {
-      console.log(`Loading EDR OpenAPI specification from: ${schemaUrl}`);
+      console.log(`   📥 Loading ${config.displayName} individual schemas...`);
       
-      // Reset state
-      this.loadedSchemaUrls = [];
-      this.schema = null;
-      this.collectionsValidate = null;
-      this.landingPageValidate = null;
-      this.conformanceValidate = null;
-      
-      // Download the bundled EDR OpenAPI specification (JSON with all references resolved)
-      console.log('Downloading bundled EDR OpenAPI specification...');
-      const response = await fetch(schemaUrl);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch EDR OpenAPI spec: ${response.status} ${response.statusText}`);
+      const schemaSet: SchemaSet = {};
+      const validatorSet: ValidatorSet = {};
+      let loadedCount = 0;
+
+      // Load landing page schema if available
+      if (config.schemas.landingPage) {
+        try {
+          const response = await fetch(config.schemas.landingPage);
+          if (response.ok) {
+            schemaSet.landingPage = await response.json();
+            validatorSet.landingPage = this.ajv.compile(schemaSet.landingPage);
+            console.log(`      ✓ Landing page schema loaded`);
+            loadedCount++;
+          }
+        } catch (error) {
+          console.warn(`      ⚠️  Failed to load landing page schema:`, error);
+        }
       }
-      
-      // Parse the JSON specification
-      console.log('Parsing JSON specification...');
-      this.schema = await response.json();
-      
-      // Verify we have the expected structure - EDR specs have schemas in paths, not components
-      if (!this.schema.paths) {
-        throw new Error('No paths found in OpenAPI specification');
+
+      // Load collections schema if available
+      if (config.schemas.collections) {
+        try {
+          const response = await fetch(config.schemas.collections);
+          if (response.ok) {
+            schemaSet.collections = await response.json();
+            validatorSet.collections = this.ajv.compile(schemaSet.collections);
+            console.log(`      ✓ Collections schema loaded`);
+            loadedCount++;
+          }
+        } catch (error) {
+          console.warn(`      ⚠️  Failed to load collections schema:`, error);
+        }
       }
-      
-      this.loadedSchemaUrls.push(schemaUrl);
-      
-      console.log(`✅ Successfully loaded EDR OpenAPI specification: "${this.schema.info?.title || 'Untitled Schema'}"`);
-      console.log(`Schema version: ${this.schema.info?.version || 'unknown'}`);
-      console.log(`Paths loaded: ${Object.keys(this.schema.paths).length} endpoints`);
-      
-      // Log some of the key paths for debugging
-      const pathNames = Object.keys(this.schema.paths);
-      console.log('Available API paths:', pathNames.slice(0, 5).join(', '), pathNames.length > 5 ? '...' : '');
-      
-      // Try to prepare the collections validator
-      this.prepareCollectionsValidator();
-      
-      // Try to prepare the landing page validator
-      this.prepareLandingPageValidator();
-      
-      // Try to prepare the conformance validator
-      this.prepareConformanceValidator();
-      
-      this.isSchemaLoaded = true;
-      this.schemaLoadError = null;
-      
+
+      // Load conformance schema if available
+      if (config.schemas.conformance) {
+        try {
+          const response = await fetch(config.schemas.conformance);
+          if (response.ok) {
+            schemaSet.conformance = await response.json();
+            validatorSet.conformance = this.ajv.compile(schemaSet.conformance);
+            console.log(`      ✓ Conformance schema loaded`);
+            loadedCount++;
+          }
+        } catch (error) {
+          console.warn(`      ⚠️  Failed to load conformance schema:`, error);
+        }
+      }
+
+      if (loadedCount === 0) {
+        throw new Error('No schemas could be loaded');
+      }
+
+      // Store the schemas and validators
+      this.loadedSchemas.set(schemaType, schemaSet);
+      this.validators.set(schemaType, validatorSet);
+
+      console.log(`   ✅ ${config.displayName}: ${loadedCount} schema(s) loaded`);
       return true;
+
     } catch (error) {
-      console.error('❌ Error loading EDR OpenAPI specification:', error);
-      this.schemaLoadError = error instanceof Error ? error.message : 'Unknown error loading schema';
-      this.isSchemaLoaded = false;
+      console.error(`   ❌ Error loading ${config.displayName}:`, error);
+      this.schemaLoadError = error instanceof Error ? error.message : 'Unknown error';
       return false;
     }
   }
 
-  private prepareCollectionsValidator(): void {
-    if (!this.schema?.paths) {
-      console.warn('No paths found in OpenAPI specification');
-      return;
-    }
-
-    let collectionsSchema = null;
-    
-    // Look for the collections schema in the /collections path response
-    const collectionsPath = this.schema.paths['/collections'];
-    if (collectionsPath?.get?.responses?.['200']?.content?.['application/json']?.schema) {
-      collectionsSchema = collectionsPath.get.responses['200'].content['application/json'].schema;
-      console.log('✅ Found collections schema in /collections path');
-    }
-    
-    // Also try alternative content types
-    if (!collectionsSchema && collectionsPath?.get?.responses?.['200']?.content) {
-      const contentTypes = Object.keys(collectionsPath.get.responses['200'].content);
-      for (const contentType of contentTypes) {
-        if (collectionsPath.get.responses['200'].content[contentType]?.schema) {
-          collectionsSchema = collectionsPath.get.responses['200'].content[contentType].schema;
-          console.log(`✅ Found collections schema in /collections path (${contentType})`);
-          break;
-        }
-      }
-    }
-    
-    if (collectionsSchema) {
-      try {
-        console.log('Compiling collections schema for validation...');
-        console.log('Schema structure:', {
-          type: collectionsSchema.type,
-          required: collectionsSchema.required,
-          properties: collectionsSchema.properties ? Object.keys(collectionsSchema.properties) : []
-        });
-        
-        this.collectionsValidate = this.ajv.compile(collectionsSchema);
-        console.log('✅ Collections validator compiled successfully');
-      } catch (error) {
-        console.error('❌ Error compiling collections schema:', error);
-      }
-    } else {
-      console.warn('❌ No collections schema found in EDR specification');
-      console.warn('Available paths:', Object.keys(this.schema.paths));
-    }
-  }
-
-  private prepareLandingPageValidator(): void {
-    if (!this.schema?.paths) {
-      console.warn('No paths found in OpenAPI specification');
-      return;
-    }
-
-    let landingPageSchema = null;
-    
-    // Look for the landing page schema in the / (root) path response
-    const rootPath = this.schema.paths['/'];
-    if (rootPath?.get?.responses?.['200']?.content?.['application/json']?.schema) {
-      landingPageSchema = rootPath.get.responses['200'].content['application/json'].schema;
-      console.log('✅ Found landing page schema in / path');
-    }
-    
-    // Also try alternative content types
-    if (!landingPageSchema && rootPath?.get?.responses?.['200']?.content) {
-      const contentTypes = Object.keys(rootPath.get.responses['200'].content);
-      for (const contentType of contentTypes) {
-        if (rootPath.get.responses['200'].content[contentType]?.schema) {
-          landingPageSchema = rootPath.get.responses['200'].content[contentType].schema;
-          console.log(`✅ Found landing page schema in / path (${contentType})`);
-          break;
-        }
-      }
-    }
-    
-    if (landingPageSchema) {
-      try {
-        console.log('Compiling landing page schema for validation...');
-        console.log('Schema structure:', {
-          type: landingPageSchema.type,
-          required: landingPageSchema.required,
-          properties: landingPageSchema.properties ? Object.keys(landingPageSchema.properties) : []
-        });
-        
-        this.landingPageValidate = this.ajv.compile(landingPageSchema);
-        console.log('✅ Landing page validator compiled successfully');
-      } catch (error) {
-        console.error('❌ Error compiling landing page schema:', error);
-      }
-    } else {
-      console.warn('❌ No landing page schema found in EDR specification');
-    }
-  }
-
-  private prepareConformanceValidator(): void {
-    if (!this.schema?.paths) {
-      console.warn('No paths found in OpenAPI specification');
-      return;
-    }
-
-    let conformanceSchema = null;
-    
-    // Look for the conformance schema in the /conformance path response
-    const conformancePath = this.schema.paths['/conformance'];
-    if (conformancePath?.get?.responses?.['200']?.content?.['application/json']?.schema) {
-      conformanceSchema = conformancePath.get.responses['200'].content['application/json'].schema;
-      console.log('✅ Found conformance schema in /conformance path');
-    }
-    
-    // Also try alternative content types
-    if (!conformanceSchema && conformancePath?.get?.responses?.['200']?.content) {
-      const contentTypes = Object.keys(conformancePath.get.responses['200'].content);
-      for (const contentType of contentTypes) {
-        if (conformancePath.get.responses['200'].content[contentType]?.schema) {
-          conformanceSchema = conformancePath.get.responses['200'].content[contentType].schema;
-          console.log(`✅ Found conformance schema in /conformance path (${contentType})`);
-          break;
-        }
-      }
-    }
-    
-    if (conformanceSchema) {
-      try {
-        console.log('Compiling conformance schema for validation...');
-        console.log('Schema structure:', {
-          type: conformanceSchema.type,
-          required: conformanceSchema.required,
-          properties: conformanceSchema.properties ? Object.keys(conformanceSchema.properties) : []
-        });
-        
-        this.conformanceValidate = this.ajv.compile(conformanceSchema);
-        console.log('✅ Conformance validator compiled successfully');
-      } catch (error) {
-        console.error('❌ Error compiling conformance schema:', error);
-      }
-    } else {
-      console.warn('❌ No conformance schema found in EDR specification');
-    }
-  }
-
-  public async validateCollections(data: any): Promise<{ valid: boolean; errors: any[] | null; collectionErrors?: { [collectionId: string]: any[] } }> {
-    if (!this.isSchemaLoaded || !this.collectionsValidate) {
-      return { 
-        valid: true, // Default to valid to prevent UI issues
-        errors: [{ message: 'EDR schema not loaded or no collections schema found. Validation skipped.' }] 
+  /**
+   * Validate collections data against all loaded schemas
+   */
+  public async validateCollections(data: any): Promise<{ 
+    valid: boolean; 
+    errors: any[] | null; 
+    collectionErrors?: { [collectionId: string]: any[] };
+    schemaResults?: Array<{ schema: string; isValid: boolean }>;
+  }> {
+    if (this.validators.size === 0) {
+      return {
+        valid: true,
+        errors: [{ message: 'No schemas loaded. Validation skipped.' }]
       };
     }
 
-    try {
-      console.log('🔍 Beginning validation against EDR collections schema...');
-      
-      // Validate the data against the pre-compiled collections schema
-      const isValid = this.collectionsValidate(data);
-      
-      if (isValid) {
-        console.log('✅ EDR collections schema validation passed');
-        return { valid: true, errors: null };
-      } else {
-        console.warn('❌ EDR collections schema validation failed');
-        console.warn('Validation errors:', this.collectionsValidate.errors);
+    console.log(`\n🔍 Validating collections against ${this.validators.size} schema(s)...`);
+    const schemaNames = Array.from(this.validators.keys()).map(type => {
+      const config = SCHEMA_CONFIGS.find(c => c.type === type);
+      return config?.displayName || type;
+    }).join(', ');
+    console.log(`   Schemas: ${schemaNames}\n`);
+    
+    let overallValid = true;
+    const allErrors: any[] = [];
+    const collectionErrors: { [collectionId: string]: any[] } = {};
+    const schemaResults: Array<{ schema: string; isValid: boolean }> = [];
+
+    // Extract collection IDs from the data for mapping errors
+    const collections = data?.collections || [];
+    const collectionIndexMap: { [index: number]: string } = {};
+    collections.forEach((col: any, index: number) => {
+      if (col.id) {
+        collectionIndexMap[index] = col.id;
+      }
+    });
+
+    // Validate against each loaded schema
+    this.validators.forEach((validatorSet, schemaType) => {
+      if (!validatorSet.collections) {
+        return;
+      }
+
+      const config = SCHEMA_CONFIGS.find(c => c.type === schemaType);
+      const displayName = config?.displayName || schemaType;
+
+      try {
+        const isValid = validatorSet.collections(data);
         
-        // Convert AJV errors to our format and categorize by collection
-        const errors = this.collectionsValidate.errors?.map((error: any) => ({
-          path: error.instancePath || error.dataPath || 'root',
-          message: `${error.instancePath || error.dataPath || ''}: ${error.message}`,
-          keyword: error.keyword,
-          allowedValues: error.params?.allowedValues,
-          schema: error.schema,
-          data: error.data
-        })) || [];
-
-        // Categorize errors by collection
-        const collectionErrors: { [collectionId: string]: any[] } = {};
-        const globalErrors: any[] = [];
-
-        errors.forEach((error: any) => {
-          const pathParts = error.path.split('/').filter((p: string) => p);
+        // Record this schema's result
+        schemaResults.push({
+          schema: displayName,
+          isValid: isValid
+        });
+        
+        if (isValid) {
+          console.log(`   ✅ ${displayName}: Valid`);
+        } else {
+          console.warn(`   ❌ ${displayName}: Validation FAILED`);
+          overallValid = false;
           
-          // Check if error path indicates a specific collection
-          if (pathParts.length >= 2 && pathParts[0] === 'collections' && !isNaN(parseInt(pathParts[1]))) {
-            const collectionIndex = parseInt(pathParts[1]);
+          // Add schema-specific errors
+          if (validatorSet.collections.errors) {
+            const errors = validatorSet.collections.errors.map((error: any) => ({
+              schema: displayName,
+              schemaType: schemaType,
+              path: error.instancePath || error.dataPath || 'root',
+              message: `${error.instancePath || error.dataPath || ''}: ${error.message}`,
+              keyword: error.keyword
+            }));
             
-            // Try to get collection ID from the data
-            if (data?.collections?.[collectionIndex]?.id) {
-              const collectionId = data.collections[collectionIndex].id;
-              
-              // Determine the section based on the path
-              let section = '';
-              if (pathParts.length > 2) {
-                section = pathParts[2];
+            // Group errors by collection
+            errors.forEach((err: any) => {
+              // Parse path to extract collection index: /collections/0/... or /collections/1/...
+              const pathMatch = err.path.match(/^\/collections\/(\d+)/);
+              if (pathMatch) {
+                const collectionIndex = parseInt(pathMatch[1], 10);
+                const collectionId = collectionIndexMap[collectionIndex];
+                if (collectionId) {
+                  if (!collectionErrors[collectionId]) {
+                    collectionErrors[collectionId] = [];
+                  }
+                  collectionErrors[collectionId].push(err);
+                }
               }
-              
-              if (!collectionErrors[collectionId]) {
-                collectionErrors[collectionId] = [];
-              }
-              
-              collectionErrors[collectionId].push({
-                ...error,
-                collectionId,
-                section
-              });
-            } else {
-              globalErrors.push(error);
+            });
+            
+            // Log first few errors for this schema
+            console.warn(`      Errors from ${displayName}:`);
+            errors.slice(0, 3).forEach((err: any) => {
+              console.warn(`        • ${err.message}`);
+            });
+            if (errors.length > 3) {
+              console.warn(`        ... and ${errors.length - 3} more errors`);
             }
-          } else {
-            globalErrors.push(error);
+            
+            allErrors.push(...errors);
           }
+        }
+      } catch (error) {
+        console.error(`   ❌ ${displayName}: Validation error:`, error);
+        overallValid = false;
+        schemaResults.push({
+          schema: displayName,
+          isValid: false
+        });
+        allErrors.push({
+          schema: displayName,
+          schemaType: schemaType,
+          message: error instanceof Error ? error.message : 'Unknown validation error'
+        });
+      }
+    });
+
+    if (overallValid) {
+      console.log(`\n✅ All validations passed!\n`);
+    } else {
+      console.warn(`\n⚠️  Validation completed with ${allErrors.length} error(s) across ${this.validators.size} schema(s)\n`);
+    }
+
+    return {
+      valid: overallValid,
+      errors: allErrors.length > 0 ? allErrors : null,
+      collectionErrors: Object.keys(collectionErrors).length > 0 ? collectionErrors : undefined,
+      schemaResults: schemaResults.length > 0 ? schemaResults : undefined
+    };
+  }
+
+  /**
+   * Validate landing page data against all loaded schemas
+   */
+  public async validateLandingPage(data: any): Promise<{ 
+    valid: boolean; 
+    errors: any[] | null;
+    schemaResults?: Array<{ schema: string; isValid: boolean }>;
+  }> {
+    if (this.validators.size === 0) {
+      return {
+        valid: true,
+        errors: [{ message: 'No schemas loaded. Validation skipped.' }]
+      };
+    }
+
+    console.log(`🔍 Validating landing page against ${this.validators.size} schema(s)...`);
+    
+    let overallValid = true;
+    const allErrors: any[] = [];
+    const schemaResults: Array<{ schema: string; isValid: boolean }> = [];
+
+    this.validators.forEach((validatorSet, schemaType) => {
+      if (!validatorSet.landingPage) {
+        return;
+      }
+
+      const config = SCHEMA_CONFIGS.find(c => c.type === schemaType);
+      const displayName = config?.displayName || schemaType;
+
+      try {
+        const isValid = validatorSet.landingPage(data);
+        
+        // Record this schema's result
+        schemaResults.push({
+          schema: displayName,
+          isValid: isValid
         });
         
-        return { 
-          valid: false, 
-          errors: globalErrors.length > 0 ? globalErrors : errors,
-          collectionErrors: Object.keys(collectionErrors).length > 0 ? collectionErrors : undefined
-        };
+        if (isValid) {
+          console.log(`   ✅ ${displayName}: Valid`);
+        } else {
+          console.warn(`   ⚠️  ${displayName}: Validation issues found`);
+          overallValid = false;
+          
+          if (validatorSet.landingPage.errors) {
+            const errors = validatorSet.landingPage.errors.map((error: any) => ({
+              schema: displayName,
+              path: error.instancePath || error.dataPath || 'root',
+              message: `${error.instancePath || error.dataPath || ''}: ${error.message}`,
+              keyword: error.keyword
+            }));
+            allErrors.push(...errors);
+          }
+        }
+      } catch (error) {
+        console.error(`   ❌ ${displayName}: Validation error:`, error);
+        overallValid = false;
+        schemaResults.push({
+          schema: displayName,
+          isValid: false
+        });
+        allErrors.push({
+          schema: displayName,
+          message: error instanceof Error ? error.message : 'Unknown validation error'
+        });
       }
-    } catch (error) {
-      console.error('❌ EDR schema validation error:', error);
-      
-      return {
-        valid: false,
-        errors: [{ message: error instanceof Error ? error.message : 'Unknown validation error' }]
-      };
-    }
+    });
+
+    return {
+      valid: overallValid,
+      errors: allErrors.length > 0 ? allErrors : null,
+      schemaResults: schemaResults.length > 0 ? schemaResults : undefined
+    };
   }
 
-  public async validateLandingPage(data: any): Promise<{ valid: boolean; errors: any[] | null }> {
-    if (!this.isSchemaLoaded || !this.landingPageValidate) {
-      return { 
-        valid: true, // Default to valid to prevent UI issues
-        errors: [{ message: 'EDR schema not loaded or no landing page schema found. Validation skipped.' }] 
-      };
-    }
-
-    try {
-      console.log('🔍 Beginning validation against EDR landing page schema...');
-      
-      // Validate the data against the pre-compiled landing page schema
-      const isValid = this.landingPageValidate(data);
-      
-      if (isValid) {
-        console.log('✅ EDR landing page schema validation passed');
-        return { valid: true, errors: null };
-      } else {
-        console.warn('❌ EDR landing page schema validation failed');
-        console.warn('Validation errors:', this.landingPageValidate.errors);
-        
-        // Convert AJV errors to our format
-        const errors = this.landingPageValidate.errors?.map((error: any) => ({
-          path: error.instancePath || error.dataPath || 'root',
-          message: `${error.instancePath || error.dataPath || ''}: ${error.message}`,
-          keyword: error.keyword,
-          allowedValues: error.params?.allowedValues,
-          schema: error.schema,
-          data: error.data
-        })) || [];
-        
-        return { 
-          valid: false, 
-          errors: errors
-        };
-      }
-    } catch (error) {
-      console.error('❌ EDR landing page validation error:', error);
-      
+  /**
+   * Validate conformance data against all loaded schemas
+   */
+  public async validateConformance(data: any): Promise<{ 
+    valid: boolean; 
+    errors: any[] | null;
+    schemaResults?: Array<{ schema: string; isValid: boolean }>;
+  }> {
+    if (this.validators.size === 0) {
       return {
-        valid: false,
-        errors: [{ message: error instanceof Error ? error.message : 'Unknown validation error' }]
-      };
-    }
-  }
-
-  public async validateConformance(data: any): Promise<{ valid: boolean; errors: any[] | null }> {
-    if (!this.isSchemaLoaded || !this.conformanceValidate) {
-      return { 
-        valid: true, // Default to valid to prevent UI issues
-        errors: [{ message: 'EDR schema not loaded or no conformance schema found. Validation skipped.' }] 
+        valid: true,
+        errors: [{ message: 'No schemas loaded. Validation skipped.' }]
       };
     }
 
-    try {
-      console.log('🔍 Beginning validation against EDR conformance schema...');
-      
-      // Validate the data against the pre-compiled conformance schema
-      const isValid = this.conformanceValidate(data);
-      
-      if (isValid) {
-        console.log('✅ EDR conformance schema validation passed');
-        return { valid: true, errors: null };
-      } else {
-        console.warn('❌ EDR conformance schema validation failed');
-        console.warn('Validation errors:', this.conformanceValidate.errors);
-        
-        // Convert AJV errors to our format
-        const errors = this.conformanceValidate.errors?.map((error: any) => ({
-          path: error.instancePath || error.dataPath || 'root',
-          message: `${error.instancePath || error.dataPath || ''}: ${error.message}`,
-          keyword: error.keyword,
-          allowedValues: error.params?.allowedValues,
-          schema: error.schema,
-          data: error.data
-        })) || [];
-        
-        return { 
-          valid: false, 
-          errors: errors
-        };
+    console.log(`🔍 Validating conformance against ${this.validators.size} schema(s)...`);
+    
+    let overallValid = true;
+    const allErrors: any[] = [];
+    const schemaResults: Array<{ schema: string; isValid: boolean }> = [];
+
+    this.validators.forEach((validatorSet, schemaType) => {
+      if (!validatorSet.conformance) {
+        return;
       }
-    } catch (error) {
-      console.error('❌ EDR conformance validation error:', error);
-      
-      return {
-        valid: false,
-        errors: [{ message: error instanceof Error ? error.message : 'Unknown validation error' }]
-      };
-    }
+
+      const config = SCHEMA_CONFIGS.find(c => c.type === schemaType);
+      const displayName = config?.displayName || schemaType;
+
+      try {
+        const isValid = validatorSet.conformance(data);
+        
+        // Record this schema's result
+        schemaResults.push({
+          schema: displayName,
+          isValid: isValid
+        });
+        
+        if (isValid) {
+          console.log(`   ✅ ${displayName}: Valid`);
+        } else {
+          console.warn(`   ⚠️  ${displayName}: Validation issues found`);
+          overallValid = false;
+          
+          if (validatorSet.conformance.errors) {
+            const errors = validatorSet.conformance.errors.map((error: any) => ({
+              schema: displayName,
+              path: error.instancePath || error.dataPath || 'root',
+              message: `${error.instancePath || error.dataPath || ''}: ${error.message}`,
+              keyword: error.keyword
+            }));
+            allErrors.push(...errors);
+          }
+        }
+      } catch (error) {
+        console.error(`   ❌ ${displayName}: Validation error:`, error);
+        overallValid = false;
+        schemaResults.push({
+          schema: displayName,
+          isValid: false
+        });
+        allErrors.push({
+          schema: displayName,
+          message: error instanceof Error ? error.message : 'Unknown validation error'
+        });
+      }
+    });
+
+    return {
+      valid: overallValid,
+      errors: allErrors.length > 0 ? allErrors : null,
+      schemaResults: schemaResults.length > 0 ? schemaResults : undefined
+    };
   }
 
   public isLoaded(): boolean {
-    return this.isSchemaLoaded;
+    return this.loadedSchemas.size > 0;
   }
 
   public getLoadError(): string | null {
@@ -414,13 +535,20 @@ export class SchemaValidator {
   }
 
   public getLoadedSchemaCount(): number {
-    // Since we're using a single bundled EDR OpenAPI specification,
-    // return 1 if schema is loaded, 0 if not
-    return this.isSchemaLoaded ? 1 : 0;
+    return this.loadedSchemas.size;
   }
 
   public getLoadedSchemaUrls(): string[] {
-    return [...this.loadedSchemaUrls];
+    const urls: string[] = [];
+    this.loadedSchemas.forEach((schemaSet, schemaType) => {
+      const config = SCHEMA_CONFIGS.find(c => c.type === schemaType);
+      if (config) {
+        if (config.schemas.landingPage) urls.push(config.schemas.landingPage);
+        if (config.schemas.collections) urls.push(config.schemas.collections);
+        if (config.schemas.conformance) urls.push(config.schemas.conformance);
+      }
+    });
+    return urls;
   }
 }
 

@@ -7,6 +7,8 @@ import ListItemButton from '@mui/material/ListItemButton';
 import Collapse from '@mui/material/Collapse';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
+import ErrorIcon from '@mui/icons-material/Error';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import Public from '@mui/icons-material/Public';
 import AccessTime from '@mui/icons-material/AccessTime';
 import Height from '@mui/icons-material/Height';
@@ -42,7 +44,7 @@ import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs, { Dayjs } from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import React, { useEffect, useState, useMemo } from 'react';
-import { getCollections, Collection, ValidationResult, normalizeBbox, hasLocationQuery, getLocationQueryUrl, executeLocationQuery, getSupportedDataQueries, normalizeTemporal, formatConformanceClass, expandTemporalValues, Link as ApiLink } from './DataRetrievalAPI';
+import { getCollections, Collection, ValidationResult, normalizeBbox, hasLocationQuery, getLocationQueryUrl, executeLocationQuery, getSupportedDataQueries, normalizeTemporal, formatConformanceClass, expandTemporalValues, Link as ApiLink, normalizeHref } from './DataRetrievalAPI';
 import ValidationResults from './ValidationResult';
 import SchemaInspector from './SchemaInspector';
 import LocationFeatureList from './LocationFeatureList';
@@ -106,7 +108,6 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   const [apiUrl, setApiUrl] = useState('https://opendata.fmi.fi/edr');
   const [selectedService, setSelectedService] = useState('https://opendata.fmi.fi/edr');
   const [inputUrl, setInputUrl] = useState('https://opendata.fmi.fi/edr'); // Separate state for text input
-  const [queryUrl, setQueryUrl] = useState('https://opendata.fmi.fi/edr');
 
   // Effect to handle external service URL selection (from settings)
   useEffect(() => {
@@ -147,9 +148,6 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   const [showValidationDetails, setShowValidationDetails] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [currentLocationCollection, setCurrentLocationCollection] = useState<string | null>(null);
-  const [landingPageUrl, setLandingPageUrl] = useState<string | null>(null);
-  const [collectionsUrl, setCollectionsUrl] = useState<string | null>(null);
-  const [conformanceUrl, setConformanceUrl] = useState<string | null>(null);
   const [landingPageTitle, setLandingPageTitle] = useState<string | null>(null);
   const [landingPageDescription, setLandingPageDescription] = useState<string | null>(null);
   const [serviceDescUrl, setServiceDescUrl] = useState<string | null>(null);
@@ -159,6 +157,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   const [validationTrigger, setValidationTrigger] = useState(0); // Counter to force re-validation
   const [showServiceLinks, setShowServiceLinks] = useState(false); // State for collapsible links section
   const [showConformanceClasses, setShowConformanceClasses] = useState(false); // State for collapsible conformance section
+  const [showValidation, setShowValidation] = useState(false); // State for collapsible validation section
   const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
   const [selectedDataQuery, setSelectedDataQuery] = useState<string>('');
   const [selectedFormat, setSelectedFormat] = useState<string>('');
@@ -172,7 +171,13 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   const [activeGeoJsonLayers, setActiveGeoJsonLayers] = useState<{url: string, title: string, visible: boolean, labelProperty?: string, data?: any, apiKey?: string, apiKeyParam?: string}[]>([]);
 
   // Helper function to extract GeoJSON links from a collection
-  const getGeoJsonLinks = (collection: Collection): {url: string, title: string}[] => {
+  const getGeoJsonLinks = (
+    collection: Collection, 
+    datetime?: string,
+    mode?: 'individual' | 'range',
+    startDt?: string,
+    endDt?: string
+  ): {url: string, title: string}[] => {
     if (!collection || !collection.links || !Array.isArray(collection.links)) {
       return [];
     }
@@ -181,29 +186,41 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
     const hasTemporal = collection.extent?.temporal && 
                         (collection.extent.temporal.interval || collection.extent.temporal.values);
     
-    // Get current timestamp in ISO format (rounded to current hour)
-    const now = new Date();
-    now.setMinutes(0, 0, 0); // Round to current hour
-    const datetime = now.toISOString().replace(/\.\d{3}Z$/, 'Z'); // Format: 2025-11-01T06:00Z
-    
     return collection.links
       .filter(link => link.type === 'application/geo+json')
       .map(link => {
-        let url = link.href;
+        const normalizedHref = normalizeHref(link.href);
+        if (!normalizedHref) return null; // Skip invalid links
+        
+        let url = normalizedHref;
         
         // NOTE: Do NOT add bbox here - OpenLayers will handle it dynamically with bboxStrategy
         
-        // Add datetime parameter if collection has temporal extent
+        // Add datetime parameter if collection has temporal extent AND user has selected a datetime
         if (hasTemporal) {
-          const separator = url.includes('?') ? '&' : '?';
-          url = `${url}${separator}datetime=${datetime}`;
+          let datetimeParam = '';
+          
+          if (mode === 'range' && startDt && endDt) {
+            // Range mode: use start/end datetime
+            datetimeParam = `${startDt}/${endDt}`;
+          } else if (datetime) {
+            // Individual mode: use selected datetime
+            datetimeParam = datetime;
+          }
+          // If no datetime is selected, don't add the parameter at all
+          
+          if (datetimeParam) {
+            const separator = url.includes('?') ? '&' : '?';
+            url = `${url}${separator}datetime=${datetimeParam}`;
+          }
         }
         
         return {
           url: url,
           title: link.title || link.rel || 'GeoJSON Layer'
         };
-      });
+      })
+      .filter(item => item !== null) as {url: string, title: string}[];
   };
 
   // Helper function to get effective output formats (data query level overrides collection level)
@@ -254,6 +271,14 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
       setCollectionUrl('');
       setActiveGeoJsonLayers([]);
       
+      // Clear validation result, conformance, and landing page info immediately
+      setValidationResult({ isValid: true, errors: null });
+      setConformsTo(null);
+      setLandingPageLinks(null);
+      setLandingPageTitle(null);
+      setLandingPageDescription(null);
+      setServiceDescUrl(null);
+      
       // Clear GeoJSON layers
       if (onGeoJsonLayersChange) {
         onGeoJsonLayersChange([]);
@@ -269,11 +294,6 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
         
         // Update validation result
         setValidationResult(result.validation);
-        
-        // Update URLs for display
-        setLandingPageUrl(result.landingPageUrl || null);
-        setCollectionsUrl(result.collectionsUrl || null);
-        setConformanceUrl(result.conformanceUrl || null);
         
         // Update landing page info for display
         setLandingPageTitle(result.landingPageTitle || null);
@@ -320,9 +340,11 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   useEffect(() => {
     if (selectedDataQuery && selectedDataQuery.toLowerCase() === 'position' && clickedCoords) {
       const isDataQuery = !!selectedDataQuery;
-      if (selectedCollection && selectedCollection.data_queries[selectedDataQuery]?.link) {
-        const baseUrl = selectedCollection.data_queries[selectedDataQuery].link.href;
-        setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, null, radiusKm, selectedDataQuery, null, selectedDatetime, datetimeMode, startDatetime, endDatetime));
+      if (selectedCollection && selectedCollection.data_queries[selectedDataQuery]?.link?.href) {
+        const normalizedHref = normalizeHref(selectedCollection.data_queries[selectedDataQuery].link.href);
+        if (normalizedHref) {
+          setCollectionUrl(buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, clickedCoords, null, radiusKm, selectedDataQuery, null, selectedDatetime, datetimeMode, startDatetime, endDatetime));
+        }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -332,9 +354,11 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   useEffect(() => {
     if (selectedDataQuery && selectedDataQuery.toLowerCase() === 'trajectory' && clickedCoords && clickedCoords.length > 1) {
       const isDataQuery = !!selectedDataQuery;
-      if (selectedCollection && selectedCollection.data_queries[selectedDataQuery]?.link) {
-        const baseUrl = selectedCollection.data_queries[selectedDataQuery].link.href;
-        setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, null, radiusKm, selectedDataQuery, null, selectedDatetime, datetimeMode, startDatetime, endDatetime));
+      if (selectedCollection && selectedCollection.data_queries[selectedDataQuery]?.link?.href) {
+        const normalizedHref = normalizeHref(selectedCollection.data_queries[selectedDataQuery].link.href);
+        if (normalizedHref) {
+          setCollectionUrl(buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, clickedCoords, null, radiusKm, selectedDataQuery, null, selectedDatetime, datetimeMode, startDatetime, endDatetime));
+        }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -345,9 +369,11 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
     if (selectedDataQuery && selectedDataQuery.toLowerCase() === 'area' && selectedArea) {
       const isDataQuery = !!selectedDataQuery;
       // Find the current collection and rebuild the URL
-      if (selectedCollection && selectedCollection.data_queries[selectedDataQuery]?.link) {
-        const baseUrl = selectedCollection.data_queries[selectedDataQuery].link.href;
-        setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, null, selectedArea, radiusKm, selectedDataQuery, null, selectedDatetime, datetimeMode, startDatetime, endDatetime));
+      if (selectedCollection && selectedCollection.data_queries[selectedDataQuery]?.link?.href) {
+        const normalizedHref = normalizeHref(selectedCollection.data_queries[selectedDataQuery].link.href);
+        if (normalizedHref) {
+          setCollectionUrl(buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, null, selectedArea, radiusKm, selectedDataQuery, null, selectedDatetime, datetimeMode, startDatetime, endDatetime));
+        }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -358,9 +384,11 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
     if (selectedDataQuery && selectedDataQuery.toLowerCase() === 'radius') {
       const isDataQuery = !!selectedDataQuery;
       // Find the current collection and rebuild the URL
-      if (selectedCollection && selectedCollection.data_queries[selectedDataQuery]?.link) {
-        const baseUrl = selectedCollection.data_queries[selectedDataQuery].link.href;
-        setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, null, radiusKm, selectedDataQuery, null, selectedDatetime, datetimeMode, startDatetime, endDatetime));
+      if (selectedCollection && selectedCollection.data_queries[selectedDataQuery]?.link?.href) {
+        const normalizedHref = normalizeHref(selectedCollection.data_queries[selectedDataQuery].link.href);
+        if (normalizedHref) {
+          setCollectionUrl(buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, clickedCoords, null, radiusKm, selectedDataQuery, null, selectedDatetime, datetimeMode, startDatetime, endDatetime));
+        }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -371,9 +399,11 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
     if (selectedDataQuery && selectedDataQuery.toLowerCase() === 'locations' && selectedFeature) {
       const isDataQuery = !!selectedDataQuery;
       // Find the current collection and rebuild the URL
-      if (selectedCollection && selectedCollection.data_queries[selectedDataQuery]?.link) {
-        const baseUrl = selectedCollection.data_queries[selectedDataQuery].link.href;
-        setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, null, null, radiusKm, selectedDataQuery, selectedFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime));
+      if (selectedCollection && selectedCollection.data_queries[selectedDataQuery]?.link?.href) {
+        const normalizedHref = normalizeHref(selectedCollection.data_queries[selectedDataQuery].link.href);
+        if (normalizedHref) {
+          setCollectionUrl(buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, null, null, radiusKm, selectedDataQuery, selectedFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime));
+        }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -383,14 +413,42 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   useEffect(() => {
     if (selectedDataQuery && selectedCollection) {
       const isDataQuery = !!selectedDataQuery;
-      if (selectedCollection.data_queries[selectedDataQuery]?.link) {
-        const baseUrl = selectedCollection.data_queries[selectedDataQuery].link.href;
-        const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-        setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime));
+      if (selectedCollection.data_queries[selectedDataQuery]?.link?.href) {
+        const normalizedHref = normalizeHref(selectedCollection.data_queries[selectedDataQuery].link.href);
+        if (normalizedHref) {
+          const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+          setCollectionUrl(buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime));
+        }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDatetime]);
+
+  // Effect to update GeoJSON layers when datetime values change
+  useEffect(() => {
+    if (selectedCollection && activeGeoJsonLayers.length > 0) {
+      const geoJsonLinks = getGeoJsonLinks(selectedCollection, selectedDatetime, datetimeMode, startDatetime, endDatetime);
+      const auth = getAuthCredentials(apiUrl);
+      const updatedLayers = geoJsonLinks.map((link, index) => {
+        // Preserve the visibility state and other properties from existing layers
+        const existingLayer = activeGeoJsonLayers[index];
+        return {
+          url: link.url,
+          title: link.title,
+          visible: existingLayer?.visible ?? false,
+          labelProperty: existingLayer?.labelProperty,
+          data: existingLayer?.data,
+          apiKey: auth?.apiKey,
+          apiKeyParam: auth?.apiKeyParam
+        };
+      });
+      setActiveGeoJsonLayers(updatedLayers);
+      if (onGeoJsonLayersChange) {
+        onGeoJsonLayersChange(updatedLayers);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDatetime, datetimeMode, startDatetime, endDatetime]);
 
   // Effect to rebuild URL when data query changes (to apply persisted parameters)
   useEffect(() => {
@@ -423,12 +481,14 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
           setSelectedFormat(formatToUse);
         }
         
-        const baseUrl = selectedCollection.data_queries[selectedDataQuery].link.href;
-        const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-        // Use the current datetime mode (user can now choose individual or range)
-        const newUrl = buildUrlWithParams(baseUrl, formatToUse, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime);
-        console.log('Data query changed, updating URL with persisted parameters:', newUrl);
-        setCollectionUrl(newUrl);
+        const normalizedHref = normalizeHref(selectedCollection.data_queries[selectedDataQuery].link.href);
+        if (normalizedHref) {
+          const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+          // Use the current datetime mode (user can now choose individual or range)
+          const newUrl = buildUrlWithParams(normalizedHref, formatToUse, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime);
+          console.log('Data query changed, updating URL with persisted parameters:', newUrl);
+          setCollectionUrl(newUrl);
+        }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -439,7 +499,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
     console.log('DateTime range useEffect triggered', { startDatetime, endDatetime, selectedDataQuery, datetimeMode });
     if (selectedDataQuery && selectedCollection) {
       const isDataQuery = !!selectedDataQuery;
-      if (selectedCollection.data_queries[selectedDataQuery]?.link) {
+      if (selectedCollection.data_queries[selectedDataQuery]?.link?.href) {
         // Check if we should use range datetime
         const hasValues = selectedCollection.extent?.temporal?.values && selectedCollection.extent.temporal.values.length > 0;
         const shouldUseRange = datetimeMode === 'range' || !hasValues;
@@ -447,13 +507,15 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
         console.log('DateTime check:', { hasValues, shouldUseRange, datetimeMode });
         
         if (shouldUseRange && (startDatetime || endDatetime)) {
-          const baseUrl = selectedCollection.data_queries[selectedDataQuery].link.href;
-          const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-          // Use 'range' mode when !hasValues even if datetimeMode is 'individual'
-          const effectiveMode = !hasValues ? 'range' : datetimeMode;
-          const newUrl = buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, effectiveMode, startDatetime, endDatetime);
-          console.log('Setting collection URL with datetime:', newUrl);
-          setCollectionUrl(newUrl);
+          const normalizedHref = normalizeHref(selectedCollection.data_queries[selectedDataQuery].link.href);
+          if (normalizedHref) {
+            const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+            // Use 'range' mode when !hasValues even if datetimeMode is 'individual'
+            const effectiveMode = !hasValues ? 'range' : datetimeMode;
+            const newUrl = buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, effectiveMode, startDatetime, endDatetime);
+            console.log('Setting collection URL with datetime:', newUrl);
+            setCollectionUrl(newUrl);
+          }
         }
       }
     }
@@ -464,13 +526,15 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   useEffect(() => {
     if (selectedDataQuery && selectedCollection && selectedFormat) {
       const isDataQuery = !!selectedDataQuery;
-      if (selectedCollection.data_queries[selectedDataQuery]?.link) {
-        const baseUrl = selectedCollection.data_queries[selectedDataQuery].link.href;
-        const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-        const hasValues = selectedCollection.extent?.temporal?.values && selectedCollection.extent.temporal.values.length > 0;
-        const effectiveMode = !hasValues ? 'range' : datetimeMode;
-        const newUrl = buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, effectiveMode, startDatetime, endDatetime);
-        setCollectionUrl(newUrl);
+      if (selectedCollection.data_queries[selectedDataQuery]?.link?.href) {
+        const normalizedHref = normalizeHref(selectedCollection.data_queries[selectedDataQuery].link.href);
+        if (normalizedHref) {
+          const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+          const hasValues = selectedCollection.extent?.temporal?.values && selectedCollection.extent.temporal.values.length > 0;
+          const effectiveMode = !hasValues ? 'range' : datetimeMode;
+          const newUrl = buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, effectiveMode, startDatetime, endDatetime);
+          setCollectionUrl(newUrl);
+        }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -480,13 +544,15 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   useEffect(() => {
     if (selectedDataQuery && selectedCollection && selectedParameters.length > 0) {
       const isDataQuery = !!selectedDataQuery;
-      if (selectedCollection.data_queries[selectedDataQuery]?.link) {
-        const baseUrl = selectedCollection.data_queries[selectedDataQuery].link.href;
-        const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-        const hasValues = selectedCollection.extent?.temporal?.values && selectedCollection.extent.temporal.values.length > 0;
-        const effectiveMode = !hasValues ? 'range' : datetimeMode;
-        const newUrl = buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, effectiveMode, startDatetime, endDatetime);
-        setCollectionUrl(newUrl);
+      if (selectedCollection.data_queries[selectedDataQuery]?.link?.href) {
+        const normalizedHref = normalizeHref(selectedCollection.data_queries[selectedDataQuery].link.href);
+        if (normalizedHref) {
+          const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+          const hasValues = selectedCollection.extent?.temporal?.values && selectedCollection.extent.temporal.values.length > 0;
+          const effectiveMode = !hasValues ? 'range' : datetimeMode;
+          const newUrl = buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, effectiveMode, startDatetime, endDatetime);
+          setCollectionUrl(newUrl);
+        }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -671,7 +737,6 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
     // Toggle collection: close if already open, open if closed (and close others)
     const newIndex = openCollectionIndex === index ? null : index;
     setOpenCollectionIndex(newIndex);
-    setQueryUrl(apiUrl+"/"+key);
     
     // Find the collection and trigger extent change
     const collection = collections[index];
@@ -682,7 +747,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
     
     // Initialize GeoJSON layers for the selected collection
     if (selectedColl) {
-      const geoJsonLinks = getGeoJsonLinks(selectedColl);
+      const geoJsonLinks = getGeoJsonLinks(selectedColl, selectedDatetime, datetimeMode, startDatetime, endDatetime);
       const auth = getAuthCredentials(apiUrl);
       const initialLayers = geoJsonLinks.map(link => ({
         url: link.url,
@@ -707,9 +772,14 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
     if (selectedColl) {
       const dataLink = selectedColl.links.find(link => link.rel === 'data');
       let baseUrl = '';
-      if (dataLink) {
-        baseUrl = dataLink.href;
-      } else {
+      if (dataLink?.href) {
+        const normalizedHref = normalizeHref(dataLink.href);
+        if (normalizedHref) {
+          baseUrl = normalizedHref;
+        }
+      }
+      
+      if (!baseUrl) {
         // Fallback to constructed URL if no data link found
         baseUrl = apiUrl + "/collections/" + key;
       }
@@ -1045,71 +1115,114 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
               </ListItemButton>
               <Collapse in={showServiceLinks} timeout="auto" unmountOnExit>
                 <List component="div" disablePadding>
-                  {landingPageLinks.map((link, index) => (
-                    <ListItemButton
-                      key={index}
-                      sx={{ pl: 3, py: 0.5 }}
-                      component="a"
-                      href={link.href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <ListItemText
-                        primary={
-                          <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
-                            {link.title || link.rel || 'Link'}
-                          </Typography>
-                        }
-                        secondary={
-                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-                            {link.rel && `rel: ${link.rel}`}
-                            {link.type && ` • type: ${link.type}`}
-                          </Typography>
-                        }
-                      />
-                    </ListItemButton>
-                  ))}
+                  {landingPageLinks.map((link, index) => {
+                    // Normalize href which might be a string or an object
+                    const normalizedHref = normalizeHref(link.href);
+                    
+                    // Skip links without valid href to prevent crashes
+                    if (!normalizedHref) {
+                      return null;
+                    }
+                    return (
+                      <ListItemButton
+                        key={index}
+                        sx={{ pl: 3, py: 0.5 }}
+                        component="a"
+                        href={normalizedHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <ListItemText
+                          primary={
+                            <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
+                              {link.title || link.rel || 'Link'}
+                            </Typography>
+                          }
+                          secondary={
+                            <>
+                              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem', display: 'block' }}>
+                                {link.rel && `rel: ${link.rel}`}
+                                {link.type && ` • type: ${link.type}`}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem', display: 'block', wordBreak: 'break-all' }}>
+                                {normalizedHref}
+                              </Typography>
+                            </>
+                          }
+                        />
+                      </ListItemButton>
+                    );
+                  })}
                 </List>
               </Collapse>
             </Box>
           )}
           
+          {/* Schema Validation Section */}
           <Box sx={{ mb: 2 }}>
-            {landingPageUrl && (
-              <div style={{ marginBottom: '8px' }}>
-                <strong>Landing Page:</strong> {landingPageUrl}
-              </div>
-            )}
-            {collectionsUrl && (
-              <div style={{ marginBottom: '8px' }}>
-                <strong>Collections URL:</strong> {collectionsUrl}
-              </div>
-            )}
-            {conformanceUrl && (
-              <div>
-                <strong>Conformance URL:</strong> {conformanceUrl}
-              </div>
-            )}
-            {!landingPageUrl && !collectionsUrl && (
-              <div>Current query URL: {queryUrl}</div>
-            )}
-          </Box>
-          
-          <ValidationResults 
-            validation={validationResult} 
-            expanded={showValidationDetails} 
-          />
-          
-          {validationResult.errors && validationResult.errors.length > 0 && (
-            <Button 
-              variant="outlined" 
-              size="small" 
-              onClick={toggleValidationDetails}
-              sx={{ mb: 2 }}
+            <ListItemButton 
+              onClick={() => setShowValidation(!showValidation)}
+              sx={{ 
+                p: 1.5, 
+                backgroundColor: !validationResult.isValid ? 'rgba(237, 108, 2, 0.08)' : 'rgba(46, 125, 50, 0.08)', 
+                borderRadius: 1,
+                '&:hover': {
+                  backgroundColor: !validationResult.isValid ? 'rgba(237, 108, 2, 0.15)' : 'rgba(46, 125, 50, 0.15)',
+                }
+              }}
             >
-              {showValidationDetails ? 'Hide Details' : 'Show Details'}
-            </Button>
-          )}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
+                {!validationResult.isValid ? (
+                  <ErrorIcon sx={{ fontSize: 20, color: 'warning.main' }} />
+                ) : (
+                  <CheckCircleIcon sx={{ fontSize: 20, color: 'success.main' }} />
+                )}
+                <ListItemText 
+                  primary={
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                      Schema Validation Status
+                      {!validationResult.isValid && (() => {
+                        // Count validation failures
+                        let failureCount = 0;
+                        if (validationResult.landingPageValidation && !validationResult.landingPageValidation.isValid) failureCount++;
+                        if (validationResult.collectionsValidation && !validationResult.collectionsValidation.isValid) failureCount++;
+                        if (validationResult.conformanceValidation && !validationResult.conformanceValidation.isValid) failureCount++;
+                        
+                        return failureCount > 0 ? (
+                          <Chip 
+                            label={`${failureCount} issue${failureCount > 1 ? 's' : ''}`}
+                            size="small"
+                            color="warning"
+                            sx={{ ml: 1, height: 20 }}
+                          />
+                        ) : null;
+                      })()}
+                    </Typography>
+                  }
+                />
+              </Box>
+              {showValidation ? <ExpandLess /> : <ExpandMore />}
+            </ListItemButton>
+            <Collapse in={showValidation} timeout="auto" unmountOnExit>
+              <Box sx={{ p: 2 }}>
+                <ValidationResults 
+                  validation={validationResult} 
+                  expanded={showValidationDetails} 
+                />
+                
+                {validationResult.errors && validationResult.errors.length > 0 && (
+                  <Button 
+                    variant="outlined" 
+                    size="small" 
+                    onClick={toggleValidationDetails}
+                    sx={{ mt: 1 }}
+                  >
+                    {showValidationDetails ? 'Hide Details' : 'Show Details'}
+                  </Button>
+                )}
+              </Box>
+            </Collapse>
+          </Box>
         </CardContent>
       </Card>
       
@@ -1463,13 +1576,21 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                           onMapClick([]);
                         }
                         let baseUrl = '';
-                        if (queryType && collection.data_queries[queryType]?.link) {
-                          baseUrl = collection.data_queries[queryType].link.href;
-                        } else {
+                        if (queryType && collection.data_queries[queryType]?.link?.href) {
+                          const normalizedHref = normalizeHref(collection.data_queries[queryType].link.href);
+                          if (normalizedHref) {
+                            baseUrl = normalizedHref;
+                          }
+                        }
+                        
+                        if (!baseUrl) {
                           // Reset to data link
                           const dataLink = collection.links.find(link => link.rel === 'data');
-                          if (dataLink) {
-                            baseUrl = dataLink.href;
+                          if (dataLink?.href) {
+                            const normalizedHref = normalizeHref(dataLink.href);
+                            if (normalizedHref) {
+                              baseUrl = normalizedHref;
+                            }
                           }
                         }
                         // Apply format and parameter if data query is selected (use formatToUse which may be the default)
@@ -1931,7 +2052,10 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
 
               { typeof collection.links == "undefined" 
                 ? <Alert severity="error"><AlertTitle>E: LINKS</AlertTitle>Every Collection within a collections array MUST have a links parameter.</Alert> 
-                : <Alert severity="success"><AlertTitle>E: LINKS</AlertTitle>{collection.links.map((link, i) => (<div key={i}><Link href={link.href}>{link.title ? link.title : link.rel}</Link> ({link.rel})</div> ))}</Alert>
+                : <Alert severity="success"><AlertTitle>E: LINKS</AlertTitle>{collection.links.map((link, i) => {
+                    const normalizedHref = normalizeHref(link.href);
+                    return normalizedHref ? (<div key={i}><Link href={normalizedHref}>{link.title ? link.title : link.rel}</Link> ({link.rel})</div>) : null;
+                  })}</Alert>
               }
 
               { typeof collection.data_queries == "undefined"
@@ -1939,13 +2063,16 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
                 : (
                   <Alert severity="success">
                     <AlertTitle>F: DATA_QUERIES</AlertTitle>
-                    {Object.keys(collection.data_queries).filter(key => collection.data_queries[key]?.link?.href).map((key) => (
-                      <div key={key}>
-                        <Link href={collection.data_queries[key].link.href}>
-                          {collection.data_queries[key].link.title ? collection.data_queries[key].link.title : collection.data_queries[key].link.rel}
-                        </Link> ({collection.data_queries[key].link.rel})
-                      </div>
-                    ))}
+                    {Object.keys(collection.data_queries).map((key) => {
+                      const normalizedHref = normalizeHref(collection.data_queries[key]?.link?.href);
+                      return normalizedHref ? (
+                        <div key={key}>
+                          <Link href={normalizedHref}>
+                            {collection.data_queries[key].link.title ? collection.data_queries[key].link.title : collection.data_queries[key].link.rel}
+                          </Link> ({collection.data_queries[key].link.rel})
+                        </div>
+                      ) : null;
+                    })}
                   </Alert>
                 )
               }

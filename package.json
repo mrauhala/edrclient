@@ -67,6 +67,7 @@
     ]
   },
   "devDependencies": {
+    "@apidevtools/json-schema-ref-parser": "^15.1.2",
     "@types/swagger-ui-react": "^5.18.0"
   }
 }

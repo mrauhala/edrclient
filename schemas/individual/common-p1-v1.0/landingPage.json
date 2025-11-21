@@ -1,0 +1,63 @@
+{
+  "type": "object",
+  "required": [
+    "links"
+  ],
+  "properties": {
+    "title": {
+      "type": "string",
+      "title": "The title of the API.",
+      "description": "While a title is not required, implementers are strongly advised to include one.",
+      "example": "Buildings in Bonn"
+    },
+    "description": {
+      "type": "string",
+      "example": "Access to data about buildings in the city of Bonn via a Web API that conforms to the OGC API Common specification."
+    },
+    "attribution": {
+      "type": "string",
+      "title": "attribution for the API",
+      "description": "The `attribution` should be short and intended for presentation to a user, for example, in a corner of a map. Parts of the text can be links to other resources if additional information is needed. The string can include HTML markup."
+    },
+    "links": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "href",
+          "rel"
+        ],
+        "properties": {
+          "href": {
+            "type": "string",
+            "description": "Supplies the URI to a remote resource (or resource fragment).",
+            "example": "http://data.example.com/buildings/123"
+          },
+          "rel": {
+            "type": "string",
+            "description": "The type or semantics of the relation.",
+            "example": "alternate"
+          },
+          "type": {
+            "type": "string",
+            "description": "A hint indicating what the media type of the result of dereferencing the link should be.",
+            "example": "application/geo+json"
+          },
+          "hreflang": {
+            "type": "string",
+            "description": "A hint indicating what the language of the result of dereferencing the link should be.",
+            "example": "en"
+          },
+          "title": {
+            "type": "string",
+            "description": "Used to label the destination of a link such that it can be used as a human-readable identifier.",
+            "example": "Trierer Strasse 70, 53115 Bonn"
+          },
+          "length": {
+            "type": "integer"
+          }
+        }
+      }
+    }
+  }
+}

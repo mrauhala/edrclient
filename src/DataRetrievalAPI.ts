@@ -43,6 +43,37 @@ function addApiKeyToUrl(url: string, auth?: AuthCredentials): string {
   return url;
 }
 
+// Helper function to normalize href which can be a string or an object with language codes
+// Returns the first available string value, or null if href is invalid
+export function normalizeHref(href: string | { [lang: string]: string } | undefined): string | null {
+  if (!href) {
+    return null;
+  }
+  
+  if (typeof href === 'string') {
+    return href;
+  }
+  
+  // If href is an object (e.g., {en: "...", fr: "..."}), return the first available value
+  if (typeof href === 'object') {
+    // Try common language codes first
+    const preferredLangs = ['en', 'en-US', 'en-CA', 'fr', 'de', 'es'];
+    for (const lang of preferredLangs) {
+      if (href[lang]) {
+        return href[lang];
+      }
+    }
+    
+    // If no preferred language found, return the first available value
+    const values = Object.values(href);
+    if (values.length > 0 && typeof values[0] === 'string') {
+      return values[0];
+    }
+  }
+  
+  return null;
+}
+
 export interface DataQuery {
     link: Link;
 }
@@ -59,9 +90,9 @@ export interface QueryVariables {
 
 export interface Link {
     title?: string;
-    href: string;
-    rel: string;
-    type: string;
+    href?: string | { [lang: string]: string }; // Can be string or object with language codes (e.g., {en: "...", fr: "..."})
+    rel?: string; // Optional to handle missing rel
+    type?: string; // Optional to handle missing type
     variables?: QueryVariables;
 }
 
@@ -148,14 +179,17 @@ export interface ValidationResult {
   landingPageValidation?: {
     isValid: boolean;
     errors: ValidationError[] | null;
+    schemaResults?: Array<{ schema: string; isValid: boolean }>;
   };
   collectionsValidation?: {
     isValid: boolean;
     errors: ValidationError[] | null;
+    schemaResults?: Array<{ schema: string; isValid: boolean }>;
   };
   conformanceValidation?: {
     isValid: boolean;
     errors: ValidationError[] | null;
+    schemaResults?: Array<{ schema: string; isValid: boolean }>;
   };
 }
 
@@ -238,7 +272,8 @@ export function getLocationQueryUrl(collection: Collection): string | null {
     }
     
     const locationsQuery = collection.data_queries['locations'];
-    return locationsQuery && locationsQuery.link ? locationsQuery.link.href : null;
+    const href = locationsQuery?.link?.href;
+    return normalizeHref(href);
   } catch (error) {
     console.warn('Error getting location query URL:', error);
     return null;
@@ -995,11 +1030,6 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
   const validator = SchemaValidator.getInstance();
   
   try {
-    // Load the schema if not already loaded
-    if (!validator.isLoaded()) {
-      await validator.loadSchema();
-    }
-
     // Check if this is DMI service (to avoid f=json bug)
     const isDMI = apiUrl.includes('api.meteogate.eu/dk/edr');
 
@@ -1019,11 +1049,7 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
     const landingPageResponse = await axios.get<LandingPage>(finalLandingPageUrl, getAxiosConfig(auth));
     const landingPageData = landingPageResponse.data;
 
-    // Validate the landing page
-    const landingPageValidation = await validator.validateLandingPage(landingPageData);
-    console.log(`Landing page validation result: ${landingPageValidation.valid ? 'Valid' : 'Invalid'}`);
-
-    // Step 2: Extract the collections URL from landing page links
+    // Step 2: Extract the collections URL and conformance URL from landing page links
     let collectionsUrl: string | null = null;
     let serviceDescUrl: string | null = null;
     let conformanceUrl: string | null = null;
@@ -1047,10 +1073,15 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
                        link.rel === 'http://www.opengis.net/def/rel/ogc/1.0/conformance'
       );
       
-      if (dataLink && dataLink.href) {
-        collectionsUrl = dataLink.href;
-        console.log('Found collections URL from landing page:', collectionsUrl);
-      } else {
+      if (dataLink) {
+        const normalizedHref = normalizeHref(dataLink.href);
+        if (normalizedHref) {
+          collectionsUrl = normalizedHref;
+          console.log('Found collections URL from landing page:', collectionsUrl);
+        }
+      }
+      
+      if (!collectionsUrl) {
         console.warn('No data link found in landing page. Available links:', 
           landingPageData.links.map((l: Link) => ({ rel: l.rel, href: l.href })));
         
@@ -1059,22 +1090,66 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
         console.log('Using fallback collections URL:', collectionsUrl);
       }
       
-      if (serviceDescLink && serviceDescLink.href) {
-        serviceDescUrl = serviceDescLink.href;
-        console.log('Found service description URL from landing page:', serviceDescUrl);
+      if (serviceDescLink) {
+        const normalizedHref = normalizeHref(serviceDescLink.href);
+        if (normalizedHref) {
+          serviceDescUrl = normalizedHref;
+          console.log('Found service description URL from landing page:', serviceDescUrl);
+        }
       }
       
-      if (conformanceLink && conformanceLink.href) {
-        conformanceUrl = conformanceLink.href;
-        console.log('Found conformance URL from landing page:', conformanceUrl);
+      if (conformanceLink) {
+        const normalizedHref = normalizeHref(conformanceLink.href);
+        if (normalizedHref) {
+          conformanceUrl = normalizedHref;
+          console.log('Found conformance URL from landing page:', conformanceUrl);
+        }
       }
     } else {
       console.warn('Landing page has no links array. Using fallback.');
       collectionsUrl = `${apiUrl}/collections`;
     }
 
-    // Step 3: Fetch collections from the discovered URL
-    console.log('Step 2: Fetching collections from:', collectionsUrl);
+    // Step 3: Fetch conformance classes to determine which schema to use
+    let conformsTo: string[] | undefined = undefined;
+    if (conformanceUrl) {
+      try {
+        console.log('Step 2: Fetching conformance to determine schema type:', conformanceUrl);
+        const conformanceUrlWithFormat = new URL(conformanceUrl);
+        if (!conformanceUrlWithFormat.searchParams.has('f')) {
+          conformanceUrlWithFormat.searchParams.set('f', 'json');
+        }
+        
+        // Add API key if provided
+        const finalConformanceUrl = addApiKeyToUrl(conformanceUrlWithFormat.toString(), auth);
+        
+        const conformanceResponse = await axios.get<{ conformsTo: string[] }>(finalConformanceUrl, getAxiosConfig(auth));
+        
+        if (conformanceResponse.data && conformanceResponse.data.conformsTo) {
+          conformsTo = conformanceResponse.data.conformsTo;
+          console.log(`Found ${conformsTo.length} conformance classes:`, conformsTo);
+        }
+      } catch (error) {
+        console.warn('Error fetching conformance, will use default schema:', error);
+        // Don't fail - we'll use the default schema
+      }
+    }
+
+    // Step 4: Load the appropriate schema based on conformance classes
+    // Always call this to ensure we have the right schema type
+    await validator.loadSchemaBasedOnConformance(conformsTo);
+
+    // Step 5: Validate landing page with the loaded schema
+    const landingPageValidation = await validator.validateLandingPage(landingPageData);
+    console.log(`Landing page validation result: ${landingPageValidation.valid ? 'Valid' : 'Invalid'}`);
+
+    // Step 6: Fetch collections from the discovered URL
+    console.log('Step 3: Fetching collections from:', collectionsUrl);
+    
+    // Ensure collectionsUrl is not null before proceeding
+    if (!collectionsUrl) {
+      throw new Error('Collections URL could not be determined');
+    }
     
     // Add f=json format parameter if not already present
     // Skip for DMI service as it incorrectly includes f=json in the href paths
@@ -1105,38 +1180,21 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
       }
     }
 
-    // Step 4: Validate collections
+    // Step 7: Validate collections
     const collectionsValidation = await validator.validateCollections(data);
     console.log(`Collections validation result: ${collectionsValidation.valid ? 'Valid' : 'Invalid'}`);
     console.log(`Loaded schema count: ${validator.getLoadedSchemaCount()}`);
     
-    // Step 5: Fetch conformance classes if conformance URL is available
-    let conformsTo: string[] | undefined = undefined;
-    let conformanceValidation: { valid: boolean; errors: any[] | null } = { valid: true, errors: null };
-    if (conformanceUrl) {
-      try {
-        console.log('Step 5: Fetching conformance from:', conformanceUrl);
-        const conformanceUrlWithFormat = new URL(conformanceUrl);
-        if (!conformanceUrlWithFormat.searchParams.has('f')) {
-          conformanceUrlWithFormat.searchParams.set('f', 'json');
-        }
-        
-        // Add API key if provided
-        const finalConformanceUrl = addApiKeyToUrl(conformanceUrlWithFormat.toString(), auth);
-        
-        const conformanceResponse = await axios.get<{ conformsTo: string[] }>(finalConformanceUrl, getAxiosConfig(auth));
-        
-        // Validate conformance response
-        conformanceValidation = await validator.validateConformance(conformanceResponse.data);
-        
-        if (conformanceResponse.data && conformanceResponse.data.conformsTo) {
-          conformsTo = conformanceResponse.data.conformsTo;
-          console.log(`Found ${conformsTo.length} conformance classes`);
-        }
-      } catch (error) {
-        console.warn('Error fetching conformance, continuing without it:', error);
-        // Don't fail the whole request if conformance fetch fails
-      }
+    // Step 8: Validate conformance response if we fetched it
+    let conformanceValidation: { 
+      valid: boolean; 
+      errors: any[] | null;
+      schemaResults?: Array<{ schema: string; isValid: boolean }>;
+    } = { valid: true, errors: null };
+    if (conformanceUrl && conformsTo) {
+      // Validate conformance response we already fetched
+      conformanceValidation = await validator.validateConformance({ conformsTo });
+      console.log(`Conformance validation result: ${conformanceValidation.valid ? 'Valid' : 'Invalid'}`);
     }
     
     // Combine all validation results
@@ -1152,15 +1210,18 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
       collectionErrors: collectionsValidation.collectionErrors,
       landingPageValidation: {
         isValid: landingPageValidation.valid,
-        errors: landingPageValidation.errors
+        errors: landingPageValidation.errors,
+        schemaResults: landingPageValidation.schemaResults
       },
       collectionsValidation: {
         isValid: collectionsValidation.valid,
-        errors: collectionsValidation.errors
+        errors: collectionsValidation.errors,
+        schemaResults: collectionsValidation.schemaResults
       },
       conformanceValidation: {
         isValid: conformanceValidation.valid,
-        errors: conformanceValidation.errors
+        errors: conformanceValidation.errors,
+        schemaResults: conformanceValidation.schemaResults
       }
     };
 
@@ -1174,7 +1235,7 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
       collections: collections,
       validation: combinedValidation,
       landingPageUrl: apiUrl,
-      collectionsUrl: collectionsUrl,
+      collectionsUrl: collectionsUrl || undefined,
       conformanceUrl: conformanceUrl || undefined,
       landingPageTitle: landingPageData?.title,
       landingPageDescription: landingPageData?.description,
