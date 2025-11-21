@@ -172,7 +172,13 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   const [activeGeoJsonLayers, setActiveGeoJsonLayers] = useState<{url: string, title: string, visible: boolean, labelProperty?: string, data?: any, apiKey?: string, apiKeyParam?: string}[]>([]);
 
   // Helper function to extract GeoJSON links from a collection
-  const getGeoJsonLinks = (collection: Collection): {url: string, title: string}[] => {
+  const getGeoJsonLinks = (
+    collection: Collection, 
+    datetime?: string,
+    mode?: 'individual' | 'range',
+    startDt?: string,
+    endDt?: string
+  ): {url: string, title: string}[] => {
     if (!collection || !collection.links || !Array.isArray(collection.links)) {
       return [];
     }
@@ -180,11 +186,6 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
     // Check if collection has temporal extent
     const hasTemporal = collection.extent?.temporal && 
                         (collection.extent.temporal.interval || collection.extent.temporal.values);
-    
-    // Get current timestamp in ISO format (rounded to current hour)
-    const now = new Date();
-    now.setMinutes(0, 0, 0); // Round to current hour
-    const datetime = now.toISOString().replace(/\.\d{3}Z$/, 'Z'); // Format: 2025-11-01T06:00Z
     
     return collection.links
       .filter(link => link.type === 'application/geo+json')
@@ -196,10 +197,23 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
         
         // NOTE: Do NOT add bbox here - OpenLayers will handle it dynamically with bboxStrategy
         
-        // Add datetime parameter if collection has temporal extent
+        // Add datetime parameter if collection has temporal extent AND user has selected a datetime
         if (hasTemporal) {
-          const separator = url.includes('?') ? '&' : '?';
-          url = `${url}${separator}datetime=${datetime}`;
+          let datetimeParam = '';
+          
+          if (mode === 'range' && startDt && endDt) {
+            // Range mode: use start/end datetime
+            datetimeParam = `${startDt}/${endDt}`;
+          } else if (datetime) {
+            // Individual mode: use selected datetime
+            datetimeParam = datetime;
+          }
+          // If no datetime is selected, don't add the parameter at all
+          
+          if (datetimeParam) {
+            const separator = url.includes('?') ? '&' : '?';
+            url = `${url}${separator}datetime=${datetimeParam}`;
+          }
         }
         
         return {
@@ -407,6 +421,32 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDatetime]);
+
+  // Effect to update GeoJSON layers when datetime values change
+  useEffect(() => {
+    if (selectedCollection && activeGeoJsonLayers.length > 0) {
+      const geoJsonLinks = getGeoJsonLinks(selectedCollection, selectedDatetime, datetimeMode, startDatetime, endDatetime);
+      const auth = getAuthCredentials(apiUrl);
+      const updatedLayers = geoJsonLinks.map((link, index) => {
+        // Preserve the visibility state and other properties from existing layers
+        const existingLayer = activeGeoJsonLayers[index];
+        return {
+          url: link.url,
+          title: link.title,
+          visible: existingLayer?.visible ?? false,
+          labelProperty: existingLayer?.labelProperty,
+          data: existingLayer?.data,
+          apiKey: auth?.apiKey,
+          apiKeyParam: auth?.apiKeyParam
+        };
+      });
+      setActiveGeoJsonLayers(updatedLayers);
+      if (onGeoJsonLayersChange) {
+        onGeoJsonLayersChange(updatedLayers);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDatetime, datetimeMode, startDatetime, endDatetime]);
 
   // Effect to rebuild URL when data query changes (to apply persisted parameters)
   useEffect(() => {
@@ -706,7 +746,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
     
     // Initialize GeoJSON layers for the selected collection
     if (selectedColl) {
-      const geoJsonLinks = getGeoJsonLinks(selectedColl);
+      const geoJsonLinks = getGeoJsonLinks(selectedColl, selectedDatetime, datetimeMode, startDatetime, endDatetime);
       const auth = getAuthCredentials(apiUrl);
       const initialLayers = geoJsonLinks.map(link => ({
         url: link.url,
