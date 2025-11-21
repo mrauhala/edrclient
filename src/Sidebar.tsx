@@ -272,6 +272,14 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
       setCollectionUrl('');
       setActiveGeoJsonLayers([]);
       
+      // Clear validation result, conformance, and landing page info immediately
+      setValidationResult({ isValid: true, errors: null });
+      setConformsTo(null);
+      setLandingPageLinks(null);
+      setLandingPageTitle(null);
+      setLandingPageDescription(null);
+      setServiceDescUrl(null);
+      
       // Clear GeoJSON layers
       if (onGeoJsonLayersChange) {
         onGeoJsonLayersChange([]);
