@@ -7,6 +7,8 @@ import ListItemButton from '@mui/material/ListItemButton';
 import Collapse from '@mui/material/Collapse';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
+import ErrorIcon from '@mui/icons-material/Error';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import Public from '@mui/icons-material/Public';
 import AccessTime from '@mui/icons-material/AccessTime';
 import Height from '@mui/icons-material/Height';
@@ -159,6 +161,7 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   const [validationTrigger, setValidationTrigger] = useState(0); // Counter to force re-validation
   const [showServiceLinks, setShowServiceLinks] = useState(false); // State for collapsible links section
   const [showConformanceClasses, setShowConformanceClasses] = useState(false); // State for collapsible conformance section
+  const [showValidation, setShowValidation] = useState(false); // State for collapsible validation section
   const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
   const [selectedDataQuery, setSelectedDataQuery] = useState<string>('');
   const [selectedFormat, setSelectedFormat] = useState<string>('');
@@ -1165,21 +1168,71 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
             </Box>
           )}
           
-          <ValidationResults 
-            validation={validationResult} 
-            expanded={showValidationDetails} 
-          />
-          
-          {validationResult.errors && validationResult.errors.length > 0 && (
-            <Button 
-              variant="outlined" 
-              size="small" 
-              onClick={toggleValidationDetails}
-              sx={{ mb: 2 }}
+          {/* Schema Validation Section */}
+          <Box sx={{ mb: 2 }}>
+            <ListItemButton 
+              onClick={() => setShowValidation(!showValidation)}
+              sx={{ 
+                p: 1.5, 
+                backgroundColor: !validationResult.isValid ? 'rgba(237, 108, 2, 0.08)' : 'rgba(46, 125, 50, 0.08)', 
+                borderRadius: 1,
+                '&:hover': {
+                  backgroundColor: !validationResult.isValid ? 'rgba(237, 108, 2, 0.15)' : 'rgba(46, 125, 50, 0.15)',
+                }
+              }}
             >
-              {showValidationDetails ? 'Hide Details' : 'Show Details'}
-            </Button>
-          )}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
+                {!validationResult.isValid ? (
+                  <ErrorIcon sx={{ fontSize: 20, color: 'warning.main' }} />
+                ) : (
+                  <CheckCircleIcon sx={{ fontSize: 20, color: 'success.main' }} />
+                )}
+                <ListItemText 
+                  primary={
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                      Schema Validation Status
+                      {!validationResult.isValid && (() => {
+                        // Count validation failures
+                        let failureCount = 0;
+                        if (validationResult.landingPageValidation && !validationResult.landingPageValidation.isValid) failureCount++;
+                        if (validationResult.collectionsValidation && !validationResult.collectionsValidation.isValid) failureCount++;
+                        if (validationResult.conformanceValidation && !validationResult.conformanceValidation.isValid) failureCount++;
+                        
+                        return failureCount > 0 ? (
+                          <Chip 
+                            label={`${failureCount} issue${failureCount > 1 ? 's' : ''}`}
+                            size="small"
+                            color="warning"
+                            sx={{ ml: 1, height: 20 }}
+                          />
+                        ) : null;
+                      })()}
+                    </Typography>
+                  }
+                />
+              </Box>
+              {showValidation ? <ExpandLess /> : <ExpandMore />}
+            </ListItemButton>
+            <Collapse in={showValidation} timeout="auto" unmountOnExit>
+              <Box sx={{ p: 2 }}>
+                <ValidationResults 
+                  validation={validationResult} 
+                  expanded={showValidationDetails} 
+                />
+                
+                {validationResult.errors && validationResult.errors.length > 0 && (
+                  <Button 
+                    variant="outlined" 
+                    size="small" 
+                    onClick={toggleValidationDetails}
+                    sx={{ mt: 1 }}
+                  >
+                    {showValidationDetails ? 'Hide Details' : 'Show Details'}
+                  </Button>
+                )}
+              </Box>
+            </Collapse>
+          </Box>
         </CardContent>
       </Card>
       
