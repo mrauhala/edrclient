@@ -1,6 +1,5 @@
 const fs = require('fs');
 const path = require('path');
-const https = require('https');
 const $RefParser = require('@apidevtools/json-schema-ref-parser');
 
 // Schema definitions with correct paths and Part/Version naming
