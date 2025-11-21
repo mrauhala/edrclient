@@ -108,7 +108,6 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   const [apiUrl, setApiUrl] = useState('https://opendata.fmi.fi/edr');
   const [selectedService, setSelectedService] = useState('https://opendata.fmi.fi/edr');
   const [inputUrl, setInputUrl] = useState('https://opendata.fmi.fi/edr'); // Separate state for text input
-  const [queryUrl, setQueryUrl] = useState('https://opendata.fmi.fi/edr');
 
   // Effect to handle external service URL selection (from settings)
   useEffect(() => {
@@ -149,9 +148,6 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
   const [showValidationDetails, setShowValidationDetails] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [currentLocationCollection, setCurrentLocationCollection] = useState<string | null>(null);
-  const [landingPageUrl, setLandingPageUrl] = useState<string | null>(null);
-  const [collectionsUrl, setCollectionsUrl] = useState<string | null>(null);
-  const [conformanceUrl, setConformanceUrl] = useState<string | null>(null);
   const [landingPageTitle, setLandingPageTitle] = useState<string | null>(null);
   const [landingPageDescription, setLandingPageDescription] = useState<string | null>(null);
   const [serviceDescUrl, setServiceDescUrl] = useState<string | null>(null);
@@ -298,11 +294,6 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
         
         // Update validation result
         setValidationResult(result.validation);
-        
-        // Update URLs for display
-        setLandingPageUrl(result.landingPageUrl || null);
-        setCollectionsUrl(result.collectionsUrl || null);
-        setConformanceUrl(result.conformanceUrl || null);
         
         // Update landing page info for display
         setLandingPageTitle(result.landingPageTitle || null);
@@ -746,7 +737,6 @@ const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExten
     // Toggle collection: close if already open, open if closed (and close others)
     const newIndex = openCollectionIndex === index ? null : index;
     setOpenCollectionIndex(newIndex);
-    setQueryUrl(apiUrl+"/"+key);
     
     // Find the collection and trigger extent change
     const collection = collections[index];
