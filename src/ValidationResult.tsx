@@ -1,6 +1,8 @@
 import React from 'react';
-import { Alert, AlertTitle, Box, Collapse, List, ListItem, Typography, Chip, Divider, Tooltip } from '@mui/material';
+import { Alert, AlertTitle, Box, Collapse, List, ListItem, Typography, Chip, Divider, Paper } from '@mui/material';
 import { ValidationResult } from './DataRetrievalAPI';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import ErrorIcon from '@mui/icons-material/Error';
 
 interface ValidationResultsProps {
   validation: ValidationResult;
@@ -8,9 +10,52 @@ interface ValidationResultsProps {
 }
 
 const ValidationResults: React.FC<ValidationResultsProps> = ({ validation, expanded }) => {
+  // Helper function to render schema validation section
+  const renderSchemaSection = (
+    title: string,
+    validationData?: {
+      isValid: boolean;
+      errors: any[] | null;
+      schemaResults?: Array<{ schema: string; isValid: boolean }>;
+    }
+  ) => {
+    if (!validationData) return null;
+
+    return (
+      <Paper variant="outlined" sx={{ p: 1.5, mb: 1.5 }}>
+        <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>
+          {title}
+        </Typography>
+        
+        {validationData.schemaResults && validationData.schemaResults.length > 0 ? (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+            {validationData.schemaResults.map((result, index) => (
+              <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {result.isValid ? (
+                  <CheckCircleIcon sx={{ fontSize: 18, color: 'success.main' }} />
+                ) : (
+                  <ErrorIcon sx={{ fontSize: 18, color: 'warning.main' }} />
+                )}
+                <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
+                  {result.schema}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+        ) : (
+          <Chip
+            label={validationData.isValid ? 'Valid' : 'Invalid'}
+            color={validationData.isValid ? 'success' : 'warning'}
+            size="small"
+          />
+        )}
+      </Paper>
+    );
+  };
+
   // Show schema information
   const schemaInfo = (
-    <Box sx={{ mt: 1 }}>
+    <Box sx={{ mt: 1, mb: 1 }}>
       <Chip 
         label={`Schema Types: ${validation.schemaCount || 0}`} 
         color="info" 
@@ -28,96 +73,39 @@ const ValidationResults: React.FC<ValidationResultsProps> = ({ validation, expan
     </Box>
   );
 
-  // Helper function to create schema results tooltip
-  const createSchemaTooltip = (schemaResults?: Array<{ schema: string; isValid: boolean }>) => {
-    if (!schemaResults || schemaResults.length === 0) {
-      return '';
-    }
-    return schemaResults
-      .map(sr => `${sr.isValid ? '✅' : '❌'} ${sr.schema}`)
-      .join('\n');
-  };
-
-  // Show landing page validation if available
-  const landingPageValidation = validation.landingPageValidation ? (
-    <Tooltip 
-      title={createSchemaTooltip(validation.landingPageValidation.schemaResults) || 'No detailed schema results'}
-      arrow
-      placement="top"
-    >
-      <Chip
-        label={`Landing Page: ${validation.landingPageValidation.isValid ? 'Valid' : 'Invalid'}`}
-        color={validation.landingPageValidation.isValid ? 'success' : 'warning'}
-        size="small"
-        sx={{ mr: 1, mb: 1 }}
-      />
-    </Tooltip>
-  ) : null;
-
-  // Show collections validation if available
-  const collectionsValidation = validation.collectionsValidation ? (
-    <Tooltip 
-      title={createSchemaTooltip(validation.collectionsValidation.schemaResults) || 'No detailed schema results'}
-      arrow
-      placement="top"
-    >
-      <Chip
-        label={`Collections: ${validation.collectionsValidation.isValid ? 'Valid' : 'Invalid'}`}
-        color={validation.collectionsValidation.isValid ? 'success' : 'warning'}
-        size="small"
-        sx={{ mr: 1, mb: 1 }}
-      />
-    </Tooltip>
-  ) : null;
-
-  // Show conformance validation if available
-  const conformanceValidation = validation.conformanceValidation ? (
-    <Tooltip 
-      title={createSchemaTooltip(validation.conformanceValidation.schemaResults) || 'No detailed schema results'}
-      arrow
-      placement="top"
-    >
-      <Chip
-        label={`Conformance: ${validation.conformanceValidation.isValid ? 'Valid' : 'Invalid'}`}
-        color={validation.conformanceValidation.isValid ? 'success' : 'warning'}
-        size="small"
-        sx={{ mr: 1, mb: 1 }}
-      />
-    </Tooltip>
-  ) : null;
-
   // If there are no errors or we've manually set isValid to true despite errors
   if (validation.isValid) {
     return (
       <Alert severity="info" sx={{ mb: 2 }}>
-        <AlertTitle>Schema Status</AlertTitle>
+        <AlertTitle>Schema Validation Status</AlertTitle>
         <Chip 
           label="API Response Loaded" 
           color="success" 
           size="small" 
-          sx={{ mr: 1 }} 
+          sx={{ mr: 1, mb: 1 }} 
         />
         {validation.errors && validation.errors.length > 0 ? (
-          <Typography variant="caption" color="text.secondary">
+          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
             (Minor schema warnings ignored)
           </Typography>
         ) : (
-          <Typography variant="caption" color="text.secondary">
+          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
             Response structure looks good
           </Typography>
         )}
         
-        <Box sx={{ mt: 1 }}>
-          {landingPageValidation}
-          {collectionsValidation}
-          {conformanceValidation}
-        </Box>
         {schemaInfo}
         
+        <Box sx={{ mt: 2 }}>
+          {renderSchemaSection('Landing Page', validation.landingPageValidation)}
+          {renderSchemaSection('Collections', validation.collectionsValidation)}
+          {renderSchemaSection('Conformance', validation.conformanceValidation)}
+        </Box>
+        
         <Collapse in={expanded}>
-          <Divider sx={{ my: 1 }} />
+          <Divider sx={{ my: 2 }} />
           <Typography variant="subtitle2" gutterBottom>
-            Loaded Schemas:
+            Loaded Schema Files:
           </Typography>
           <Box sx={{ maxHeight: '150px', overflow: 'auto' }}>
             <List dense>
@@ -139,18 +127,19 @@ const ValidationResults: React.FC<ValidationResultsProps> = ({ validation, expan
   return (
     <Box sx={{ mb: 2 }}>
       <Alert severity="warning" sx={{ mb: 1 }}>
-        <AlertTitle>Schema Notice</AlertTitle>
+        <AlertTitle>Schema Validation Notice</AlertTitle>
         The API response has some schema differences 
-        <Typography variant="caption" color="text.secondary" display="block">
+        <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
           Data is still being displayed
         </Typography>
         
-        <Box sx={{ mt: 1 }}>
-          {landingPageValidation}
-          {collectionsValidation}
-          {conformanceValidation}
-        </Box>
         {schemaInfo}
+        
+        <Box sx={{ mt: 2 }}>
+          {renderSchemaSection('Landing Page', validation.landingPageValidation)}
+          {renderSchemaSection('Collections', validation.collectionsValidation)}
+          {renderSchemaSection('Conformance', validation.conformanceValidation)}
+        </Box>
       </Alert>
       
       <Collapse in={expanded}>
@@ -175,20 +164,6 @@ const ValidationResults: React.FC<ValidationResultsProps> = ({ validation, expan
                 </Typography>
               </ListItem>
             )}
-          </List>
-          
-          <Divider sx={{ my: 1 }} />
-          <Typography variant="subtitle2" gutterBottom>
-            Loaded Schemas:
-          </Typography>
-          <List dense>
-            {validation.schemaUrls && validation.schemaUrls.map((url, index) => (
-              <ListItem key={index} sx={{ py: 0 }}>
-                <Typography variant="caption" sx={{ wordBreak: 'break-all' }}>
-                  {index + 1}. {url}
-                </Typography>
-              </ListItem>
-            ))}
           </List>
         </Box>
       </Collapse>
