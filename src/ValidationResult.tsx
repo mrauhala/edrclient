@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, AlertTitle, Box, Collapse, List, ListItem, Typography, Chip, Divider } from '@mui/material';
+import { Alert, AlertTitle, Box, Collapse, List, ListItem, Typography, Chip, Divider, Tooltip } from '@mui/material';
 import { ValidationResult } from './DataRetrievalAPI';
 
 interface ValidationResultsProps {
@@ -28,34 +28,62 @@ const ValidationResults: React.FC<ValidationResultsProps> = ({ validation, expan
     </Box>
   );
 
+  // Helper function to create schema results tooltip
+  const createSchemaTooltip = (schemaResults?: Array<{ schema: string; isValid: boolean }>) => {
+    if (!schemaResults || schemaResults.length === 0) {
+      return '';
+    }
+    return schemaResults
+      .map(sr => `${sr.isValid ? '✅' : '❌'} ${sr.schema}`)
+      .join('\n');
+  };
+
   // Show landing page validation if available
   const landingPageValidation = validation.landingPageValidation ? (
-    <Chip
-      label={`Landing Page: ${validation.landingPageValidation.isValid ? 'Valid' : 'Invalid'}`}
-      color={validation.landingPageValidation.isValid ? 'success' : 'warning'}
-      size="small"
-      sx={{ mr: 1, mb: 1 }}
-    />
+    <Tooltip 
+      title={createSchemaTooltip(validation.landingPageValidation.schemaResults) || 'No detailed schema results'}
+      arrow
+      placement="top"
+    >
+      <Chip
+        label={`Landing Page: ${validation.landingPageValidation.isValid ? 'Valid' : 'Invalid'}`}
+        color={validation.landingPageValidation.isValid ? 'success' : 'warning'}
+        size="small"
+        sx={{ mr: 1, mb: 1 }}
+      />
+    </Tooltip>
   ) : null;
 
   // Show collections validation if available
   const collectionsValidation = validation.collectionsValidation ? (
-    <Chip
-      label={`Collections: ${validation.collectionsValidation.isValid ? 'Valid' : 'Invalid'}`}
-      color={validation.collectionsValidation.isValid ? 'success' : 'warning'}
-      size="small"
-      sx={{ mr: 1, mb: 1 }}
-    />
+    <Tooltip 
+      title={createSchemaTooltip(validation.collectionsValidation.schemaResults) || 'No detailed schema results'}
+      arrow
+      placement="top"
+    >
+      <Chip
+        label={`Collections: ${validation.collectionsValidation.isValid ? 'Valid' : 'Invalid'}`}
+        color={validation.collectionsValidation.isValid ? 'success' : 'warning'}
+        size="small"
+        sx={{ mr: 1, mb: 1 }}
+      />
+    </Tooltip>
   ) : null;
 
   // Show conformance validation if available
   const conformanceValidation = validation.conformanceValidation ? (
-    <Chip
-      label={`Conformance: ${validation.conformanceValidation.isValid ? 'Valid' : 'Invalid'}`}
-      color={validation.conformanceValidation.isValid ? 'success' : 'warning'}
-      size="small"
-      sx={{ mr: 1, mb: 1 }}
-    />
+    <Tooltip 
+      title={createSchemaTooltip(validation.conformanceValidation.schemaResults) || 'No detailed schema results'}
+      arrow
+      placement="top"
+    >
+      <Chip
+        label={`Conformance: ${validation.conformanceValidation.isValid ? 'Valid' : 'Invalid'}`}
+        color={validation.conformanceValidation.isValid ? 'success' : 'warning'}
+        size="small"
+        sx={{ mr: 1, mb: 1 }}
+      />
+    </Tooltip>
   ) : null;
 
   // If there are no errors or we've manually set isValid to true despite errors

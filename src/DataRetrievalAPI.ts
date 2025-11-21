@@ -179,14 +179,17 @@ export interface ValidationResult {
   landingPageValidation?: {
     isValid: boolean;
     errors: ValidationError[] | null;
+    schemaResults?: Array<{ schema: string; isValid: boolean }>;
   };
   collectionsValidation?: {
     isValid: boolean;
     errors: ValidationError[] | null;
+    schemaResults?: Array<{ schema: string; isValid: boolean }>;
   };
   conformanceValidation?: {
     isValid: boolean;
     errors: ValidationError[] | null;
+    schemaResults?: Array<{ schema: string; isValid: boolean }>;
   };
 }
 
@@ -1183,7 +1186,11 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
     console.log(`Loaded schema count: ${validator.getLoadedSchemaCount()}`);
     
     // Step 8: Validate conformance response if we fetched it
-    let conformanceValidation: { valid: boolean; errors: any[] | null } = { valid: true, errors: null };
+    let conformanceValidation: { 
+      valid: boolean; 
+      errors: any[] | null;
+      schemaResults?: Array<{ schema: string; isValid: boolean }>;
+    } = { valid: true, errors: null };
     if (conformanceUrl && conformsTo) {
       // Validate conformance response we already fetched
       conformanceValidation = await validator.validateConformance({ conformsTo });
@@ -1203,15 +1210,18 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
       collectionErrors: collectionsValidation.collectionErrors,
       landingPageValidation: {
         isValid: landingPageValidation.valid,
-        errors: landingPageValidation.errors
+        errors: landingPageValidation.errors,
+        schemaResults: landingPageValidation.schemaResults
       },
       collectionsValidation: {
         isValid: collectionsValidation.valid,
-        errors: collectionsValidation.errors
+        errors: collectionsValidation.errors,
+        schemaResults: collectionsValidation.schemaResults
       },
       conformanceValidation: {
         isValid: conformanceValidation.valid,
-        errors: conformanceValidation.errors
+        errors: conformanceValidation.errors,
+        schemaResults: conformanceValidation.schemaResults
       }
     };
 

@@ -251,7 +251,12 @@ export class SchemaValidator {
   /**
    * Validate collections data against all loaded schemas
    */
-  public async validateCollections(data: any): Promise<{ valid: boolean; errors: any[] | null; collectionErrors?: { [collectionId: string]: any[] } }> {
+  public async validateCollections(data: any): Promise<{ 
+    valid: boolean; 
+    errors: any[] | null; 
+    collectionErrors?: { [collectionId: string]: any[] };
+    schemaResults?: Array<{ schema: string; isValid: boolean }>;
+  }> {
     if (this.validators.size === 0) {
       return {
         valid: true,
@@ -269,6 +274,7 @@ export class SchemaValidator {
     let overallValid = true;
     const allErrors: any[] = [];
     const collectionErrors: { [collectionId: string]: any[] } = {};
+    const schemaResults: Array<{ schema: string; isValid: boolean }> = [];
 
     // Extract collection IDs from the data for mapping errors
     const collections = data?.collections || [];
@@ -290,6 +296,12 @@ export class SchemaValidator {
 
       try {
         const isValid = validatorSet.collections(data);
+        
+        // Record this schema's result
+        schemaResults.push({
+          schema: displayName,
+          isValid: isValid
+        });
         
         if (isValid) {
           console.log(`   ✅ ${displayName}: Valid`);
@@ -338,6 +350,10 @@ export class SchemaValidator {
       } catch (error) {
         console.error(`   ❌ ${displayName}: Validation error:`, error);
         overallValid = false;
+        schemaResults.push({
+          schema: displayName,
+          isValid: false
+        });
         allErrors.push({
           schema: displayName,
           schemaType: schemaType,
@@ -355,14 +371,19 @@ export class SchemaValidator {
     return {
       valid: overallValid,
       errors: allErrors.length > 0 ? allErrors : null,
-      collectionErrors: Object.keys(collectionErrors).length > 0 ? collectionErrors : undefined
+      collectionErrors: Object.keys(collectionErrors).length > 0 ? collectionErrors : undefined,
+      schemaResults: schemaResults.length > 0 ? schemaResults : undefined
     };
   }
 
   /**
    * Validate landing page data against all loaded schemas
    */
-  public async validateLandingPage(data: any): Promise<{ valid: boolean; errors: any[] | null }> {
+  public async validateLandingPage(data: any): Promise<{ 
+    valid: boolean; 
+    errors: any[] | null;
+    schemaResults?: Array<{ schema: string; isValid: boolean }>;
+  }> {
     if (this.validators.size === 0) {
       return {
         valid: true,
@@ -374,6 +395,7 @@ export class SchemaValidator {
     
     let overallValid = true;
     const allErrors: any[] = [];
+    const schemaResults: Array<{ schema: string; isValid: boolean }> = [];
 
     this.validators.forEach((validatorSet, schemaType) => {
       if (!validatorSet.landingPage) {
@@ -385,6 +407,12 @@ export class SchemaValidator {
 
       try {
         const isValid = validatorSet.landingPage(data);
+        
+        // Record this schema's result
+        schemaResults.push({
+          schema: displayName,
+          isValid: isValid
+        });
         
         if (isValid) {
           console.log(`   ✅ ${displayName}: Valid`);
@@ -405,6 +433,10 @@ export class SchemaValidator {
       } catch (error) {
         console.error(`   ❌ ${displayName}: Validation error:`, error);
         overallValid = false;
+        schemaResults.push({
+          schema: displayName,
+          isValid: false
+        });
         allErrors.push({
           schema: displayName,
           message: error instanceof Error ? error.message : 'Unknown validation error'
@@ -414,14 +446,19 @@ export class SchemaValidator {
 
     return {
       valid: overallValid,
-      errors: allErrors.length > 0 ? allErrors : null
+      errors: allErrors.length > 0 ? allErrors : null,
+      schemaResults: schemaResults.length > 0 ? schemaResults : undefined
     };
   }
 
   /**
    * Validate conformance data against all loaded schemas
    */
-  public async validateConformance(data: any): Promise<{ valid: boolean; errors: any[] | null }> {
+  public async validateConformance(data: any): Promise<{ 
+    valid: boolean; 
+    errors: any[] | null;
+    schemaResults?: Array<{ schema: string; isValid: boolean }>;
+  }> {
     if (this.validators.size === 0) {
       return {
         valid: true,
@@ -433,6 +470,7 @@ export class SchemaValidator {
     
     let overallValid = true;
     const allErrors: any[] = [];
+    const schemaResults: Array<{ schema: string; isValid: boolean }> = [];
 
     this.validators.forEach((validatorSet, schemaType) => {
       if (!validatorSet.conformance) {
@@ -444,6 +482,12 @@ export class SchemaValidator {
 
       try {
         const isValid = validatorSet.conformance(data);
+        
+        // Record this schema's result
+        schemaResults.push({
+          schema: displayName,
+          isValid: isValid
+        });
         
         if (isValid) {
           console.log(`   ✅ ${displayName}: Valid`);
@@ -464,6 +508,10 @@ export class SchemaValidator {
       } catch (error) {
         console.error(`   ❌ ${displayName}: Validation error:`, error);
         overallValid = false;
+        schemaResults.push({
+          schema: displayName,
+          isValid: false
+        });
         allErrors.push({
           schema: displayName,
           message: error instanceof Error ? error.message : 'Unknown validation error'
@@ -473,7 +521,8 @@ export class SchemaValidator {
 
     return {
       valid: overallValid,
-      errors: allErrors.length > 0 ? allErrors : null
+      errors: allErrors.length > 0 ? allErrors : null,
+      schemaResults: schemaResults.length > 0 ? schemaResults : undefined
     };
   }
 
