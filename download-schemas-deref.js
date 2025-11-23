@@ -73,6 +73,23 @@ const schemas = [
     url: 'https://schemas.opengis.net/ogcapi/common/part1/1.0/openapi/schemas/confClasses.yaml',
     output: 'schemas/individual/common-p1-v1.0/confClasses.json'
   },
+
+  // OGC API Common Part 2 v1.0
+  {
+    name: 'Common Part 2 v1.0 - Landing Page',
+    url: 'https://raw.githubusercontent.com/opengeospatial/ogcapi-common/refs/heads/master/collections/openapi/schemas/common-core/landingPage.yaml',
+    output: 'schemas/individual/common-p2-v1.0/landingPage.json'
+  },
+  {
+    name: 'Common Part 2 v1.0 - Conformance',
+    url: 'https://raw.githubusercontent.com/opengeospatial/ogcapi-common/refs/heads/master/collections/openapi/schemas/common-core/confClasses.yaml',
+    output: 'schemas/individual/common-p2-v1.0/confClasses.json'
+  },
+  {
+    name: 'Common Part 2 v1.0 - Collections',
+    url: 'https://raw.githubusercontent.com/opengeospatial/ogcapi-common/refs/heads/master/collections/openapi/schemas/common-geodata/collections.yaml',
+    output: 'schemas/individual/common-p2-v1.0/collections.json'
+  },
   
   // OGC API Records Part 1 v1.0 - top level structure (no conformance schema available)
   {

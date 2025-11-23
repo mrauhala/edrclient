@@ -1200,6 +1200,39 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
             return null;
           })()}
 
+          {/* License Information */}
+          {(() => {
+            // Find license link in collection links
+            const licenseLink = selectedCollection.links?.find(link => link.rel === 'license');
+            if (licenseLink && licenseLink.href) {
+              const href = typeof licenseLink.href === 'string' ? licenseLink.href : Object.values(licenseLink.href)[0];
+              
+              // Check if it's a Creative Commons license
+              if (href && href.includes('creativecommons.org/licenses/')) {
+                try {
+                  const url = new URL(href);
+                  const pathParts = url.pathname.split('/').filter(p => p);
+                  
+                  // Expected format: /licenses/by-nc-nd/4.0/
+                  if (pathParts.length >= 3 && pathParts[0] === 'licenses') {
+                    const licenseType = pathParts[1].toUpperCase().replace(/-/g, '-');
+                    const version = pathParts[2];
+                    
+                    return (
+                      <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.8)', marginTop: '4px' }}>
+                        <span style={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.9)' }}>License: </span>
+                        CC {licenseType} {version}
+                      </div>
+                    );
+                  }
+                } catch (e) {
+                  // Invalid URL, skip
+                }
+              }
+            }
+            return null;
+          })()}
+
           {selectedCollection.id && selectedCollection.title && (
             <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)', marginTop: '4px' }}>
               ID: {selectedCollection.id}
