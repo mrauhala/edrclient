@@ -212,7 +212,7 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
           <ToggleButtonGroup
             value={themeMode}
             exclusive
-            onChange={(event, newMode) => {
+            onChange={(_event, newMode) => {
               if (newMode !== null) {
                 handleModeClick(newMode as 'light' | 'dark' | 'system');
               }
