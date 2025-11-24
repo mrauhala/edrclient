@@ -54,9 +54,17 @@
   },
   "devDependencies": {
     "@apidevtools/json-schema-ref-parser": "^15.1.2",
+    "@eslint/js": "^9.39.1",
     "@types/node": "^22.13.9",
     "@types/swagger-ui-react": "^5.18.0",
+    "@typescript-eslint/eslint-plugin": "^8.48.0",
+    "@typescript-eslint/parser": "^8.48.0",
     "@vitejs/plugin-react": "^4.4.0",
+    "eslint": "^9.39.1",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "globals": "^16.5.0",
     "typescript": "^5.9.3",
     "vite": "^7.2.4",
     "vite-plugin-svgr": "^4.4.0"
