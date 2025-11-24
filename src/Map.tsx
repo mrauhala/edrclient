@@ -33,7 +33,6 @@ interface MapProps {
   selectedArea?: [number, number][][];
   radiusKm?: number;
   dataQuery?: string;
-  onUpdateBoundingBox?: (boundingBox: [number, number, number, number]) => void;
   onFeatureSelect?: (feature: any | null) => void;
   onMapClick?: (coords: [number, number][]) => void;
   onAreaSelect?: (area: [number, number][][]) => void;
@@ -44,7 +43,7 @@ interface MapProps {
   onGeoJsonLayerUpdate?: (layers: {url: string, title: string, visible: boolean, labelProperty?: string, data?: any, apiKey?: string, apiKeyParam?: string}[]) => void;
 }
 
-const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCollectionExtents, selectedCollection, locationFeatures, selectedFeature, clickedCoords, selectedArea, radiusKm, dataQuery, onUpdateBoundingBox, onFeatureSelect, onMapClick, onAreaSelect, onRadiusChange, geoJsonLayers = [], selectedGeoJsonFeature, onGeoJsonFeatureSelect, onGeoJsonLayerUpdate }) => {
+const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCollectionExtents, selectedCollection, locationFeatures, selectedFeature, clickedCoords, selectedArea, radiusKm, dataQuery, onFeatureSelect, onMapClick, onAreaSelect, onRadiusChange, geoJsonLayers = [], selectedGeoJsonFeature, onGeoJsonFeatureSelect, onGeoJsonLayerUpdate }) => {
   const [map, setMap] = useState<Map | null>(null);
   const [vectorLayer, setVectorLayer] = useState<VectorLayer<VectorSource> | null>(null);
   const [locationLayer, setLocationLayer] = useState<VectorLayer<VectorSource> | null>(null);
@@ -54,8 +53,6 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
   const [drawInteraction, setDrawInteraction] = useState<Draw | null>(null);
   const [geoJsonVectorLayers, setGeoJsonVectorLayers] = useState<{[key: string]: VectorLayer<VectorSource>}>({});
   const [geoJsonMetadata, setGeoJsonMetadata] = useState<{[key: string]: {numberReturned?: number, numberMatched?: number}}>({});
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [tooltipOverlay, setTooltipOverlay] = useState<Overlay | null>(null);
   const boundingBoxRef = useRef(boundingBox);
   const selectedExtentsRef = useRef(selectedCollectionExtents);
   const locationFeaturesRef = useRef(locationFeatures);
@@ -390,7 +387,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
           } else {
             // Use custom loader with bbox strategy for layers without pre-fetched data
             // The bbox strategy will automatically call this loader with the current extent
-            const loader = function(extent: any, resolution: any, projection: any) {
+            const loader = function(extent: any, _resolution: any, projection: any) {
               const [minX, minY, maxX, maxY] = extent;
               // Transform extent from map projection (EPSG:3857) to WGS84 (EPSG:4326)
               const [minLon, minLat] = toLonLat([minX, minY]);
@@ -705,7 +702,6 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
       positioning: 'bottom-left',
     });
     openLayersMap.addOverlay(tooltip);
-    setTooltipOverlay(tooltip);
 
     // Add click interaction for location features and GeoJSON features
     openLayersMap.on('click', (event) => {

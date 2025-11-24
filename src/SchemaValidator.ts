@@ -550,7 +550,7 @@ export class SchemaValidator {
 
   public getLoadedSchemaUrls(): string[] {
     const urls: string[] = [];
-    this.loadedSchemas.forEach((schemaSet, schemaType) => {
+    this.loadedSchemas.forEach((_schemaSet, schemaType) => {
       const config = SCHEMA_CONFIGS.find(c => c.type === schemaType);
       if (config) {
         if (config.schemas.landingPage) urls.push(config.schemas.landingPage);

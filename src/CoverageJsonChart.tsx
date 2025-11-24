@@ -254,7 +254,7 @@ const CoverageJsonChart: React.FC<CoverageJsonChartProps> = ({ data }) => {
   
   // Map all series - hidden ones have empty data arrays (no line, no tooltip, but still in legend)
   const mappedSeries = series
-    .map((s, index) => {
+    .map((s) => {
       const isHidden = !visibleSeries.has(s.label);
       return {
         data: isHidden ? [] : s.data,
@@ -268,7 +268,7 @@ const CoverageJsonChart: React.FC<CoverageJsonChartProps> = ({ data }) => {
   const rightMargin = yAxisConfig.length > 1 ? 80 : 20;
   
   // Handle legend item click
-  const handleLegendClick = (event: React.MouseEvent, legendItem: any, itemIndex: number) => {
+  const handleLegendClick = (_event: React.MouseEvent, _legendItem: any, itemIndex: number) => {
     const seriesLabel = series[itemIndex].label;
     toggleSeries(seriesLabel);
   };

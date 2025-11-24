@@ -61,9 +61,6 @@ dayjs.extend(utc);
 
 interface SidebarProps {
   open: boolean;
-  boundingBox: [number, number, number, number];
-  setBoundingBox: any;
-  onClose: () => void;
   onCollectionExtentChange?: (extents: [number, number, number, number][] | null) => void;
   onLocationFeaturesChange?: (features: any[] | null) => void;
   onFeatureSelect?: (feature: any) => void;
@@ -100,7 +97,7 @@ const edrServices = [
   { label: 'Custom', value: '' }
 ];
 
-const Sidebar = ({ open, onClose, boundingBox, setBoundingBox, onCollectionExtentChange, onLocationFeaturesChange, onFeatureSelect, onSelectedCollectionChange, onMapClick, onDataQueryChange, onCollectionUrlChange, clickedCoords, selectedArea, radiusKm, locationFeatures, selectedFeature, customServices = [], onServiceUrlSelect = null, onGeoJsonLayersChange, getAuthCredentials }: SidebarProps) => {
+const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onFeatureSelect, onSelectedCollectionChange, onMapClick, onDataQueryChange, onCollectionUrlChange, clickedCoords, selectedArea, radiusKm, locationFeatures, selectedFeature, customServices = [], onServiceUrlSelect = null, onGeoJsonLayersChange, getAuthCredentials }: SidebarProps) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md')); // Mobile/tablet breakpoint at 900px
   const sidebarWidth = isMobile ? '100%' : 480;

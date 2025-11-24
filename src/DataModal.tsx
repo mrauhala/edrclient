@@ -157,7 +157,7 @@ const DataModal: React.FC<DataModalProps> = ({
     }
   }, [viewMode, data, isIWXXM, performXSLTransform]);
   
-  const handleViewModeChange = (event: React.MouseEvent<HTMLElement>, newMode: 'code' | 'preview' | null) => {
+  const handleViewModeChange = (_event: React.MouseEvent<HTMLElement>, newMode: 'code' | 'preview' | null) => {
     if (newMode !== null) {
       setViewMode(newMode);
     }
