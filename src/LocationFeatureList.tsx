@@ -173,7 +173,7 @@ const LocationFeatureList: React.FC<LocationFeatureListProps> = ({ features, onF
       </ListItemButton>
       
       <Collapse in={open} timeout="auto" unmountOnExit>
-        <Box sx={{ p: 2, backgroundColor: 'background.paper', borderRadius: 1 }}>
+        <Box sx={{ backgroundColor: 'background.paper', borderRadius: 1 }}>
           <Box sx={{ height: 500, width: '100%' }}>
             <DataGrid
               rows={rows}
