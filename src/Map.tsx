@@ -56,11 +56,17 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
   const boundingBoxRef = useRef(boundingBox);
   const selectedExtentsRef = useRef(selectedCollectionExtents);
   const locationFeaturesRef = useRef(locationFeatures);
+  const selectedFeatureRef = useRef(selectedFeature);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const onFeatureSelectRef = useRef(onFeatureSelect);
   const selectedAreaRef = useRef(selectedArea);
   const clickedCoordsRef = useRef(clickedCoords);
   const geoJsonLayersRef = useRef<{url: string, title: string, visible: boolean, labelProperty?: string, data?: any, apiKey?: string, apiKeyParam?: string}[]>([]);
+
+  // Update selectedFeatureRef when selectedFeature changes
+  useEffect(() => {
+    selectedFeatureRef.current = selectedFeature;
+  }, [selectedFeature]);
 
   // Effect to reset trajectory state when leaving trajectory mode
   useEffect(() => {
@@ -213,6 +219,8 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
               olFeature.set('subIndex', subIndex);
               olFeature.set('layer', 'location');
               olFeature.set('name', feature.properties?.name || `Location ${index + 1}-${subIndex + 1}`);
+              olFeature.set('originalFeature', feature); // Store reference to original GeoJSON feature
+              olFeature.set('featureId', feature.id); // Store feature ID for comparison
               
               // Add to location layer
               locationLayer.getSource()?.addFeature(olFeature);
@@ -259,6 +267,14 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
       locationFeaturesRef.current = null;
     }
   }, [map, locationLayer, locationFeatures, selectedCollectionExtents]);
+
+  // Effect to refresh location layer styles when selected feature changes
+  useEffect(() => {
+    if (locationLayer) {
+      // Force the layer to re-render with updated styles
+      locationLayer.changed();
+    }
+  }, [selectedFeature, locationLayer]);
 
   // Effect to manage GeoJSON layers based on geoJsonLayers prop
   useEffect(() => {
@@ -569,35 +585,44 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
         if (!geometry) return new Style();
         
         const geometryType = geometry.getType();
+        const originalFeature = feature.get('originalFeature');
+        const featureId = feature.get('featureId');
+        
+        // Check if this feature is selected by comparing the feature objects or IDs
+        const currentSelectedFeature = selectedFeatureRef.current;
+        const isSelected = currentSelectedFeature && (
+          currentSelectedFeature === originalFeature ||
+          (featureId && currentSelectedFeature.id === featureId)
+        );
         
         if (geometryType === 'Point') {
           return new Style({
             image: new Circle({
-              radius: 8,
+              radius: isSelected ? 12 : 8,
               fill: new Fill({
-                color: '#2196F3',
+                color: isSelected ? '#FF9800' : '#2196F3',
               }),
               stroke: new Stroke({
-                color: '#ffffff',
-                width: 3,
+                color: isSelected ? '#F57C00' : '#ffffff',
+                width: isSelected ? 4 : 3,
               }),
             }),
           });
         } else if (geometryType === 'LineString' || geometryType === 'MultiLineString') {
           return new Style({
             stroke: new Stroke({
-              color: '#2196F3',
-              width: 4,
+              color: isSelected ? '#FF9800' : '#2196F3',
+              width: isSelected ? 6 : 4,
             }),
           });
         } else if (geometryType === 'Polygon' || geometryType === 'MultiPolygon') {
           return new Style({
             stroke: new Stroke({
-              color: '#2196F3',
-              width: 3,
+              color: isSelected ? '#FF9800' : '#2196F3',
+              width: isSelected ? 4 : 3,
             }),
             fill: new Fill({
-              color: 'rgba(33, 150, 243, 0.3)',
+              color: isSelected ? 'rgba(255, 152, 0, 0.4)' : 'rgba(33, 150, 243, 0.3)',
             }),
           });
         }
@@ -605,11 +630,11 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
         // Default style
         return new Style({
           stroke: new Stroke({
-            color: '#2196F3',
-            width: 2,
+            color: isSelected ? '#FF9800' : '#2196F3',
+            width: isSelected ? 3 : 2,
           }),
           fill: new Fill({
-            color: 'rgba(33, 150, 243, 0.2)',
+            color: isSelected ? 'rgba(255, 152, 0, 0.3)' : 'rgba(33, 150, 243, 0.2)',
           }),
         });
       },

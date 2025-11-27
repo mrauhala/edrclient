@@ -1,8 +1,6 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
-import List from '@mui/material/List';
-import ListItem from '@mui/material/ListItem';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
 import ListItemIcon from '@mui/material/ListItemIcon';
@@ -11,15 +9,54 @@ import Chip from '@mui/material/Chip';
 import Collapse from '@mui/material/Collapse';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
-import { useState } from 'react';
+import TextField from '@mui/material/TextField';
+import InputAdornment from '@mui/material/InputAdornment';
+import SearchIcon from '@mui/icons-material/Search';
+import CancelIcon from '@mui/icons-material/Cancel';
+import { 
+  DataGrid, 
+  GridColDef,
+  Toolbar,
+  QuickFilter,
+  QuickFilterControl,
+  QuickFilterClear,
+} from '@mui/x-data-grid';
 
 interface LocationFeatureListProps {
   features: any[] | null;
   onFeatureSelect?: (feature: any) => void;
 }
 
+interface LocationRow {
+  id: string | number;
+  name: string;
+  featureId: string;
+  latitude?: number;
+  longitude?: number;
+  originalFeature: any;
+}
+
 const LocationFeatureList: React.FC<LocationFeatureListProps> = ({ features, onFeatureSelect }) => {
   const [open, setOpen] = useState(false);
+
+  // Transform features into rows for DataGrid
+  const rows: LocationRow[] = useMemo(() => {
+    if (!features) return [];
+    return features.map((feature, index) => {
+      const { id, properties } = feature;
+      const name = properties?.name || properties?.title || `Feature ${index + 1}`;
+      const coordinates = feature.geometry?.coordinates;
+      
+      return {
+        id: id || `feature-${index}`,
+        name: name,
+        featureId: id || '',
+        latitude: coordinates && feature.geometry?.type === 'Point' ? coordinates[1] : undefined,
+        longitude: coordinates && feature.geometry?.type === 'Point' ? coordinates[0] : undefined,
+        originalFeature: feature
+      };
+    });
+  }, [features]);
 
   if (!features || features.length === 0) {
     return null;
@@ -29,11 +66,82 @@ const LocationFeatureList: React.FC<LocationFeatureListProps> = ({ features, onF
     setOpen(!open);
   };
 
-  const handleFeatureClick = (feature: any) => {
-    if (onFeatureSelect) {
-      onFeatureSelect(feature);
+  // Define columns for DataGrid
+  const columns: GridColDef[] = [
+    {
+      field: 'name',
+      headerName: 'Name',
+      flex: 1,
+      minWidth: 150,
+    },
+    {
+      field: 'featureId',
+      headerName: 'ID',
+      flex: 0.8,
+      minWidth: 100,
+    },
+    {
+      field: 'latitude',
+      headerName: 'Lat',
+      width: 80,
+      valueFormatter: (value: number | undefined) => value ? value.toFixed(4) : '',
+    },
+    {
+      field: 'longitude',
+      headerName: 'Lon',
+      width: 80,
+      valueFormatter: (value: number | undefined) => value ? value.toFixed(4) : '',
+    },
+  ];
+
+  const handleRowClick = (params: any) => {
+    if (onFeatureSelect && params.row.originalFeature) {
+      onFeatureSelect(params.row.originalFeature);
     }
   };
+
+  // Custom toolbar with QuickFilter
+  function CustomToolbar() {
+    return (
+      <Toolbar>
+        <QuickFilter>
+          <QuickFilterControl
+            render={({ ref, ...controlProps }, state) => (
+              <TextField
+                {...controlProps}
+                inputRef={ref}
+                placeholder="Search locations..."
+                size="small"
+                fullWidth
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon fontSize="small" />
+                      </InputAdornment>
+                    ),
+                    endAdornment: state.value ? (
+                      <InputAdornment position="end">
+                        <QuickFilterClear
+                          edge="end"
+                          size="small"
+                          aria-label="Clear search"
+                        >
+                          <CancelIcon fontSize="small" />
+                        </QuickFilterClear>
+                      </InputAdornment>
+                    ) : null,
+                    ...controlProps.slotProps?.input,
+                  },
+                  ...controlProps.slotProps,
+                }}
+              />
+            )}
+          />
+        </QuickFilter>
+      </Toolbar>
+    );
+  }
 
   return (
     <Box sx={{ mt: 1 }}>
@@ -58,7 +166,7 @@ const LocationFeatureList: React.FC<LocationFeatureListProps> = ({ features, onF
           }
           secondary={
             <Typography variant="caption" color="text.secondary">
-              Click to view available location features
+              Click to view and search location features
             </Typography>
           }
         />
@@ -66,57 +174,40 @@ const LocationFeatureList: React.FC<LocationFeatureListProps> = ({ features, onF
       </ListItemButton>
       
       <Collapse in={open} timeout="auto" unmountOnExit>
-        <List component="div" disablePadding sx={{ maxHeight: 250, overflow: 'auto', backgroundColor: 'action.hover', borderRadius: 1 }}>
-          {features.slice(0, 50).map((feature, index) => { // Limit to first 50 for performance
-            const { id, properties } = feature;
-            const name = properties?.name || properties?.title || `Feature ${index + 1}`;
-            const coordinates = feature.geometry?.coordinates;
-            
-            return (
-              <ListItem key={id || index} disablePadding>
-                <ListItemButton 
-                  sx={{ pl: 2, py: 0.5 }} 
-                  onClick={() => handleFeatureClick(feature)}
-                >
-                  <ListItemText
-                    primary={
-                      <Typography variant="caption" sx={{ fontWeight: 500, lineHeight: 1.2 }}>
-                        {name}
-                      </Typography>
-                    }
-                    secondary={
-                      <Box>
-                        {id && (
-                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
-                            ID: {id}
-                          </Typography>
-                        )}
-                        {coordinates && feature.geometry?.type === 'Point' && (
-                          <Typography variant="caption" display="block" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
-                            [{coordinates[1]?.toFixed(4)}, {coordinates[0]?.toFixed(4)}]
-                          </Typography>
-                        )}
-                      </Box>
-                    }
-                    secondaryTypographyProps={{ component: 'div' }}
-                  />
-                </ListItemButton>
-              </ListItem>
-            );
-          })}
-          {features.length > 50 && (
-            <ListItem>
-              <ListItemText
-                sx={{ pl: 4 }}
-                secondary={
-                  <Typography variant="caption" color="text.secondary" fontStyle="italic">
-                    ... and {features.length - 50} more features
-                  </Typography>
-                }
-              />
-            </ListItem>
-          )}
-        </List>
+        <Box sx={{ backgroundColor: 'background.paper', borderRadius: 1 }}>
+          <Box sx={{ height: 520, width: '100%' }}>
+            <DataGrid
+              rows={rows}
+              columns={columns}
+              slots={{
+                toolbar: CustomToolbar,
+              }}
+              showToolbar
+              initialState={{
+                pagination: {
+                  paginationModel: { pageSize: 10 },
+                },
+                sorting: {
+                  sortModel: [{ field: 'name', sort: 'asc' }],
+                },
+              }}
+              pageSizeOptions={[10, 25, 50, 100]}
+              disableMultipleRowSelection
+              onRowClick={handleRowClick}
+              sx={{
+                border: 1,
+                borderColor: 'divider',
+                '& .MuiDataGrid-cell:hover': {
+                  cursor: 'pointer',
+                },
+                '& .MuiDataGrid-row:hover': {
+                  backgroundColor: 'action.hover',
+                },
+              }}
+              density="compact"
+            />
+          </Box>
+        </Box>
       </Collapse>
     </Box>
   );
