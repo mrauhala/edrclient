@@ -9,11 +9,17 @@ import Chip from '@mui/material/Chip';
 import Collapse from '@mui/material/Collapse';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
+import TextField from '@mui/material/TextField';
+import InputAdornment from '@mui/material/InputAdornment';
+import SearchIcon from '@mui/icons-material/Search';
+import CancelIcon from '@mui/icons-material/Cancel';
 import { 
   DataGrid, 
   GridColDef,
-  GridToolbarContainer,
-  GridToolbarQuickFilter,
+  Toolbar,
+  QuickFilter,
+  QuickFilterControl,
+  QuickFilterClear,
 } from '@mui/x-data-grid';
 
 interface LocationFeatureListProps {
@@ -93,15 +99,46 @@ const LocationFeatureList: React.FC<LocationFeatureListProps> = ({ features, onF
     }
   };
 
-  // Custom toolbar with GridToolbarQuickFilter
+  // Custom toolbar with QuickFilter
   function CustomToolbar() {
     return (
-      <GridToolbarContainer sx={{ p: 1 }}>
-        <GridToolbarQuickFilter 
-          sx={{ width: '100%' }}
-          debounceMs={200}
-        />
-      </GridToolbarContainer>
+      <Toolbar>
+        <QuickFilter>
+          <QuickFilterControl
+            render={({ ref, ...controlProps }, state) => (
+              <TextField
+                {...controlProps}
+                inputRef={ref}
+                placeholder="Search locations..."
+                size="small"
+                fullWidth
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon fontSize="small" />
+                      </InputAdornment>
+                    ),
+                    endAdornment: state.value ? (
+                      <InputAdornment position="end">
+                        <QuickFilterClear
+                          edge="end"
+                          size="small"
+                          aria-label="Clear search"
+                        >
+                          <CancelIcon fontSize="small" />
+                        </QuickFilterClear>
+                      </InputAdornment>
+                    ) : null,
+                    ...controlProps.slotProps?.input,
+                  },
+                  ...controlProps.slotProps,
+                }}
+              />
+            )}
+          />
+        </QuickFilter>
+      </Toolbar>
     );
   }
 
@@ -144,6 +181,7 @@ const LocationFeatureList: React.FC<LocationFeatureListProps> = ({ features, onF
               slots={{
                 toolbar: CustomToolbar,
               }}
+              showToolbar
               initialState={{
                 pagination: {
                   paginationModel: { pageSize: 10 },
