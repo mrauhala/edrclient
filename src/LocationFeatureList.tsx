@@ -186,6 +186,9 @@ const LocationFeatureList: React.FC<LocationFeatureListProps> = ({ features, onF
                 pagination: {
                   paginationModel: { pageSize: 10 },
                 },
+                sorting: {
+                  sortModel: [{ field: 'name', sort: 'asc' }],
+                },
               }}
               pageSizeOptions={[10, 25, 50, 100]}
               disableMultipleRowSelection
