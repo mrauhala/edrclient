@@ -9,7 +9,7 @@ import Chip from '@mui/material/Chip';
 import Collapse from '@mui/material/Collapse';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
-import { DataGrid, GridColDef, GridToolbarQuickFilter } from '@mui/x-data-grid';
+import { DataGrid, GridColDef, GridToolbarQuickFilter, GridToolbarContainer } from '@mui/x-data-grid';
 import { useState } from 'react';
 
 interface LocationFeatureListProps {
@@ -92,14 +92,14 @@ const LocationFeatureList: React.FC<LocationFeatureListProps> = ({ features, onF
   // Custom toolbar with quick filter
   const CustomToolbar = () => {
     return (
-      <Box sx={{ p: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+      <GridToolbarContainer>
         <GridToolbarQuickFilter 
-          sx={{ flex: 1 }}
+          sx={{ flex: 1, p: 1 }}
           placeholder="Search locations..."
           variant="outlined"
           size="small"
         />
-      </Box>
+      </GridToolbarContainer>
     );
   };
 
