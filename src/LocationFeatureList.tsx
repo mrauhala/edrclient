@@ -9,7 +9,10 @@ import Chip from '@mui/material/Chip';
 import Collapse from '@mui/material/Collapse';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
-import { DataGrid, GridColDef, GridToolbarQuickFilter, GridToolbarContainer } from '@mui/x-data-grid';
+import TextField from '@mui/material/TextField';
+import InputAdornment from '@mui/material/InputAdornment';
+import SearchIcon from '@mui/icons-material/Search';
+import { DataGrid, GridColDef } from '@mui/x-data-grid';
 import { useState } from 'react';
 
 interface LocationFeatureListProps {
@@ -28,6 +31,7 @@ interface LocationRow {
 
 const LocationFeatureList: React.FC<LocationFeatureListProps> = ({ features, onFeatureSelect }) => {
   const [open, setOpen] = useState(false);
+  const [searchText, setSearchText] = useState('');
 
   if (!features || features.length === 0) {
     return null;
@@ -54,6 +58,19 @@ const LocationFeatureList: React.FC<LocationFeatureListProps> = ({ features, onF
       };
     });
   }, [features]);
+
+  // Filter rows based on search text
+  const filteredRows = useMemo(() => {
+    if (!searchText) return rows;
+    
+    const searchLower = searchText.toLowerCase();
+    return rows.filter(row => 
+      row.name.toLowerCase().includes(searchLower) ||
+      row.featureId.toLowerCase().includes(searchLower) ||
+      row.latitude?.toString().includes(searchLower) ||
+      row.longitude?.toString().includes(searchLower)
+    );
+  }, [rows, searchText]);
 
   // Define columns for DataGrid
   const columns: GridColDef[] = [
@@ -89,20 +106,6 @@ const LocationFeatureList: React.FC<LocationFeatureListProps> = ({ features, onF
     }
   };
 
-  // Custom toolbar with quick filter
-  const CustomToolbar = () => {
-    return (
-      <GridToolbarContainer>
-        <GridToolbarQuickFilter 
-          sx={{ flex: 1, p: 1 }}
-          placeholder="Search locations..."
-          variant="outlined"
-          size="small"
-        />
-      </GridToolbarContainer>
-    );
-  };
-
   return (
     <Box sx={{ mt: 1 }}>
       <ListItemButton onClick={handleToggle} sx={{ pl: 0 }}>
@@ -134,39 +137,47 @@ const LocationFeatureList: React.FC<LocationFeatureListProps> = ({ features, onF
       </ListItemButton>
       
       <Collapse in={open} timeout="auto" unmountOnExit>
-        <Box sx={{ height: 550, width: '100%', backgroundColor: 'background.paper', borderRadius: 1 }}>
-          <DataGrid
-            rows={rows}
-            columns={columns}
-            initialState={{
-              pagination: {
-                paginationModel: { pageSize: 10 },
-              },
+        <Box sx={{ p: 2, backgroundColor: 'background.paper', borderRadius: 1 }}>
+          <TextField
+            fullWidth
+            size="small"
+            placeholder="Search locations..."
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
             }}
-            pageSizeOptions={[10, 25, 50, 100]}
-            disableMultipleRowSelection
-            onRowClick={handleRowClick}
-            slots={{
-              toolbar: CustomToolbar,
-            }}
-            slotProps={{
-              toolbar: {
-                showQuickFilter: true,
-                quickFilterProps: { debounceMs: 500 },
-              },
-            }}
-            sx={{
-              border: 1,
-              borderColor: 'divider',
-              '& .MuiDataGrid-cell:hover': {
-                cursor: 'pointer',
-              },
-              '& .MuiDataGrid-row:hover': {
-                backgroundColor: 'action.hover',
-              },
-            }}
-            density="compact"
+            sx={{ mb: 2 }}
           />
+          <Box sx={{ height: 500, width: '100%' }}>
+            <DataGrid
+              rows={filteredRows}
+              columns={columns}
+              initialState={{
+                pagination: {
+                  paginationModel: { pageSize: 10 },
+                },
+              }}
+              pageSizeOptions={[10, 25, 50, 100]}
+              disableMultipleRowSelection
+              onRowClick={handleRowClick}
+              sx={{
+                border: 1,
+                borderColor: 'divider',
+                '& .MuiDataGrid-cell:hover': {
+                  cursor: 'pointer',
+                },
+                '& .MuiDataGrid-row:hover': {
+                  backgroundColor: 'action.hover',
+                },
+              }}
+              density="compact"
+            />
+          </Box>
         </Box>
       </Collapse>
     </Box>
