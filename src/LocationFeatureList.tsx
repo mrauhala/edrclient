@@ -149,6 +149,12 @@ const LocationFeatureList: React.FC<LocationFeatureListProps> = ({ features, onF
             slots={{
               toolbar: CustomToolbar,
             }}
+            slotProps={{
+              toolbar: {
+                showQuickFilter: true,
+                quickFilterProps: { debounceMs: 500 },
+              },
+            }}
             sx={{
               border: 1,
               borderColor: 'divider',
