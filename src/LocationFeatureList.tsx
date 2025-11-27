@@ -9,10 +9,14 @@ import Chip from '@mui/material/Chip';
 import Collapse from '@mui/material/Collapse';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
-import TextField from '@mui/material/TextField';
-import InputAdornment from '@mui/material/InputAdornment';
-import SearchIcon from '@mui/icons-material/Search';
-import { DataGrid, GridColDef } from '@mui/x-data-grid';
+import { 
+  DataGrid, 
+  GridColDef,
+  QuickFilter,
+  QuickFilterControl,
+  QuickFilterClear,
+  QuickFilterTrigger
+} from '@mui/x-data-grid';
 import { useState } from 'react';
 
 interface LocationFeatureListProps {
@@ -31,7 +35,6 @@ interface LocationRow {
 
 const LocationFeatureList: React.FC<LocationFeatureListProps> = ({ features, onFeatureSelect }) => {
   const [open, setOpen] = useState(false);
-  const [searchText, setSearchText] = useState('');
 
   if (!features || features.length === 0) {
     return null;
@@ -58,19 +61,6 @@ const LocationFeatureList: React.FC<LocationFeatureListProps> = ({ features, onF
       };
     });
   }, [features]);
-
-  // Filter rows based on search text
-  const filteredRows = useMemo(() => {
-    if (!searchText) return rows;
-    
-    const searchLower = searchText.toLowerCase();
-    return rows.filter(row => 
-      row.name.toLowerCase().includes(searchLower) ||
-      row.featureId.toLowerCase().includes(searchLower) ||
-      row.latitude?.toString().includes(searchLower) ||
-      row.longitude?.toString().includes(searchLower)
-    );
-  }, [rows, searchText]);
 
   // Define columns for DataGrid
   const columns: GridColDef[] = [
@@ -138,24 +128,14 @@ const LocationFeatureList: React.FC<LocationFeatureListProps> = ({ features, onF
       
       <Collapse in={open} timeout="auto" unmountOnExit>
         <Box sx={{ p: 2, backgroundColor: 'background.paper', borderRadius: 1 }}>
-          <TextField
-            fullWidth
-            size="small"
-            placeholder="Search locations..."
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon fontSize="small" />
-                </InputAdornment>
-              ),
-            }}
-            sx={{ mb: 2 }}
-          />
-          <Box sx={{ height: 500, width: '100%' }}>
+          <QuickFilter>
+            <QuickFilterTrigger />
+            <QuickFilterControl />
+            <QuickFilterClear />
+          </QuickFilter>
+          <Box sx={{ height: 500, width: '100%', mt: 2 }}>
             <DataGrid
-              rows={filteredRows}
+              rows={rows}
               columns={columns}
               initialState={{
                 pagination: {
