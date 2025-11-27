@@ -174,7 +174,7 @@ const LocationFeatureList: React.FC<LocationFeatureListProps> = ({ features, onF
       
       <Collapse in={open} timeout="auto" unmountOnExit>
         <Box sx={{ backgroundColor: 'background.paper', borderRadius: 1 }}>
-          <Box sx={{ height: 500, width: '100%' }}>
+          <Box sx={{ height: 520, width: '100%' }}>
             <DataGrid
               rows={rows}
               columns={columns}
