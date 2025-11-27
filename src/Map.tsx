@@ -56,11 +56,17 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
   const boundingBoxRef = useRef(boundingBox);
   const selectedExtentsRef = useRef(selectedCollectionExtents);
   const locationFeaturesRef = useRef(locationFeatures);
+  const selectedFeatureRef = useRef(selectedFeature);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const onFeatureSelectRef = useRef(onFeatureSelect);
   const selectedAreaRef = useRef(selectedArea);
   const clickedCoordsRef = useRef(clickedCoords);
   const geoJsonLayersRef = useRef<{url: string, title: string, visible: boolean, labelProperty?: string, data?: any, apiKey?: string, apiKeyParam?: string}[]>([]);
+
+  // Update selectedFeatureRef when selectedFeature changes
+  useEffect(() => {
+    selectedFeatureRef.current = selectedFeature;
+  }, [selectedFeature]);
 
   // Effect to reset trajectory state when leaving trajectory mode
   useEffect(() => {
@@ -213,6 +219,8 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
               olFeature.set('subIndex', subIndex);
               olFeature.set('layer', 'location');
               olFeature.set('name', feature.properties?.name || `Location ${index + 1}-${subIndex + 1}`);
+              olFeature.set('originalFeature', feature); // Store reference to original GeoJSON feature
+              olFeature.set('featureId', feature.id); // Store feature ID for comparison
               
               // Add to location layer
               locationLayer.getSource()?.addFeature(olFeature);
@@ -577,10 +585,15 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
         if (!geometry) return new Style();
         
         const geometryType = geometry.getType();
-        const featureIndex = feature.get('featureIndex');
-        const isSelected = selectedFeature && 
-                          locationFeatures && 
-                          locationFeatures[featureIndex] === selectedFeature;
+        const originalFeature = feature.get('originalFeature');
+        const featureId = feature.get('featureId');
+        
+        // Check if this feature is selected by comparing the feature objects or IDs
+        const currentSelectedFeature = selectedFeatureRef.current;
+        const isSelected = currentSelectedFeature && (
+          currentSelectedFeature === originalFeature ||
+          (featureId && currentSelectedFeature.id === featureId)
+        );
         
         if (geometryType === 'Point') {
           return new Style({
