@@ -136,7 +136,7 @@ function App() {
       if (feature.geometry.type === 'Point') {
         const [lon, lat] = coords;
         // Create a small bounding box around the point for zooming
-        const margin = 0.01; // Small margin around the point
+        const margin = 0.5; // Margin around the point (in degrees)
         setBoundingBox([lon - margin, lat - margin, lon + margin, lat + margin]);
       }
     }
