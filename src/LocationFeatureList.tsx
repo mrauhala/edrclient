@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import ListItemButton from '@mui/material/ListItemButton';
@@ -9,15 +9,13 @@ import Chip from '@mui/material/Chip';
 import Collapse from '@mui/material/Collapse';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
+import TextField from '@mui/material/TextField';
+import InputAdornment from '@mui/material/InputAdornment';
+import SearchIcon from '@mui/icons-material/Search';
 import { 
   DataGrid, 
-  GridColDef,
-  QuickFilter,
-  QuickFilterControl,
-  QuickFilterClear,
-  QuickFilterTrigger
+  GridColDef
 } from '@mui/x-data-grid';
-import { useState } from 'react';
 
 interface LocationFeatureListProps {
   features: any[] | null;
@@ -35,6 +33,7 @@ interface LocationRow {
 
 const LocationFeatureList: React.FC<LocationFeatureListProps> = ({ features, onFeatureSelect }) => {
   const [open, setOpen] = useState(false);
+  const [filterText, setFilterText] = useState('');
 
   if (!features || features.length === 0) {
     return null;
@@ -128,15 +127,29 @@ const LocationFeatureList: React.FC<LocationFeatureListProps> = ({ features, onF
       
       <Collapse in={open} timeout="auto" unmountOnExit>
         <Box sx={{ p: 2, backgroundColor: 'background.paper', borderRadius: 1 }}>
-          <QuickFilter>
-            <QuickFilterTrigger />
-            <QuickFilterControl />
-            <QuickFilterClear />
-          </QuickFilter>
-          <Box sx={{ height: 500, width: '100%', mt: 2 }}>
+          <TextField
+            fullWidth
+            size="small"
+            placeholder="Search locations..."
+            value={filterText}
+            onChange={(e) => setFilterText(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
+            }}
+            sx={{ mb: 2 }}
+          />
+          <Box sx={{ height: 500, width: '100%' }}>
             <DataGrid
               rows={rows}
               columns={columns}
+              filterModel={{
+                items: [],
+                quickFilterValues: filterText.split(' ').filter(v => v !== ''),
+              }}
               initialState={{
                 pagination: {
                   paginationModel: { pageSize: 10 },
