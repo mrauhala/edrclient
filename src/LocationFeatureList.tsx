@@ -134,7 +134,7 @@ const LocationFeatureList: React.FC<LocationFeatureListProps> = ({ features, onF
       </ListItemButton>
       
       <Collapse in={open} timeout="auto" unmountOnExit>
-        <Box sx={{ height: 400, width: '100%', backgroundColor: 'background.paper', borderRadius: 1 }}>
+        <Box sx={{ height: 550, width: '100%', backgroundColor: 'background.paper', borderRadius: 1 }}>
           <DataGrid
             rows={rows}
             columns={columns}
@@ -148,11 +148,6 @@ const LocationFeatureList: React.FC<LocationFeatureListProps> = ({ features, onF
             onRowClick={handleRowClick}
             slots={{
               toolbar: CustomToolbar,
-            }}
-            slotProps={{
-              toolbar: {
-                showQuickFilter: true,
-              },
             }}
             sx={{
               border: 1,
