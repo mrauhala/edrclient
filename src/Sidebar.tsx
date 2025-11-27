@@ -81,19 +81,20 @@ interface SidebarProps {
 
 // EDR service options
 const edrServices = [
-  { label: 'EDR FMI Open Data', value: 'https://opendata.fmi.fi/edr' },
-  { label: 'EDR SWIM MET Norway', value: 'https://swim.met.no' },
-  { label: 'Norwegian Met Office Isobaric', value: 'https://edrisobaric.k8s.met.no' },
-  { label: 'EDR SWIM IBL', value: 'https://swim.iblsoft.com/edr' },
-  { label: 'EDR SWIM SMHI', value: 'https://aviation.smhi.se' },
-  { label: 'EDR Met Office Labs', value: 'https://labs.metoffice.gov.uk/edr' },
-  { label: 'EDR Meteogate Observations', value: 'https://observations.meteogate.eu' },
-  { label: 'EDR SmartMet Kenya', value: 'https://data-kenya.smartmet.org/edr' },
-  { label: 'EDR SmartMet Ethiopia', value: 'https://data-ethiopia.smartmet.org/edr' },
-  { label: 'EDR DMI Open Data', value: 'https://api.meteogate.eu/dk/edr' },
-  { label: 'GDC WIS2 Germany', value: 'https://wis2.dwd.de/gdc/' },
-  { label: 'GDC WIS2 Canada', value: 'https://wis2-gdc.weather.gc.ca' },
-  { label: 'GDC WIS2 China', value: 'https://gdc.wis.cma.cn' },
+  { label: '[EDR] IMO Climate API', value: 'https://api.vedur.is/weather/rodeo/' },
+  { label: '[EDR] DMI Open Data', value: 'https://api.meteogate.eu/dk/edr' },
+  { label: '[EDR] FMI Open Data', value: 'https://opendata.fmi.fi/edr' },
+  { label: '[EDR] SWIM MET Norway', value: 'https://swim.met.no' },
+  { label: '[EDR] SWIM IBL', value: 'https://swim.iblsoft.com/edr' },
+  { label: '[EDR] SWIM SMHI', value: 'https://aviation.smhi.se' },
+  { label: '[EDR] Met Office Labs', value: 'https://labs.metoffice.gov.uk/edr' },
+  { label: '[EDR] Meteogate Observations', value: 'https://observations.meteogate.eu' },
+  { label: '[EDR] SmartMet Kenya', value: 'https://data-kenya.smartmet.org/edr' },
+  { label: '[EDR] SmartMet Ethiopia', value: 'https://data-ethiopia.smartmet.org/edr' },
+  { label: '[Records] WMO GDC WIS2 Germany', value: 'https://wis2.dwd.de/gdc/' },
+  { label: '[Records] WMO GDC WIS2 Canada', value: 'https://wis2-gdc.weather.gc.ca' },
+  { label: '[Records] WMO GDC WIS2 China', value: 'https://gdc.wis.cma.cn' },
+  { label: '[Features] MSC GeoMet', value: 'https://api.weather.gc.ca' },
   { label: 'Custom', value: '' }
 ];
 
