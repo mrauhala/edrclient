@@ -39,16 +39,9 @@ interface LocationRow {
 const LocationFeatureList: React.FC<LocationFeatureListProps> = ({ features, onFeatureSelect }) => {
   const [open, setOpen] = useState(false);
 
-  if (!features || features.length === 0) {
-    return null;
-  }
-
-  const handleToggle = () => {
-    setOpen(!open);
-  };
-
   // Transform features into rows for DataGrid
   const rows: LocationRow[] = useMemo(() => {
+    if (!features) return [];
     return features.map((feature, index) => {
       const { id, properties } = feature;
       const name = properties?.name || properties?.title || `Feature ${index + 1}`;
@@ -64,6 +57,14 @@ const LocationFeatureList: React.FC<LocationFeatureListProps> = ({ features, onF
       };
     });
   }, [features]);
+
+  if (!features || features.length === 0) {
+    return null;
+  }
+
+  const handleToggle = () => {
+    setOpen(!open);
+  };
 
   // Define columns for DataGrid
   const columns: GridColDef[] = [
