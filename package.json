@@ -8,6 +8,7 @@
     "@mui/icons-material": "7.3.5",
     "@mui/material": "^7.3.4",
     "@mui/x-charts": "^8.17.0",
+    "@mui/x-data-grid": "^8.20.0",
     "@mui/x-date-pickers": "^8.17.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",

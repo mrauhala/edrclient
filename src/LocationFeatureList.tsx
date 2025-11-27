@@ -1,8 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
-import List from '@mui/material/List';
-import ListItem from '@mui/material/ListItem';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
 import ListItemIcon from '@mui/material/ListItemIcon';
@@ -11,11 +9,21 @@ import Chip from '@mui/material/Chip';
 import Collapse from '@mui/material/Collapse';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
+import { DataGrid, GridColDef, GridToolbarQuickFilter } from '@mui/x-data-grid';
 import { useState } from 'react';
 
 interface LocationFeatureListProps {
   features: any[] | null;
   onFeatureSelect?: (feature: any) => void;
+}
+
+interface LocationRow {
+  id: string | number;
+  name: string;
+  featureId: string;
+  latitude?: number;
+  longitude?: number;
+  originalFeature: any;
 }
 
 const LocationFeatureList: React.FC<LocationFeatureListProps> = ({ features, onFeatureSelect }) => {
@@ -29,10 +37,70 @@ const LocationFeatureList: React.FC<LocationFeatureListProps> = ({ features, onF
     setOpen(!open);
   };
 
-  const handleFeatureClick = (feature: any) => {
-    if (onFeatureSelect) {
-      onFeatureSelect(feature);
+  // Transform features into rows for DataGrid
+  const rows: LocationRow[] = useMemo(() => {
+    return features.map((feature, index) => {
+      const { id, properties } = feature;
+      const name = properties?.name || properties?.title || `Feature ${index + 1}`;
+      const coordinates = feature.geometry?.coordinates;
+      
+      return {
+        id: id || `feature-${index}`,
+        name: name,
+        featureId: id || '',
+        latitude: coordinates && feature.geometry?.type === 'Point' ? coordinates[1] : undefined,
+        longitude: coordinates && feature.geometry?.type === 'Point' ? coordinates[0] : undefined,
+        originalFeature: feature
+      };
+    });
+  }, [features]);
+
+  // Define columns for DataGrid
+  const columns: GridColDef[] = [
+    {
+      field: 'name',
+      headerName: 'Name',
+      flex: 1,
+      minWidth: 150,
+    },
+    {
+      field: 'featureId',
+      headerName: 'ID',
+      flex: 0.8,
+      minWidth: 100,
+    },
+    {
+      field: 'latitude',
+      headerName: 'Lat',
+      width: 80,
+      valueFormatter: (value: number | undefined) => value ? value.toFixed(4) : '',
+    },
+    {
+      field: 'longitude',
+      headerName: 'Lon',
+      width: 80,
+      valueFormatter: (value: number | undefined) => value ? value.toFixed(4) : '',
+    },
+  ];
+
+  const handleRowClick = (params: any) => {
+    if (onFeatureSelect && params.row.originalFeature) {
+      onFeatureSelect(params.row.originalFeature);
     }
+  };
+
+  // Custom toolbar with quick filter
+  const CustomToolbar = () => {
+    return (
+      <Box sx={{ p: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+        <GridToolbarQuickFilter 
+          sx={{ flex: 1 }}
+          placeholder="Search locations..."
+          variant="outlined"
+          size="small"
+        />
+      </Box>
+    );
   };
 
   return (
@@ -58,7 +126,7 @@ const LocationFeatureList: React.FC<LocationFeatureListProps> = ({ features, onF
           }
           secondary={
             <Typography variant="caption" color="text.secondary">
-              Click to view available location features
+              Click to view and search location features
             </Typography>
           }
         />
@@ -66,57 +134,39 @@ const LocationFeatureList: React.FC<LocationFeatureListProps> = ({ features, onF
       </ListItemButton>
       
       <Collapse in={open} timeout="auto" unmountOnExit>
-        <List component="div" disablePadding sx={{ maxHeight: 250, overflow: 'auto', backgroundColor: 'action.hover', borderRadius: 1 }}>
-          {features.slice(0, 50).map((feature, index) => { // Limit to first 50 for performance
-            const { id, properties } = feature;
-            const name = properties?.name || properties?.title || `Feature ${index + 1}`;
-            const coordinates = feature.geometry?.coordinates;
-            
-            return (
-              <ListItem key={id || index} disablePadding>
-                <ListItemButton 
-                  sx={{ pl: 2, py: 0.5 }} 
-                  onClick={() => handleFeatureClick(feature)}
-                >
-                  <ListItemText
-                    primary={
-                      <Typography variant="caption" sx={{ fontWeight: 500, lineHeight: 1.2 }}>
-                        {name}
-                      </Typography>
-                    }
-                    secondary={
-                      <Box>
-                        {id && (
-                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
-                            ID: {id}
-                          </Typography>
-                        )}
-                        {coordinates && feature.geometry?.type === 'Point' && (
-                          <Typography variant="caption" display="block" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
-                            [{coordinates[1]?.toFixed(4)}, {coordinates[0]?.toFixed(4)}]
-                          </Typography>
-                        )}
-                      </Box>
-                    }
-                    secondaryTypographyProps={{ component: 'div' }}
-                  />
-                </ListItemButton>
-              </ListItem>
-            );
-          })}
-          {features.length > 50 && (
-            <ListItem>
-              <ListItemText
-                sx={{ pl: 4 }}
-                secondary={
-                  <Typography variant="caption" color="text.secondary" fontStyle="italic">
-                    ... and {features.length - 50} more features
-                  </Typography>
-                }
-              />
-            </ListItem>
-          )}
-        </List>
+        <Box sx={{ height: 400, width: '100%', backgroundColor: 'background.paper', borderRadius: 1 }}>
+          <DataGrid
+            rows={rows}
+            columns={columns}
+            initialState={{
+              pagination: {
+                paginationModel: { pageSize: 10 },
+              },
+            }}
+            pageSizeOptions={[10, 25, 50, 100]}
+            disableMultipleRowSelection
+            onRowClick={handleRowClick}
+            slots={{
+              toolbar: CustomToolbar,
+            }}
+            slotProps={{
+              toolbar: {
+                showQuickFilter: true,
+              },
+            }}
+            sx={{
+              border: 1,
+              borderColor: 'divider',
+              '& .MuiDataGrid-cell:hover': {
+                cursor: 'pointer',
+              },
+              '& .MuiDataGrid-row:hover': {
+                backgroundColor: 'action.hover',
+              },
+            }}
+            density="compact"
+          />
+        </Box>
       </Collapse>
     </Box>
   );
