@@ -1693,10 +1693,24 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
                   const hasValues = collection.extent.temporal.values && collection.extent.temporal.values.length > 0;
                   const hasInterval = collection.extent.temporal.interval && collection.extent.temporal.interval.length > 0;
                   
+                  // Check if we have too many values (from large repeating intervals)
+                  // If so, use DateTimePicker instead of dropdown
+                  const tooManyValues = temporalValues.length > 100;
+                  const useDropdown = hasValues && !tooManyValues;
+                  
                   // Show temporal selection UI if collection has temporal extent (values OR interval)
                   return (hasValues || hasInterval) ? (
                     <Box sx={{ mb: 2 }}>
                       <FormLabel component="legend" sx={{ fontSize: '0.875rem', mb: 1 }}>Date/Time Selection</FormLabel>
+                      
+                      {/* Info message when using date picker due to large intervals */}
+                      {tooManyValues && (
+                        <Alert severity="info" sx={{ mb: 1, py: 0.5 }}>
+                          <Typography variant="caption">
+                            This collection has a large repeating interval ({temporalValues.length}+ values). Using date/time picker for easier selection.
+                          </Typography>
+                        </Alert>
+                      )}
                       
                       {/* Datetime Mode Selector - always show when temporal extent exists */}
                       <FormControl component="fieldset" sx={{ mb: 1 }}>
@@ -1749,7 +1763,7 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
 
                       {/* Individual Time - show dropdown if values exist, otherwise show DateTimePicker */}
                       {datetimeMode === 'individual' && (
-                        hasValues ? (
+                        useDropdown ? (
                           <FormControl fullWidth>
                             <InputLabel id="datetime-select-label">Select Time</InputLabel>
                             <Select
@@ -1812,8 +1826,8 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
                       {/* Time Range Selectors - show when in range mode */}
                       {datetimeMode === 'range' && (
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                          {/* Show dropdowns with list if we have actual values */}
-                          {hasValues ? (
+                          {/* Show dropdowns with list if we have actual values and not too many */}
+                          {useDropdown ? (
                             <>
                               <FormControl fullWidth size="small">
                                 <InputLabel id="start-datetime-label">Start Time</InputLabel>
