@@ -1695,7 +1695,7 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
                   
                   // Check if we have too many values (from large repeating intervals)
                   // If so, use DateTimePicker instead of dropdown
-                  const tooManyValues = temporalValues.length > 100;
+                  const tooManyValues = temporalValues.length > 250;
                   const useDropdown = hasValues && !tooManyValues;
                   
                   // Show temporal selection UI if collection has temporal extent (values OR interval)
