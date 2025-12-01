@@ -228,14 +228,22 @@ const DataModal: React.FC<DataModalProps> = ({
         <Typography variant="h6" component="div" noWrap>
           API Response
         </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 0.5, pr: 5 }}>
-          <Typography variant="caption" color="text.secondary" sx={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', mr: 1 }}>
-            {url}
-          </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {url}
+            </Typography>
+            {contentType && (
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
+                Content-Type: {contentType}
+              </Typography>
+            )}
+          </Box>
           <Tooltip title="Copy URL">
             <IconButton
               size="small"
               onClick={handleCopyUrl}
+              sx={{ ml: 1, flexShrink: 0 }}
             >
               <ContentCopyIcon fontSize="small" />
             </IconButton>
