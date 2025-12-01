@@ -931,6 +931,97 @@ export function normalizeVertical(vertical: Vertical | null | undefined): {
   }
 }
 
+// Utility function to expand vertical extent into individual level values for selection
+export function expandVerticalValues(vertical: Vertical | null | undefined, maxValues: number = 500): string[] {
+  const values: string[] = [];
+  
+  if (!vertical) {
+    return values;
+  }
+  
+  try {
+    // PRIORITIZE vertical.values if it exists
+    if (vertical.values && Array.isArray(vertical.values) && vertical.values.length > 0) {
+      vertical.values.forEach(value => {
+        const strValue = String(value);
+        if (!values.includes(strValue)) {
+          values.push(strValue);
+        }
+      });
+    }
+    // FALLBACK to vertical.interval ONLY if vertical.values is not available
+    else if (vertical.interval && Array.isArray(vertical.interval)) {
+      for (const interval of vertical.interval) {
+        if (!Array.isArray(interval) || interval.length < 2) {
+          continue;
+        }
+        
+        const [minVal, maxVal] = interval;
+        
+        // Skip open-ended intervals (we can't expand them)
+        if (minVal === null || maxVal === null) {
+          continue;
+        }
+        
+        try {
+          const min = typeof minVal === 'string' ? parseFloat(minVal) : minVal;
+          const max = typeof maxVal === 'string' ? parseFloat(maxVal) : maxVal;
+          
+          // Skip invalid values
+          if (isNaN(min) || isNaN(max)) {
+            continue;
+          }
+          
+          // Calculate appropriate step size based on range
+          const range = Math.abs(max - min);
+          let step: number;
+          
+          if (range <= 10) {
+            step = 0.5;  // Fine granularity for small ranges
+          } else if (range <= 100) {
+            step = 5;    // Medium granularity
+          } else if (range <= 1000) {
+            step = 50;   // Coarse granularity
+          } else {
+            step = 100;  // Very coarse for large ranges
+          }
+          
+          // Generate values
+          let currentValue = min;
+          let count = 0;
+          
+          while (currentValue <= max && count < maxValues) {
+            const strValue = currentValue.toString();
+            if (!values.includes(strValue)) {
+              values.push(strValue);
+            }
+            currentValue += step;
+            count++;
+          }
+          
+          // Always include the max value if we haven't reached the limit
+          if (count < maxValues) {
+            const maxStrValue = max.toString();
+            if (!values.includes(maxStrValue)) {
+              values.push(maxStrValue);
+            }
+          }
+        } catch (error) {
+          console.warn('Error processing vertical interval:', interval, error);
+        }
+      }
+    }
+    
+    // Sort values numerically
+    values.sort((a, b) => parseFloat(a) - parseFloat(b));
+    
+  } catch (error) {
+    console.error('Error expanding vertical values:', error);
+  }
+  
+  return values;
+}
+
 // Utility function to format vertical intervals for display
 export function formatVerticalInterval(min: number | null, max: number | null, unit?: string): string {
   const unitSuffix = unit ? ` ${unit}` : '';

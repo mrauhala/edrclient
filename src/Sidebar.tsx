@@ -44,7 +44,7 @@ import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs, { Dayjs } from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import React, { useEffect, useState, useMemo } from 'react';
-import { getCollections, Collection, ValidationResult, normalizeBbox, hasLocationQuery, getLocationQueryUrl, executeLocationQuery, getSupportedDataQueries, normalizeTemporal, formatConformanceClass, expandTemporalValues, Link as ApiLink, normalizeHref } from './DataRetrievalAPI';
+import { getCollections, Collection, ValidationResult, normalizeBbox, hasLocationQuery, getLocationQueryUrl, executeLocationQuery, getSupportedDataQueries, normalizeTemporal, formatConformanceClass, expandTemporalValues, expandVerticalValues, Link as ApiLink, normalizeHref } from './DataRetrievalAPI';
 import ValidationResults from './ValidationResult';
 import SchemaInspector from './SchemaInspector';
 import LocationFeatureList from './LocationFeatureList';
@@ -164,6 +164,10 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
   const [datetimeMode, setDatetimeMode] = useState<'individual' | 'range'>('individual');
   const [startDatetime, setStartDatetime] = useState<string>('');
   const [endDatetime, setEndDatetime] = useState<string>('');
+  const [selectedVertical, setSelectedVertical] = useState<string>('');
+  const [verticalMode, setVerticalMode] = useState<'individual' | 'range'>('individual');
+  const [startVertical, setStartVertical] = useState<string>('');
+  const [endVertical, setEndVertical] = useState<string>('');
   const [collectionUrl, setCollectionUrl] = useState<string>('');
   const [showCollectionValidation, setShowCollectionValidation] = useState<{[key: string]: boolean}>({});
   const [activeGeoJsonLayers, setActiveGeoJsonLayers] = useState<{url: string, title: string, visible: boolean, labelProperty?: string, data?: any, apiKey?: string, apiKeyParam?: string}[]>([]);
@@ -609,7 +613,11 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
     datetime: string = '', // Changed from array to single string
     dtMode: 'individual' | 'range' = 'individual',
     dtStart: string = '',
-    dtEnd: string = ''
+    dtEnd: string = '',
+    vertical: string = '',
+    vMode: 'individual' | 'range' = 'individual',
+    vStart: string = '',
+    vEnd: string = ''
   ) => {
     if (!baseUrl) return baseUrl;
     
@@ -662,6 +670,17 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
         } else {
           console.log('Deleting datetime parameter');
           url.searchParams.delete('datetime');
+        }
+        
+        // Add vertical (z) parameter
+        if (vMode === 'range' && vStart && vEnd) {
+          // Vertical range mode: format as start/end
+          url.searchParams.set('z', `${vStart}/${vEnd}`);
+        } else if (vMode === 'individual' && vertical) {
+          // Individual vertical level: single value
+          url.searchParams.set('z', vertical);
+        } else {
+          url.searchParams.delete('z');
         }
         
         // Add coords parameter
@@ -719,6 +738,7 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
         url.searchParams.delete('f');
         url.searchParams.delete('parameter-name');
         url.searchParams.delete('datetime');
+        url.searchParams.delete('z');
         url.searchParams.delete('coords');
         url.searchParams.delete('within');
         url.searchParams.delete('within-units');
@@ -1707,7 +1727,7 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
                       {tooManyValues && (
                         <Alert severity="info" sx={{ mb: 1, py: 0.5 }}>
                           <Typography variant="caption">
-                            This collection has a large repeating interval ({temporalValues.length}+ values). Using date/time picker for easier selection.
+                            This collection has a large repeating interval ({temporalValues.length} values, limit: 250). Using date/time picker for easier selection.
                           </Typography>
                         </Alert>
                       )}
@@ -1946,6 +1966,267 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
                                 }}
                               />
                             </LocalizationProvider>
+                          )}
+                        </Box>
+                      )}
+                    </Box>
+                  ) : null;
+                })()}
+
+                {/* Vertical Extent Selector */}
+                {collection.extent?.vertical && (() => {
+                  const verticalValues = expandVerticalValues(collection.extent.vertical, 500);
+                  const hasValues = collection.extent.vertical.values && collection.extent.vertical.values.length > 0;
+                  const hasInterval = collection.extent.vertical.interval && collection.extent.vertical.interval.length > 0;
+                  
+                  // Check if we have too many values (from large intervals)
+                  // If so, use TextField instead of dropdown
+                  const tooManyValues = verticalValues.length > 250;
+                  const useDropdown = hasValues && !tooManyValues;
+                  
+                  // Show vertical selection UI if collection has vertical extent (values OR interval)
+                  return (hasValues || hasInterval) ? (
+                    <Box sx={{ mb: 2 }}>
+                      <FormLabel component="legend" sx={{ fontSize: '0.875rem', mb: 1 }}>Vertical Level Selection</FormLabel>
+                      
+                      {/* Info message when using text input due to large intervals */}
+                      {tooManyValues && (
+                        <Alert severity="info" sx={{ mb: 1, py: 0.5 }}>
+                          <Typography variant="caption">
+                            This collection has a large vertical range ({verticalValues.length} values, limit: 250). Using text input for easier selection.
+                          </Typography>
+                        </Alert>
+                      )}
+                      
+                      {/* Vertical Mode Selector - always show when vertical extent exists */}
+                      <FormControl component="fieldset" sx={{ mb: 1 }}>
+                        <RadioGroup
+                          row
+                          value={verticalMode}
+                          onChange={(e) => {
+                            const newMode = e.target.value as 'individual' | 'range';
+                            setVerticalMode(newMode);
+                            // Clear selections when switching modes
+                            if (newMode === 'range') {
+                              setSelectedVertical('');
+                            } else {
+                              setStartVertical('');
+                              setEndVertical('');
+                            }
+                            // Update URL
+                            const isDataQuery = !!selectedDataQuery;
+                            const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+                            setCollectionUrl(buildUrlWithParams(
+                              collectionUrl, 
+                              selectedFormat, 
+                              selectedParameters, 
+                              isDataQuery, 
+                              clickedCoords, 
+                              selectedArea, 
+                              radiusKm, 
+                              selectedDataQuery, 
+                              locationFeature, 
+                              selectedDatetime, 
+                              datetimeMode,
+                              startDatetime,
+                              endDatetime,
+                              '', 
+                              newMode,
+                              '',
+                              ''
+                            ));
+                          }}
+                          sx={{ gap: 2 }}
+                        >
+                          <FormControlLabel 
+                            value="individual" 
+                            control={<Radio size="small" />} 
+                            label={<Typography variant="body2">Individual Level</Typography>}
+                          />
+                          <FormControlLabel 
+                            value="range" 
+                            control={<Radio size="small" />} 
+                            label={<Typography variant="body2">Level Range</Typography>}
+                          />
+                        </RadioGroup>
+                      </FormControl>
+
+                      {/* Individual Level - show dropdown if values exist, otherwise show TextField */}
+                      {verticalMode === 'individual' && (
+                        useDropdown ? (
+                          <FormControl fullWidth>
+                            <InputLabel id="vertical-select-label">Select Level</InputLabel>
+                            <Select
+                              labelId="vertical-select-label"
+                              value={selectedVertical}
+                              label="Select Level"
+                              onChange={(e) => {
+                                const vertical = e.target.value as string;
+                                setSelectedVertical(vertical);
+                                // Update URL with vertical parameter
+                                const isDataQuery = !!selectedDataQuery;
+                                const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+                                setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime, vertical, verticalMode, startVertical, endVertical));
+                              }}
+                              size="small"
+                              MenuProps={{
+                                PaperProps: {
+                                  style: {
+                                    maxHeight: 300,
+                                  },
+                                },
+                              }}
+                            >
+                              {verticalValues.map((level) => (
+                                <MenuItem key={level} value={level}>
+                                  <ListItemText 
+                                    primary={level}
+                                    primaryTypographyProps={{ 
+                                      style: { fontSize: '0.85rem', fontFamily: 'monospace' } 
+                                    }}
+                                  />
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                        ) : (
+                          <TextField
+                            label="Vertical Level"
+                            value={selectedVertical}
+                            onChange={(e) => {
+                              const vertical = e.target.value;
+                              setSelectedVertical(vertical);
+                              // Update URL with vertical parameter
+                              const isDataQuery = !!selectedDataQuery;
+                              const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+                              setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime, vertical, verticalMode, startVertical, endVertical));
+                            }}
+                            fullWidth
+                            size="small"
+                            placeholder="Enter vertical level (e.g., 1000)"
+                            helperText="Enter a numeric value"
+                          />
+                        )
+                      )}
+
+                      {/* Level Range Selectors - show when in range mode */}
+                      {verticalMode === 'range' && (
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                          {/* Show dropdowns with list if we have actual values and not too many */}
+                          {useDropdown ? (
+                            <>
+                              <FormControl fullWidth size="small">
+                                <InputLabel id="start-vertical-label">Start Level</InputLabel>
+                                <Select
+                                  labelId="start-vertical-label"
+                                  value={startVertical}
+                                  label="Start Level"
+                                  onChange={(e) => {
+                                    const newStart = e.target.value;
+                                    setStartVertical(newStart);
+                                    // Update URL
+                                    const isDataQuery = !!selectedDataQuery;
+                                    const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+                                    setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, newStart, endVertical));
+                                  }}
+                                  MenuProps={{
+                                    PaperProps: {
+                                      style: {
+                                        maxHeight: 300,
+                                      },
+                                    },
+                                  }}
+                                >
+                                  <MenuItem value="">
+                                    <em>Select start level</em>
+                                  </MenuItem>
+                                  {verticalValues.map((level) => (
+                                    <MenuItem key={level} value={level}>
+                                      <ListItemText 
+                                        primary={level}
+                                        primaryTypographyProps={{ 
+                                          style: { fontSize: '0.85rem', fontFamily: 'monospace' } 
+                                        }}
+                                      />
+                                    </MenuItem>
+                                  ))}
+                                </Select>
+                              </FormControl>
+
+                              <FormControl fullWidth size="small">
+                                <InputLabel id="end-vertical-label">End Level</InputLabel>
+                                <Select
+                                  labelId="end-vertical-label"
+                                  value={endVertical}
+                                  label="End Level"
+                                  onChange={(e) => {
+                                    const newEnd = e.target.value;
+                                    setEndVertical(newEnd);
+                                    // Update URL
+                                    const isDataQuery = !!selectedDataQuery;
+                                    const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+                                    setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, newEnd));
+                                  }}
+                                  MenuProps={{
+                                    PaperProps: {
+                                      style: {
+                                        maxHeight: 300,
+                                      },
+                                    },
+                                  }}
+                                >
+                                  <MenuItem value="">
+                                    <em>Select end level</em>
+                                  </MenuItem>
+                                  {verticalValues.map((level) => (
+                                    <MenuItem key={level} value={level}>
+                                      <ListItemText 
+                                        primary={level}
+                                        primaryTypographyProps={{ 
+                                          style: { fontSize: '0.85rem', fontFamily: 'monospace' } 
+                                        }}
+                                      />
+                                    </MenuItem>
+                                  ))}
+                                </Select>
+                              </FormControl>
+                            </>
+                          ) : (
+                            /* Show text inputs if no values exist or too many */
+                            <>
+                              <TextField
+                                label="Start Level"
+                                value={startVertical}
+                                onChange={(e) => {
+                                  const newStart = e.target.value;
+                                  setStartVertical(newStart);
+                                  // Update URL
+                                  const isDataQuery = !!selectedDataQuery;
+                                  const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+                                  setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, newStart, endVertical));
+                                }}
+                                fullWidth
+                                size="small"
+                                placeholder="Enter start level"
+                                helperText="Enter a numeric value"
+                              />
+                              <TextField
+                                label="End Level"
+                                value={endVertical}
+                                onChange={(e) => {
+                                  const newEnd = e.target.value;
+                                  setEndVertical(newEnd);
+                                  // Update URL
+                                  const isDataQuery = !!selectedDataQuery;
+                                  const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+                                  setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, newEnd));
+                                }}
+                                fullWidth
+                                size="small"
+                                placeholder="Enter end level"
+                                helperText="Enter a numeric value"
+                              />
+                            </>
                           )}
                         </Box>
                       )}
