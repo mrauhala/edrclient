@@ -169,6 +169,12 @@ const DataModal: React.FC<DataModalProps> = ({
     }
   };
 
+  const handleCopyUrl = () => {
+    if (url) {
+      navigator.clipboard.writeText(url);
+    }
+  };
+
   const getContentTypeLabel = () => {
     if (!contentType) return 'Unknown';
     if (contentType.includes('json')) return 'JSON';
@@ -222,9 +228,27 @@ const DataModal: React.FC<DataModalProps> = ({
         <Typography variant="h6" component="div" noWrap>
           API Response
         </Typography>
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-          {url}
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {url}
+            </Typography>
+            {contentType && (
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
+                Content-Type: {contentType}
+              </Typography>
+            )}
+          </Box>
+          <Tooltip title="Copy URL">
+            <IconButton
+              size="small"
+              onClick={handleCopyUrl}
+              sx={{ ml: 1, flexShrink: 0 }}
+            >
+              <ContentCopyIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
         <IconButton
           aria-label="close"
           onClick={onClose}

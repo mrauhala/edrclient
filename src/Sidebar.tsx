@@ -44,7 +44,7 @@ import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs, { Dayjs } from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import React, { useEffect, useState, useMemo } from 'react';
-import { getCollections, Collection, ValidationResult, normalizeBbox, hasLocationQuery, getLocationQueryUrl, executeLocationQuery, getSupportedDataQueries, normalizeTemporal, formatConformanceClass, expandTemporalValues, Link as ApiLink, normalizeHref } from './DataRetrievalAPI';
+import { getCollections, Collection, ValidationResult, normalizeBbox, hasLocationQuery, getLocationQueryUrl, executeLocationQuery, getSupportedDataQueries, normalizeTemporal, formatConformanceClass, expandTemporalValues, expandVerticalValues, Link as ApiLink, normalizeHref } from './DataRetrievalAPI';
 import ValidationResults from './ValidationResult';
 import SchemaInspector from './SchemaInspector';
 import LocationFeatureList from './LocationFeatureList';
@@ -164,6 +164,10 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
   const [datetimeMode, setDatetimeMode] = useState<'individual' | 'range'>('individual');
   const [startDatetime, setStartDatetime] = useState<string>('');
   const [endDatetime, setEndDatetime] = useState<string>('');
+  const [selectedVertical, setSelectedVertical] = useState<string>('');
+  const [verticalMode, setVerticalMode] = useState<'individual' | 'range'>('individual');
+  const [startVertical, setStartVertical] = useState<string>('');
+  const [endVertical, setEndVertical] = useState<string>('');
   const [collectionUrl, setCollectionUrl] = useState<string>('');
   const [showCollectionValidation, setShowCollectionValidation] = useState<{[key: string]: boolean}>({});
   const [activeGeoJsonLayers, setActiveGeoJsonLayers] = useState<{url: string, title: string, visible: boolean, labelProperty?: string, data?: any, apiKey?: string, apiKeyParam?: string}[]>([]);
@@ -341,7 +345,7 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
       if (selectedCollection && selectedCollection.data_queries[selectedDataQuery]?.link?.href) {
         const normalizedHref = normalizeHref(selectedCollection.data_queries[selectedDataQuery].link.href);
         if (normalizedHref) {
-          setCollectionUrl(buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, clickedCoords, null, radiusKm, selectedDataQuery, null, selectedDatetime, datetimeMode, startDatetime, endDatetime));
+          setCollectionUrl(buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, clickedCoords, null, radiusKm, selectedDataQuery, null, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical));
         }
       }
     }
@@ -355,7 +359,7 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
       if (selectedCollection && selectedCollection.data_queries[selectedDataQuery]?.link?.href) {
         const normalizedHref = normalizeHref(selectedCollection.data_queries[selectedDataQuery].link.href);
         if (normalizedHref) {
-          setCollectionUrl(buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, clickedCoords, null, radiusKm, selectedDataQuery, null, selectedDatetime, datetimeMode, startDatetime, endDatetime));
+          setCollectionUrl(buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, clickedCoords, null, radiusKm, selectedDataQuery, null, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical));
         }
       }
     }
@@ -370,7 +374,7 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
       if (selectedCollection && selectedCollection.data_queries[selectedDataQuery]?.link?.href) {
         const normalizedHref = normalizeHref(selectedCollection.data_queries[selectedDataQuery].link.href);
         if (normalizedHref) {
-          setCollectionUrl(buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, null, selectedArea, radiusKm, selectedDataQuery, null, selectedDatetime, datetimeMode, startDatetime, endDatetime));
+          setCollectionUrl(buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, null, selectedArea, radiusKm, selectedDataQuery, null, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical));
         }
       }
     }
@@ -385,7 +389,7 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
       if (selectedCollection && selectedCollection.data_queries[selectedDataQuery]?.link?.href) {
         const normalizedHref = normalizeHref(selectedCollection.data_queries[selectedDataQuery].link.href);
         if (normalizedHref) {
-          setCollectionUrl(buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, clickedCoords, null, radiusKm, selectedDataQuery, null, selectedDatetime, datetimeMode, startDatetime, endDatetime));
+          setCollectionUrl(buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, clickedCoords, null, radiusKm, selectedDataQuery, null, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical));
         }
       }
     }
@@ -400,7 +404,7 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
       if (selectedCollection && selectedCollection.data_queries[selectedDataQuery]?.link?.href) {
         const normalizedHref = normalizeHref(selectedCollection.data_queries[selectedDataQuery].link.href);
         if (normalizedHref) {
-          setCollectionUrl(buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, null, null, radiusKm, selectedDataQuery, selectedFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime));
+          setCollectionUrl(buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, null, null, radiusKm, selectedDataQuery, selectedFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical));
         }
       }
     }
@@ -415,12 +419,27 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
         const normalizedHref = normalizeHref(selectedCollection.data_queries[selectedDataQuery].link.href);
         if (normalizedHref) {
           const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-          setCollectionUrl(buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime));
+          setCollectionUrl(buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical));
         }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDatetime]);
+
+  // Effect to rebuild URL when selected vertical changes
+  useEffect(() => {
+    if (selectedDataQuery && selectedCollection) {
+      const isDataQuery = !!selectedDataQuery;
+      if (selectedCollection.data_queries[selectedDataQuery]?.link?.href) {
+        const normalizedHref = normalizeHref(selectedCollection.data_queries[selectedDataQuery].link.href);
+        if (normalizedHref) {
+          const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+          setCollectionUrl(buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical));
+        }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedVertical, verticalMode, startVertical, endVertical]);
 
   // Effect to update GeoJSON layers when datetime values change
   useEffect(() => {
@@ -483,7 +502,7 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
         if (normalizedHref) {
           const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
           // Use the current datetime mode (user can now choose individual or range)
-          const newUrl = buildUrlWithParams(normalizedHref, formatToUse, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime);
+          const newUrl = buildUrlWithParams(normalizedHref, formatToUse, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical);
           console.log('Data query changed, updating URL with persisted parameters:', newUrl);
           setCollectionUrl(newUrl);
         }
@@ -510,7 +529,7 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
             const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
             // Use 'range' mode when !hasValues even if datetimeMode is 'individual'
             const effectiveMode = !hasValues ? 'range' : datetimeMode;
-            const newUrl = buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, effectiveMode, startDatetime, endDatetime);
+            const newUrl = buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, effectiveMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical);
             console.log('Setting collection URL with datetime:', newUrl);
             setCollectionUrl(newUrl);
           }
@@ -530,7 +549,7 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
           const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
           const hasValues = selectedCollection.extent?.temporal?.values && selectedCollection.extent.temporal.values.length > 0;
           const effectiveMode = !hasValues ? 'range' : datetimeMode;
-          const newUrl = buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, effectiveMode, startDatetime, endDatetime);
+          const newUrl = buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, effectiveMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical);
           setCollectionUrl(newUrl);
         }
       }
@@ -548,7 +567,7 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
           const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
           const hasValues = selectedCollection.extent?.temporal?.values && selectedCollection.extent.temporal.values.length > 0;
           const effectiveMode = !hasValues ? 'range' : datetimeMode;
-          const newUrl = buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, effectiveMode, startDatetime, endDatetime);
+          const newUrl = buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, effectiveMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical);
           setCollectionUrl(newUrl);
         }
       }
@@ -609,7 +628,11 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
     datetime: string = '', // Changed from array to single string
     dtMode: 'individual' | 'range' = 'individual',
     dtStart: string = '',
-    dtEnd: string = ''
+    dtEnd: string = '',
+    vertical: string = '',
+    vMode: 'individual' | 'range' = 'individual',
+    vStart: string = '',
+    vEnd: string = ''
   ) => {
     if (!baseUrl) return baseUrl;
     
@@ -662,6 +685,17 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
         } else {
           console.log('Deleting datetime parameter');
           url.searchParams.delete('datetime');
+        }
+        
+        // Add vertical (z) parameter
+        if (vMode === 'range' && vStart && vEnd) {
+          // Vertical range mode: format as start/end
+          url.searchParams.set('z', `${vStart}/${vEnd}`);
+        } else if (vMode === 'individual' && vertical) {
+          // Individual vertical level: single value
+          url.searchParams.set('z', vertical);
+        } else {
+          url.searchParams.delete('z');
         }
         
         // Add coords parameter
@@ -719,6 +753,7 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
         url.searchParams.delete('f');
         url.searchParams.delete('parameter-name');
         url.searchParams.delete('datetime');
+        url.searchParams.delete('z');
         url.searchParams.delete('coords');
         url.searchParams.delete('within');
         url.searchParams.delete('within-units');
@@ -782,7 +817,7 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
         baseUrl = apiUrl + "/collections/" + key;
       }
       // Collection URL - no query params added (isDataQuery = false)
-      setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, false, null, null, radiusKm, '', null, '', 'individual', '', ''));
+      setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, false, null, null, radiusKm, '', null, '', 'individual', '', '', '', 'individual', '', ''));
       setSelectedDataQuery(''); // Reset data query selection
       setSelectedFormat(''); // Reset format when collection changes
       setSelectedParameters([]); // Reset parameters when collection changes
@@ -790,6 +825,10 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
       setDatetimeMode('individual'); // Reset datetime mode
       setStartDatetime(''); // Reset start datetime
       setEndDatetime(''); // Reset end datetime
+      setSelectedVertical(''); // Reset vertical selection when collection changes
+      setVerticalMode('individual'); // Reset vertical mode
+      setStartVertical(''); // Reset start vertical
+      setEndVertical(''); // Reset end vertical
       if (onMapClick) {
         onMapClick([]); // Clear clicked coordinates when collection changes
       }
@@ -1594,7 +1633,7 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
                         // Apply format and parameter if data query is selected (use formatToUse which may be the default)
                         const isDataQuery = !!queryType;
                         const locationFeature = queryType.toLowerCase() === 'locations' ? selectedFeature : null;
-                        const newUrl = buildUrlWithParams(baseUrl, formatToUse, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, queryType, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime);
+                        const newUrl = buildUrlWithParams(baseUrl, formatToUse, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, queryType, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical);
                         setCollectionUrl(newUrl);
                       }}
                       size="small"
@@ -1628,7 +1667,7 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
                           // Only add params if data query is selected
                           const isDataQuery = !!selectedDataQuery;
                           const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-                          setCollectionUrl(buildUrlWithParams(collectionUrl, format, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime));
+                          setCollectionUrl(buildUrlWithParams(collectionUrl, format, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical));
                         }}
                         size="small"
                       >
@@ -1661,7 +1700,7 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
                         // Only add params if data query is selected
                         const isDataQuery = !!selectedDataQuery;
                         const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-                        setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, parameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime));
+                        setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, parameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical));
                       }}
                       size="small"
                       renderValue={(selected) => selected.join(', ')}
@@ -1693,10 +1732,24 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
                   const hasValues = collection.extent.temporal.values && collection.extent.temporal.values.length > 0;
                   const hasInterval = collection.extent.temporal.interval && collection.extent.temporal.interval.length > 0;
                   
+                  // Check if we have too many values (from large repeating intervals)
+                  // If so, use DateTimePicker instead of dropdown
+                  const tooManyValues = temporalValues.length > 250;
+                  const useDropdown = hasValues && !tooManyValues;
+                  
                   // Show temporal selection UI if collection has temporal extent (values OR interval)
                   return (hasValues || hasInterval) ? (
                     <Box sx={{ mb: 2 }}>
                       <FormLabel component="legend" sx={{ fontSize: '0.875rem', mb: 1 }}>Date/Time Selection</FormLabel>
+                      
+                      {/* Info message when using date picker due to large intervals */}
+                      {tooManyValues && (
+                        <Alert severity="info" sx={{ mb: 1, py: 0.5 }}>
+                          <Typography variant="caption">
+                            This collection has a large repeating interval ({temporalValues.length} values, limit: 250). Using date/time picker for easier selection.
+                          </Typography>
+                        </Alert>
+                      )}
                       
                       {/* Datetime Mode Selector - always show when temporal extent exists */}
                       <FormControl component="fieldset" sx={{ mb: 1 }}>
@@ -1749,7 +1802,7 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
 
                       {/* Individual Time - show dropdown if values exist, otherwise show DateTimePicker */}
                       {datetimeMode === 'individual' && (
-                        hasValues ? (
+                        useDropdown ? (
                           <FormControl fullWidth>
                             <InputLabel id="datetime-select-label">Select Time</InputLabel>
                             <Select
@@ -1762,7 +1815,7 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
                                 // Update URL with datetime parameter
                                 const isDataQuery = !!selectedDataQuery;
                                 const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-                                setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, datetime, datetimeMode, startDatetime, endDatetime));
+                                setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, datetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical));
                               }}
                               size="small"
                               MenuProps={{
@@ -1812,8 +1865,8 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
                       {/* Time Range Selectors - show when in range mode */}
                       {datetimeMode === 'range' && (
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                          {/* Show dropdowns with list if we have actual values */}
-                          {hasValues ? (
+                          {/* Show dropdowns with list if we have actual values and not too many */}
+                          {useDropdown ? (
                             <>
                               <FormControl fullWidth size="small">
                                 <InputLabel id="start-datetime-label">Start Time</InputLabel>
@@ -1827,7 +1880,7 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
                                     // Update URL
                                     const isDataQuery = !!selectedDataQuery;
                                     const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-                                    setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, newStart, endDatetime));
+                                    setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, newStart, endDatetime, selectedVertical, verticalMode, startVertical, endVertical));
                                   }}
                                   MenuProps={{
                                     PaperProps: {
@@ -1865,7 +1918,7 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
                                     // Update URL
                                     const isDataQuery = !!selectedDataQuery;
                                     const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-                                    setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, newEnd));
+                                    setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, newEnd, selectedVertical, verticalMode, startVertical, endVertical));
                                   }}
                                   MenuProps={{
                                     PaperProps: {
@@ -1932,6 +1985,267 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
                                 }}
                               />
                             </LocalizationProvider>
+                          )}
+                        </Box>
+                      )}
+                    </Box>
+                  ) : null;
+                })()}
+
+                {/* Vertical Extent Selector */}
+                {collection.extent?.vertical && (() => {
+                  const verticalValues = expandVerticalValues(collection.extent.vertical, 500);
+                  const hasValues = collection.extent.vertical.values && collection.extent.vertical.values.length > 0;
+                  const hasInterval = collection.extent.vertical.interval && collection.extent.vertical.interval.length > 0;
+                  
+                  // Check if we have too many values (from large intervals)
+                  // If so, use TextField instead of dropdown
+                  const tooManyValues = verticalValues.length > 250;
+                  const useDropdown = hasValues && !tooManyValues;
+                  
+                  // Show vertical selection UI if collection has vertical extent (values OR interval)
+                  return (hasValues || hasInterval) ? (
+                    <Box sx={{ mb: 2 }}>
+                      <FormLabel component="legend" sx={{ fontSize: '0.875rem', mb: 1 }}>Vertical Level Selection</FormLabel>
+                      
+                      {/* Info message when using text input due to large intervals */}
+                      {tooManyValues && (
+                        <Alert severity="info" sx={{ mb: 1, py: 0.5 }}>
+                          <Typography variant="caption">
+                            This collection has a large vertical range ({verticalValues.length} values, limit: 250). Using text input for easier selection.
+                          </Typography>
+                        </Alert>
+                      )}
+                      
+                      {/* Vertical Mode Selector - always show when vertical extent exists */}
+                      <FormControl component="fieldset" sx={{ mb: 1 }}>
+                        <RadioGroup
+                          row
+                          value={verticalMode}
+                          onChange={(e) => {
+                            const newMode = e.target.value as 'individual' | 'range';
+                            setVerticalMode(newMode);
+                            // Clear selections when switching modes
+                            if (newMode === 'range') {
+                              setSelectedVertical('');
+                            } else {
+                              setStartVertical('');
+                              setEndVertical('');
+                            }
+                            // Update URL
+                            const isDataQuery = !!selectedDataQuery;
+                            const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+                            setCollectionUrl(buildUrlWithParams(
+                              collectionUrl, 
+                              selectedFormat, 
+                              selectedParameters, 
+                              isDataQuery, 
+                              clickedCoords, 
+                              selectedArea, 
+                              radiusKm, 
+                              selectedDataQuery, 
+                              locationFeature, 
+                              selectedDatetime, 
+                              datetimeMode,
+                              startDatetime,
+                              endDatetime,
+                              '', 
+                              newMode,
+                              '',
+                              ''
+                            ));
+                          }}
+                          sx={{ gap: 2 }}
+                        >
+                          <FormControlLabel 
+                            value="individual" 
+                            control={<Radio size="small" />} 
+                            label={<Typography variant="body2">Individual Level</Typography>}
+                          />
+                          <FormControlLabel 
+                            value="range" 
+                            control={<Radio size="small" />} 
+                            label={<Typography variant="body2">Level Range</Typography>}
+                          />
+                        </RadioGroup>
+                      </FormControl>
+
+                      {/* Individual Level - show dropdown if values exist, otherwise show TextField */}
+                      {verticalMode === 'individual' && (
+                        useDropdown ? (
+                          <FormControl fullWidth>
+                            <InputLabel id="vertical-select-label">Select Level</InputLabel>
+                            <Select
+                              labelId="vertical-select-label"
+                              value={selectedVertical}
+                              label="Select Level"
+                              onChange={(e) => {
+                                const vertical = e.target.value as string;
+                                setSelectedVertical(vertical);
+                                // Update URL with vertical parameter
+                                const isDataQuery = !!selectedDataQuery;
+                                const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+                                setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime, vertical, verticalMode, startVertical, endVertical));
+                              }}
+                              size="small"
+                              MenuProps={{
+                                PaperProps: {
+                                  style: {
+                                    maxHeight: 300,
+                                  },
+                                },
+                              }}
+                            >
+                              {verticalValues.map((level) => (
+                                <MenuItem key={level} value={level}>
+                                  <ListItemText 
+                                    primary={level}
+                                    primaryTypographyProps={{ 
+                                      style: { fontSize: '0.85rem', fontFamily: 'monospace' } 
+                                    }}
+                                  />
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                        ) : (
+                          <TextField
+                            label="Vertical Level"
+                            value={selectedVertical}
+                            onChange={(e) => {
+                              const vertical = e.target.value;
+                              setSelectedVertical(vertical);
+                              // Update URL with vertical parameter
+                              const isDataQuery = !!selectedDataQuery;
+                              const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+                              setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime, vertical, verticalMode, startVertical, endVertical));
+                            }}
+                            fullWidth
+                            size="small"
+                            placeholder="Enter vertical level (e.g., 1000)"
+                            helperText="Enter a numeric value"
+                          />
+                        )
+                      )}
+
+                      {/* Level Range Selectors - show when in range mode */}
+                      {verticalMode === 'range' && (
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                          {/* Show dropdowns with list if we have actual values and not too many */}
+                          {useDropdown ? (
+                            <>
+                              <FormControl fullWidth size="small">
+                                <InputLabel id="start-vertical-label">Start Level</InputLabel>
+                                <Select
+                                  labelId="start-vertical-label"
+                                  value={startVertical}
+                                  label="Start Level"
+                                  onChange={(e) => {
+                                    const newStart = e.target.value;
+                                    setStartVertical(newStart);
+                                    // Update URL
+                                    const isDataQuery = !!selectedDataQuery;
+                                    const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+                                    setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, newStart, endVertical));
+                                  }}
+                                  MenuProps={{
+                                    PaperProps: {
+                                      style: {
+                                        maxHeight: 300,
+                                      },
+                                    },
+                                  }}
+                                >
+                                  <MenuItem value="">
+                                    <em>Select start level</em>
+                                  </MenuItem>
+                                  {verticalValues.map((level) => (
+                                    <MenuItem key={level} value={level}>
+                                      <ListItemText 
+                                        primary={level}
+                                        primaryTypographyProps={{ 
+                                          style: { fontSize: '0.85rem', fontFamily: 'monospace' } 
+                                        }}
+                                      />
+                                    </MenuItem>
+                                  ))}
+                                </Select>
+                              </FormControl>
+
+                              <FormControl fullWidth size="small">
+                                <InputLabel id="end-vertical-label">End Level</InputLabel>
+                                <Select
+                                  labelId="end-vertical-label"
+                                  value={endVertical}
+                                  label="End Level"
+                                  onChange={(e) => {
+                                    const newEnd = e.target.value;
+                                    setEndVertical(newEnd);
+                                    // Update URL
+                                    const isDataQuery = !!selectedDataQuery;
+                                    const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+                                    setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, newEnd));
+                                  }}
+                                  MenuProps={{
+                                    PaperProps: {
+                                      style: {
+                                        maxHeight: 300,
+                                      },
+                                    },
+                                  }}
+                                >
+                                  <MenuItem value="">
+                                    <em>Select end level</em>
+                                  </MenuItem>
+                                  {verticalValues.map((level) => (
+                                    <MenuItem key={level} value={level}>
+                                      <ListItemText 
+                                        primary={level}
+                                        primaryTypographyProps={{ 
+                                          style: { fontSize: '0.85rem', fontFamily: 'monospace' } 
+                                        }}
+                                      />
+                                    </MenuItem>
+                                  ))}
+                                </Select>
+                              </FormControl>
+                            </>
+                          ) : (
+                            /* Show text inputs if no values exist or too many */
+                            <>
+                              <TextField
+                                label="Start Level"
+                                value={startVertical}
+                                onChange={(e) => {
+                                  const newStart = e.target.value;
+                                  setStartVertical(newStart);
+                                  // Update URL
+                                  const isDataQuery = !!selectedDataQuery;
+                                  const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+                                  setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, newStart, endVertical));
+                                }}
+                                fullWidth
+                                size="small"
+                                placeholder="Enter start level"
+                                helperText="Enter a numeric value"
+                              />
+                              <TextField
+                                label="End Level"
+                                value={endVertical}
+                                onChange={(e) => {
+                                  const newEnd = e.target.value;
+                                  setEndVertical(newEnd);
+                                  // Update URL
+                                  const isDataQuery = !!selectedDataQuery;
+                                  const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+                                  setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, newEnd));
+                                }}
+                                fullWidth
+                                size="small"
+                                placeholder="Enter end level"
+                                helperText="Enter a numeric value"
+                              />
+                            </>
                           )}
                         </Box>
                       )}
