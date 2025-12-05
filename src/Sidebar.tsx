@@ -84,7 +84,7 @@ const edrServices = [
   { label: '[EDR] IMO Climate API', value: 'https://api.vedur.is/weather/rodeo/' },
   { label: '[EDR] DMI Open Data', value: 'https://api.meteogate.eu/dk/edr' },
   { label: '[EDR] FMI Open Data', value: 'https://opendata.fmi.fi/edr' },
-  { label: '[EDR] SWIM MET Norway', value: 'https://swim.met.no' },
+  { label: '[EDR] SWIM MET Norway', value: 'https://aviation.met.no' },
   { label: '[EDR] SWIM IBL', value: 'https://swim.iblsoft.com/edr' },
   { label: '[EDR] SWIM SMHI', value: 'https://aviation.smhi.se' },
   { label: '[EDR] Met Office Labs', value: 'https://labs.metoffice.gov.uk/edr' },
