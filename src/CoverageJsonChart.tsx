@@ -3,6 +3,7 @@ import { LineChart } from '@mui/x-charts/LineChart';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Alert from '@mui/material/Alert';
+import Divider from '@mui/material/Divider';
 
 interface CoverageJsonChartProps {
   data: string;
@@ -58,11 +59,10 @@ interface CoverageJson {
   };
 }
 
-const CoverageJsonChart: React.FC<CoverageJsonChartProps> = ({ data }) => {
+// Component to render a single coverage chart
+const SingleCoverageChart: React.FC<{ coverage: CoverageJson; index?: number }> = ({ coverage, index }) => {
   const chartData = useMemo(() => {
     try {
-      const coverage: CoverageJson = JSON.parse(data);
-
       const domainType = coverage.domain?.domainType;
       
       // Check if it's a PointSeries or Grid with single x,y point
@@ -189,7 +189,7 @@ const CoverageJsonChart: React.FC<CoverageJsonChartProps> = ({ data }) => {
       console.error('Error parsing CoverageJSON:', err);
       return { error: `Failed to parse CoverageJSON: ${err instanceof Error ? err.message : 'Unknown error'}` };
     }
-  }, [data]);
+  }, [coverage]);
 
   // State to track which series are visible - must be before any conditional returns
   const [visibleSeries, setVisibleSeries] = useState<Set<string>>(() => {
@@ -276,7 +276,7 @@ const CoverageJsonChart: React.FC<CoverageJsonChartProps> = ({ data }) => {
   return (
     <Box sx={{ p: 2, height: '100%', width: '100%' }}>
       <Typography variant="h6" gutterBottom>
-        Time Series Chart
+        {index !== undefined ? `Coverage ${index + 1} - Time Series Chart` : 'Time Series Chart'}
       </Typography>
       <Box sx={{ width: '100%', height: 'calc(100% - 40px)', minHeight: 400 }}>
         <LineChart
@@ -303,6 +303,60 @@ const CoverageJsonChart: React.FC<CoverageJsonChartProps> = ({ data }) => {
       </Box>
     </Box>
   );
+};
+
+// Main component that handles both Coverage and CoverageCollection
+const CoverageJsonChart: React.FC<CoverageJsonChartProps> = ({ data }) => {
+  try {
+    const parsed = JSON.parse(data);
+
+    // Check if it's a CoverageCollection
+    if (parsed.type === 'CoverageCollection' && parsed.coverages && Array.isArray(parsed.coverages)) {
+      const coverages = parsed.coverages as CoverageJson[];
+      
+      if (coverages.length === 0) {
+        return (
+          <Box sx={{ p: 2 }}>
+            <Alert severity="warning">CoverageCollection is empty</Alert>
+          </Box>
+        );
+      }
+
+      // Render multiple charts, one per coverage
+      return (
+        <Box sx={{ p: 2, height: '100%', width: '100%', overflowY: 'auto' }}>
+          <Typography variant="h5" gutterBottom>
+            CoverageCollection ({coverages.length} {coverages.length === 1 ? 'Coverage' : 'Coverages'})
+          </Typography>
+          {coverages.map((coverage, index) => (
+            <Box key={index}>
+              <SingleCoverageChart coverage={coverage} index={index} />
+              {index < coverages.length - 1 && <Divider sx={{ my: 3 }} />}
+            </Box>
+          ))}
+        </Box>
+      );
+    }
+
+    // Single Coverage - use original logic
+    if (parsed.type === 'Coverage') {
+      return <SingleCoverageChart coverage={parsed as CoverageJson} />;
+    }
+
+    return (
+      <Box sx={{ p: 2 }}>
+        <Alert severity="warning">Unsupported type: {parsed.type}</Alert>
+      </Box>
+    );
+  } catch (err) {
+    return (
+      <Box sx={{ p: 2 }}>
+        <Alert severity="error">
+          Failed to parse CoverageJSON: {err instanceof Error ? err.message : 'Unknown error'}
+        </Alert>
+      </Box>
+    );
+  }
 };
 
 export default CoverageJsonChart;
