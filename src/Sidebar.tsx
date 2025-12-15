@@ -1865,13 +1865,16 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
                         
                         // Helper to check if a preset range is valid
                         const isPresetValid = (presetStart: dayjs.Dayjs, presetEnd: dayjs.Dayjs): boolean => {
-                          // If we don't have BOTH extent bounds, we can't validate - reject all presets to be safe
-                          if (!extentStart || !extentEnd) return false;
+                          // Open-ended extents are fine - validate only if bounds exist
+                          // For start: if extent has a start, preset start must be >= extent start
+                          if (extentStart && presetStart.isBefore(extentStart)) {
+                            return false;
+                          }
                           
-                          // Check if preset range overlaps with extent
-                          // Preset is invalid if it ends before extent starts OR starts after extent ends
-                          if (presetEnd.isBefore(extentStart)) return false;
-                          if (presetStart.isAfter(extentEnd)) return false;
+                          // For end: if extent has an end, preset end must be <= extent end
+                          if (extentEnd && presetEnd.isAfter(extentEnd)) {
+                            return false;
+                          }
                           
                           return true;
                         };
