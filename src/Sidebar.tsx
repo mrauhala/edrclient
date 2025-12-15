@@ -2692,9 +2692,10 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
                         // Handler for when a feature/item is clicked in the table
                         const handleItemFeatureClick = (feature: any) => {
                           // Create a GeoJSON layer for the clicked feature
+                          const featureName = feature.properties?.name || feature.properties?.title || `Feature ${feature.id || ''}`;
                           const featureLayer = {
                             url: '', // No URL since we're providing data directly
-                            title: feature.properties?.name || feature.properties?.title || `Feature ${feature.id || ''}`,
+                            title: `Selected: ${featureName}`,
                             visible: true,
                             data: {
                               type: 'FeatureCollection',
@@ -2702,51 +2703,11 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
                             }
                           };
                           
-                          // Find existing layers that are not item features (keep original layers)
-                          const nonFeatureLayers = activeGeoJsonLayers.filter(l => l.url !== '');
+                          // Find existing layers that are not selected items (keep original layers and other selected items)
+                          const nonSelectedLayers = activeGeoJsonLayers.filter(l => !l.title.startsWith('Selected: '));
                           
-                          // Check if we already have this feature displayed
-                          const existingFeatureIndex = activeGeoJsonLayers.findIndex(
-                            l => l.url === '' && l.title === featureLayer.title
-                          );
-                          
-                          let updatedLayers: typeof activeGeoJsonLayers;
-                          if (existingFeatureIndex >= 0) {
-                            const existingLayer = activeGeoJsonLayers[existingFeatureIndex];
-                            if (existingLayer.visible) {
-                              // If already visible, update the data and force re-render by toggling visibility
-                              updatedLayers = activeGeoJsonLayers.map((l, i) => 
-                                i === existingFeatureIndex 
-                                  ? { ...featureLayer, visible: false } // First set to false
-                                  : l
-                              );
-                              setActiveGeoJsonLayers(updatedLayers);
-                              if (onGeoJsonLayersChange) {
-                                onGeoJsonLayersChange(updatedLayers);
-                              }
-                              // Then immediately set back to true with new data
-                              setTimeout(() => {
-                                const reenabledLayers: typeof activeGeoJsonLayers = updatedLayers.map((l, i) => 
-                                  i === existingFeatureIndex 
-                                    ? { ...featureLayer, visible: true }
-                                    : l
-                                );
-                                setActiveGeoJsonLayers(reenabledLayers);
-                                if (onGeoJsonLayersChange) {
-                                  onGeoJsonLayersChange(reenabledLayers);
-                                }
-                              }, 50);
-                              return;
-                            } else {
-                              // If hidden, show it with updated data
-                              updatedLayers = activeGeoJsonLayers.map((l, i) => 
-                                i === existingFeatureIndex ? featureLayer : l
-                              );
-                            }
-                          } else {
-                            // Add new feature layer
-                            updatedLayers = [...nonFeatureLayers, featureLayer];
-                          }
+                          // Always add the new selected feature (replacing any previous selection)
+                          const updatedLayers = [...nonSelectedLayers, featureLayer];
                           
                           setActiveGeoJsonLayers(updatedLayers);
                           if (onGeoJsonLayersChange) {
