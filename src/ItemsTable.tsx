@@ -1,22 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Paper from '@mui/material/Paper';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
 import Collapse from '@mui/material/Collapse';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
 import Chip from '@mui/material/Chip';
+import TextField from '@mui/material/TextField';
+import InputAdornment from '@mui/material/InputAdornment';
+import SearchIcon from '@mui/icons-material/Search';
+import CancelIcon from '@mui/icons-material/Cancel';
+import ListIcon from '@mui/icons-material/List';
 import axios from 'axios';
 import { AuthCredentials } from './DataRetrievalAPI';
+import { 
+  DataGrid, 
+  GridColDef,
+  Toolbar,
+  QuickFilter,
+  QuickFilterControl,
+  QuickFilterClear,
+} from '@mui/x-data-grid';
 
 interface ItemsTableProps {
   url: string;
@@ -36,6 +42,12 @@ interface FeatureCollection {
   features: FeatureItem[];
   numberMatched?: number;
   numberReturned?: number;
+}
+
+interface ItemRow {
+  id: string | number;
+  geometryType: string;
+  [key: string]: any;
 }
 
 const ItemsTable: React.FC<ItemsTableProps> = ({ url, title, getAuthCredentials }) => {
@@ -93,7 +105,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({ url, title, getAuthCredentials 
   };
 
   // Extract all unique property keys from features
-  const getPropertyKeys = (): string[] => {
+  const propertyKeys = useMemo(() => {
     if (!data || !data.features || data.features.length === 0) return [];
     
     const keysSet = new Set<string>();
@@ -104,9 +116,109 @@ const ItemsTable: React.FC<ItemsTableProps> = ({ url, title, getAuthCredentials 
     });
     
     return Array.from(keysSet);
-  };
+  }, [data]);
 
-  const propertyKeys = getPropertyKeys();
+  // Transform features into rows for DataGrid
+  const rows: ItemRow[] = useMemo(() => {
+    if (!data || !data.features) return [];
+    
+    return data.features.map((feature, index) => {
+      const row: ItemRow = {
+        id: feature.id || `feature-${index}`,
+        geometryType: feature.geometry?.type || 'Unknown',
+      };
+      
+      // Add all properties as columns
+      if (feature.properties) {
+        Object.keys(feature.properties).forEach(key => {
+          const value = feature.properties![key];
+          row[key] = typeof value === 'object' ? JSON.stringify(value) : value;
+        });
+      }
+      
+      return row;
+    });
+  }, [data]);
+
+  // Define columns for DataGrid
+  const columns: GridColDef[] = useMemo(() => {
+    const cols: GridColDef[] = [
+      {
+        field: 'id',
+        headerName: 'ID',
+        width: 120,
+        flex: 0.5,
+      },
+      {
+        field: 'geometryType',
+        headerName: 'Geometry',
+        width: 120,
+        renderCell: (params) => (
+          <Chip 
+            label={params.value} 
+            size="small"
+            variant="outlined"
+            color="primary"
+          />
+        ),
+      },
+    ];
+    
+    // Add columns for each property
+    propertyKeys.forEach(key => {
+      cols.push({
+        field: key,
+        headerName: key,
+        flex: 1,
+        minWidth: 150,
+      });
+    });
+    
+    return cols;
+  }, [propertyKeys]);
+
+  // Custom toolbar with QuickFilter
+  function CustomToolbar() {
+    return (
+      <Toolbar>
+        <QuickFilter>
+          <QuickFilterControl
+            render={({ ref, ...controlProps }, state) => (
+              <TextField
+                {...controlProps}
+                inputRef={ref}
+                placeholder="Search items..."
+                size="small"
+                fullWidth
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon fontSize="small" />
+                      </InputAdornment>
+                    ),
+                    endAdornment: state.value ? (
+                      <InputAdornment position="end">
+                        <QuickFilterClear
+                          edge="end"
+                          size="small"
+                          aria-label="Clear search"
+                        >
+                          <CancelIcon fontSize="small" />
+                        </QuickFilterClear>
+                      </InputAdornment>
+                    ) : null,
+                    ...controlProps.slotProps?.input,
+                  },
+                  ...controlProps.slotProps,
+                }}
+              />
+            )}
+          />
+        </QuickFilter>
+      </Toolbar>
+    );
+  }
 
   return (
     <Box sx={{ mt: 1, mb: 1 }}>
@@ -116,10 +228,15 @@ const ItemsTable: React.FC<ItemsTableProps> = ({ url, title, getAuthCredentials 
         variant="outlined"
         size="small"
         fullWidth
-        sx={{ justifyContent: 'space-between', textTransform: 'none' }}
+        sx={{ 
+          justifyContent: 'space-between', 
+          textTransform: 'none',
+          pl: 0.5,
+        }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Typography variant="body2">
+          <ListIcon fontSize="small" color="primary" />
+          <Typography variant="body2" fontWeight="medium">
             {title || 'Items'}
           </Typography>
           {data && (
@@ -128,6 +245,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({ url, title, getAuthCredentials 
               size="small"
               color="primary"
               variant="outlined"
+              sx={{ height: 20, fontSize: '0.7rem' }}
             />
           )}
         </Box>
@@ -147,7 +265,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({ url, title, getAuthCredentials 
             </Alert>
           )}
           
-          {data && data.features && data.features.length > 0 && (
+          {data && data.features && (
             <Box>
               {data.numberMatched !== undefined && (
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
@@ -155,47 +273,36 @@ const ItemsTable: React.FC<ItemsTableProps> = ({ url, title, getAuthCredentials 
                 </Typography>
               )}
               
-              <TableContainer component={Paper} sx={{ maxHeight: 400 }}>
-                <Table size="small" stickyHeader>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell sx={{ fontWeight: 'bold', backgroundColor: 'background.paper' }}>ID</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold', backgroundColor: 'background.paper' }}>Type</TableCell>
-                      {propertyKeys.map(key => (
-                        <TableCell key={key} sx={{ fontWeight: 'bold', backgroundColor: 'background.paper' }}>
-                          {key}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {data.features.map((feature, idx) => (
-                      <TableRow 
-                        key={feature.id || idx}
-                        sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
-                      >
-                        <TableCell>{feature.id || idx}</TableCell>
-                        <TableCell>
-                          <Chip 
-                            label={feature.geometry?.type || 'Unknown'} 
-                            size="small"
-                            variant="outlined"
-                          />
-                        </TableCell>
-                        {propertyKeys.map(key => (
-                          <TableCell key={key}>
-                            {feature.properties && feature.properties[key] !== undefined
-                              ? typeof feature.properties[key] === 'object'
-                                ? JSON.stringify(feature.properties[key])
-                                : String(feature.properties[key])
-                              : '-'}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
+              <Box sx={{ backgroundColor: 'background.paper', borderRadius: 1 }}>
+                <Box sx={{ height: 520, width: '100%' }}>
+                  <DataGrid
+                    rows={rows}
+                    columns={columns}
+                    slots={{
+                      toolbar: CustomToolbar,
+                    }}
+                    showToolbar
+                    initialState={{
+                      pagination: {
+                        paginationModel: { pageSize: 10 },
+                      },
+                      sorting: {
+                        sortModel: [{ field: 'id', sort: 'asc' }],
+                      },
+                    }}
+                    pageSizeOptions={[10, 25, 50, 100]}
+                    disableMultipleRowSelection
+                    sx={{
+                      border: 1,
+                      borderColor: 'divider',
+                      '& .MuiDataGrid-cell:hover': {
+                        cursor: 'default',
+                      },
+                    }}
+                    density="compact"
+                  />
+                </Box>
+              </Box>
             </Box>
           )}
           
