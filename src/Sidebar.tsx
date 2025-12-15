@@ -88,7 +88,7 @@ const edrServices = [
   { label: '[EDR] SWIM IBL', value: 'https://swim.iblsoft.com/edr' },
   { label: '[EDR] SWIM SMHI', value: 'https://aviation.smhi.se' },
   { label: '[EDR] Met Office Labs', value: 'https://labs.metoffice.gov.uk/edr' },
-  { label: '[EDR] Meteogate Observations', value: 'https://observations.meteogate.eu' },
+  { label: '[EDR] Meteogate Observations', value: 'https://api.meteogate.eu/eu-eumetnet-surface-observations' },
   { label: '[EDR] SmartMet Kenya', value: 'https://data-kenya.smartmet.org/edr' },
   { label: '[EDR] SmartMet Ethiopia', value: 'https://data-ethiopia.smartmet.org/edr' },
   { label: '[Records] WMO GDC WIS2 Germany', value: 'https://wis2.dwd.de/gdc/' },
@@ -1847,6 +1847,122 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
                           />
                         </RadioGroup>
                       </FormControl>
+
+                      {/* Quick Select Presets for Time Ranges */}
+                      {datetimeMode === 'range' && (
+                        <Box sx={{ mb: 2 }}>
+                          <Typography variant="caption" sx={{ display: 'block', mb: 0.5, color: 'text.secondary' }}>
+                            Quick Select:
+                          </Typography>
+                          <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => {
+                                const now = dayjs.utc();
+                                const oneHourAgo = now.subtract(1, 'hour');
+                                const start = oneHourAgo.format('YYYY-MM-DDTHH:mm:ss[Z]');
+                                const end = now.format('YYYY-MM-DDTHH:mm:ss[Z]');
+                                setStartDatetime(start);
+                                setEndDatetime(end);
+                              }}
+                              sx={{ 
+                                fontSize: '0.7rem', 
+                                py: 0.25, 
+                                px: 1,
+                                minWidth: 'auto',
+                                textTransform: 'none'
+                              }}
+                            >
+                              Last Hour
+                            </Button>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => {
+                                const now = dayjs.utc();
+                                const startOfDay = now.startOf('day');
+                                const start = startOfDay.format('YYYY-MM-DDTHH:mm:ss[Z]');
+                                const end = now.format('YYYY-MM-DDTHH:mm:ss[Z]');
+                                setStartDatetime(start);
+                                setEndDatetime(end);
+                              }}
+                              sx={{ 
+                                fontSize: '0.7rem', 
+                                py: 0.25, 
+                                px: 1,
+                                minWidth: 'auto',
+                                textTransform: 'none'
+                              }}
+                            >
+                              Today
+                            </Button>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => {
+                                const now = dayjs.utc();
+                                const sevenDaysAgo = now.subtract(7, 'day');
+                                const start = sevenDaysAgo.format('YYYY-MM-DDTHH:mm:ss[Z]');
+                                const end = now.format('YYYY-MM-DDTHH:mm:ss[Z]');
+                                setStartDatetime(start);
+                                setEndDatetime(end);
+                              }}
+                              sx={{ 
+                                fontSize: '0.7rem', 
+                                py: 0.25, 
+                                px: 1,
+                                minWidth: 'auto',
+                                textTransform: 'none'
+                              }}
+                            >
+                              Last 7 Days
+                            </Button>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => {
+                                const now = dayjs.utc();
+                                const startOfMonth = now.startOf('month');
+                                const start = startOfMonth.format('YYYY-MM-DDTHH:mm:ss[Z]');
+                                const end = now.format('YYYY-MM-DDTHH:mm:ss[Z]');
+                                setStartDatetime(start);
+                                setEndDatetime(end);
+                              }}
+                              sx={{ 
+                                fontSize: '0.7rem', 
+                                py: 0.25, 
+                                px: 1,
+                                minWidth: 'auto',
+                                textTransform: 'none'
+                              }}
+                            >
+                              This Month
+                            </Button>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => {
+                                const now = dayjs.utc();
+                                const thirtyDaysAgo = now.subtract(30, 'day');
+                                const start = thirtyDaysAgo.format('YYYY-MM-DDTHH:mm:ss[Z]');
+                                const end = now.format('YYYY-MM-DDTHH:mm:ss[Z]');
+                                setStartDatetime(start);
+                                setEndDatetime(end);
+                              }}
+                              sx={{ 
+                                fontSize: '0.7rem', 
+                                py: 0.25, 
+                                px: 1,
+                                minWidth: 'auto',
+                                textTransform: 'none'
+                              }}
+                            >
+                              Last 30 Days
+                            </Button>
+                          </Box>
+                        </Box>
+                      )}
 
                       {/* Individual Time - show dropdown if values exist, otherwise show DateTimePicker */}
                       {datetimeMode === 'individual' && (
