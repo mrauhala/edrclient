@@ -307,56 +307,63 @@ const SingleCoverageChart: React.FC<{ coverage: CoverageJson; index?: number }> 
 
 // Main component that handles both Coverage and CoverageCollection
 const CoverageJsonChart: React.FC<CoverageJsonChartProps> = ({ data }) => {
+  let parsed;
+  let parseError: string | null = null;
+
   try {
-    const parsed = JSON.parse(data);
-
-    // Check if it's a CoverageCollection
-    if (parsed.type === 'CoverageCollection' && parsed.coverages && Array.isArray(parsed.coverages)) {
-      const coverages = parsed.coverages as CoverageJson[];
-      
-      if (coverages.length === 0) {
-        return (
-          <Box sx={{ p: 2 }}>
-            <Alert severity="warning">CoverageCollection is empty</Alert>
-          </Box>
-        );
-      }
-
-      // Render multiple charts, one per coverage
-      return (
-        <Box sx={{ p: 2, height: '100%', width: '100%', overflowY: 'auto' }}>
-          <Typography variant="h5" gutterBottom>
-            CoverageCollection ({coverages.length} {coverages.length === 1 ? 'Coverage' : 'Coverages'})
-          </Typography>
-          {coverages.map((coverage, index) => (
-            <Box key={index}>
-              <SingleCoverageChart coverage={coverage} index={index} />
-              {index < coverages.length - 1 && <Divider sx={{ my: 3 }} />}
-            </Box>
-          ))}
-        </Box>
-      );
-    }
-
-    // Single Coverage - use original logic
-    if (parsed.type === 'Coverage') {
-      return <SingleCoverageChart coverage={parsed as CoverageJson} />;
-    }
-
-    return (
-      <Box sx={{ p: 2 }}>
-        <Alert severity="warning">Unsupported type: {parsed.type}</Alert>
-      </Box>
-    );
+    parsed = JSON.parse(data);
   } catch (err) {
+    parseError = err instanceof Error ? err.message : 'Unknown error';
+  }
+
+  if (parseError) {
     return (
       <Box sx={{ p: 2 }}>
         <Alert severity="error">
-          Failed to parse CoverageJSON: {err instanceof Error ? err.message : 'Unknown error'}
+          Failed to parse CoverageJSON: {parseError}
         </Alert>
       </Box>
     );
   }
+
+  // Check if it's a CoverageCollection
+  if (parsed.type === 'CoverageCollection' && parsed.coverages && Array.isArray(parsed.coverages)) {
+    const coverages = parsed.coverages as CoverageJson[];
+    
+    if (coverages.length === 0) {
+      return (
+        <Box sx={{ p: 2 }}>
+          <Alert severity="warning">CoverageCollection is empty</Alert>
+        </Box>
+      );
+    }
+
+    // Render multiple charts, one per coverage
+    return (
+      <Box sx={{ p: 2, height: '100%', width: '100%', overflowY: 'auto' }}>
+        <Typography variant="h5" gutterBottom>
+          CoverageCollection ({coverages.length} {coverages.length === 1 ? 'Coverage' : 'Coverages'})
+        </Typography>
+        {coverages.map((coverage, index) => (
+          <Box key={index}>
+            <SingleCoverageChart coverage={coverage} index={index} />
+            {index < coverages.length - 1 && <Divider sx={{ my: 3 }} />}
+          </Box>
+        ))}
+      </Box>
+    );
+  }
+
+  // Single Coverage - use original logic
+  if (parsed.type === 'Coverage') {
+    return <SingleCoverageChart coverage={parsed as CoverageJson} />;
+  }
+
+  return (
+    <Box sx={{ p: 2 }}>
+      <Alert severity="warning">Unsupported type: {parsed.type}</Alert>
+    </Box>
+  );
 };
 
 export default CoverageJsonChart;
