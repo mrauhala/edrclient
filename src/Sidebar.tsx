@@ -4,6 +4,8 @@ import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import ListItemText from '@mui/material/ListItemText';
 import ListItemButton from '@mui/material/ListItemButton';
+import ListItemAvatar from '@mui/material/ListItemAvatar';
+import Avatar from '@mui/material/Avatar';
 import Collapse from '@mui/material/Collapse';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
@@ -16,6 +18,7 @@ import BugReport from '@mui/icons-material/BugReport';
 import CloudQueue from '@mui/icons-material/CloudQueue';
 import Person from '@mui/icons-material/Person';
 import Lock from '@mui/icons-material/Lock';
+import ImageIcon from '@mui/icons-material/Image';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import Badge from '@mui/material/Badge';
 import Box from '@mui/material/Box';
@@ -89,6 +92,7 @@ const edrServices = [
   { label: '[EDR] Met Office Labs', value: 'https://labs.metoffice.gov.uk/edr' },
   { label: '[EDR] Meteogate Observations', value: 'https://api.meteogate.eu/eu-eumetnet-surface-observations' },
   { label: '[EDR] Meteogate Climate Observations', value: 'https://api.meteogate.eu/eu-eumetnet-climate-observations/v1' },
+  { label: '[EDR] Meteogate Weather Radar', value: 'https://api.meteogate.eu/eu-eumetnet-weather-radar' },
   { label: '[EDR] SmartMet Kenya', value: 'https://data-kenya.smartmet.org/edr' },
   { label: '[EDR] SmartMet Ethiopia', value: 'https://data-ethiopia.smartmet.org/edr' },
   { label: '[Records] WMO GDC WIS2 Germany', value: 'https://wis2.dwd.de/gdc/' },
@@ -1346,6 +1350,23 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
             {collections.map((collection, index) => (
           <React.Fragment key={collection.id || index}>
             <ListItemButton onClick={() => handleItemClick(index, collection.id)}>
+              {/* Thumbnail Avatar */}
+              {collection.assets?.thumbnail?.href && (
+                <ListItemAvatar>
+                  <Avatar
+                    variant="rounded"
+                    src={collection.assets.thumbnail.href}
+                    alt={collection.assets.thumbnail.title || collection.title || 'Collection thumbnail'}
+                    sx={{ 
+                      width: 80, 
+                      height: 80,
+                      marginRight: 2
+                    }}
+                  >
+                    <ImageIcon />
+                  </Avatar>
+                </ListItemAvatar>
+              )}
               <ListItemText 
                 primary={
                   <div>

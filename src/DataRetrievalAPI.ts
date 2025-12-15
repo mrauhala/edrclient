@@ -163,6 +163,15 @@ export interface Collection {
   output_formats: string[] | null; // Can be null in non-conforming APIs
   parameter_names?: parameterNames[] | { [key: string]: ParameterDefinition }; // Support both formats
   itemType?: string; // Optional item type field
+  assets?: {
+    thumbnail?: {
+      href: string;
+      type?: string;
+      roles?: string[];
+      title?: string;
+    };
+    [key: string]: any; // Allow other asset types
+  };
 }
 
 export interface ValidationError {
