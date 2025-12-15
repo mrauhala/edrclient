@@ -2682,43 +2682,63 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
                     <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
                       GeoJSON Layers
                     </Typography>
-                    {activeGeoJsonLayers.map((layer, idx) => (
-                      <Box 
-                        key={idx} 
-                        sx={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          justifyContent: 'space-between',
-                          mb: 1,
-                          p: 1,
-                          border: '1px solid rgba(0, 0, 0, 0.12)',
-                          borderRadius: 1,
-                          backgroundColor: layer.visible ? 'rgba(33, 150, 243, 0.08)' : 'transparent'
-                        }}
-                      >
-                        <Typography variant="body2" sx={{ flex: 1 }}>
-                          {layer.title}
-                        </Typography>
-                        <Button
-                          variant={layer.visible ? 'contained' : 'outlined'}
-                          size="small"
-                          color="primary"
-                          onClick={() => {
-                            // Toggle visibility - OpenLayers will handle bbox dynamically
-                            const updatedLayers = activeGeoJsonLayers.map((l, i) => 
-                              i === idx ? { ...l, visible: !l.visible } : l
-                            );
-                            setActiveGeoJsonLayers(updatedLayers);
-                            if (onGeoJsonLayersChange) {
-                              onGeoJsonLayersChange(updatedLayers);
-                            }
+                    {activeGeoJsonLayers.map((layer, idx) => {
+                      // Check if this layer corresponds to an items link
+                      const itemsLink = collection.links?.find(
+                        link => normalizeHref(link.href) === layer.url && link.rel === 'items'
+                      );
+                      
+                      if (itemsLink) {
+                        // For items links, show table instead of toggle button
+                        return (
+                          <ItemsTable
+                            key={idx}
+                            url={layer.url}
+                            title={layer.title}
+                            getAuthCredentials={getAuthCredentials}
+                          />
+                        );
+                      }
+                      
+                      // For other GeoJSON layers, show the toggle button
+                      return (
+                        <Box 
+                          key={idx} 
+                          sx={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'space-between',
+                            mb: 1,
+                            p: 1,
+                            border: '1px solid rgba(0, 0, 0, 0.12)',
+                            borderRadius: 1,
+                            backgroundColor: layer.visible ? 'rgba(33, 150, 243, 0.08)' : 'transparent'
                           }}
-                          sx={{ ml: 1 }}
                         >
-                          {layer.visible ? 'Hide' : 'Show'}
-                        </Button>
-                      </Box>
-                    ))}
+                          <Typography variant="body2" sx={{ flex: 1 }}>
+                            {layer.title}
+                          </Typography>
+                          <Button
+                            variant={layer.visible ? 'contained' : 'outlined'}
+                            size="small"
+                            color="primary"
+                            onClick={() => {
+                              // Toggle visibility - OpenLayers will handle bbox dynamically
+                              const updatedLayers = activeGeoJsonLayers.map((l, i) => 
+                                i === idx ? { ...l, visible: !l.visible } : l
+                              );
+                              setActiveGeoJsonLayers(updatedLayers);
+                              if (onGeoJsonLayersChange) {
+                                onGeoJsonLayersChange(updatedLayers);
+                              }
+                            }}
+                            sx={{ ml: 1 }}
+                          >
+                            {layer.visible ? 'Hide' : 'Show'}
+                          </Button>
+                        </Box>
+                      );
+                    })}
                   </Box>
                 )}
 
@@ -2787,38 +2807,10 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
 
               { typeof collection.links == "undefined" 
                 ? <Alert severity="error"><AlertTitle>E: LINKS</AlertTitle>Every Collection within a collections array MUST have a links parameter.</Alert> 
-                : <Alert severity="success">
-                    <AlertTitle>E: LINKS</AlertTitle>
-                    {collection.links.map((link, i) => {
-                      const normalizedHref = normalizeHref(link.href);
-                      if (!normalizedHref) return null;
-                      
-                      // Check if this is an items link with geojson content type
-                      const isItemsLink = link.rel === 'items' && 
-                                         link.type && 
-                                         (link.type.includes('application/geo+json') || 
-                                          link.type.includes('application/json'));
-                      
-                      if (isItemsLink) {
-                        return (
-                          <ItemsTable
-                            key={i}
-                            url={normalizedHref}
-                            title={link.title || 'Items'}
-                            getAuthCredentials={getAuthCredentials}
-                          />
-                        );
-                      }
-                      
-                      return (
-                        <div key={i}>
-                          <Link href={normalizedHref}>
-                            {link.title ? link.title : link.rel}
-                          </Link> ({link.rel})
-                        </div>
-                      );
-                    })}
-                  </Alert>
+                : <Alert severity="success"><AlertTitle>E: LINKS</AlertTitle>{collection.links.map((link, i) => {
+                    const normalizedHref = normalizeHref(link.href);
+                    return normalizedHref ? (<div key={i}><Link href={normalizedHref}>{link.title ? link.title : link.rel}</Link> ({link.rel})</div>) : null;
+                  })}</Alert>
               }
 
               { typeof collection.data_queries == "undefined"
