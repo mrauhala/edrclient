@@ -28,6 +28,7 @@ interface ItemsTableProps {
   url: string;
   title?: string;
   getAuthCredentials: (url: string) => AuthCredentials | undefined;
+  onFeatureClick?: (feature: FeatureItem) => void;
 }
 
 interface FeatureItem {
@@ -47,10 +48,11 @@ interface FeatureCollection {
 interface ItemRow {
   id: string | number;
   geometryType: string;
+  originalFeature: FeatureItem;
   [key: string]: any;
 }
 
-const ItemsTable: React.FC<ItemsTableProps> = ({ url, title, getAuthCredentials }) => {
+const ItemsTable: React.FC<ItemsTableProps> = ({ url, title, getAuthCredentials, onFeatureClick }) => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -126,6 +128,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({ url, title, getAuthCredentials 
       const row: ItemRow = {
         id: feature.id || `feature-${index}`,
         geometryType: feature.geometry?.type || 'Unknown',
+        originalFeature: feature,
       };
       
       // Add all properties as columns
@@ -176,6 +179,12 @@ const ItemsTable: React.FC<ItemsTableProps> = ({ url, title, getAuthCredentials 
     
     return cols;
   }, [propertyKeys]);
+
+  const handleRowClick = (params: any) => {
+    if (onFeatureClick && params.row.originalFeature) {
+      onFeatureClick(params.row.originalFeature);
+    }
+  };
 
   // Custom toolbar with QuickFilter
   function CustomToolbar() {
@@ -292,11 +301,15 @@ const ItemsTable: React.FC<ItemsTableProps> = ({ url, title, getAuthCredentials 
                     }}
                     pageSizeOptions={[10, 25, 50, 100]}
                     disableMultipleRowSelection
+                    onRowClick={handleRowClick}
                     sx={{
                       border: 1,
                       borderColor: 'divider',
                       '& .MuiDataGrid-cell:hover': {
-                        cursor: 'default',
+                        cursor: 'pointer',
+                      },
+                      '& .MuiDataGrid-row:hover': {
+                        backgroundColor: 'action.hover',
                       },
                     }}
                     density="compact"

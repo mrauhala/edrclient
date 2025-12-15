@@ -2689,6 +2689,44 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
                       );
                       
                       if (itemsLink) {
+                        // Handler for when a feature/item is clicked in the table
+                        const handleItemFeatureClick = (feature: any) => {
+                          // Create a GeoJSON layer for the clicked feature
+                          const featureLayer = {
+                            url: '', // No URL since we're providing data directly
+                            title: feature.properties?.name || feature.properties?.title || `Feature ${feature.id || ''}`,
+                            visible: true,
+                            data: {
+                              type: 'FeatureCollection',
+                              features: [feature]
+                            }
+                          };
+                          
+                          // Find existing layers that are not item features (keep original layers)
+                          const nonFeatureLayers = activeGeoJsonLayers.filter(l => l.url !== '');
+                          
+                          // Check if we already have this feature displayed
+                          const existingFeatureIndex = activeGeoJsonLayers.findIndex(
+                            l => l.url === '' && l.title === featureLayer.title
+                          );
+                          
+                          let updatedLayers;
+                          if (existingFeatureIndex >= 0) {
+                            // Toggle visibility if already exists
+                            updatedLayers = activeGeoJsonLayers.map((l, i) => 
+                              i === existingFeatureIndex ? { ...l, visible: !l.visible } : l
+                            );
+                          } else {
+                            // Add new feature layer
+                            updatedLayers = [...nonFeatureLayers, featureLayer];
+                          }
+                          
+                          setActiveGeoJsonLayers(updatedLayers);
+                          if (onGeoJsonLayersChange) {
+                            onGeoJsonLayersChange(updatedLayers);
+                          }
+                        };
+                        
                         // For items links, show table instead of toggle button
                         return (
                           <ItemsTable
@@ -2696,6 +2734,7 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
                             url={layer.url}
                             title={layer.title}
                             getAuthCredentials={getAuthCredentials}
+                            onFeatureClick={handleItemFeatureClick}
                           />
                         );
                       }
