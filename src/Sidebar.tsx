@@ -95,6 +95,9 @@ const edrServices = [
   { label: '[Records] WMO GDC WIS2 Germany', value: 'https://wis2.dwd.de/gdc/' },
   { label: '[Records] WMO GDC WIS2 Canada', value: 'https://wis2-gdc.weather.gc.ca' },
   { label: '[Records] WMO GDC WIS2 China', value: 'https://gdc.wis.cma.cn' },
+  { label: '[STAC] Copernicus Dataspace', value: 'https://stac.dataspace.copernicus.eu/v1/' },
+  { label: '[STAC] MET Norway Radar', value: 'https://radar-stacapi.met.no/v1/' },
+  { label: '[STAC] Swiss Federal Spatial Data', value: 'https://data.geo.admin.ch/api/stac/v1/' },
   { label: '[Features] MSC GeoMet', value: 'https://api.weather.gc.ca' },
   { label: 'Custom', value: '' }
 ];
@@ -1500,27 +1503,29 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
                 secondary={
                   <>
                     {collection.description && (
-                      <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
-                        <Typography variant="body2" component="span" sx={{ flex: 1 }}>
-                          {collection.description}
-                        </Typography>
+                      <Box sx={{ position: 'relative' }}>
                         {collection.assets?.thumbnail?.href && (
                           <Box
                             component="img"
                             src={collection.assets.thumbnail.href}
                             alt={collection.assets.thumbnail.title || collection.title || 'Collection thumbnail'}
                             sx={{
-                              width: 60,
-                              height: 60,
+                              float: 'right',
+                              width: 100,
+                              height: 100,
                               objectFit: 'cover',
                               borderRadius: 1,
-                              flexShrink: 0
+                              marginLeft: 1.5,
+                              marginBottom: 1
                             }}
                             onError={(e) => {
                               (e.target as HTMLElement).style.display = 'none';
                             }}
                           />
                         )}
+                        <Typography variant="body2" component="span">
+                          {collection.description}
+                        </Typography>
                       </Box>
                     )}
                     {collection.itemType && (
