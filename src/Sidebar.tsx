@@ -44,7 +44,7 @@ import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs, { Dayjs } from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import React, { useEffect, useState, useMemo } from 'react';
-import { getCollections, Collection, ValidationResult, normalizeBbox, hasLocationQuery, getLocationQueryUrl, executeLocationQuery, getSupportedDataQueries, normalizeTemporal, formatConformanceClass, expandTemporalValues, expandVerticalValues, Link as ApiLink, normalizeHref } from './DataRetrievalAPI';
+import { getCollections, Collection, ValidationResult, normalizeBbox, hasLocationQuery, getLocationQueryUrl, executeLocationQuery, getSupportedDataQueries, normalizeTemporal, formatConformanceClass, expandTemporalValues, expandVerticalValues, expandCustomDimensionValues, Link as ApiLink, normalizeHref } from './DataRetrievalAPI';
 import ValidationResults from './ValidationResult';
 import SchemaInspector from './SchemaInspector';
 import LocationFeatureList from './LocationFeatureList';
@@ -168,6 +168,10 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
   const [verticalMode, setVerticalMode] = useState<'individual' | 'range'>('individual');
   const [startVertical, setStartVertical] = useState<string>('');
   const [endVertical, setEndVertical] = useState<string>('');
+  const [selectedCustomDimensions, setSelectedCustomDimensions] = useState<{[dimensionId: string]: string}>({});
+  const [customDimensionModes, setCustomDimensionModes] = useState<{[dimensionId: string]: 'individual' | 'range'}>({});
+  const [customDimensionStarts, setCustomDimensionStarts] = useState<{[dimensionId: string]: string}>({});
+  const [customDimensionEnds, setCustomDimensionEnds] = useState<{[dimensionId: string]: string}>({});
   const [collectionUrl, setCollectionUrl] = useState<string>('');
   const [showCollectionValidation, setShowCollectionValidation] = useState<{[key: string]: boolean}>({});
   const [activeGeoJsonLayers, setActiveGeoJsonLayers] = useState<{url: string, title: string, visible: boolean, labelProperty?: string, data?: any, apiKey?: string, apiKeyParam?: string}[]>([]);
@@ -345,7 +349,7 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
       if (selectedCollection && selectedCollection.data_queries[selectedDataQuery]?.link?.href) {
         const normalizedHref = normalizeHref(selectedCollection.data_queries[selectedDataQuery].link.href);
         if (normalizedHref) {
-          setCollectionUrl(buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, clickedCoords, null, radiusKm, selectedDataQuery, null, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical));
+          setCollectionUrl(buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, clickedCoords, null, radiusKm, selectedDataQuery, null, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical, selectedCustomDimensions, customDimensionModes, customDimensionStarts, customDimensionEnds));
         }
       }
     }
@@ -359,7 +363,7 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
       if (selectedCollection && selectedCollection.data_queries[selectedDataQuery]?.link?.href) {
         const normalizedHref = normalizeHref(selectedCollection.data_queries[selectedDataQuery].link.href);
         if (normalizedHref) {
-          setCollectionUrl(buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, clickedCoords, null, radiusKm, selectedDataQuery, null, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical));
+          setCollectionUrl(buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, clickedCoords, null, radiusKm, selectedDataQuery, null, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical, selectedCustomDimensions, customDimensionModes, customDimensionStarts, customDimensionEnds));
         }
       }
     }
@@ -374,7 +378,7 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
       if (selectedCollection && selectedCollection.data_queries[selectedDataQuery]?.link?.href) {
         const normalizedHref = normalizeHref(selectedCollection.data_queries[selectedDataQuery].link.href);
         if (normalizedHref) {
-          setCollectionUrl(buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, null, selectedArea, radiusKm, selectedDataQuery, null, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical));
+          setCollectionUrl(buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, null, selectedArea, radiusKm, selectedDataQuery, null, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical, selectedCustomDimensions, customDimensionModes, customDimensionStarts, customDimensionEnds));
         }
       }
     }
@@ -389,7 +393,7 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
       if (selectedCollection && selectedCollection.data_queries[selectedDataQuery]?.link?.href) {
         const normalizedHref = normalizeHref(selectedCollection.data_queries[selectedDataQuery].link.href);
         if (normalizedHref) {
-          setCollectionUrl(buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, clickedCoords, null, radiusKm, selectedDataQuery, null, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical));
+          setCollectionUrl(buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, clickedCoords, null, radiusKm, selectedDataQuery, null, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical, selectedCustomDimensions, customDimensionModes, customDimensionStarts, customDimensionEnds));
         }
       }
     }
@@ -404,7 +408,7 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
       if (selectedCollection && selectedCollection.data_queries[selectedDataQuery]?.link?.href) {
         const normalizedHref = normalizeHref(selectedCollection.data_queries[selectedDataQuery].link.href);
         if (normalizedHref) {
-          setCollectionUrl(buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, null, null, radiusKm, selectedDataQuery, selectedFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical));
+          setCollectionUrl(buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, null, null, radiusKm, selectedDataQuery, selectedFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical, selectedCustomDimensions, customDimensionModes, customDimensionStarts, customDimensionEnds));
         }
       }
     }
@@ -419,7 +423,7 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
         const normalizedHref = normalizeHref(selectedCollection.data_queries[selectedDataQuery].link.href);
         if (normalizedHref) {
           const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-          setCollectionUrl(buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical));
+          setCollectionUrl(buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical, selectedCustomDimensions, customDimensionModes, customDimensionStarts, customDimensionEnds));
         }
       }
     }
@@ -434,12 +438,27 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
         const normalizedHref = normalizeHref(selectedCollection.data_queries[selectedDataQuery].link.href);
         if (normalizedHref) {
           const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-          setCollectionUrl(buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical));
+          setCollectionUrl(buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical, selectedCustomDimensions, customDimensionModes, customDimensionStarts, customDimensionEnds));
         }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedVertical, verticalMode, startVertical, endVertical]);
+
+  // Effect to rebuild URL when custom dimensions change
+  useEffect(() => {
+    if (selectedDataQuery && selectedCollection) {
+      const isDataQuery = !!selectedDataQuery;
+      if (selectedCollection.data_queries[selectedDataQuery]?.link?.href) {
+        const normalizedHref = normalizeHref(selectedCollection.data_queries[selectedDataQuery].link.href);
+        if (normalizedHref) {
+          const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
+          setCollectionUrl(buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical, selectedCustomDimensions, customDimensionModes, customDimensionStarts, customDimensionEnds));
+        }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCustomDimensions, customDimensionModes, customDimensionStarts, customDimensionEnds]);
 
   // Effect to update GeoJSON layers when datetime values change
   useEffect(() => {
@@ -632,7 +651,11 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
     vertical: string = '',
     vMode: 'individual' | 'range' = 'individual',
     vStart: string = '',
-    vEnd: string = ''
+    vEnd: string = '',
+    customDims: {[dimensionId: string]: string} = {},
+    customDimModes: {[dimensionId: string]: 'individual' | 'range'} = {},
+    customDimStarts: {[dimensionId: string]: string} = {},
+    customDimEnds: {[dimensionId: string]: string} = {}
   ) => {
     if (!baseUrl) return baseUrl;
     
@@ -698,6 +721,24 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
           url.searchParams.delete('z');
         }
         
+        // Add custom dimension parameters
+        Object.keys(customDims).forEach(dimensionId => {
+          const mode = customDimModes[dimensionId] || 'individual';
+          const value = customDims[dimensionId];
+          const start = customDimStarts[dimensionId];
+          const end = customDimEnds[dimensionId];
+          
+          if (mode === 'range' && start && end) {
+            // Range mode: format as start/end
+            url.searchParams.set(dimensionId, `${start}/${end}`);
+          } else if (mode === 'individual' && value) {
+            // Individual mode: single value
+            url.searchParams.set(dimensionId, value);
+          } else {
+            url.searchParams.delete(dimensionId);
+          }
+        });
+        
         // Add coords parameter
         if (queryType.toLowerCase() === 'position' && coords && coords.length > 0) {
           if (coords.length === 1) {
@@ -754,6 +795,10 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
         url.searchParams.delete('parameter-name');
         url.searchParams.delete('datetime');
         url.searchParams.delete('z');
+        // Remove all custom dimension parameters
+        Object.keys(customDims).forEach(dimensionId => {
+          url.searchParams.delete(dimensionId);
+        });
         url.searchParams.delete('coords');
         url.searchParams.delete('within');
         url.searchParams.delete('within-units');
@@ -2255,6 +2300,233 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
                     </Box>
                   ) : null;
                 })()}
+
+                {/* Custom Dimension Selectors */}
+                {collection.extent?.custom && collection.extent.custom.length > 0 && collection.extent.custom.map((dimension) => {
+                  const dimensionId = dimension.id;
+                  const dimensionValues = expandCustomDimensionValues(dimension, 500);
+                  const hasValues = dimension.values && dimension.values.length > 0;
+                  const hasInterval = dimension.interval && dimension.interval.length > 0;
+                  
+                  // Check if we have too many values (from large intervals)
+                  const tooManyValues = dimensionValues.length > 250;
+                  const useDropdown = hasValues && !tooManyValues;
+                  
+                  // Show dimension selection UI if dimension has values OR interval
+                  return (hasValues || hasInterval) ? (
+                    <Box key={dimensionId} sx={{ mb: 2 }}>
+                      <FormLabel component="legend" sx={{ fontSize: '0.875rem', mb: 1 }}>
+                        {dimension.id} Selection {dimension.reference ? `(${dimension.reference})` : ''}
+                      </FormLabel>
+                      
+                      {/* Info message when using text input due to large intervals */}
+                      {tooManyValues && (
+                        <Alert severity="info" sx={{ mb: 1, py: 0.5 }}>
+                          <Typography variant="caption">
+                            This dimension has a large range ({dimensionValues.length} values, limit: 250). Using text input for easier selection.
+                          </Typography>
+                        </Alert>
+                      )}
+                      
+                      {/* Dimension Mode Selector */}
+                      <FormControl component="fieldset" sx={{ mb: 1 }}>
+                        <RadioGroup
+                          row
+                          value={customDimensionModes[dimensionId] || 'individual'}
+                          onChange={(e) => {
+                            const newMode = e.target.value as 'individual' | 'range';
+                            setCustomDimensionModes(prev => ({ ...prev, [dimensionId]: newMode }));
+                            // Clear selections when switching modes
+                            if (newMode === 'range') {
+                              setSelectedCustomDimensions(prev => {
+                                const updated = { ...prev };
+                                delete updated[dimensionId];
+                                return updated;
+                              });
+                            } else {
+                              setCustomDimensionStarts(prev => {
+                                const updated = { ...prev };
+                                delete updated[dimensionId];
+                                return updated;
+                              });
+                              setCustomDimensionEnds(prev => {
+                                const updated = { ...prev };
+                                delete updated[dimensionId];
+                                return updated;
+                              });
+                            }
+                          }}
+                          sx={{ gap: 2 }}
+                        >
+                          <FormControlLabel 
+                            value="individual" 
+                            control={<Radio size="small" />} 
+                            label={<Typography variant="body2">Individual Value</Typography>}
+                          />
+                          <FormControlLabel 
+                            value="range" 
+                            control={<Radio size="small" />} 
+                            label={<Typography variant="body2">Range</Typography>}
+                          />
+                        </RadioGroup>
+                      </FormControl>
+
+                      {/* Individual Value Selector */}
+                      {(customDimensionModes[dimensionId] || 'individual') === 'individual' && (
+                        useDropdown ? (
+                          <FormControl fullWidth>
+                            <InputLabel id={`${dimensionId}-select-label`}>Select Value</InputLabel>
+                            <Select
+                              labelId={`${dimensionId}-select-label`}
+                              value={selectedCustomDimensions[dimensionId] || ''}
+                              label="Select Value"
+                              onChange={(e) => {
+                                const value = e.target.value as string;
+                                setSelectedCustomDimensions(prev => ({ ...prev, [dimensionId]: value }));
+                              }}
+                              size="small"
+                              MenuProps={{
+                                PaperProps: {
+                                  style: {
+                                    maxHeight: 300,
+                                  },
+                                },
+                              }}
+                            >
+                              {dimensionValues.map((val) => (
+                                <MenuItem key={val} value={val}>
+                                  <ListItemText 
+                                    primary={val}
+                                    primaryTypographyProps={{ 
+                                      style: { fontSize: '0.85rem', fontFamily: 'monospace' } 
+                                    }}
+                                  />
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                        ) : (
+                          <TextField
+                            label="Value"
+                            value={selectedCustomDimensions[dimensionId] || ''}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              setSelectedCustomDimensions(prev => ({ ...prev, [dimensionId]: value }));
+                            }}
+                            fullWidth
+                            size="small"
+                            placeholder="Enter value"
+                            helperText={dimension.reference ? `Unit: ${dimension.reference}` : ''}
+                          />
+                        )
+                      )}
+
+                      {/* Range Selectors */}
+                      {(customDimensionModes[dimensionId] || 'individual') === 'range' && (
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                          {useDropdown ? (
+                            <>
+                              <FormControl fullWidth size="small">
+                                <InputLabel id={`start-${dimensionId}-label`}>Start Value</InputLabel>
+                                <Select
+                                  labelId={`start-${dimensionId}-label`}
+                                  value={customDimensionStarts[dimensionId] || ''}
+                                  label="Start Value"
+                                  onChange={(e) => {
+                                    const newStart = e.target.value;
+                                    setCustomDimensionStarts(prev => ({ ...prev, [dimensionId]: newStart }));
+                                  }}
+                                  MenuProps={{
+                                    PaperProps: {
+                                      style: {
+                                        maxHeight: 300,
+                                      },
+                                    },
+                                  }}
+                                >
+                                  <MenuItem value="">
+                                    <em>Select start value</em>
+                                  </MenuItem>
+                                  {dimensionValues.map((val) => (
+                                    <MenuItem key={val} value={val}>
+                                      <ListItemText 
+                                        primary={val}
+                                        primaryTypographyProps={{ 
+                                          style: { fontSize: '0.85rem', fontFamily: 'monospace' } 
+                                        }}
+                                      />
+                                    </MenuItem>
+                                  ))}
+                                </Select>
+                              </FormControl>
+
+                              <FormControl fullWidth size="small">
+                                <InputLabel id={`end-${dimensionId}-label`}>End Value</InputLabel>
+                                <Select
+                                  labelId={`end-${dimensionId}-label`}
+                                  value={customDimensionEnds[dimensionId] || ''}
+                                  label="End Value"
+                                  onChange={(e) => {
+                                    const newEnd = e.target.value;
+                                    setCustomDimensionEnds(prev => ({ ...prev, [dimensionId]: newEnd }));
+                                  }}
+                                  MenuProps={{
+                                    PaperProps: {
+                                      style: {
+                                        maxHeight: 300,
+                                      },
+                                    },
+                                  }}
+                                >
+                                  <MenuItem value="">
+                                    <em>Select end value</em>
+                                  </MenuItem>
+                                  {dimensionValues.map((val) => (
+                                    <MenuItem key={val} value={val}>
+                                      <ListItemText 
+                                        primary={val}
+                                        primaryTypographyProps={{ 
+                                          style: { fontSize: '0.85rem', fontFamily: 'monospace' } 
+                                        }}
+                                      />
+                                    </MenuItem>
+                                  ))}
+                                </Select>
+                              </FormControl>
+                            </>
+                          ) : (
+                            <>
+                              <TextField
+                                label="Start Value"
+                                value={customDimensionStarts[dimensionId] || ''}
+                                onChange={(e) => {
+                                  const newStart = e.target.value;
+                                  setCustomDimensionStarts(prev => ({ ...prev, [dimensionId]: newStart }));
+                                }}
+                                fullWidth
+                                size="small"
+                                placeholder="Enter start value"
+                                helperText={dimension.reference ? `Unit: ${dimension.reference}` : ''}
+                              />
+                              <TextField
+                                label="End Value"
+                                value={customDimensionEnds[dimensionId] || ''}
+                                onChange={(e) => {
+                                  const newEnd = e.target.value;
+                                  setCustomDimensionEnds(prev => ({ ...prev, [dimensionId]: newEnd }));
+                                }}
+                                fullWidth
+                                size="small"
+                                placeholder="Enter end value"
+                                helperText={dimension.reference ? `Unit: ${dimension.reference}` : ''}
+                              />
+                            </>
+                          )}
+                        </Box>
+                      )}
+                    </Box>
+                  ) : null;
+                })}
 
                 {/* GeoJSON Layers List with Toggle Buttons */}
                 {activeGeoJsonLayers.length > 0 && (
