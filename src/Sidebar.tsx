@@ -53,6 +53,7 @@ import VerticalExtent from './VerticalExtent';
 import CollectionValidationErrors from './CollectionValidationErrors';
 import SwaggerUIViewer from './SwaggerUIViewer';
 import ConformanceViewer from './ConformanceViewer';
+import ItemsTable from './ItemsTable';
 import { CustomService } from './SettingsDrawer';
 import { AuthCredentials } from './DataRetrievalAPI';
 
@@ -2786,10 +2787,38 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
 
               { typeof collection.links == "undefined" 
                 ? <Alert severity="error"><AlertTitle>E: LINKS</AlertTitle>Every Collection within a collections array MUST have a links parameter.</Alert> 
-                : <Alert severity="success"><AlertTitle>E: LINKS</AlertTitle>{collection.links.map((link, i) => {
-                    const normalizedHref = normalizeHref(link.href);
-                    return normalizedHref ? (<div key={i}><Link href={normalizedHref}>{link.title ? link.title : link.rel}</Link> ({link.rel})</div>) : null;
-                  })}</Alert>
+                : <Alert severity="success">
+                    <AlertTitle>E: LINKS</AlertTitle>
+                    {collection.links.map((link, i) => {
+                      const normalizedHref = normalizeHref(link.href);
+                      if (!normalizedHref) return null;
+                      
+                      // Check if this is an items link with geojson content type
+                      const isItemsLink = link.rel === 'items' && 
+                                         link.type && 
+                                         (link.type.includes('application/geo+json') || 
+                                          link.type.includes('application/json'));
+                      
+                      if (isItemsLink) {
+                        return (
+                          <ItemsTable
+                            key={i}
+                            url={normalizedHref}
+                            title={link.title || 'Items'}
+                            getAuthCredentials={getAuthCredentials}
+                          />
+                        );
+                      }
+                      
+                      return (
+                        <div key={i}>
+                          <Link href={normalizedHref}>
+                            {link.title ? link.title : link.rel}
+                          </Link> ({link.rel})
+                        </div>
+                      );
+                    })}
+                  </Alert>
               }
 
               { typeof collection.data_queries == "undefined"
