@@ -1121,6 +1121,8 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
   const validator = SchemaValidator.getInstance();
   
   try {
+    console.log('=== Starting getCollections for:', apiUrl, '===');
+    
     // Check if this is DMI service (to avoid f=json bug)
     const isDMI = apiUrl.includes('api.meteogate.eu/dk/edr');
 
@@ -1203,6 +1205,7 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
 
     // Step 3: Fetch conformance classes to determine which schema to use
     let conformsTo: string[] | undefined = undefined;
+    let conformanceError: ValidationError | null = null;
     if (conformanceUrl) {
       try {
         console.log('Step 2: Fetching conformance to determine schema type:', conformanceUrl);
@@ -1221,26 +1224,81 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
           console.log(`Found ${conformsTo.length} conformance classes:`, conformsTo);
         }
       } catch (error) {
-        console.warn('Error fetching conformance, will use default schema:', error);
-        // Don't fail - we'll use the default schema
+        let errorMessage = 'Failed to fetch conformance information';
+        let errorType: 'cors' | 'network' | 'unknown' = 'unknown';
+        
+        if (error instanceof Error) {
+          if (error.message.includes('CORS') || 
+              error.message.includes('Access-Control-Allow-Origin') ||
+              error.message.includes('cross-origin')) {
+            errorType = 'cors';
+            errorMessage = `CORS Error: The conformance endpoint (${conformanceUrl}) does not allow cross-origin requests. Continuing with default schema.`;
+          } else if (error.message.includes('Network Error') ||
+                     error.message.includes('ERR_NETWORK') ||
+                     error.message.includes('Failed to fetch')) {
+            errorType = 'network';
+            errorMessage = `Network Error: Unable to connect to conformance endpoint (${conformanceUrl}). Continuing with default schema.`;
+          } else if (error.message.includes('404')) {
+            errorType = 'network';
+            errorMessage = `Not Found: The conformance endpoint (${conformanceUrl}) returned 404. Continuing with default schema.`;
+          } else {
+            errorMessage = `Failed to fetch conformance from ${conformanceUrl}: ${error.message}. Continuing with default schema.`;
+          }
+        }
+        
+        // Check for axios-specific error properties
+        if (error && typeof error === 'object' && 'code' in error) {
+          if (error.code === 'ERR_NETWORK') {
+            errorType = 'cors';
+            errorMessage = `CORS Error: The conformance endpoint (${conformanceUrl}) does not allow cross-origin requests. Continuing with default schema.`;
+          }
+        }
+        
+        conformanceError = {
+          message: errorMessage,
+          type: errorType,
+          section: 'conformance'
+        };
+        
+        console.warn('Error fetching conformance, will use default schema:', errorMessage);
+        // Don't fail - we'll use the default schema and continue processing
       }
     }
 
     // Step 4: Load the appropriate schema based on conformance classes
     // Always call this to ensure we have the right schema type
-    await validator.loadSchemaBasedOnConformance(conformsTo);
+    try {
+      await validator.loadSchemaBasedOnConformance(conformsTo);
+    } catch (error) {
+      console.warn('Error loading schema, continuing with default:', error);
+      // Continue even if schema loading fails
+    }
 
     // Step 5: Validate landing page with the loaded schema
-    const landingPageValidation = await validator.validateLandingPage(landingPageData);
-    console.log(`Landing page validation result: ${landingPageValidation.valid ? 'Valid' : 'Invalid'}`);
+    let landingPageValidation: { 
+      valid: boolean; 
+      errors: any[] | null;
+      schemaResults?: Array<{ schema: string; isValid: boolean }>;
+    } = { valid: true, errors: null };
+    try {
+      landingPageValidation = await validator.validateLandingPage(landingPageData);
+      console.log(`Landing page validation result: ${landingPageValidation.valid ? 'Valid' : 'Invalid'}`);
+    } catch (error) {
+      console.warn('Error validating landing page, continuing:', error);
+      // Continue even if validation fails
+    }
 
     // Step 6: Fetch collections from the discovered URL
     console.log('Step 3: Fetching collections from:', collectionsUrl);
+    console.log('Collections URL is:', collectionsUrl ? 'VALID' : 'NULL/INVALID');
     
     // Ensure collectionsUrl is not null before proceeding
     if (!collectionsUrl) {
+      console.error('ERROR: Collections URL could not be determined!');
       throw new Error('Collections URL could not be determined');
     }
+    
+    console.log('Proceeding to fetch collections...');
     
     // Add f=json format parameter if not already present
     // Skip for DMI service as it incorrectly includes f=json in the href paths
@@ -1252,7 +1310,9 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
     // Add API key if provided
     const finalCollectionsUrl = addApiKeyToUrl(collectionsUrlWithFormat.toString(), auth);
     
+    console.log('About to fetch collections from URL:', finalCollectionsUrl);
     const response = await axios.get<CollectionsResponse>(finalCollectionsUrl, getAxiosConfig(auth));
+    console.log('Collections response received, status:', response.status);
     const data = response.data;
 
     let collections: Collection[] = [];
@@ -1272,9 +1332,20 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
     }
 
     // Step 7: Validate collections
-    const collectionsValidation = await validator.validateCollections(data);
-    console.log(`Collections validation result: ${collectionsValidation.valid ? 'Valid' : 'Invalid'}`);
-    console.log(`Loaded schema count: ${validator.getLoadedSchemaCount()}`);
+    let collectionsValidation: { 
+      valid: boolean; 
+      errors: any[] | null;
+      collectionErrors?: { [collectionId: string]: ValidationError[] };
+      schemaResults?: Array<{ schema: string; isValid: boolean }>;
+    } = { valid: true, errors: null };
+    try {
+      collectionsValidation = await validator.validateCollections(data);
+      console.log(`Collections validation result: ${collectionsValidation.valid ? 'Valid' : 'Invalid'}`);
+      console.log(`Loaded schema count: ${validator.getLoadedSchemaCount()}`);
+    } catch (error) {
+      console.warn('Error validating collections, continuing:', error);
+      // Continue even if validation fails
+    }
     
     // Step 8: Validate conformance response if we fetched it
     let conformanceValidation: { 
@@ -1283,9 +1354,17 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
       schemaResults?: Array<{ schema: string; isValid: boolean }>;
     } = { valid: true, errors: null };
     if (conformanceUrl && conformsTo) {
-      // Validate conformance response we already fetched
-      conformanceValidation = await validator.validateConformance({ conformsTo });
-      console.log(`Conformance validation result: ${conformanceValidation.valid ? 'Valid' : 'Invalid'}`);
+      try {
+        // Validate conformance response we already fetched
+        conformanceValidation = await validator.validateConformance({ conformsTo });
+        console.log(`Conformance validation result: ${conformanceValidation.valid ? 'Valid' : 'Invalid'}`);
+      } catch (error) {
+        console.warn('Error validating conformance, continuing:', error);
+        // Continue even if validation fails
+      }
+    } else if (conformanceError) {
+      // If we failed to fetch conformance, include that error in validation
+      conformanceValidation = { valid: false, errors: [conformanceError] };
     }
     
     // Combine all validation results
@@ -1338,22 +1417,51 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
     console.error('Error fetching collections:', error);
     
     // Check if this is a CORS error
-    let errorMessage = 'Unknown error fetching collections';
+    let errorMessage = 'Unknown error fetching API data';
     let errorType: 'cors' | 'network' | 'unknown' = 'unknown';
+    let errorSection = 'unknown endpoint';
+    let failedUrl = apiUrl;
+    
+    // Try to get the URL from axios error config
+    if (error && typeof error === 'object' && 'config' in error) {
+      const axiosError = error as any;
+      if (axiosError.config && axiosError.config.url) {
+        failedUrl = axiosError.config.url;
+        
+        // Determine which endpoint failed based on the URL
+        if (failedUrl.includes('/collections')) {
+          errorSection = 'collections endpoint';
+        } else if (failedUrl.includes('conformance')) {
+          // This should not happen since conformance errors are caught separately
+          errorSection = 'conformance endpoint';
+        } else {
+          errorSection = 'landing page';
+        }
+      }
+    }
     
     if (error instanceof Error) {
       errorMessage = error.message;
+      
       // Common CORS error indicators
       if (error.message.includes('CORS') || 
           error.message.includes('Access-Control-Allow-Origin') ||
           error.message.includes('cross-origin')) {
         errorType = 'cors';
-        errorMessage = `CORS Error: This endpoint (${apiUrl}) does not allow cross-origin requests from web browsers. The service may not have proper CORS headers configured.`;
+        errorMessage = `CORS Error: The ${errorSection} does not allow cross-origin requests from web browsers. URL: ${failedUrl}`;
       } else if (error.message.includes('Network Error') ||
                  error.message.includes('ERR_NETWORK') ||
                  error.message.includes('Failed to fetch')) {
         errorType = 'network';
-        errorMessage = `Network Error: Unable to connect to ${apiUrl}. This may be due to CORS restrictions or the service being unavailable.`;
+        errorMessage = `Network Error: Unable to connect to ${errorSection}. This may be due to CORS restrictions or the service being unavailable. URL: ${failedUrl}`;
+      } else if (error.message.includes('404')) {
+        errorType = 'network';
+        errorMessage = `Not Found: The ${errorSection} returned 404. URL: ${failedUrl}`;
+      } else if (error.message.includes('401') || error.message.includes('403')) {
+        errorType = 'network';
+        errorMessage = `Authentication Error: The ${errorSection} requires authentication or returned access denied. URL: ${failedUrl}`;
+      } else {
+        errorMessage = `Failed to fetch ${errorSection}: ${error.message}. URL: ${failedUrl}`;
       }
     }
     
@@ -1361,7 +1469,7 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
     if (error && typeof error === 'object' && 'code' in error) {
       if (error.code === 'ERR_NETWORK') {
         errorType = 'cors';
-        errorMessage = `CORS Error: ${apiUrl} does not allow cross-origin requests. The server needs to include proper CORS headers.`;
+        errorMessage = `CORS Error: The ${errorSection} does not allow cross-origin requests. The server needs to include proper CORS headers. URL: ${failedUrl}`;
       }
     }
     
@@ -1372,7 +1480,8 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
         isValid: false,
         errors: [{ 
           message: errorMessage,
-          type: errorType
+          type: errorType,
+          section: errorSection
         }],
         schemaCount: validator.isLoaded() ? validator.getLoadedSchemaCount() : 0,
         schemaUrls: validator.isLoaded() ? validator.getLoadedSchemaUrls() : []

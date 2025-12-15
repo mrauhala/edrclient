@@ -21,11 +21,29 @@ const ValidationResults: React.FC<ValidationResultsProps> = ({ validation, expan
   ) => {
     if (!validationData) return null;
 
+    // Check if there are fetch errors (CORS, network issues)
+    const hasFetchError = validationData.errors?.some(err => 
+      err.type === 'cors' || err.type === 'network' || err.section
+    );
+
     return (
       <Paper variant="outlined" sx={{ p: 1.5, mb: 1.5 }}>
         <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>
           {title}
         </Typography>
+        
+        {/* Show fetch errors prominently */}
+        {hasFetchError && validationData.errors && (
+          <Box sx={{ mb: 1 }}>
+            {validationData.errors.filter(err => err.type === 'cors' || err.type === 'network' || err.section).map((error, index) => (
+              <Alert key={index} severity="warning" sx={{ mb: 0.5, py: 0.5 }}>
+                <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
+                  {error.message}
+                </Typography>
+              </Alert>
+            ))}
+          </Box>
+        )}
         
         {validationData.schemaResults && validationData.schemaResults.length > 0 ? (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
@@ -42,13 +60,13 @@ const ValidationResults: React.FC<ValidationResultsProps> = ({ validation, expan
               </Box>
             ))}
           </Box>
-        ) : (
+        ) : !hasFetchError ? (
           <Chip
             label={validationData.isValid ? 'Valid' : 'Invalid'}
             color={validationData.isValid ? 'success' : 'warning'}
             size="small"
           />
-        )}
+        ) : null}
       </Paper>
     );
   };

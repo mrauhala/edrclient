@@ -1264,37 +1264,40 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
       </Card>
       
       <List component="nav">
-                    {isLoading ? (
-              <Alert severity="info">Loading collections...</Alert>
+        {isLoading ? (
+          <Alert severity="info">Loading collections...</Alert>
+        ) : (
+          <>
+            {/* Show fatal errors (landing page or collections failed) */}
+            {collections.length === 0 && validationResult.errors && validationResult.errors.length > 0 && validationResult.errors.some(err => err.section !== 'conformance') ? (
+              validationResult.errors.filter(err => err.section !== 'conformance').map((error, index) => (
+                <Alert 
+                  key={index} 
+                  severity={error.type === 'cors' ? 'warning' : 'error'}
+                >
+                  <AlertTitle>
+                    {error.type === 'cors' ? 'CORS Issue' : 'Error'}
+                  </AlertTitle>
+                  {error.message}
+                  {error.type === 'cors' && (
+                    <div style={{ marginTop: '8px', fontSize: '0.875rem' }}>
+                      <strong>Possible solutions:</strong>
+                      <ul style={{ margin: '4px 0', paddingLeft: '20px' }}>
+                        <li>Use a CORS proxy service</li>
+                        <li>Contact the service provider to enable CORS headers</li>
+                        <li>Access the API from a server-side application instead</li>
+                      </ul>
+                    </div>
+                  )}
+                </Alert>
+              ))
             ) : collections.length === 0 ? (
-              validationResult.errors && validationResult.errors.length > 0 ? (
-                validationResult.errors.map((error, index) => (
-                  <Alert 
-                    key={index} 
-                    severity={error.type === 'cors' ? 'warning' : 'error'}
-                  >
-                    <AlertTitle>
-                      {error.type === 'cors' ? 'CORS Issue' : 'Error'}
-                    </AlertTitle>
-                    {error.message}
-                    {error.type === 'cors' && (
-                      <div style={{ marginTop: '8px', fontSize: '0.875rem' }}>
-                        <strong>Possible solutions:</strong>
-                        <ul style={{ margin: '4px 0', paddingLeft: '20px' }}>
-                          <li>Use a CORS proxy service</li>
-                          <li>Contact the service provider to enable CORS headers</li>
-                          <li>Access the API from a server-side application instead</li>
-                        </ul>
-                      </div>
-                    )}
-                  </Alert>
-                ))
-              ) : (
-                <Alert severity="warning">No collections found from this endpoint.</Alert>
-              )
+              <Alert severity="warning">No collections found from this endpoint.</Alert>
             ) : (
               <Alert severity="success">Found {collections.length} collections</Alert>
             )}
+          </>
+        )}
             {collections.map((collection, index) => (
           <React.Fragment key={collection.id || index}>
             <ListItemButton onClick={() => handleItemClick(index, collection.id)}>
