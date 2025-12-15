@@ -82,13 +82,13 @@ interface SidebarProps {
 // EDR service options
 const edrServices = [
   { label: '[EDR] IMO Climate API', value: 'https://api.vedur.is/weather/rodeo/' },
-  { label: '[EDR] DMI Open Data', value: 'https://api.meteogate.eu/dk/edr' },
   { label: '[EDR] FMI Open Data', value: 'https://opendata.fmi.fi/edr' },
   { label: '[EDR] SWIM MET Norway', value: 'https://aviation.met.no' },
   { label: '[EDR] SWIM IBL', value: 'https://swim.iblsoft.com/edr' },
   { label: '[EDR] SWIM SMHI', value: 'https://aviation.smhi.se' },
   { label: '[EDR] Met Office Labs', value: 'https://labs.metoffice.gov.uk/edr' },
   { label: '[EDR] Meteogate Observations', value: 'https://api.meteogate.eu/eu-eumetnet-surface-observations' },
+  { label: '[EDR] Meteogate Climate Observations', value: 'https://api.meteogate.eu/eu-eumetnet-climate-observations' },
   { label: '[EDR] SmartMet Kenya', value: 'https://data-kenya.smartmet.org/edr' },
   { label: '[EDR] SmartMet Ethiopia', value: 'https://data-ethiopia.smartmet.org/edr' },
   { label: '[Records] WMO GDC WIS2 Germany', value: 'https://wis2.dwd.de/gdc/' },
