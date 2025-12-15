@@ -89,11 +89,15 @@ const edrServices = [
   { label: '[EDR] Met Office Labs', value: 'https://labs.metoffice.gov.uk/edr' },
   { label: '[EDR] Meteogate Observations', value: 'https://api.meteogate.eu/eu-eumetnet-surface-observations' },
   { label: '[EDR] Meteogate Climate Observations', value: 'https://api.meteogate.eu/eu-eumetnet-climate-observations/v1' },
+  { label: '[EDR] Meteogate Weather Radar', value: 'https://api.meteogate.eu/eu-eumetnet-weather-radar' },
   { label: '[EDR] SmartMet Kenya', value: 'https://data-kenya.smartmet.org/edr' },
   { label: '[EDR] SmartMet Ethiopia', value: 'https://data-ethiopia.smartmet.org/edr' },
   { label: '[Records] WMO GDC WIS2 Germany', value: 'https://wis2.dwd.de/gdc/' },
   { label: '[Records] WMO GDC WIS2 Canada', value: 'https://wis2-gdc.weather.gc.ca' },
   { label: '[Records] WMO GDC WIS2 China', value: 'https://gdc.wis.cma.cn' },
+  { label: '[STAC] Copernicus Dataspace', value: 'https://stac.dataspace.copernicus.eu/v1/' },
+  { label: '[STAC] MET Norway Radar', value: 'https://radar-stacapi.met.no/v1/' },
+  { label: '[STAC] Swiss Federal Spatial Data', value: 'https://data.geo.admin.ch/api/stac/v1/' },
   { label: '[Features] MSC GeoMet', value: 'https://api.weather.gc.ca' },
   { label: 'Custom', value: '' }
 ];
@@ -1499,9 +1503,30 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
                 secondary={
                   <>
                     {collection.description && (
-                      <Typography variant="body2" component="span">
-                        {collection.description}
-                      </Typography>
+                      <Box sx={{ position: 'relative' }}>
+                        {collection.assets?.thumbnail?.href && (
+                          <Box
+                            component="img"
+                            src={collection.assets.thumbnail.href}
+                            alt={collection.assets.thumbnail.title || collection.title || 'Collection thumbnail'}
+                            sx={{
+                              float: 'right',
+                              width: 100,
+                              height: 100,
+                              objectFit: 'cover',
+                              borderRadius: 1,
+                              marginLeft: 1.5,
+                              marginBottom: 1
+                            }}
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = 'none';
+                            }}
+                          />
+                        )}
+                        <Typography variant="body2" component="span">
+                          {collection.description}
+                        </Typography>
+                      </Box>
                     )}
                     {collection.itemType && (
                       <Box 
@@ -1517,16 +1542,9 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
                         Item Type: {collection.itemType}
                       </Box>
                     )}
-                    {/* Data Query Type Badges - At the bottom */}
-                    <Box sx={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between',
-                      alignItems: 'flex-end',
-                      marginTop: '8px',
-                      gap: '8px'
-                    }}>
-                      {/* Data Query Chips on the left */}
-                      {getSupportedDataQueries(collection).length > 0 && (
+                    {/* Data Query Type Badges */}
+                    {getSupportedDataQueries(collection).length > 0 && (
+                      <Box sx={{ marginTop: '8px' }}>
                         <div style={{ 
                           display: 'flex', 
                           gap: '4px', 
@@ -1551,59 +1569,59 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
                             />
                           ))}
                         </div>
-                      )}
-                      {/* Temporal Extent on the right */}
-                      {collection.extent?.temporal && (() => {
-                        const normalizedTemporal = normalizeTemporal(collection.extent.temporal);
-                        if (normalizedTemporal && normalizedTemporal.intervals.length > 0) {
-                          const formatDate = (dateStr: string | null) => {
-                            if (!dateStr || dateStr === '..') return 'open';
-                            try {
-                              const date = new Date(dateStr);
-                              // Format: "Nov 1, 2025 06:00" or just date if time is 00:00
-                              const timeStr = date.toISOString().split('T')[1];
-                              const hasTime = timeStr && !timeStr.startsWith('00:00:00');
-                              
-                              if (hasTime) {
-                                const formatted = date.toLocaleDateString('en-US', { 
-                                  month: 'short', 
-                                  day: 'numeric', 
-                                  year: 'numeric',
-                                  timeZone: 'UTC'
-                                });
-                                const time = date.toISOString().split('T')[1].substring(0, 5);
-                                return `${formatted} ${time}`;
-                              } else {
-                                return date.toLocaleDateString('en-US', { 
-                                  month: 'short', 
-                                  day: 'numeric', 
-                                  year: 'numeric',
-                                  timeZone: 'UTC'
-                                });
-                              }
-                            } catch {
-                              return dateStr;
+                      </Box>
+                    )}
+                    {/* Temporal Extent - Separate row */}
+                    {collection.extent?.temporal && (() => {
+                      const normalizedTemporal = normalizeTemporal(collection.extent.temporal);
+                      if (normalizedTemporal && normalizedTemporal.intervals.length > 0) {
+                        const formatDate = (dateStr: string | null) => {
+                          if (!dateStr || dateStr === '..') return 'open';
+                          try {
+                            const date = new Date(dateStr);
+                            // Format: "Nov 1, 2025 06:00" or just date if time is 00:00
+                            const timeStr = date.toISOString().split('T')[1];
+                            const hasTime = timeStr && !timeStr.startsWith('00:00:00');
+                            
+                            if (hasTime) {
+                              const formatted = date.toLocaleDateString('en-US', { 
+                                month: 'short', 
+                                day: 'numeric', 
+                                year: 'numeric',
+                                timeZone: 'UTC'
+                              });
+                              const time = date.toISOString().split('T')[1].substring(0, 5);
+                              return `${formatted} ${time}`;
+                            } else {
+                              return date.toLocaleDateString('en-US', { 
+                                month: 'short', 
+                                day: 'numeric', 
+                                year: 'numeric',
+                                timeZone: 'UTC'
+                              });
                             }
-                          };
-                          
-                          const interval = normalizedTemporal.intervals[0]; // Show first interval
-                          const start = formatDate(interval[0]);
-                          const end = formatDate(interval[1]);
-                          
-                          return (
-                            <Box sx={{ 
-                              fontSize: '0.7rem', 
-                              color: 'text.secondary',
-                              whiteSpace: 'nowrap',
-                              fontStyle: 'italic'
-                            }}>
-                              Available: {start} – {end}
-                            </Box>
-                          );
-                        }
-                        return null;
-                      })()}
-                    </Box>
+                          } catch {
+                            return dateStr;
+                          }
+                        };
+                        
+                        const interval = normalizedTemporal.intervals[0]; // Show first interval
+                        const start = formatDate(interval[0]);
+                        const end = formatDate(interval[1]);
+                        
+                        return (
+                          <Box sx={{ 
+                            fontSize: '0.7rem', 
+                            color: 'text.secondary',
+                            fontStyle: 'italic',
+                            marginTop: '4px'
+                          }}>
+                            Available: {start} – {end}
+                          </Box>
+                        );
+                      }
+                      return null;
+                    })()}
                   </>
                 }
                 secondaryTypographyProps={{ component: 'div' }}
