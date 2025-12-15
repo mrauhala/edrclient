@@ -146,7 +146,11 @@ function App() {
   const getAuthCredentials = (url: string) => {
     const service = customServices.find(s => url.includes(s.url));
     if (service) {
-      if (service.bearerToken) {
+      if (service.customAuthHeader) {
+        return {
+          customAuthHeader: service.customAuthHeader
+        };
+      } else if (service.bearerToken) {
         return {
           bearerToken: service.bearerToken
         };
