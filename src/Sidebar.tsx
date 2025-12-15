@@ -1542,16 +1542,9 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
                         Item Type: {collection.itemType}
                       </Box>
                     )}
-                    {/* Data Query Type Badges - At the bottom */}
-                    <Box sx={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between',
-                      alignItems: 'flex-end',
-                      marginTop: '8px',
-                      gap: '8px'
-                    }}>
-                      {/* Data Query Chips on the left */}
-                      {getSupportedDataQueries(collection).length > 0 && (
+                    {/* Data Query Type Badges */}
+                    {getSupportedDataQueries(collection).length > 0 && (
+                      <Box sx={{ marginTop: '8px' }}>
                         <div style={{ 
                           display: 'flex', 
                           gap: '4px', 
@@ -1576,59 +1569,59 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
                             />
                           ))}
                         </div>
-                      )}
-                      {/* Temporal Extent on the right */}
-                      {collection.extent?.temporal && (() => {
-                        const normalizedTemporal = normalizeTemporal(collection.extent.temporal);
-                        if (normalizedTemporal && normalizedTemporal.intervals.length > 0) {
-                          const formatDate = (dateStr: string | null) => {
-                            if (!dateStr || dateStr === '..') return 'open';
-                            try {
-                              const date = new Date(dateStr);
-                              // Format: "Nov 1, 2025 06:00" or just date if time is 00:00
-                              const timeStr = date.toISOString().split('T')[1];
-                              const hasTime = timeStr && !timeStr.startsWith('00:00:00');
-                              
-                              if (hasTime) {
-                                const formatted = date.toLocaleDateString('en-US', { 
-                                  month: 'short', 
-                                  day: 'numeric', 
-                                  year: 'numeric',
-                                  timeZone: 'UTC'
-                                });
-                                const time = date.toISOString().split('T')[1].substring(0, 5);
-                                return `${formatted} ${time}`;
-                              } else {
-                                return date.toLocaleDateString('en-US', { 
-                                  month: 'short', 
-                                  day: 'numeric', 
-                                  year: 'numeric',
-                                  timeZone: 'UTC'
-                                });
-                              }
-                            } catch {
-                              return dateStr;
+                      </Box>
+                    )}
+                    {/* Temporal Extent - Separate row */}
+                    {collection.extent?.temporal && (() => {
+                      const normalizedTemporal = normalizeTemporal(collection.extent.temporal);
+                      if (normalizedTemporal && normalizedTemporal.intervals.length > 0) {
+                        const formatDate = (dateStr: string | null) => {
+                          if (!dateStr || dateStr === '..') return 'open';
+                          try {
+                            const date = new Date(dateStr);
+                            // Format: "Nov 1, 2025 06:00" or just date if time is 00:00
+                            const timeStr = date.toISOString().split('T')[1];
+                            const hasTime = timeStr && !timeStr.startsWith('00:00:00');
+                            
+                            if (hasTime) {
+                              const formatted = date.toLocaleDateString('en-US', { 
+                                month: 'short', 
+                                day: 'numeric', 
+                                year: 'numeric',
+                                timeZone: 'UTC'
+                              });
+                              const time = date.toISOString().split('T')[1].substring(0, 5);
+                              return `${formatted} ${time}`;
+                            } else {
+                              return date.toLocaleDateString('en-US', { 
+                                month: 'short', 
+                                day: 'numeric', 
+                                year: 'numeric',
+                                timeZone: 'UTC'
+                              });
                             }
-                          };
-                          
-                          const interval = normalizedTemporal.intervals[0]; // Show first interval
-                          const start = formatDate(interval[0]);
-                          const end = formatDate(interval[1]);
-                          
-                          return (
-                            <Box sx={{ 
-                              fontSize: '0.7rem', 
-                              color: 'text.secondary',
-                              whiteSpace: 'nowrap',
-                              fontStyle: 'italic'
-                            }}>
-                              Available: {start} – {end}
-                            </Box>
-                          );
-                        }
-                        return null;
-                      })()}
-                    </Box>
+                          } catch {
+                            return dateStr;
+                          }
+                        };
+                        
+                        const interval = normalizedTemporal.intervals[0]; // Show first interval
+                        const start = formatDate(interval[0]);
+                        const end = formatDate(interval[1]);
+                        
+                        return (
+                          <Box sx={{ 
+                            fontSize: '0.7rem', 
+                            color: 'text.secondary',
+                            fontStyle: 'italic',
+                            marginTop: '4px'
+                          }}>
+                            Available: {start} – {end}
+                          </Box>
+                        );
+                      }
+                      return null;
+                    })()}
                   </>
                 }
                 secondaryTypographyProps={{ component: 'div' }}
