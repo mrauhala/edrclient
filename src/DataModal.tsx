@@ -60,6 +60,28 @@ const DataModal: React.FC<DataModalProps> = ({
     
     try {
       const parsed = JSON.parse(data);
+      
+      // Check if it's a CoverageCollection
+      if (parsed.type === 'CoverageCollection' && parsed.coverages && Array.isArray(parsed.coverages)) {
+        // Check if at least one coverage is chartable
+        return parsed.coverages.some((coverage: any) => {
+          const domainType = coverage.domain?.domainType;
+          
+          // PointSeries is supported
+          if (domainType === 'PointSeries') return true;
+          
+          // Grid with single x,y point is also supported
+          if (domainType === 'Grid') {
+            const xValues = coverage.domain?.axes?.x?.values;
+            const yValues = coverage.domain?.axes?.y?.values;
+            return xValues?.length === 1 && yValues?.length === 1;
+          }
+          
+          return false;
+        });
+      }
+      
+      // Check if it's a single Coverage
       if (parsed.type !== 'Coverage') return false;
       
       const domainType = parsed.domain?.domainType;
