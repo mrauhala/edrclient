@@ -2710,12 +2710,39 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
                             l => l.url === '' && l.title === featureLayer.title
                           );
                           
-                          let updatedLayers;
+                          let updatedLayers: typeof activeGeoJsonLayers;
                           if (existingFeatureIndex >= 0) {
-                            // Toggle visibility if already exists
-                            updatedLayers = activeGeoJsonLayers.map((l, i) => 
-                              i === existingFeatureIndex ? { ...l, visible: !l.visible } : l
-                            );
+                            const existingLayer = activeGeoJsonLayers[existingFeatureIndex];
+                            if (existingLayer.visible) {
+                              // If already visible, update the data and force re-render by toggling visibility
+                              updatedLayers = activeGeoJsonLayers.map((l, i) => 
+                                i === existingFeatureIndex 
+                                  ? { ...featureLayer, visible: false } // First set to false
+                                  : l
+                              );
+                              setActiveGeoJsonLayers(updatedLayers);
+                              if (onGeoJsonLayersChange) {
+                                onGeoJsonLayersChange(updatedLayers);
+                              }
+                              // Then immediately set back to true with new data
+                              setTimeout(() => {
+                                const reenabledLayers: typeof activeGeoJsonLayers = updatedLayers.map((l, i) => 
+                                  i === existingFeatureIndex 
+                                    ? { ...featureLayer, visible: true }
+                                    : l
+                                );
+                                setActiveGeoJsonLayers(reenabledLayers);
+                                if (onGeoJsonLayersChange) {
+                                  onGeoJsonLayersChange(reenabledLayers);
+                                }
+                              }, 50);
+                              return;
+                            } else {
+                              // If hidden, show it with updated data
+                              updatedLayers = activeGeoJsonLayers.map((l, i) => 
+                                i === existingFeatureIndex ? featureLayer : l
+                              );
+                            }
                           } else {
                             // Add new feature layer
                             updatedLayers = [...nonFeatureLayers, featureLayer];
