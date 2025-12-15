@@ -44,7 +44,7 @@ import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs, { Dayjs } from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import React, { useEffect, useState, useMemo } from 'react';
-import { getCollections, Collection, ValidationResult, normalizeBbox, hasLocationQuery, getLocationQueryUrl, executeLocationQuery, getSupportedDataQueries, normalizeTemporal, formatConformanceClass, expandTemporalValues, expandVerticalValues, expandCustomDimensionValues, Link as ApiLink, normalizeHref } from './DataRetrievalAPI';
+import { getCollections, Collection, ValidationResult, normalizeBbox, hasLocationQuery, getLocationQueryUrl, executeLocationQuery, getSupportedDataQueries, normalizeTemporal, formatConformanceClass, expandTemporalValues, expandVerticalValues, expandCustomDimensionValues, getOverallTemporalExtent, Link as ApiLink, normalizeHref } from './DataRetrievalAPI';
 import ValidationResults from './ValidationResult';
 import SchemaInspector from './SchemaInspector';
 import LocationFeatureList from './LocationFeatureList';
@@ -1850,38 +1850,28 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
 
                       {/* Quick Select Presets for Time Ranges */}
                       {datetimeMode === 'range' && (() => {
-                        // Get temporal extent bounds
+                        // Get temporal extent bounds using the utility function
                         const normalizedTemporal = normalizeTemporal(collection.extent.temporal);
                         let extentStart: dayjs.Dayjs | null = null;
                         let extentEnd: dayjs.Dayjs | null = null;
                         
                         if (normalizedTemporal && normalizedTemporal.intervals.length > 0) {
-                          // Get overall extent from all intervals
-                          const overallExtent = normalizedTemporal.intervals.reduce((acc, interval) => {
-                            const start = interval[0] && interval[0] !== '..' ? dayjs.utc(interval[0]) : null;
-                            const end = interval[1] && interval[1] !== '..' ? dayjs.utc(interval[1]) : null;
-                            
-                            if (!acc.start || (start && start.isBefore(acc.start))) {
-                              acc.start = start;
-                            }
-                            if (!acc.end || (end && end.isAfter(acc.end))) {
-                              acc.end = end;
-                            }
-                            return acc;
-                          }, { start: null as dayjs.Dayjs | null, end: null as dayjs.Dayjs | null });
-                          
-                          extentStart = overallExtent.start;
-                          extentEnd = overallExtent.end;
+                          const overallExtent = getOverallTemporalExtent(normalizedTemporal.intervals);
+                          if (overallExtent) {
+                            extentStart = overallExtent[0] && overallExtent[0] !== '..' ? dayjs.utc(overallExtent[0]) : null;
+                            extentEnd = overallExtent[1] && overallExtent[1] !== '..' ? dayjs.utc(overallExtent[1]) : null;
+                          }
                         }
                         
                         // Helper to check if a preset range is valid
                         const isPresetValid = (presetStart: dayjs.Dayjs, presetEnd: dayjs.Dayjs): boolean => {
-                          // If no extent bounds, allow all presets
-                          if (!extentStart && !extentEnd) return true;
+                          // If we don't have BOTH extent bounds, we can't validate - reject all presets to be safe
+                          if (!extentStart || !extentEnd) return false;
                           
                           // Check if preset range overlaps with extent
-                          if (extentStart && presetEnd.isBefore(extentStart)) return false;
-                          if (extentEnd && presetStart.isAfter(extentEnd)) return false;
+                          // Preset is invalid if it ends before extent starts OR starts after extent ends
+                          if (presetEnd.isBefore(extentStart)) return false;
+                          if (presetStart.isAfter(extentEnd)) return false;
                           
                           return true;
                         };
