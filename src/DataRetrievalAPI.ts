@@ -7,6 +7,7 @@ export interface AuthCredentials {
     apiKey?: string;
     apiKeyParam?: string;
     bearerToken?: string;
+    customAuthHeader?: string;
 }
 
 // Helper function to create axios config with basic auth if credentials are provided
@@ -14,8 +15,14 @@ function getAxiosConfig(auth?: AuthCredentials) {
   const config: any = {};
   
   if (auth) {
-    // Bearer token authentication (takes precedence)
-    if (auth.bearerToken) {
+    // Custom Authorization header (takes precedence over all)
+    if (auth.customAuthHeader) {
+      config.headers = {
+        'Authorization': auth.customAuthHeader
+      };
+    }
+    // Bearer token authentication
+    else if (auth.bearerToken) {
       config.headers = {
         'Authorization': `Bearer ${auth.bearerToken}`
       };
