@@ -4,8 +4,6 @@ import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import ListItemText from '@mui/material/ListItemText';
 import ListItemButton from '@mui/material/ListItemButton';
-import ListItemAvatar from '@mui/material/ListItemAvatar';
-import Avatar from '@mui/material/Avatar';
 import Collapse from '@mui/material/Collapse';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
@@ -18,7 +16,6 @@ import BugReport from '@mui/icons-material/BugReport';
 import CloudQueue from '@mui/icons-material/CloudQueue';
 import Person from '@mui/icons-material/Person';
 import Lock from '@mui/icons-material/Lock';
-import ImageIcon from '@mui/icons-material/Image';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import Badge from '@mui/material/Badge';
 import Box from '@mui/material/Box';
@@ -1350,26 +1347,30 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
             {collections.map((collection, index) => (
           <React.Fragment key={collection.id || index}>
             <ListItemButton onClick={() => handleItemClick(index, collection.id)}>
-              {/* Thumbnail Avatar */}
-              {collection.assets?.thumbnail?.href && (
-                <ListItemAvatar>
-                  <Avatar
-                    variant="rounded"
-                    src={collection.assets.thumbnail.href}
-                    alt={collection.assets.thumbnail.title || collection.title || 'Collection thumbnail'}
-                    sx={{ 
-                      width: 80, 
-                      height: 80,
-                      marginRight: 2
-                    }}
-                  >
-                    <ImageIcon />
-                  </Avatar>
-                </ListItemAvatar>
-              )}
               <ListItemText 
                 primary={
-                  <div>
+                  <div style={{ position: 'relative' }}>
+                    {/* Thumbnail on the right */}
+                    {collection.assets?.thumbnail?.href && (
+                      <Box
+                        component="img"
+                        src={collection.assets.thumbnail.href}
+                        alt={collection.assets.thumbnail.title || collection.title || 'Collection thumbnail'}
+                        sx={{
+                          float: 'right',
+                          width: 60,
+                          height: 60,
+                          objectFit: 'cover',
+                          borderRadius: 1,
+                          marginLeft: 1,
+                          marginBottom: 1
+                        }}
+                        onError={(e) => {
+                          // Hide image if it fails to load
+                          (e.target as HTMLElement).style.display = 'none';
+                        }}
+                      />
+                    )}
                     {/* Validation Status Chip - First row */}
                     <div style={{ 
                       display: 'flex', 
