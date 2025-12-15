@@ -1349,28 +1349,7 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
             <ListItemButton onClick={() => handleItemClick(index, collection.id)}>
               <ListItemText 
                 primary={
-                  <div style={{ position: 'relative' }}>
-                    {/* Thumbnail on the right */}
-                    {collection.assets?.thumbnail?.href && (
-                      <Box
-                        component="img"
-                        src={collection.assets.thumbnail.href}
-                        alt={collection.assets.thumbnail.title || collection.title || 'Collection thumbnail'}
-                        sx={{
-                          float: 'right',
-                          width: 60,
-                          height: 60,
-                          objectFit: 'cover',
-                          borderRadius: 1,
-                          marginLeft: 1,
-                          marginBottom: 1
-                        }}
-                        onError={(e) => {
-                          // Hide image if it fails to load
-                          (e.target as HTMLElement).style.display = 'none';
-                        }}
-                      />
-                    )}
+                  <div>
                     {/* Validation Status Chip - First row */}
                     <div style={{ 
                       display: 'flex', 
@@ -1521,9 +1500,28 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
                 secondary={
                   <>
                     {collection.description && (
-                      <Typography variant="body2" component="span">
-                        {collection.description}
-                      </Typography>
+                      <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+                        <Typography variant="body2" component="span" sx={{ flex: 1 }}>
+                          {collection.description}
+                        </Typography>
+                        {collection.assets?.thumbnail?.href && (
+                          <Box
+                            component="img"
+                            src={collection.assets.thumbnail.href}
+                            alt={collection.assets.thumbnail.title || collection.title || 'Collection thumbnail'}
+                            sx={{
+                              width: 60,
+                              height: 60,
+                              objectFit: 'cover',
+                              borderRadius: 1,
+                              flexShrink: 0
+                            }}
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = 'none';
+                            }}
+                          />
+                        )}
+                      </Box>
                     )}
                     {collection.itemType && (
                       <Box 
