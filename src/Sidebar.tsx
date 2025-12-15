@@ -1849,120 +1849,140 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
                       </FormControl>
 
                       {/* Quick Select Presets for Time Ranges */}
-                      {datetimeMode === 'range' && (
-                        <Box sx={{ mb: 2 }}>
-                          <Typography variant="caption" sx={{ display: 'block', mb: 0.5, color: 'text.secondary' }}>
-                            Quick Select:
-                          </Typography>
-                          <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                            <Button
-                              size="small"
-                              variant="outlined"
-                              onClick={() => {
-                                const now = dayjs.utc();
-                                const oneHourAgo = now.subtract(1, 'hour');
-                                const start = oneHourAgo.format('YYYY-MM-DDTHH:mm:ss[Z]');
-                                const end = now.format('YYYY-MM-DDTHH:mm:ss[Z]');
-                                setStartDatetime(start);
-                                setEndDatetime(end);
-                              }}
-                              sx={{ 
-                                fontSize: '0.7rem', 
-                                py: 0.25, 
-                                px: 1,
-                                minWidth: 'auto',
-                                textTransform: 'none'
-                              }}
-                            >
-                              Last Hour
-                            </Button>
-                            <Button
-                              size="small"
-                              variant="outlined"
-                              onClick={() => {
-                                const now = dayjs.utc();
-                                const startOfDay = now.startOf('day');
-                                const start = startOfDay.format('YYYY-MM-DDTHH:mm:ss[Z]');
-                                const end = now.format('YYYY-MM-DDTHH:mm:ss[Z]');
-                                setStartDatetime(start);
-                                setEndDatetime(end);
-                              }}
-                              sx={{ 
-                                fontSize: '0.7rem', 
-                                py: 0.25, 
-                                px: 1,
-                                minWidth: 'auto',
-                                textTransform: 'none'
-                              }}
-                            >
-                              Today
-                            </Button>
-                            <Button
-                              size="small"
-                              variant="outlined"
-                              onClick={() => {
-                                const now = dayjs.utc();
-                                const sevenDaysAgo = now.subtract(7, 'day');
-                                const start = sevenDaysAgo.format('YYYY-MM-DDTHH:mm:ss[Z]');
-                                const end = now.format('YYYY-MM-DDTHH:mm:ss[Z]');
-                                setStartDatetime(start);
-                                setEndDatetime(end);
-                              }}
-                              sx={{ 
-                                fontSize: '0.7rem', 
-                                py: 0.25, 
-                                px: 1,
-                                minWidth: 'auto',
-                                textTransform: 'none'
-                              }}
-                            >
-                              Last 7 Days
-                            </Button>
-                            <Button
-                              size="small"
-                              variant="outlined"
-                              onClick={() => {
-                                const now = dayjs.utc();
-                                const startOfMonth = now.startOf('month');
-                                const start = startOfMonth.format('YYYY-MM-DDTHH:mm:ss[Z]');
-                                const end = now.format('YYYY-MM-DDTHH:mm:ss[Z]');
-                                setStartDatetime(start);
-                                setEndDatetime(end);
-                              }}
-                              sx={{ 
-                                fontSize: '0.7rem', 
-                                py: 0.25, 
-                                px: 1,
-                                minWidth: 'auto',
-                                textTransform: 'none'
-                              }}
-                            >
-                              This Month
-                            </Button>
-                            <Button
-                              size="small"
-                              variant="outlined"
-                              onClick={() => {
-                                const now = dayjs.utc();
-                                const thirtyDaysAgo = now.subtract(30, 'day');
-                                const start = thirtyDaysAgo.format('YYYY-MM-DDTHH:mm:ss[Z]');
-                                const end = now.format('YYYY-MM-DDTHH:mm:ss[Z]');
-                                setStartDatetime(start);
-                                setEndDatetime(end);
-                              }}
-                              sx={{ 
-                                fontSize: '0.7rem', 
-                                py: 0.25, 
-                                px: 1,
-                                minWidth: 'auto',
-                                textTransform: 'none'
-                              }}
-                            >
-                              Last 30 Days
-                            </Button>
+                      {datetimeMode === 'range' && (() => {
+                        // Get temporal extent bounds
+                        const normalizedTemporal = normalizeTemporal(collection.extent.temporal);
+                        let extentStart: dayjs.Dayjs | null = null;
+                        let extentEnd: dayjs.Dayjs | null = null;
+                        
+                        if (normalizedTemporal && normalizedTemporal.intervals.length > 0) {
+                          // Get overall extent from all intervals
+                          const overallExtent = normalizedTemporal.intervals.reduce((acc, interval) => {
+                            const start = interval[0] && interval[0] !== '..' ? dayjs.utc(interval[0]) : null;
+                            const end = interval[1] && interval[1] !== '..' ? dayjs.utc(interval[1]) : null;
+                            
+                            if (!acc.start || (start && start.isBefore(acc.start))) {
+                              acc.start = start;
+                            }
+                            if (!acc.end || (end && end.isAfter(acc.end))) {
+                              acc.end = end;
+                            }
+                            return acc;
+                          }, { start: null as dayjs.Dayjs | null, end: null as dayjs.Dayjs | null });
+                          
+                          extentStart = overallExtent.start;
+                          extentEnd = overallExtent.end;
+                        }
+                        
+                        // Helper to check if a preset range is valid
+                        const isPresetValid = (presetStart: dayjs.Dayjs, presetEnd: dayjs.Dayjs): boolean => {
+                          // If no extent bounds, allow all presets
+                          if (!extentStart && !extentEnd) return true;
+                          
+                          // Check if preset range overlaps with extent
+                          if (extentStart && presetEnd.isBefore(extentStart)) return false;
+                          if (extentEnd && presetStart.isAfter(extentEnd)) return false;
+                          
+                          return true;
+                        };
+                        
+                        const now = dayjs.utc();
+                        
+                        // Define all possible presets
+                        const presets = [
+                          // Backward-looking presets
+                          { 
+                            label: 'Last Hour', 
+                            start: now.subtract(1, 'hour'), 
+                            end: now 
+                          },
+                          { 
+                            label: 'Today', 
+                            start: now.startOf('day'), 
+                            end: now 
+                          },
+                          { 
+                            label: 'Last 7 Days', 
+                            start: now.subtract(7, 'day'), 
+                            end: now 
+                          },
+                          { 
+                            label: 'This Month', 
+                            start: now.startOf('month'), 
+                            end: now 
+                          },
+                          { 
+                            label: 'Last 30 Days', 
+                            start: now.subtract(30, 'day'), 
+                            end: now 
+                          },
+                          // Forward-looking presets
+                          { 
+                            label: 'Next 24 Hours', 
+                            start: now, 
+                            end: now.add(24, 'hour') 
+                          },
+                          { 
+                            label: 'Next 5 Days', 
+                            start: now, 
+                            end: now.add(5, 'day') 
+                          },
+                          { 
+                            label: 'Next 7 Days', 
+                            start: now, 
+                            end: now.add(7, 'day') 
+                          },
+                          { 
+                            label: 'Next 30 Days', 
+                            start: now, 
+                            end: now.add(30, 'day') 
+                          },
+                        ];
+                        
+                        // Filter presets to only show valid ones
+                        const validPresets = presets.filter(preset => isPresetValid(preset.start, preset.end));
+                        
+                        return validPresets.length > 0 ? (
+                          <Box sx={{ mb: 2 }}>
+                            <Typography variant="caption" sx={{ display: 'block', mb: 0.5, color: 'text.secondary' }}>
+                              Quick Select:
+                            </Typography>
+                            <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                              {validPresets.map((preset, idx) => (
+                                <Button
+                                  key={idx}
+                                  size="small"
+                                  variant="outlined"
+                                  onClick={() => {
+                                    // Clamp dates to extent bounds if necessary
+                                    let start = preset.start;
+                                    let end = preset.end;
+                                    
+                                    if (extentStart && start.isBefore(extentStart)) {
+                                      start = extentStart;
+                                    }
+                                    if (extentEnd && end.isAfter(extentEnd)) {
+                                      end = extentEnd;
+                                    }
+                                    
+                                    setStartDatetime(start.format('YYYY-MM-DDTHH:mm:ss[Z]'));
+                                    setEndDatetime(end.format('YYYY-MM-DDTHH:mm:ss[Z]'));
+                                  }}
+                                  sx={{ 
+                                    fontSize: '0.7rem', 
+                                    py: 0.25, 
+                                    px: 1,
+                                    minWidth: 'auto',
+                                    textTransform: 'none'
+                                  }}
+                                >
+                                  {preset.label}
+                                </Button>
+                              ))}
+                            </Box>
                           </Box>
-                        </Box>
-                      )}
+                        ) : null;
+                      })()}
 
                       {/* Individual Time - show dropdown if values exist, otherwise show DateTimePicker */}
                       {datetimeMode === 'individual' && (
