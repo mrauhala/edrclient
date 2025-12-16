@@ -145,7 +145,7 @@ const LayerManager: React.FC<LayerManagerProps> = ({ layers, onLayersChange }) =
                       </Typography>
                     }
                     secondary={
-                      layer.url && !layer.url.startsWith('selected-item-') && (
+                      (layer.url && !layer.url.startsWith('selected-item-')) ? (
                         <Typography 
                           variant="caption" 
                           sx={{ 
@@ -158,7 +158,17 @@ const LayerManager: React.FC<LayerManagerProps> = ({ layers, onLayersChange }) =
                         >
                           {layer.url}
                         </Typography>
-                      )
+                      ) : layer.data ? (
+                        <Typography 
+                          variant="caption" 
+                          sx={{ 
+                            color: 'text.secondary',
+                            fontStyle: 'italic'
+                          }}
+                        >
+                          Selected feature from items
+                        </Typography>
+                      ) : null
                     }
                   />
                 </ListItem>

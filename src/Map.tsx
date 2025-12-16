@@ -19,6 +19,7 @@ import { DrawEvent } from 'ol/interaction/Draw';
 import { bbox as bboxStrategy } from 'ol/loadingstrategy';
 import FeatureInfo from './FeatureInfo';
 import GeoJsonFeatureViewer from './GeoJsonFeatureViewer';
+import LayerManager from './LayerManager';
 import { Collection, normalizeTemporal, formatTemporalInterval, getOverallTemporalExtent, normalizeVertical, formatVerticalInterval, getOverallVerticalExtent, getVerticalUnit } from './DataRetrievalAPI';
 
 
@@ -1665,6 +1666,24 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
           </div>
         </div>
       )}
+      
+      {/* Layer Manager */}
+      <div style={{
+        position: 'absolute',
+        top: '10px',
+        right: '10px',
+        zIndex: 1000,
+        maxWidth: '400px',
+      }}>
+        <LayerManager
+          layers={geoJsonLayers}
+          onLayersChange={(updatedLayers) => {
+            if (onGeoJsonLayerUpdate) {
+              onGeoJsonLayerUpdate(updatedLayers);
+            }
+          }}
+        />
+      </div>
       
       <FeatureInfo 
         feature={selectedFeature} 

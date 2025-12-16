@@ -54,7 +54,6 @@ import CollectionValidationErrors from './CollectionValidationErrors';
 import SwaggerUIViewer from './SwaggerUIViewer';
 import ConformanceViewer from './ConformanceViewer';
 import ItemsTable from './ItemsTable';
-import LayerManager from './LayerManager';
 import { CustomService } from './SettingsDrawer';
 import { AuthCredentials } from './DataRetrievalAPI';
 
@@ -2725,17 +2724,6 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
                     })}
                   </Box>
                 )}
-
-                {/* Layer Manager - shows all active map layers with visibility and delete controls */}
-                <LayerManager 
-                  layers={activeGeoJsonLayers}
-                  onLayersChange={(updatedLayers) => {
-                    setActiveGeoJsonLayers(updatedLayers);
-                    if (onGeoJsonLayersChange) {
-                      onGeoJsonLayersChange(updatedLayers);
-                    }
-                  }}
-                />
 
                 {/* Location Query Info */}
                 {hasLocationQuery(collection) && (
