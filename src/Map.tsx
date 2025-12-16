@@ -1786,8 +1786,8 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
       {/* Layer Manager */}
       <div style={{
         position: 'absolute',
-        top: '10px',
-        right: '10px',
+        bottom: '10px',
+        left: '10px',
         zIndex: 1000,
         maxWidth: '400px',
       }}>
