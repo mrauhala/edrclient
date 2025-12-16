@@ -54,6 +54,7 @@ import CollectionValidationErrors from './CollectionValidationErrors';
 import SwaggerUIViewer from './SwaggerUIViewer';
 import ConformanceViewer from './ConformanceViewer';
 import ItemsTable from './ItemsTable';
+import LayerManager from './LayerManager';
 import { CustomService } from './SettingsDrawer';
 import { AuthCredentials } from './DataRetrievalAPI';
 
@@ -2676,19 +2677,14 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
                   ) : null;
                 })}
 
-                {/* GeoJSON Layers List with Toggle Buttons */}
-                {activeGeoJsonLayers.length > 0 && (
+                {/* Items Table for collections with items links */}
+                {collection.links && collection.links.some(link => link.rel === 'items' && link.type?.includes('geo+json')) && (
                   <Box sx={{ mb: 2 }}>
-                    <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
-                      GeoJSON Layers
-                    </Typography>
-                    {activeGeoJsonLayers.map((layer, idx) => {
-                      // Check if this layer corresponds to an items link
-                      const itemsLink = collection.links?.find(
-                        link => normalizeHref(link.href) === layer.url && link.rel === 'items'
-                      );
-                      
-                      if (itemsLink) {
+                    {collection.links.map((link, idx) => {
+                      if (link.rel === 'items' && link.type?.includes('geo+json')) {
+                        const normalizedHref = normalizeHref(link.href);
+                        if (!normalizedHref) return null;
+                        
                         // Handler for when a feature/item is clicked in the table
                         const handleItemFeatureClick = (feature: any) => {
                           // Create a GeoJSON layer for the clicked feature
@@ -2715,59 +2711,31 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
                           }
                         };
                         
-                        // For items links, show table instead of toggle button
                         return (
                           <ItemsTable
                             key={idx}
-                            url={layer.url}
-                            title={layer.title}
+                            url={normalizedHref}
+                            title={link.title || 'Items'}
                             getAuthCredentials={getAuthCredentials}
                             onFeatureClick={handleItemFeatureClick}
                           />
                         );
                       }
-                      
-                      // For other GeoJSON layers, show the toggle button
-                      return (
-                        <Box 
-                          key={idx} 
-                          sx={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            justifyContent: 'space-between',
-                            mb: 1,
-                            p: 1,
-                            border: '1px solid rgba(0, 0, 0, 0.12)',
-                            borderRadius: 1,
-                            backgroundColor: layer.visible ? 'rgba(33, 150, 243, 0.08)' : 'transparent'
-                          }}
-                        >
-                          <Typography variant="body2" sx={{ flex: 1 }}>
-                            {layer.title}
-                          </Typography>
-                          <Button
-                            variant={layer.visible ? 'contained' : 'outlined'}
-                            size="small"
-                            color="primary"
-                            onClick={() => {
-                              // Toggle visibility - OpenLayers will handle bbox dynamically
-                              const updatedLayers = activeGeoJsonLayers.map((l, i) => 
-                                i === idx ? { ...l, visible: !l.visible } : l
-                              );
-                              setActiveGeoJsonLayers(updatedLayers);
-                              if (onGeoJsonLayersChange) {
-                                onGeoJsonLayersChange(updatedLayers);
-                              }
-                            }}
-                            sx={{ ml: 1 }}
-                          >
-                            {layer.visible ? 'Hide' : 'Show'}
-                          </Button>
-                        </Box>
-                      );
+                      return null;
                     })}
                   </Box>
                 )}
+
+                {/* Layer Manager - shows all active map layers with visibility and delete controls */}
+                <LayerManager 
+                  layers={activeGeoJsonLayers}
+                  onLayersChange={(updatedLayers) => {
+                    setActiveGeoJsonLayers(updatedLayers);
+                    if (onGeoJsonLayersChange) {
+                      onGeoJsonLayersChange(updatedLayers);
+                    }
+                  }}
+                />
 
                 {/* Location Query Info */}
                 {hasLocationQuery(collection) && (
