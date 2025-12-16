@@ -145,7 +145,14 @@ const LayerManager: React.FC<LayerManagerProps> = ({ layers, onLayersChange }) =
                       </Typography>
                     }
                     secondary={
-                      (layer.url && !layer.url.startsWith('selected-item-')) ? (
+                      // Show URL for GeoJSON layers with real URLs
+                      (layer.url && 
+                       !layer.url.startsWith('selected-item-') && 
+                       !layer.url.startsWith('collection-bbox') &&
+                       !layer.url.startsWith('location-features') &&
+                       !layer.url.startsWith('clicked-markers') &&
+                       !layer.url.startsWith('selected-area') &&
+                       !layer.url.startsWith('radius-circle')) ? (
                         <Typography 
                           variant="caption" 
                           sx={{ 
@@ -157,6 +164,16 @@ const LayerManager: React.FC<LayerManagerProps> = ({ layers, onLayersChange }) =
                           }}
                         >
                           {layer.url}
+                        </Typography>
+                      ) : layer.data?.type === 'internal' ? (
+                        <Typography 
+                          variant="caption" 
+                          sx={{ 
+                            color: 'text.secondary',
+                            fontStyle: 'italic'
+                          }}
+                        >
+                          Map layer
                         </Typography>
                       ) : layer.data ? (
                         <Typography 

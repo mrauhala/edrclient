@@ -54,6 +54,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
   const [drawInteraction, setDrawInteraction] = useState<Draw | null>(null);
   const [geoJsonVectorLayers, setGeoJsonVectorLayers] = useState<{[key: string]: VectorLayer<VectorSource>}>({});
   const [geoJsonMetadata, setGeoJsonMetadata] = useState<{[key: string]: {numberReturned?: number, numberMatched?: number}}>({});
+  const [allMapLayers, setAllMapLayers] = useState<{url: string, title: string, visible: boolean, labelProperty?: string, data?: any, apiKey?: string, apiKeyParam?: string}[]>([]);
   const boundingBoxRef = useRef(boundingBox);
   const selectedExtentsRef = useRef(selectedCollectionExtents);
   const locationFeaturesRef = useRef(locationFeatures);
@@ -1100,6 +1101,121 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
     }
   }, [selectedArea, areaLayer]);
 
+  // Effect to sync all map layers into allMapLayers state for LayerManager
+  useEffect(() => {
+    const layers: typeof allMapLayers = [];
+    
+    // Add GeoJSON layers
+    layers.push(...geoJsonLayers);
+    
+    // Add collection bbox layer
+    if (vectorLayer && selectedCollectionExtents && selectedCollectionExtents.length > 0) {
+      const source = vectorLayer.getSource();
+      const hasFeatures = source && source.getFeatures().length > 0;
+      if (hasFeatures) {
+        layers.push({
+          url: 'collection-bbox',
+          title: 'Collection Extent',
+          visible: vectorLayer.getVisible(),
+          data: { type: 'internal', layerType: 'bbox' }
+        });
+      }
+    }
+    
+    // Add location features layer
+    if (locationLayer && locationFeatures && locationFeatures.length > 0) {
+      layers.push({
+        url: 'location-features',
+        title: `Location Features (${locationFeatures.length})`,
+        visible: locationLayer.getVisible(),
+        data: { type: 'internal', layerType: 'locations' }
+      });
+    }
+    
+    // Add clicked markers layer
+    if (markerLayer) {
+      const source = markerLayer.getSource();
+      const featureCount = source ? source.getFeatures().length : 0;
+      if (featureCount > 0) {
+        layers.push({
+          url: 'clicked-markers',
+          title: `Clicked Points (${featureCount})`,
+          visible: markerLayer.getVisible(),
+          data: { type: 'internal', layerType: 'markers' }
+        });
+      }
+    }
+    
+    // Add selected area layer
+    if (areaLayer && selectedArea && selectedArea.length > 0) {
+      layers.push({
+        url: 'selected-area',
+        title: 'Selected Area',
+        visible: areaLayer.getVisible(),
+        data: { type: 'internal', layerType: 'area' }
+      });
+    }
+    
+    // Add radius layer
+    if (radiusLayer) {
+      const source = radiusLayer.getSource();
+      const hasFeatures = source && source.getFeatures().length > 0;
+      if (hasFeatures) {
+        layers.push({
+          url: 'radius-circle',
+          title: `Radius Circle (${radiusKm} km)`,
+          visible: radiusLayer.getVisible(),
+          data: { type: 'internal', layerType: 'radius' }
+        });
+      }
+    }
+    
+    setAllMapLayers(layers);
+  }, [geoJsonLayers, vectorLayer, locationLayer, markerLayer, areaLayer, radiusLayer, selectedCollectionExtents, locationFeatures, selectedArea, radiusKm]);
+
+  // Handle layer changes from LayerManager
+  const handleLayerManagerChange = (updatedLayers: typeof allMapLayers) => {
+    // Update GeoJSON layers
+    const geoJsonUpdates = updatedLayers.filter(l => !l.url.startsWith('collection-bbox') && 
+                                                        !l.url.startsWith('location-features') && 
+                                                        !l.url.startsWith('clicked-markers') &&
+                                                        !l.url.startsWith('selected-area') &&
+                                                        !l.url.startsWith('radius-circle'));
+    if (onGeoJsonLayerUpdate) {
+      onGeoJsonLayerUpdate(geoJsonUpdates);
+    }
+    
+    // Update internal layer visibility
+    updatedLayers.forEach(layer => {
+      if (layer.url === 'collection-bbox' && vectorLayer) {
+        vectorLayer.setVisible(layer.visible);
+      } else if (layer.url === 'location-features' && locationLayer) {
+        locationLayer.setVisible(layer.visible);
+      } else if (layer.url === 'clicked-markers' && markerLayer) {
+        markerLayer.setVisible(layer.visible);
+      } else if (layer.url === 'selected-area' && areaLayer) {
+        areaLayer.setVisible(layer.visible);
+      } else if (layer.url === 'radius-circle' && radiusLayer) {
+        radiusLayer.setVisible(layer.visible);
+      }
+    });
+    
+    // Handle deletions for internal layers
+    const layerUrls = new Set(updatedLayers.map(l => l.url));
+    
+    if (!layerUrls.has('clicked-markers') && markerLayer) {
+      const source = markerLayer.getSource();
+      if (source) source.clear();
+      if (onMapClick) onMapClick([]);
+    }
+    
+    if (!layerUrls.has('selected-area') && areaLayer) {
+      const source = areaLayer.getSource();
+      if (source) source.clear();
+      if (onAreaSelect) onAreaSelect([]);
+    }
+  };
+
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
       <div id="map" key="main-map" style={{ width: '100%', height: '100%' }} />
@@ -1676,12 +1792,8 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
         maxWidth: '400px',
       }}>
         <LayerManager
-          layers={geoJsonLayers}
-          onLayersChange={(updatedLayers) => {
-            if (onGeoJsonLayerUpdate) {
-              onGeoJsonLayerUpdate(updatedLayers);
-            }
-          }}
+          layers={allMapLayers}
+          onLayersChange={handleLayerManagerChange}
         />
       </div>
       
