@@ -2694,7 +2694,7 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
                           // Create a GeoJSON layer for the clicked feature
                           const featureName = feature.properties?.name || feature.properties?.title || `Feature ${feature.id || ''}`;
                           const featureLayer = {
-                            url: '', // No URL since we're providing data directly
+                            url: `selected-item-${Date.now()}`, // Unique URL to force re-render
                             title: `Selected: ${featureName}`,
                             visible: true,
                             data: {
@@ -2703,7 +2703,7 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
                             }
                           };
                           
-                          // Find existing layers that are not selected items (keep original layers and other selected items)
+                          // Find existing layers that are not selected items (keep original layers)
                           const nonSelectedLayers = activeGeoJsonLayers.filter(l => !l.title.startsWith('Selected: '));
                           
                           // Always add the new selected feature (replacing any previous selection)
