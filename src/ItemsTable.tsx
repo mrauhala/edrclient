@@ -15,6 +15,7 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import ListIcon from '@mui/icons-material/List';
 import axios from 'axios';
 import { AuthCredentials } from './DataRetrievalAPI';
+import KeywordChips from './KeywordChips';
 import { 
   DataGrid, 
   GridColDef,
@@ -137,7 +138,9 @@ const ItemsTable: React.FC<ItemsTableProps> = ({ url, title, getAuthCredentials,
       if (feature.properties) {
         Object.keys(feature.properties).forEach(key => {
           const value = feature.properties![key];
-          row[key] = typeof value === 'object' ? JSON.stringify(value) : value;
+          row[key] = (key === 'keywords' && Array.isArray(value))
+            ? value
+            : typeof value === 'object' ? JSON.stringify(value) : value;
         });
       }
       
@@ -176,6 +179,12 @@ const ItemsTable: React.FC<ItemsTableProps> = ({ url, title, getAuthCredentials,
         headerName: key,
         flex: 1,
         minWidth: 150,
+        ...(key === 'keywords' ? {
+          renderCell: (params) =>
+            Array.isArray(params.value)
+              ? <KeywordChips keywords={params.value as string[]} />
+              : String(params.value ?? ''),
+        } : {}),
       });
     });
     
