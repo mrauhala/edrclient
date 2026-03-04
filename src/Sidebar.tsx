@@ -53,6 +53,7 @@ import VerticalExtent from './VerticalExtent';
 import CollectionValidationErrors from './CollectionValidationErrors';
 import SwaggerUIViewer from './SwaggerUIViewer';
 import ConformanceViewer from './ConformanceViewer';
+import ItemsTable from './ItemsTable';
 import { CustomService } from './SettingsDrawer';
 import { AuthCredentials } from './DataRetrievalAPI';
 
@@ -2675,49 +2676,52 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
                   ) : null;
                 })}
 
-                {/* GeoJSON Layers List with Toggle Buttons */}
-                {activeGeoJsonLayers.length > 0 && (
+                {/* Items Table for collections with items links */}
+                {collection.links && collection.links.some(link => link.rel === 'items' && link.type?.includes('geo+json')) && (
                   <Box sx={{ mb: 2 }}>
-                    <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
-                      GeoJSON Layers
-                    </Typography>
-                    {activeGeoJsonLayers.map((layer, idx) => (
-                      <Box 
-                        key={idx} 
-                        sx={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          justifyContent: 'space-between',
-                          mb: 1,
-                          p: 1,
-                          border: '1px solid rgba(0, 0, 0, 0.12)',
-                          borderRadius: 1,
-                          backgroundColor: layer.visible ? 'rgba(33, 150, 243, 0.08)' : 'transparent'
-                        }}
-                      >
-                        <Typography variant="body2" sx={{ flex: 1 }}>
-                          {layer.title}
-                        </Typography>
-                        <Button
-                          variant={layer.visible ? 'contained' : 'outlined'}
-                          size="small"
-                          color="primary"
-                          onClick={() => {
-                            // Toggle visibility - OpenLayers will handle bbox dynamically
-                            const updatedLayers = activeGeoJsonLayers.map((l, i) => 
-                              i === idx ? { ...l, visible: !l.visible } : l
-                            );
-                            setActiveGeoJsonLayers(updatedLayers);
-                            if (onGeoJsonLayersChange) {
-                              onGeoJsonLayersChange(updatedLayers);
+                    {collection.links.map((link, idx) => {
+                      if (link.rel === 'items' && link.type?.includes('geo+json')) {
+                        const normalizedHref = normalizeHref(link.href);
+                        if (!normalizedHref) return null;
+                        
+                        // Handler for when a feature/item is clicked in the table
+                        const handleItemFeatureClick = (feature: any) => {
+                          // Create a GeoJSON layer for the clicked feature
+                          const featureName = feature.properties?.name || feature.properties?.title || `Feature ${feature.id || ''}`;
+                          const featureLayer = {
+                            url: `selected-item-${Date.now()}`, // Unique URL to force re-render
+                            title: `Selected: ${featureName}`,
+                            visible: true,
+                            data: {
+                              type: 'FeatureCollection',
+                              features: [feature]
                             }
-                          }}
-                          sx={{ ml: 1 }}
-                        >
-                          {layer.visible ? 'Hide' : 'Show'}
-                        </Button>
-                      </Box>
-                    ))}
+                          };
+                          
+                          // Find existing layers that are not selected items (keep original layers)
+                          const nonSelectedLayers = activeGeoJsonLayers.filter(l => !l.title.startsWith('Selected: '));
+                          
+                          // Always add the new selected feature (replacing any previous selection)
+                          const updatedLayers = [...nonSelectedLayers, featureLayer];
+                          
+                          setActiveGeoJsonLayers(updatedLayers);
+                          if (onGeoJsonLayersChange) {
+                            onGeoJsonLayersChange(updatedLayers);
+                          }
+                        };
+                        
+                        return (
+                          <ItemsTable
+                            key={idx}
+                            url={normalizedHref}
+                            title={link.title || 'Items'}
+                            getAuthCredentials={getAuthCredentials}
+                            onFeatureClick={handleItemFeatureClick}
+                          />
+                        );
+                      }
+                      return null;
+                    })}
                   </Box>
                 )}
 
