@@ -20,7 +20,7 @@ import { bbox as bboxStrategy } from 'ol/loadingstrategy';
 import FeatureInfo from './FeatureInfo';
 import GeoJsonFeatureViewer from './GeoJsonFeatureViewer';
 import LayerManager from './LayerManager';
-import { Collection, normalizeTemporal, formatTemporalInterval, getOverallTemporalExtent, normalizeVertical, formatVerticalInterval, getOverallVerticalExtent, getVerticalUnit } from './DataRetrievalAPI';
+import { Collection, normalizeHref, normalizeTemporal, formatTemporalInterval, getOverallTemporalExtent, normalizeVertical, formatVerticalInterval, getOverallVerticalExtent, getVerticalUnit } from './DataRetrievalAPI';
 
 
 interface MapProps {
@@ -1127,7 +1127,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
       // Try to get location URL from the selected collection
       let locationUrl = 'location-features';
       if (selectedCollection) {
-        const locationQueryUrl = selectedCollection.data_queries?.locations?.link?.href;
+        const locationQueryUrl = normalizeHref(selectedCollection.data_queries?.locations?.link?.href);
         if (locationQueryUrl) {
           locationUrl = locationQueryUrl;
         }
