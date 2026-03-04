@@ -85,11 +85,13 @@ const ItemsTable: React.FC<ItemsTableProps> = ({ url, title, getAuthCredentials,
         }
       }
 
-      // Add API key to URL if provided
+      // Add API key and limit to URL if provided
       let fetchUrl = url;
+      const separator = url.includes('?') ? '&' : '?';
+      fetchUrl = `${url}${separator}limit=2000`;
+      
       if (auth?.apiKey && auth?.apiKeyParam) {
-        const separator = url.includes('?') ? '&' : '?';
-        fetchUrl = `${url}${separator}${auth.apiKeyParam}=${auth.apiKey}`;
+        fetchUrl = `${fetchUrl}&${auth.apiKeyParam}=${auth.apiKey}`;
       }
 
       const response = await axios.get(fetchUrl, { headers });

@@ -149,7 +149,6 @@ const LayerManager: React.FC<LayerManagerProps> = ({ layers, onLayersChange }) =
                       (layer.url && 
                        !layer.url.startsWith('selected-item-') && 
                        !layer.url.startsWith('collection-bbox') &&
-                       !layer.url.startsWith('location-features') &&
                        !layer.url.startsWith('clicked-markers') &&
                        !layer.url.startsWith('selected-area') &&
                        !layer.url.startsWith('radius-circle')) ? (
@@ -165,7 +164,7 @@ const LayerManager: React.FC<LayerManagerProps> = ({ layers, onLayersChange }) =
                         >
                           {layer.url}
                         </Typography>
-                      ) : layer.data?.type === 'internal' ? (
+                      ) : layer.data?.type === 'internal' && layer.data?.layerType !== 'locations' ? (
                         <Typography 
                           variant="caption" 
                           sx={{ 

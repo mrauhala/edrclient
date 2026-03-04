@@ -412,9 +412,9 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
               const [maxLon, maxLat] = toLonLat([maxX, maxY]);
               const bboxString = `${minLon},${minLat},${maxLon},${maxLat}`;
               
-              // Start building URL with bbox parameter
+              // Start building URL with bbox and limit parameters
               const separator = layerConfig.url.includes('?') ? '&' : '?';
-              let finalUrl = `${layerConfig.url}${separator}bbox=${bboxString}`;
+              let finalUrl = `${layerConfig.url}${separator}bbox=${bboxString}&limit=2000`;
               
               // Add API key if provided
               if (layerConfig.apiKey) {
@@ -570,10 +570,10 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
       style: new Style({
         stroke: new Stroke({
           color: '#ff0000',
-          width: 3,
+          width: 2,
         }),
         fill: new Fill({
-          color: 'rgba(255, 0, 0, 0.2)',
+          color: 'rgba(255, 0, 0, 0.05)',
         }),
       }),
     });
@@ -1124,8 +1124,17 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
     
     // Add location features layer
     if (locationLayer && locationFeatures && locationFeatures.length > 0) {
+      // Try to get location URL from the selected collection
+      let locationUrl = 'location-features';
+      if (selectedCollection) {
+        const locationQueryUrl = selectedCollection.data_queries?.locations?.link?.href;
+        if (locationQueryUrl) {
+          locationUrl = locationQueryUrl;
+        }
+      }
+      
       layers.push({
-        url: 'location-features',
+        url: locationUrl,
         title: `Location Features (${locationFeatures.length})`,
         visible: locationLayer.getVisible(),
         data: { type: 'internal', layerType: 'locations' }
@@ -1175,41 +1184,46 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
 
   // Handle layer changes from LayerManager
   const handleLayerManagerChange = (updatedLayers: typeof allMapLayers) => {
-    // Update GeoJSON layers
-    const geoJsonUpdates = updatedLayers.filter(l => !l.url.startsWith('collection-bbox') && 
-                                                        !l.url.startsWith('location-features') && 
-                                                        !l.url.startsWith('clicked-markers') &&
-                                                        !l.url.startsWith('selected-area') &&
-                                                        !l.url.startsWith('radius-circle'));
+    // Filter out internal layers - use data.type instead of URL patterns
+    const geoJsonUpdates = updatedLayers.filter(l => !l.data || l.data.type !== 'internal');
     if (onGeoJsonLayerUpdate) {
       onGeoJsonLayerUpdate(geoJsonUpdates);
     }
     
-    // Update internal layer visibility
+    // Update internal layer visibility - use data.layerType instead of URL
     updatedLayers.forEach(layer => {
-      if (layer.url === 'collection-bbox' && vectorLayer) {
-        vectorLayer.setVisible(layer.visible);
-      } else if (layer.url === 'location-features' && locationLayer) {
-        locationLayer.setVisible(layer.visible);
-      } else if (layer.url === 'clicked-markers' && markerLayer) {
-        markerLayer.setVisible(layer.visible);
-      } else if (layer.url === 'selected-area' && areaLayer) {
-        areaLayer.setVisible(layer.visible);
-      } else if (layer.url === 'radius-circle' && radiusLayer) {
-        radiusLayer.setVisible(layer.visible);
+      if (layer.data?.type === 'internal') {
+        switch (layer.data.layerType) {
+          case 'bbox':
+            if (vectorLayer) vectorLayer.setVisible(layer.visible);
+            break;
+          case 'locations':
+            if (locationLayer) locationLayer.setVisible(layer.visible);
+            break;
+          case 'markers':
+            if (markerLayer) markerLayer.setVisible(layer.visible);
+            break;
+          case 'area':
+            if (areaLayer) areaLayer.setVisible(layer.visible);
+            break;
+          case 'radius':
+            if (radiusLayer) radiusLayer.setVisible(layer.visible);
+            break;
+        }
       }
     });
     
-    // Handle deletions for internal layers
-    const layerUrls = new Set(updatedLayers.map(l => l.url));
+    // Handle deletions for internal layers - check by layerType
+    const internalLayers = updatedLayers.filter(l => l.data?.type === 'internal');
+    const internalLayerTypes = new Set(internalLayers.map(l => l.data.layerType));
     
-    if (!layerUrls.has('clicked-markers') && markerLayer) {
+    if (!internalLayerTypes.has('markers') && markerLayer) {
       const source = markerLayer.getSource();
       if (source) source.clear();
       if (onMapClick) onMapClick([]);
     }
     
-    if (!layerUrls.has('selected-area') && areaLayer) {
+    if (!internalLayerTypes.has('area') && areaLayer) {
       const source = areaLayer.getSource();
       if (source) source.clear();
       if (onAreaSelect) onAreaSelect([]);
