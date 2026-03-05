@@ -8,6 +8,7 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import OpenLayersMap from './Map';
 import { Collection } from './DataRetrievalAPI';
+import { LicenseInfo } from './CollectionInfo';
 import Paper from '@mui/material/Paper';
 import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
@@ -47,6 +48,7 @@ function App() {
   const [boundingBox, setBoundingBox] = useState<[number, number, number, number]>([-180, -90, 180, 90]);
   const [selectedCollectionExtents, setSelectedCollectionExtents] = useState<[number, number, number, number][] | null>(null);
   const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
+  const [landingPageLicense, setLandingPageLicense] = useState<LicenseInfo | null>(null);
   const [locationFeatures, setLocationFeatures] = useState<any[] | null>(null);
   const [selectedFeature, setSelectedFeature] = useState<any | null>(null);
   const [clickedCoords, setClickedCoords] = useState<[number, number][]>([]);
@@ -325,6 +327,7 @@ function App() {
           customServices={customServices}
           onServiceUrlSelect={selectedServiceUrl}
           onGeoJsonLayersChange={setGeoJsonLayers}
+          onLandingPageLicenseChange={setLandingPageLicense}
           getAuthCredentials={getAuthCredentials}
         />
         
@@ -337,19 +340,20 @@ function App() {
             overflow: 'hidden',
           }}
         >
-          <OpenLayersMap 
-            zoomLevel={2} 
-            boundingBox={boundingBox} 
-            selectedCollectionExtents={selectedCollectionExtents} 
-            selectedCollection={selectedCollection} 
-            locationFeatures={locationFeatures} 
-            selectedFeature={selectedFeature} 
-            onFeatureSelect={handleFeatureSelect} 
-            clickedCoords={clickedCoords} 
+          <OpenLayersMap
+            zoomLevel={2}
+            boundingBox={boundingBox}
+            selectedCollectionExtents={selectedCollectionExtents}
+            selectedCollection={selectedCollection}
+            landingPageLicense={landingPageLicense}
+            locationFeatures={locationFeatures}
+            selectedFeature={selectedFeature}
+            onFeatureSelect={handleFeatureSelect}
+            clickedCoords={clickedCoords}
             selectedArea={selectedArea}
             radiusKm={radiusKm}
             onRadiusChange={setRadiusKm}
-            dataQuery={dataQuery} 
+            dataQuery={dataQuery}
             onMapClick={setClickedCoords}
             onAreaSelect={setSelectedArea}
             geoJsonLayers={geoJsonLayers}

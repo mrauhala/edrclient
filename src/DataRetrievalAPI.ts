@@ -211,6 +211,7 @@ export interface ValidationResult {
 
 interface CollectionsResponse {
   collections: Collection[];
+  links?: Link[]; // Top-level links (may include license, self, etc.)
 }
 
 export interface LandingPage {
@@ -232,6 +233,7 @@ export interface GetCollectionsResult {
   conformsTo?: string[]; // OGC API conformance classes
   landingPageLinks?: Link[]; // Links from the landing page
   landingPageKeywords?: string[]; // Keywords from the landing page
+  collectionsLinks?: Link[]; // Top-level links from the /collections endpoint response
 }
 
 export interface LocationQueryResult {
@@ -1448,7 +1450,8 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
     const data = response.data;
 
     let collections: Collection[] = [];
-    
+    let collectionsLinks: Link[] | undefined;
+
     // Extract collections from the response safely
     if (data && typeof data === 'object') {
       if (data.collections && Array.isArray(data.collections)) {
@@ -1460,6 +1463,10 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
         console.log(`Found ${collections.length} collections as direct array`);
       } else {
         console.warn('No collections found in response structure:', Object.keys(data));
+      }
+      // Capture top-level links from the /collections response (may include license, etc.)
+      if (!Array.isArray(data) && Array.isArray(data.links)) {
+        collectionsLinks = data.links;
       }
     }
 
@@ -1544,7 +1551,8 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
       serviceDescUrl: serviceDescUrl || undefined,
       conformsTo: conformsTo,
       landingPageLinks: landingPageData?.links,
-      landingPageKeywords: landingPageData?.keywords
+      landingPageKeywords: landingPageData?.keywords,
+      collectionsLinks,
     };
   } catch (error) {
     console.error('Error fetching collections:', error);

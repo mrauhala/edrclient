@@ -20,7 +20,8 @@ import { bbox as bboxStrategy } from 'ol/loadingstrategy';
 import FeatureInfo from './FeatureInfo';
 import GeoJsonFeatureViewer from './GeoJsonFeatureViewer';
 import LayerManager from './LayerManager';
-import { Collection, normalizeHref, normalizeTemporal, formatTemporalInterval, getOverallTemporalExtent, normalizeVertical, formatVerticalInterval, getOverallVerticalExtent, getVerticalUnit } from './DataRetrievalAPI';
+import { Collection, normalizeHref } from './DataRetrievalAPI';
+import CollectionInfo, { LicenseInfo } from './CollectionInfo';
 
 
 interface MapProps {
@@ -28,6 +29,7 @@ interface MapProps {
   boundingBox: [number, number, number, number];
   selectedCollectionExtents?: [number, number, number, number][] | null;
   selectedCollection?: Collection | null;
+  landingPageLicense?: LicenseInfo | null;
   locationFeatures?: any[] | null;
   selectedFeature?: any | null;
   clickedCoords?: [number, number][];
@@ -44,7 +46,7 @@ interface MapProps {
   onGeoJsonLayerUpdate?: (layers: {url: string, title: string, visible: boolean, labelProperty?: string, data?: any, apiKey?: string, apiKeyParam?: string}[]) => void;
 }
 
-const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCollectionExtents, selectedCollection, locationFeatures, selectedFeature, clickedCoords, selectedArea, radiusKm, dataQuery, onFeatureSelect, onMapClick, onAreaSelect, onRadiusChange, geoJsonLayers = [], selectedGeoJsonFeature, onGeoJsonFeatureSelect, onGeoJsonLayerUpdate }) => {
+const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCollectionExtents, selectedCollection, landingPageLicense, locationFeatures, selectedFeature, clickedCoords, selectedArea, radiusKm, dataQuery, onFeatureSelect, onMapClick, onAreaSelect, onRadiusChange, geoJsonLayers = [], selectedGeoJsonFeature, onGeoJsonFeatureSelect, onGeoJsonLayerUpdate }) => {
   const [map, setMap] = useState<Map | null>(null);
   const [vectorLayer, setVectorLayer] = useState<VectorLayer<VectorSource> | null>(null);
   const [locationLayer, setLocationLayer] = useState<VectorLayer<VectorSource> | null>(null);
@@ -1298,98 +1300,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
             border: '1px solid rgba(255,255,255,0.2)',
           }}
         >
-          <div style={{ fontWeight: 'bold', marginBottom: '4px', fontSize: '16px' }}>
-            {selectedCollection.title || selectedCollection.id}
-          </div>
-          {selectedCollection.description && (
-            <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.9)', lineHeight: '1.3', marginBottom: '8px' }}>
-              {selectedCollection.description}
-            </div>
-          )}
-          
-          {/* Temporal Coverage */}
-          {selectedCollection.extent?.temporal && (() => {
-            const normalizedTemporal = normalizeTemporal(selectedCollection.extent.temporal);
-            if (normalizedTemporal && normalizedTemporal.intervals.length > 0) {
-              const overallExtent = getOverallTemporalExtent(normalizedTemporal.intervals);
-              if (overallExtent) {
-                return (
-                  <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.8)', marginBottom: '4px' }}>
-                    <div style={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.9)' }}>Available:</div>
-                    <div>{formatTemporalInterval(overallExtent[0], overallExtent[1])}</div>
-                    {normalizedTemporal.intervals.length > 1 && (
-                      <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.7)' }}>
-                        ({normalizedTemporal.intervals.length} intervals)
-                      </div>
-                    )}
-                  </div>
-                );
-              }
-            }
-            return null;
-          })()}
-
-          {/* Vertical Coverage */}
-          {selectedCollection.extent?.vertical && (() => {
-            const normalizedVertical = normalizeVertical(selectedCollection.extent.vertical);
-            if (normalizedVertical && normalizedVertical.intervals.length > 0) {
-              const overallExtent = getOverallVerticalExtent(normalizedVertical.intervals);
-              if (overallExtent) {
-                const unit = getVerticalUnit(normalizedVertical.vrs);
-                return (
-                  <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.8)', marginBottom: '4px' }}>
-                    <div style={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.9)' }}>Vertical Coverage:</div>
-                    <div>{formatVerticalInterval(overallExtent[0], overallExtent[1], unit)}</div>
-                    {normalizedVertical.intervals.length > 1 && (
-                      <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.7)' }}>
-                        ({normalizedVertical.intervals.length} intervals)
-                      </div>
-                    )}
-                  </div>
-                );
-              }
-            }
-            return null;
-          })()}
-
-          {/* License Information */}
-          {(() => {
-            // Find license link in collection links
-            const licenseLink = selectedCollection.links?.find(link => link.rel === 'license');
-            if (licenseLink && licenseLink.href) {
-              const href = typeof licenseLink.href === 'string' ? licenseLink.href : Object.values(licenseLink.href)[0];
-              
-              // Check if it's a Creative Commons license
-              if (href && href.includes('creativecommons.org/licenses/')) {
-                try {
-                  const url = new URL(href);
-                  const pathParts = url.pathname.split('/').filter(p => p);
-                  
-                  // Expected format: /licenses/by-nc-nd/4.0/
-                  if (pathParts.length >= 3 && pathParts[0] === 'licenses') {
-                    const licenseType = pathParts[1].toUpperCase().replace(/-/g, '-');
-                    const version = pathParts[2];
-                    
-                    return (
-                      <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.8)', marginTop: '4px' }}>
-                        <span style={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.9)' }}>License: </span>
-                        CC {licenseType} {version}
-                      </div>
-                    );
-                  }
-                } catch (e) {
-                  // Invalid URL, skip
-                }
-              }
-            }
-            return null;
-          })()}
-
-          {selectedCollection.id && selectedCollection.title && (
-            <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)', marginTop: '4px' }}>
-              ID: {selectedCollection.id}
-            </div>
-          )}
+          <CollectionInfo collection={selectedCollection} dark fallbackLicense={landingPageLicense} />
         </div>
       )}
       
