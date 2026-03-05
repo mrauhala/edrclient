@@ -5,6 +5,7 @@ import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
+import KeywordChips from './KeywordChips';
 
 interface FeatureInfoProps {
   feature: any | null;
@@ -133,17 +134,23 @@ const FeatureInfo: React.FC<FeatureInfoProps> = ({ feature, onClose }) => {
                 >
                   {key}:
                 </Typography>
-                <Typography 
-                  variant="body2" 
-                  component="div"
-                  sx={{ 
-                    ml: 1,
-                    wordBreak: 'break-word',
-                    fontFamily: typeof value === 'string' ? 'inherit' : 'monospace'
-                  }}
-                >
-                  {typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}
-                </Typography>
+                {key === 'keywords' && Array.isArray(value) ? (
+                  <Box sx={{ ml: 1, mt: 0.5 }}>
+                    <KeywordChips keywords={value as string[]} />
+                  </Box>
+                ) : (
+                  <Typography
+                    variant="body2"
+                    component="div"
+                    sx={{
+                      ml: 1,
+                      wordBreak: 'break-word',
+                      fontFamily: typeof value === 'string' ? 'inherit' : 'monospace'
+                    }}
+                  >
+                    {typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}
+                  </Typography>
+                )}
               </Box>
             ))}
           </Box>

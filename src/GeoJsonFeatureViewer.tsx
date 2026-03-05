@@ -11,6 +11,7 @@ import TableRow from '@mui/material/TableRow';
 import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
 import LayersIcon from '@mui/icons-material/Layers';
+import KeywordChips from './KeywordChips';
 
 interface GeoJsonFeatureViewerProps {
   feature: any | null;
@@ -227,9 +228,11 @@ const GeoJsonFeatureViewer: React.FC<GeoJsonFeatureViewerProps> = ({ feature, on
                         <Typography variant="body2" color="text.secondary" fontStyle="italic">
                           null
                         </Typography>
+                      ) : key === 'keywords' && Array.isArray(value) ? (
+                        <KeywordChips keywords={value as string[]} />
                       ) : typeof value === 'object' ? (
-                        <pre style={{ 
-                          margin: 0, 
+                        <pre style={{
+                          margin: 0,
                           fontSize: '0.75rem',
                           whiteSpace: 'pre-wrap',
                           wordBreak: 'break-word'

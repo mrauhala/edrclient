@@ -56,6 +56,7 @@ import ConformanceViewer from './ConformanceViewer';
 import ItemsTable from './ItemsTable';
 import { CustomService } from './SettingsDrawer';
 import { AuthCredentials } from './DataRetrievalAPI';
+import KeywordChips from './KeywordChips';
 
 // Configure dayjs to use UTC plugin
 dayjs.extend(utc);
@@ -156,6 +157,7 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
   const [serviceDescUrl, setServiceDescUrl] = useState<string | null>(null);
   const [conformsTo, setConformsTo] = useState<string[] | null>(null);
   const [landingPageLinks, setLandingPageLinks] = useState<ApiLink[] | null>(null);
+  const [landingPageKeywords, setLandingPageKeywords] = useState<string[] | null>(null);
   const [selectedConformanceUrl, setSelectedConformanceUrl] = useState<string | null>(null);
   const [validationTrigger, setValidationTrigger] = useState(0); // Counter to force re-validation
   const [showServiceLinks, setShowServiceLinks] = useState(false); // State for collapsible links section
@@ -288,6 +290,7 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
       setLandingPageLinks(null);
       setLandingPageTitle(null);
       setLandingPageDescription(null);
+      setLandingPageKeywords(null);
       setServiceDescUrl(null);
       
       // Clear GeoJSON layers
@@ -312,6 +315,7 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
         setServiceDescUrl(result.serviceDescUrl || null);
         setConformsTo(result.conformsTo || null);
         setLandingPageLinks(result.landingPageLinks || null);
+        setLandingPageKeywords(result.landingPageKeywords || null);
         
         // Clear any previous extent/location data when switching services
         if (onCollectionExtentChange) {
@@ -1105,6 +1109,9 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                   {landingPageDescription}
                 </Typography>
+              )}
+              {landingPageKeywords && landingPageKeywords.length > 0 && (
+                <KeywordChips keywords={landingPageKeywords} />
               )}
             </Box>
           )}
