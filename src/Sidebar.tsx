@@ -9,15 +9,10 @@ import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
 import ErrorIcon from '@mui/icons-material/Error';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import Public from '@mui/icons-material/Public';
-import AccessTime from '@mui/icons-material/AccessTime';
-import Height from '@mui/icons-material/Height';
-import BugReport from '@mui/icons-material/BugReport';
 import CloudQueue from '@mui/icons-material/CloudQueue';
 import Person from '@mui/icons-material/Person';
 import Lock from '@mui/icons-material/Lock';
 import ListItemIcon from '@mui/material/ListItemIcon';
-import Badge from '@mui/material/Badge';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import InputLabel from '@mui/material/InputLabel';
@@ -44,7 +39,8 @@ import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs, { Dayjs } from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import React, { useEffect, useState, useMemo } from 'react';
-import { getCollections, Collection, ValidationResult, normalizeBbox, hasLocationQuery, getLocationQueryUrl, executeLocationQuery, getSupportedDataQueries, normalizeTemporal, formatConformanceClass, expandTemporalValues, expandVerticalValues, expandCustomDimensionValues, getOverallTemporalExtent, Link as ApiLink, normalizeHref } from './DataRetrievalAPI';
+import { getCollections, Collection, ValidationResult, normalizeBbox, hasLocationQuery, getLocationQueryUrl, executeLocationQuery, normalizeTemporal, formatConformanceClass, expandTemporalValues, expandVerticalValues, expandCustomDimensionValues, getOverallTemporalExtent, Link as ApiLink, normalizeHref } from './DataRetrievalAPI';
+import CollectionInfo, { parseLicense, LicenseInfo } from './CollectionInfo';
 import ValidationResults from './ValidationResult';
 import SchemaInspector from './SchemaInspector';
 import LocationFeatureList from './LocationFeatureList';
@@ -78,6 +74,7 @@ interface SidebarProps {
   customServices?: CustomService[];
   onServiceUrlSelect?: string | null;
   onGeoJsonLayersChange?: (layers: {url: string, title: string, visible: boolean, labelProperty?: string, data?: any, apiKey?: string, apiKeyParam?: string}[]) => void;
+  onLandingPageLicenseChange?: (license: LicenseInfo | null) => void;
   getAuthCredentials: (url: string) => AuthCredentials | undefined;
 }
 
@@ -104,7 +101,7 @@ const edrServices = [
   { label: 'Custom', value: '' }
 ];
 
-const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onFeatureSelect, onSelectedCollectionChange, onMapClick, onDataQueryChange, onCollectionUrlChange, clickedCoords, selectedArea, radiusKm, locationFeatures, selectedFeature, customServices = [], onServiceUrlSelect = null, onGeoJsonLayersChange, getAuthCredentials }: SidebarProps) => {
+const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onFeatureSelect, onSelectedCollectionChange, onMapClick, onDataQueryChange, onCollectionUrlChange, clickedCoords, selectedArea, radiusKm, locationFeatures, selectedFeature, customServices = [], onServiceUrlSelect = null, onGeoJsonLayersChange, onLandingPageLicenseChange, getAuthCredentials }: SidebarProps) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md')); // Mobile/tablet breakpoint at 900px
   const sidebarWidth = isMobile ? '100%' : 480;
@@ -158,6 +155,20 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
   const [conformsTo, setConformsTo] = useState<string[] | null>(null);
   const [landingPageLinks, setLandingPageLinks] = useState<ApiLink[] | null>(null);
   const [landingPageKeywords, setLandingPageKeywords] = useState<string[] | null>(null);
+  const [collectionsLinks, setCollectionsLinks] = useState<ApiLink[] | null>(null);
+
+  // Derive top-level service license (EDR spec: license applies to all collections unless
+  // a collection overrides it with its own license link).
+  // Priority: /collections root links → landing page links (either may carry the license).
+  const topLevelLicense = useMemo<LicenseInfo | null>(() => {
+    for (const links of [collectionsLinks, landingPageLinks]) {
+      if (!links) continue;
+      const link = links.find((l) => l.rel === 'license');
+      if (link) return parseLicense(link.href, link.title);
+    }
+    return null;
+  }, [collectionsLinks, landingPageLinks]);
+
   const [selectedConformanceUrl, setSelectedConformanceUrl] = useState<string | null>(null);
   const [validationTrigger, setValidationTrigger] = useState(0); // Counter to force re-validation
   const [showServiceLinks, setShowServiceLinks] = useState(false); // State for collapsible links section
@@ -288,6 +299,7 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
       setValidationResult({ isValid: true, errors: null });
       setConformsTo(null);
       setLandingPageLinks(null);
+      setCollectionsLinks(null);
       setLandingPageTitle(null);
       setLandingPageDescription(null);
       setLandingPageKeywords(null);
@@ -315,6 +327,7 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
         setServiceDescUrl(result.serviceDescUrl || null);
         setConformsTo(result.conformsTo || null);
         setLandingPageLinks(result.landingPageLinks || null);
+        setCollectionsLinks(result.collectionsLinks || null);
         setLandingPageKeywords(result.landingPageKeywords || null);
         
         // Clear any previous extent/location data when switching services
@@ -378,6 +391,13 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clickedCoords]);
+
+  // Notify parent when top-level service license changes (so Map can show it as fallback).
+  useEffect(() => {
+    if (onLandingPageLicenseChange) {
+      onLandingPageLicenseChange(topLevelLicense);
+    }
+  }, [topLevelLicense, onLandingPageLicenseChange]);
 
   // Effect to rebuild URL when selected area changes
   useEffect(() => {
@@ -1357,282 +1377,31 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
         )}
             {collections.map((collection, index) => (
           <React.Fragment key={collection.id || index}>
-            <ListItemButton onClick={() => handleItemClick(index, collection.id)}>
-              <ListItemText 
+            <ListItemButton
+              onClick={() => handleItemClick(index, collection.id)}
+              sx={{
+                borderLeft: '3px solid',
+                borderColor: !validationResult.collectionErrors
+                  ? 'transparent'
+                  : validationResult.collectionErrors[collection.id]
+                    ? 'warning.main'
+                    : 'success.main',
+                pl: '13px',
+              }}
+            >
+              <ListItemText
                 primary={
-                  <div>
-                    {/* Validation Status Chip - First row */}
-                    <div style={{ 
-                      display: 'flex', 
-                      gap: '6px', 
-                      marginBottom: '6px',
-                      alignItems: 'center'
-                    }}>
-                      <Chip
-                        label={`ID: ${collection.id}`}
-                        size="small"
-                        color={
-                          validationResult.collectionErrors && validationResult.collectionErrors[collection.id]
-                            ? 'warning'
-                            : 'success'
-                        }
-                        variant="outlined"
-                        sx={{ 
-                          height: '18px',
-                          fontSize: '0.6rem',
-                          fontWeight: 'bold',
-                          borderWidth: '1px',
-                          '& .MuiChip-label': {
-                            padding: '0 5px'
-                          }
-                        }}
-                      />
-                      {validationResult.collectionErrors && validationResult.collectionErrors[collection.id] && (
-                        <Badge 
-                          badgeContent={validationResult.collectionErrors[collection.id].length}
-                          color={
-                            validationResult.collectionErrors[collection.id]
-                              ? 'warning'
-                              : 'success'
-                          }
-                          sx={{
-                            '& .MuiBadge-badge': {
-                              fontSize: '0.6rem',
-                              height: '14px',
-                              minWidth: '14px',
-                              padding: '0 3px'
-                            }
-                          }}
-                        >
-                          <BugReport 
-                            sx={{ 
-                              fontSize: '1rem',
-                              color: validationResult.collectionErrors[collection.id]
-                                ? 'warning.main'
-                                : 'success.main'
-                            }} 
-                          />
-                        </Badge>
-                      )}
-                    </div>
-                    {/* Collection Title - Second row */}
-                    <Typography 
-                      variant="subtitle1" 
-                      component="div"
-                      sx={{ 
-                        fontWeight: 600,
-                        lineHeight: 1.3,
-                        marginBottom: '6px'
-                      }}
-                    >
-                      {collection.title ? collection.title : collection.id}
-                    </Typography>
-                    {/* Extent Type Badges - Between title and description */}
-                    {(() => {
-                      const standardExtentBadges: { label: string; color: 'primary' | 'secondary'; icon?: React.ReactElement }[] = [];
-                      const customExtentBadges: { label: string; color: 'primary' | 'secondary'; icon?: React.ReactElement }[] = [];
-                      
-                      // Check for spatial extent
-                      if (collection.extent?.spatial?.bbox && 
-                          Array.isArray(collection.extent.spatial.bbox) && 
-                          collection.extent.spatial.bbox.length > 0) {
-                        standardExtentBadges.push({ 
-                          label: 'Spatial', 
-                          color: 'primary',
-                          icon: <Public sx={{ fontSize: '0.7rem' }} />
-                        });
-                      }
-                      // Check for temporal extent
-                      if (collection.extent?.temporal && 
-                          (collection.extent.temporal.interval || collection.extent.temporal.values)) {
-                        standardExtentBadges.push({ 
-                          label: 'Temporal', 
-                          color: 'primary',
-                          icon: <AccessTime sx={{ fontSize: '0.7rem' }} />
-                        });
-                      }
-                      // Check for vertical extent
-                      if (collection.extent?.vertical && 
-                          (collection.extent.vertical.interval || collection.extent.vertical.values)) {
-                        standardExtentBadges.push({ 
-                          label: 'Vertical', 
-                          color: 'primary',
-                          icon: <Height sx={{ fontSize: '0.7rem' }} />
-                        });
-                      }
-                      // Check for custom dimensions
-                      if (collection.extent?.custom && Array.isArray(collection.extent.custom)) {
-                        collection.extent.custom.forEach((customDim) => {
-                          if (customDim.id) {
-                            customExtentBadges.push({ 
-                              label: customDim.id, 
-                              color: 'secondary'
-                            });
-                          }
-                        });
-                      }
-                      
-                      const allBadges = [...standardExtentBadges, ...customExtentBadges];
-                      
-                      return allBadges.length > 0 ? (
-                        <div style={{ 
-                          display: 'flex', 
-                          gap: '4px', 
-                          flexWrap: 'wrap',
-                          marginBottom: '6px'
-                        }}>
-                          {allBadges.map((badge, idx) => (
-                            <Chip
-                              key={`${badge.label}-${idx}`}
-                              label={badge.label}
-                              icon={badge.icon}
-                              size="small"
-                              color={badge.color}
-                              variant="filled"
-                              sx={{ 
-                                height: '18px',
-                                fontSize: '0.6rem',
-                                fontWeight: 'bold',
-                                '& .MuiChip-label': {
-                                  padding: '0 5px'
-                                },
-                                '& .MuiChip-icon': {
-                                  marginLeft: '4px'
-                                }
-                              }}
-                            />
-                          ))}
-                        </div>
-                      ) : null;
-                    })()}
-                  </div>
+                  <CollectionInfo
+                    collection={collection}
+                    fallbackLicense={topLevelLicense}
+                    validationErrors={
+                      validationResult.collectionErrors
+                        ? (validationResult.collectionErrors[collection.id] ?? [])
+                        : undefined
+                    }
+                  />
                 }
                 primaryTypographyProps={{ component: 'div' }}
-                secondary={
-                  <>
-                    {collection.description && (
-                      <Box sx={{ position: 'relative' }}>
-                        {collection.assets?.thumbnail?.href && (
-                          <Box
-                            component="img"
-                            src={collection.assets.thumbnail.href}
-                            alt={collection.assets.thumbnail.title || collection.title || 'Collection thumbnail'}
-                            sx={{
-                              float: 'right',
-                              width: 100,
-                              height: 100,
-                              objectFit: 'cover',
-                              borderRadius: 1,
-                              marginLeft: 1.5,
-                              marginBottom: 1
-                            }}
-                            onError={(e) => {
-                              (e.target as HTMLElement).style.display = 'none';
-                            }}
-                          />
-                        )}
-                        <Typography variant="body2" component="span">
-                          {collection.description}
-                        </Typography>
-                      </Box>
-                    )}
-                    {collection.itemType && (
-                      <Box 
-                        component="span"
-                        sx={{ 
-                          fontSize: '0.875rem', 
-                          color: 'text.secondary',
-                          display: 'block', 
-                          marginTop: '4px',
-                          fontWeight: 500
-                        }}
-                      >
-                        Item Type: {collection.itemType}
-                      </Box>
-                    )}
-                    {/* Data Query Type Badges */}
-                    {getSupportedDataQueries(collection).length > 0 && (
-                      <Box sx={{ marginTop: '8px' }}>
-                        <div style={{ 
-                          display: 'flex', 
-                          gap: '4px', 
-                          flexWrap: 'wrap'
-                        }}>
-                          {getSupportedDataQueries(collection).map((queryType) => (
-                            <Chip
-                              key={queryType}
-                              label={queryType.toUpperCase()}
-                              size="small"
-                              color="primary"
-                              variant="outlined"
-                              sx={{ 
-                                height: '18px',
-                                fontSize: '0.6rem',
-                                fontWeight: 'bold',
-                                borderWidth: '1px',
-                                '& .MuiChip-label': {
-                                  padding: '0 5px'
-                                }
-                              }}
-                            />
-                          ))}
-                        </div>
-                      </Box>
-                    )}
-                    {/* Temporal Extent - Separate row */}
-                    {collection.extent?.temporal && (() => {
-                      const normalizedTemporal = normalizeTemporal(collection.extent.temporal);
-                      if (normalizedTemporal && normalizedTemporal.intervals.length > 0) {
-                        const formatDate = (dateStr: string | null) => {
-                          if (!dateStr || dateStr === '..') return 'open';
-                          try {
-                            const date = new Date(dateStr);
-                            // Format: "Nov 1, 2025 06:00" or just date if time is 00:00
-                            const timeStr = date.toISOString().split('T')[1];
-                            const hasTime = timeStr && !timeStr.startsWith('00:00:00');
-                            
-                            if (hasTime) {
-                              const formatted = date.toLocaleDateString('en-US', { 
-                                month: 'short', 
-                                day: 'numeric', 
-                                year: 'numeric',
-                                timeZone: 'UTC'
-                              });
-                              const time = date.toISOString().split('T')[1].substring(0, 5);
-                              return `${formatted} ${time}`;
-                            } else {
-                              return date.toLocaleDateString('en-US', { 
-                                month: 'short', 
-                                day: 'numeric', 
-                                year: 'numeric',
-                                timeZone: 'UTC'
-                              });
-                            }
-                          } catch {
-                            return dateStr;
-                          }
-                        };
-                        
-                        const interval = normalizedTemporal.intervals[0]; // Show first interval
-                        const start = formatDate(interval[0]);
-                        const end = formatDate(interval[1]);
-                        
-                        return (
-                          <Box sx={{ 
-                            fontSize: '0.7rem', 
-                            color: 'text.secondary',
-                            fontStyle: 'italic',
-                            marginTop: '4px'
-                          }}>
-                            Available: {start} – {end}
-                          </Box>
-                        );
-                      }
-                      return null;
-                    })()}
-                  </>
-                }
-                secondaryTypographyProps={{ component: 'div' }}
               />
               {openCollectionIndex === index ? <ExpandLess /> : <ExpandMore />}
             </ListItemButton>
