@@ -1346,14 +1346,14 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
         ) : (
           <>
             {/* Show fatal errors (landing page or collections failed) */}
-            {collections.length === 0 && validationResult.errors && validationResult.errors.length > 0 && validationResult.errors.some(err => err.section !== 'conformance') ? (
-              validationResult.errors.filter(err => err.section !== 'conformance').map((error, index) => (
-                <Alert 
-                  key={index} 
+            {collections.length === 0 && validationResult.errors && validationResult.errors.length > 0 && validationResult.errors.some(err => err.section !== 'conformance' && err.section !== 'data link') ? (
+              validationResult.errors.filter(err => err.section !== 'conformance' && err.section !== 'data link').map((error, index) => (
+                <Alert
+                  key={index}
                   severity={error.type === 'cors' ? 'warning' : 'error'}
                 >
                   <AlertTitle>
-                    {error.type === 'cors' ? 'CORS Issue' : 'Error'}
+                    {error.title ?? (error.type === 'cors' ? 'CORS Issue' : 'Error')}
                   </AlertTitle>
                   {error.message}
                   {error.type === 'cors' && (
@@ -1375,6 +1375,24 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
             )}
           </>
         )}
+        {/* Conformance errors (missing link or failed fetch) — non-fatal but always visible */}
+        {!isLoading && validationResult.errors?.some(err => err.section === 'conformance') &&
+          validationResult.errors.filter(err => err.section === 'conformance').map((error, index) => (
+            <Alert key={`conf-${index}`} severity="error" sx={{ mt: 1 }}>
+              <AlertTitle>{error.title ?? 'Conformance Unavailable'}</AlertTitle>
+              {error.message}
+            </Alert>
+          ))
+        }
+        {/* Data link errors (missing or multiple) — non-fatal but always visible */}
+        {!isLoading && validationResult.errors?.some(err => err.section === 'data link') &&
+          validationResult.errors.filter(err => err.section === 'data link').map((error, index) => (
+            <Alert key={`data-${index}`} severity="error" sx={{ mt: 1 }}>
+              <AlertTitle>{error.title ?? 'Collections Link Issue'}</AlertTitle>
+              {error.message}
+            </Alert>
+          ))
+        }
             {collections.map((collection, index) => (
           <React.Fragment key={collection.id || index}>
             <ListItemButton
