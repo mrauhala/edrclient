@@ -176,6 +176,7 @@ export interface Collection {
 
 export interface ValidationError {
   message: string;
+  title?: string;
   type?: 'cors' | 'network' | 'schema' | 'unknown';
   path?: string;
   keyword?: string;
@@ -1253,7 +1254,12 @@ export function getOverallExtent(bboxes: [number, number, number, number][]): [n
 export async function getCollections(apiUrl: string, auth?: AuthCredentials): Promise<GetCollectionsResult> {
   // Initialize the schema validator outside the try block so it's accessible in the catch block
   const validator = SchemaValidator.getInstance();
-  
+  // Hoisted so these are available in the catch block for partial error returns
+  let landingPageData: LandingPage | undefined;
+  let serviceDescUrl: string | null = null;
+  let conformanceError: ValidationError | null = null;
+  let dataLinkError: ValidationError | null = null;
+
   try {
     console.log('=== Starting getCollections for:', apiUrl, '===');
     
@@ -1274,49 +1280,61 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
     const finalLandingPageUrl = addApiKeyToUrl(landingPageUrl.toString(), auth);
     
     const landingPageResponse = await axios.get<LandingPage>(finalLandingPageUrl, getAxiosConfig(auth));
-    const landingPageData = landingPageResponse.data;
+    landingPageData = landingPageResponse.data;
 
     // Step 2: Extract the collections URL and conformance URL from landing page links
     let collectionsUrl: string | null = null;
-    let serviceDescUrl: string | null = null;
+    let collectionsUrlCandidates: string[] = [];
     let conformanceUrl: string | null = null;
-    
+
     if (landingPageData && landingPageData.links && Array.isArray(landingPageData.links)) {
-      // Look for a link with rel='data' or rel='http://www.opengis.net/def/rel/ogc/1.0/data'
-      const dataLink = landingPageData.links.find(
-        (link: Link) => link.rel === 'data' || 
+      // Collect ALL data links to detect missing / ambiguous cases
+      const dataLinks = landingPageData.links.filter(
+        (link: Link) => link.rel === 'data' ||
                        link.rel === 'http://www.opengis.net/def/rel/ogc/1.0/data'
       );
-      
+
+      if (dataLinks.length === 0) {
+        dataLinkError = {
+          title: 'Collections Link Missing',
+          message: 'No data/collections link (rel="data") found in landing page. Using fallback URL.',
+          type: 'unknown',
+          section: 'data link'
+        };
+        console.warn('No data link (rel="data") found in landing page. Available links:',
+          landingPageData.links.map((l: Link) => ({ rel: l.rel, href: l.href })));
+        collectionsUrl = `${apiUrl}/collections`;
+        collectionsUrlCandidates = [collectionsUrl];
+      } else {
+        collectionsUrlCandidates = dataLinks
+          .map((l: Link) => normalizeHref(l.href))
+          .filter(Boolean) as string[];
+
+        if (dataLinks.length > 1) {
+          dataLinkError = {
+            title: 'Multiple Data Links',
+            message: `${dataLinks.length} data links (rel="data") found in landing page. Trying each in order: ${collectionsUrlCandidates.join(', ')}`,
+            type: 'unknown',
+            section: 'data link'
+          };
+          console.warn('Multiple data links found:', collectionsUrlCandidates);
+        }
+        collectionsUrl = collectionsUrlCandidates[0];
+        console.log('Found collections URL from landing page:', collectionsUrl);
+      }
+
       // Look for a link with rel='service-desc' for OpenAPI/Swagger documentation
       const serviceDescLink = landingPageData.links.find(
-        (link: Link) => link.rel === 'service-desc' || 
+        (link: Link) => link.rel === 'service-desc' ||
                        link.rel === 'http://www.opengis.net/def/rel/ogc/1.0/service-desc'
       );
-      
+
       // Look for conformance link
       const conformanceLink = landingPageData.links.find(
-        (link: Link) => link.rel === 'conformance' || 
+        (link: Link) => link.rel === 'conformance' ||
                        link.rel === 'http://www.opengis.net/def/rel/ogc/1.0/conformance'
       );
-      
-      if (dataLink) {
-        const normalizedHref = normalizeHref(dataLink.href);
-        if (normalizedHref) {
-          collectionsUrl = normalizedHref;
-          console.log('Found collections URL from landing page:', collectionsUrl);
-        }
-      }
-      
-      if (!collectionsUrl) {
-        console.warn('No data link found in landing page. Available links:', 
-          landingPageData.links.map((l: Link) => ({ rel: l.rel, href: l.href })));
-        
-        // Fallback: try appending /collections to the base URL
-        collectionsUrl = `${apiUrl}/collections`;
-        console.log('Using fallback collections URL:', collectionsUrl);
-      }
-      
+
       if (serviceDescLink) {
         const normalizedHref = normalizeHref(serviceDescLink.href);
         if (normalizedHref) {
@@ -1324,7 +1342,7 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
           console.log('Found service description URL from landing page:', serviceDescUrl);
         }
       }
-      
+
       if (conformanceLink) {
         const normalizedHref = normalizeHref(conformanceLink.href);
         if (normalizedHref) {
@@ -1335,11 +1353,17 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
     } else {
       console.warn('Landing page has no links array. Using fallback.');
       collectionsUrl = `${apiUrl}/collections`;
+      collectionsUrlCandidates = [collectionsUrl];
+      dataLinkError = {
+        title: 'Collections Link Missing',
+        message: 'Landing page has no links array. No data/collections link could be found.',
+        type: 'unknown',
+        section: 'data link'
+      };
     }
 
     // Step 3: Fetch conformance classes to determine which schema to use
     let conformsTo: string[] | undefined = undefined;
-    let conformanceError: ValidationError | null = null;
     if (conformanceUrl) {
       try {
         console.log('Step 2: Fetching conformance to determine schema type:', conformanceUrl);
@@ -1358,45 +1382,64 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
           console.log(`Found ${conformsTo.length} conformance classes:`, conformsTo);
         }
       } catch (error) {
+        let errorTitle = 'Conformance Endpoint Error';
         let errorMessage = 'Failed to fetch conformance information';
         let errorType: 'cors' | 'network' | 'unknown' = 'unknown';
-        
+
         if (error instanceof Error) {
-          if (error.message.includes('CORS') || 
+          if (error.message.includes('CORS') ||
               error.message.includes('Access-Control-Allow-Origin') ||
               error.message.includes('cross-origin')) {
+            errorTitle = 'Conformance CORS Error';
             errorType = 'cors';
-            errorMessage = `CORS Error: The conformance endpoint (${conformanceUrl}) does not allow cross-origin requests. Continuing with default schema.`;
+            errorMessage = `Conformance endpoint (${conformanceUrl}) does not allow cross-origin requests.`;
           } else if (error.message.includes('Network Error') ||
                      error.message.includes('ERR_NETWORK') ||
                      error.message.includes('Failed to fetch')) {
+            errorTitle = 'Conformance Unreachable';
             errorType = 'network';
-            errorMessage = `Network Error: Unable to connect to conformance endpoint (${conformanceUrl}). Continuing with default schema.`;
+            errorMessage = `Unable to connect to conformance endpoint (${conformanceUrl}).`;
           } else if (error.message.includes('404')) {
+            errorTitle = 'Conformance Not Found';
             errorType = 'network';
-            errorMessage = `Not Found: The conformance endpoint (${conformanceUrl}) returned 404. Continuing with default schema.`;
+            errorMessage = `Conformance endpoint (${conformanceUrl}) returned 404.`;
           } else {
-            errorMessage = `Failed to fetch conformance from ${conformanceUrl}: ${error.message}. Continuing with default schema.`;
+            errorMessage = `Failed to fetch conformance endpoint (${conformanceUrl}): ${error.message}`;
           }
         }
-        
-        // Check for axios-specific error properties
+
+        // Fallback for cases where error.message didn't match above (e.g. non-standard axios builds).
+        // ERR_NETWORK covers both CORS blocks and real network failures (DNS, unreachable host),
+        // so only use it as a fallback and don't assume CORS specifically.
         if (error && typeof error === 'object' && 'code' in error) {
-          if (error.code === 'ERR_NETWORK') {
-            errorType = 'cors';
-            errorMessage = `CORS Error: The conformance endpoint (${conformanceUrl}) does not allow cross-origin requests. Continuing with default schema.`;
+          if (error.code === 'ERR_NETWORK' && !conformanceError) {
+            errorTitle = 'Conformance Unreachable';
+            errorType = 'network';
+            errorMessage = `Unable to connect to conformance endpoint (${conformanceUrl}). The service may be unreachable or blocking cross-origin requests.`;
+            conformanceError = { title: errorTitle, message: errorMessage, type: errorType, section: 'conformance' };
           }
         }
-        
+
         conformanceError = {
+          title: errorTitle,
           message: errorMessage,
           type: errorType,
           section: 'conformance'
         };
-        
+
         console.warn('Error fetching conformance, will use default schema:', errorMessage);
         // Don't fail - we'll use the default schema and continue processing
       }
+    }
+
+    // If no conformance link was found in the landing page at all, report it as an error.
+    if (!conformanceUrl && !conformanceError) {
+      conformanceError = {
+        title: 'Conformance Link Missing',
+        message: 'Conformance link (rel="conformance") not found in landing page.',
+        type: 'unknown',
+        section: 'conformance'
+      };
     }
 
     // Step 4: Load the appropriate schema based on conformance classes
@@ -1422,31 +1465,40 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
       // Continue even if validation fails
     }
 
-    // Step 6: Fetch collections from the discovered URL
-    console.log('Step 3: Fetching collections from:', collectionsUrl);
-    console.log('Collections URL is:', collectionsUrl ? 'VALID' : 'NULL/INVALID');
-    
-    // Ensure collectionsUrl is not null before proceeding
-    if (!collectionsUrl) {
+    // Step 6: Fetch collections — try each candidate URL in order until one succeeds
+    if (collectionsUrlCandidates.length === 0) {
       console.error('ERROR: Collections URL could not be determined!');
       throw new Error('Collections URL could not be determined');
     }
-    
-    console.log('Proceeding to fetch collections...');
-    
-    // Add f=json format parameter if not already present
-    // Skip for DMI service as it incorrectly includes f=json in the href paths
-    const collectionsUrlWithFormat = new URL(collectionsUrl);
-    if (!collectionsUrlWithFormat.searchParams.has('f') && !isDMI) {
-      collectionsUrlWithFormat.searchParams.set('f', 'json');
+
+    console.log('Step 6: Fetching collections. Candidates:', collectionsUrlCandidates);
+    let response: Awaited<ReturnType<typeof axios.get<CollectionsResponse>>> | null = null;
+    let lastFetchError: unknown = null;
+
+    for (const candidate of collectionsUrlCandidates) {
+      try {
+        console.log('Trying collections URL:', candidate);
+        const urlWithFormat = new URL(candidate);
+        if (!urlWithFormat.searchParams.has('f') && !isDMI) {
+          urlWithFormat.searchParams.set('f', 'json');
+        }
+        const finalUrl = addApiKeyToUrl(urlWithFormat.toString(), auth);
+        response = await axios.get<CollectionsResponse>(finalUrl, getAxiosConfig(auth));
+        collectionsUrl = candidate; // record which URL actually worked
+        lastFetchError = null;
+        console.log('Collections fetch succeeded from:', candidate, 'status:', response.status);
+        break;
+      } catch (err) {
+        lastFetchError = err;
+        console.warn('Collections fetch failed for:', candidate, err);
+      }
     }
-    
-    // Add API key if provided
-    const finalCollectionsUrl = addApiKeyToUrl(collectionsUrlWithFormat.toString(), auth);
-    
-    console.log('About to fetch collections from URL:', finalCollectionsUrl);
-    const response = await axios.get<CollectionsResponse>(finalCollectionsUrl, getAxiosConfig(auth));
-    console.log('Collections response received, status:', response.status);
+
+    if (!response) {
+      // All candidates failed — re-throw the last error for the outer catch to handle
+      throw lastFetchError;
+    }
+
     const data = response.data;
 
     let collections: Collection[] = [];
@@ -1512,7 +1564,8 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
       errors: [
         ...(landingPageValidation.errors || []),
         ...(collectionsValidation.errors || []),
-        ...(conformanceValidation.errors || [])
+        ...(conformanceValidation.errors || []),
+        ...(dataLinkError ? [dataLinkError] : [])
       ],
       schemaCount: validator.getLoadedSchemaCount(),
       schemaUrls: validator.getLoadedSchemaUrls(),
@@ -1569,65 +1622,85 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
       if (axiosError.config && axiosError.config.url) {
         failedUrl = axiosError.config.url;
         
-        // Determine which endpoint failed based on the URL
-        if (failedUrl.includes('/collections')) {
+        // Determine which endpoint failed.
+        // Use whether landingPageData was already fetched as the primary indicator:
+        // if the landing page succeeded, the failure must be in the collections fetch.
+        // URL-pattern matching alone is unreliable — some services use the same URL
+        // path segment (e.g. /conformance) for both their data link and conformance link.
+        if (landingPageData !== undefined) {
           errorSection = 'collections endpoint';
-        } else if (failedUrl.includes('conformance')) {
-          // This should not happen since conformance errors are caught separately
-          errorSection = 'conformance endpoint';
         } else {
           errorSection = 'landing page';
         }
       }
     }
     
+    const isCollections = errorSection === 'collections endpoint';
+    let errorTitle = isCollections ? 'Collections Error' : 'Error';
     if (error instanceof Error) {
       errorMessage = error.message;
-      
+
       // Common CORS error indicators
-      if (error.message.includes('CORS') || 
+      if (error.message.includes('CORS') ||
           error.message.includes('Access-Control-Allow-Origin') ||
           error.message.includes('cross-origin')) {
+        errorTitle = isCollections ? 'Collections CORS Error' : 'CORS Error';
         errorType = 'cors';
-        errorMessage = `CORS Error: The ${errorSection} does not allow cross-origin requests from web browsers. URL: ${failedUrl}`;
+        errorMessage = `${errorSection} does not allow cross-origin requests from web browsers. URL: ${failedUrl}`;
       } else if (error.message.includes('Network Error') ||
                  error.message.includes('ERR_NETWORK') ||
                  error.message.includes('Failed to fetch')) {
+        errorTitle = isCollections ? 'Collections Unreachable' : 'Connection Failed';
         errorType = 'network';
-        errorMessage = `Network Error: Unable to connect to ${errorSection}. This may be due to CORS restrictions or the service being unavailable. URL: ${failedUrl}`;
+        errorMessage = `Unable to connect to ${errorSection}. This may be due to CORS restrictions or the service being unavailable. URL: ${failedUrl}`;
       } else if (error.message.includes('404')) {
+        errorTitle = isCollections ? 'Collections Not Found' : 'Not Found';
         errorType = 'network';
-        errorMessage = `Not Found: The ${errorSection} returned 404. URL: ${failedUrl}`;
+        errorMessage = `${errorSection} returned 404. URL: ${failedUrl}`;
       } else if (error.message.includes('401') || error.message.includes('403')) {
+        errorTitle = isCollections ? 'Collections Authentication Error' : 'Authentication Error';
         errorType = 'network';
-        errorMessage = `Authentication Error: The ${errorSection} requires authentication or returned access denied. URL: ${failedUrl}`;
+        errorMessage = `${errorSection} requires authentication or returned access denied. URL: ${failedUrl}`;
       } else {
+        errorTitle = isCollections ? 'Collections Error' : 'Error';
         errorMessage = `Failed to fetch ${errorSection}: ${error.message}. URL: ${failedUrl}`;
       }
     }
-    
-    // Check for axios-specific error properties
+
+    // Fallback for cases where error.message didn't match above (e.g. non-standard axios builds).
+    // ERR_NETWORK covers both CORS blocks and real network failures (DNS, unreachable host),
+    // so only use it as a fallback when nothing was already classified, and don't assume CORS.
     if (error && typeof error === 'object' && 'code' in error) {
-      if (error.code === 'ERR_NETWORK') {
-        errorType = 'cors';
-        errorMessage = `CORS Error: The ${errorSection} does not allow cross-origin requests. The server needs to include proper CORS headers. URL: ${failedUrl}`;
+      if (error.code === 'ERR_NETWORK' && errorTitle === (isCollections ? 'Collections Error' : 'Error')) {
+        errorTitle = isCollections ? 'Collections Unreachable' : 'Connection Failed';
+        errorType = 'network';
+        errorMessage = `Unable to connect to ${errorSection}. The service may be unreachable or blocking cross-origin requests. URL: ${failedUrl}`;
       }
     }
-    
-    // If there's an error with the request, return empty collections and the error
+
+    // If there's an error with the request, return empty collections and the error.
+    // Include any landing page data that was already fetched before the failure so
+    // the UI can still display service info (title, description, links) even when
+    // the collections or conformance endpoint failed.
     return {
       collections: [],
       validation: {
         isValid: false,
-        errors: [{ 
-          message: errorMessage,
-          type: errorType,
-          section: errorSection
-        }],
+        errors: [
+          { title: errorTitle, message: errorMessage, type: errorType, section: errorSection },
+          // Include any non-fatal errors already computed before the fatal error
+          ...(conformanceError ? [conformanceError] : []),
+          ...(dataLinkError ? [dataLinkError] : [])
+        ],
         schemaCount: validator.isLoaded() ? validator.getLoadedSchemaCount() : 0,
         schemaUrls: validator.isLoaded() ? validator.getLoadedSchemaUrls() : []
       },
-      landingPageUrl: apiUrl
+      landingPageUrl: apiUrl,
+      landingPageTitle: landingPageData?.title,
+      landingPageDescription: landingPageData?.description,
+      landingPageLinks: landingPageData?.links,
+      landingPageKeywords: landingPageData?.keywords,
+      serviceDescUrl: serviceDescUrl || undefined,
     };
   }
 }
