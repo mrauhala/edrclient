@@ -9,10 +9,6 @@ import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
 import ErrorIcon from '@mui/icons-material/Error';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import CloudQueue from '@mui/icons-material/CloudQueue';
-import Person from '@mui/icons-material/Person';
-import Lock from '@mui/icons-material/Lock';
-import ListItemIcon from '@mui/material/ListItemIcon';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import InputLabel from '@mui/material/InputLabel';
@@ -30,7 +26,7 @@ import Radio from '@mui/material/Radio';
 import RadioGroup from '@mui/material/RadioGroup';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import FormLabel from '@mui/material/FormLabel';
-import Select, { SelectChangeEvent } from '@mui/material/Select';
+import Select from '@mui/material/Select';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
@@ -39,18 +35,16 @@ import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs, { Dayjs } from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import React, { useEffect, useState, useMemo } from 'react';
-import { getCollections, Collection, ValidationResult, normalizeBbox, hasLocationQuery, getLocationQueryUrl, executeLocationQuery, normalizeTemporal, formatConformanceClass, expandTemporalValues, expandVerticalValues, expandCustomDimensionValues, getOverallTemporalExtent, Link as ApiLink, normalizeHref } from './DataRetrievalAPI';
+import { Collection, ValidationResult, GetCollectionsResult, normalizeBbox, hasLocationQuery, getLocationQueryUrl, executeLocationQuery, normalizeTemporal, formatConformanceClass, expandTemporalValues, expandVerticalValues, expandCustomDimensionValues, getOverallTemporalExtent, Link as ApiLink, normalizeHref } from './DataRetrievalAPI';
 import CollectionInfo, { parseLicense, LicenseInfo } from './CollectionInfo';
 import ValidationResults from './ValidationResult';
-import SchemaInspector from './SchemaInspector';
 import LocationFeatureList from './LocationFeatureList';
 import TemporalExtent from './TemporalExtent';
 import VerticalExtent from './VerticalExtent';
 import CollectionValidationErrors from './CollectionValidationErrors';
-import SwaggerUIViewer from './SwaggerUIViewer';
-import ConformanceViewer from './ConformanceViewer';
 import ItemsTable from './ItemsTable';
 import KeywordChips from './KeywordChips';
+import ServiceSelector from './ServiceSelector';
 import { useGeoJsonLayers } from './contexts/GeoJsonLayerContext';
 import { useMapInteraction } from './contexts/MapInteractionContext';
 import { useCollection } from './contexts/CollectionContext';
@@ -64,28 +58,6 @@ interface SidebarProps {
   open: boolean;
 }
 
-// EDR service options
-const edrServices = [
-  { label: '[EDR] IMO Climate API', value: 'https://api.vedur.is/weather/rodeo/' },
-  { label: '[EDR] FMI Open Data', value: 'https://opendata.fmi.fi/edr' },
-  { label: '[EDR] SWIM MET Norway', value: 'https://aviation.met.no' },
-  { label: '[EDR] SWIM IBL', value: 'https://swim.iblsoft.com/edr' },
-  { label: '[EDR] SWIM SMHI', value: 'https://aviation.smhi.se' },
-  { label: '[EDR] Met Office Labs', value: 'https://labs.metoffice.gov.uk/edr' },
-  { label: '[EDR] Meteogate Observations', value: 'https://api.meteogate.eu/eu-eumetnet-surface-observations' },
-  { label: '[EDR] Meteogate Climate Observations', value: 'https://api.meteogate.eu/eu-eumetnet-climate-observations/v1' },
-  { label: '[EDR] Meteogate Weather Radar', value: 'https://api.meteogate.eu/eu-eumetnet-weather-radar' },
-  { label: '[EDR] SmartMet Kenya', value: 'https://data-kenya.smartmet.org/edr' },
-  { label: '[EDR] SmartMet Ethiopia', value: 'https://data-ethiopia.smartmet.org/edr' },
-  { label: '[Records] WMO GDC WIS2 Germany', value: 'https://wis2.dwd.de/gdc/' },
-  { label: '[Records] WMO GDC WIS2 Canada', value: 'https://wis2-gdc.weather.gc.ca' },
-  { label: '[Records] WMO GDC WIS2 China', value: 'https://gdc.wis.cma.cn' },
-  { label: '[STAC] Copernicus Dataspace', value: 'https://stac.dataspace.copernicus.eu/v1/' },
-  { label: '[STAC] MET Norway Radar', value: 'https://radar-stacapi.met.no/v1/' },
-  { label: '[STAC] Swiss Federal Spatial Data', value: 'https://data.geo.admin.ch/api/stac/v1/' },
-  { label: '[Features] MSC GeoMet', value: 'https://api.weather.gc.ca' },
-  { label: 'Custom', value: '' }
-];
 
 const Sidebar = ({ open }: SidebarProps) => {
   const theme = useTheme();
@@ -94,8 +66,7 @@ const Sidebar = ({ open }: SidebarProps) => {
   const { geoJsonLayers, setGeoJsonLayers } = useGeoJsonLayers();
   const { setClickedCoords, setDataQuery } = useMapInteraction();
   const { selectedCollection, setSelectedCollection, setSelectedCollectionExtents, locationFeatures, setLocationFeatures, setSelectedFeature, setLandingPageLicense, setCollectionUrl } = useCollection();
-  const { customServices, getAuthCredentials, selectedServiceUrl: onServiceUrlSelect } = useService();
-  const queryState = useQueryUrl();
+  const { getAuthCredentials } = useService();
   const {
     selectedDataQuery, setSelectedDataQuery,
     selectedFormat, setSelectedFormat,
@@ -115,46 +86,9 @@ const Sidebar = ({ open }: SidebarProps) => {
     resetQueryState,
     getEffectiveOutputFormats,
     buildUrlWithParams,
-  } = queryState;
-  
-  const [apiUrl, setApiUrl] = useState('https://opendata.fmi.fi/edr');
-  const [selectedService, setSelectedService] = useState('https://opendata.fmi.fi/edr');
-  const [inputUrl, setInputUrl] = useState('https://opendata.fmi.fi/edr'); // Separate state for text input
+  } = useQueryUrl();
 
-  // Effect to handle external service URL selection (from settings)
-  useEffect(() => {
-    if (onServiceUrlSelect) {
-      setSelectedService(onServiceUrlSelect);
-      setInputUrl(onServiceUrlSelect);
-      setApiUrl(onServiceUrlSelect);
-    }
-  }, [onServiceUrlSelect]);
-
-  // Combine system services with custom services
-  const allServices = useMemo(() => {
-    const customServiceItems = customServices.map(service => ({
-      label: service.name,
-      value: service.url,
-      isCustom: true,
-      hasAuth: !!(service.username || service.password || service.apiKey || service.bearerToken)
-    }));
-    
-    // Sort system services alphabetically (excluding "Custom")
-    const sortedSystemServices = [...edrServices.filter(s => s.value !== '')].sort((a, b) => 
-      a.label.localeCompare(b.label)
-    );
-    
-    // Sort custom services alphabetically
-    const sortedCustomServices = [...customServiceItems].sort((a, b) => 
-      a.label.localeCompare(b.label)
-    );
-    
-    return [
-      ...sortedSystemServices.map(s => ({ ...s, isCustom: false, hasAuth: false })),
-      ...sortedCustomServices,
-      { label: 'Custom', value: '', isCustom: false, hasAuth: false } // Keep "Custom" at the end
-    ];
-  }, [customServices]);
+  const [currentApiUrl, setCurrentApiUrl] = useState('https://opendata.fmi.fi/edr');
   const [collections, setCollections] = useState<Collection[]>([]);
   const [validationResult, setValidationResult] = useState<ValidationResult>({ isValid: true, errors: null });
   const [showValidationDetails, setShowValidationDetails] = useState(false);
@@ -181,7 +115,6 @@ const Sidebar = ({ open }: SidebarProps) => {
   }, [collectionsLinks, landingPageLinks]);
 
   const [selectedConformanceUrl, setSelectedConformanceUrl] = useState<string | null>(null);
-  const [validationTrigger, setValidationTrigger] = useState(0); // Counter to force re-validation
   const [showServiceLinks, setShowServiceLinks] = useState(false); // State for collapsible links section
   const [showConformanceClasses, setShowConformanceClasses] = useState(false); // State for collapsible conformance section
   const [showValidation, setShowValidation] = useState(false); // State for collapsible validation section
@@ -241,85 +174,47 @@ const Sidebar = ({ open }: SidebarProps) => {
       .filter(item => item !== null) as {url: string, title: string}[];
   };
 
-  // Debounce effect for text input - only update apiUrl after 1 second of no typing
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (inputUrl !== apiUrl) {
-        setApiUrl(inputUrl);
-      }
-    }, 1000); // 1 second delay
-
-    return () => clearTimeout(timer);
-  }, [inputUrl, apiUrl]);
-
-  useEffect(() => {
-    async function loadCollections() {
-      setIsLoading(true);
-      // Clear previous collections and state when starting new load
-      setCollections([]);
-      setOpenCollectionIndex(null);
-      
-      // Reset all query-related states when service changes
-      setSelectedCollection(null);
-      resetQueryState();
-      setCollectionUrl('');
-      setGeoJsonLayers([]);
-      
-      // Clear validation result, conformance, and landing page info immediately
-      setValidationResult({ isValid: true, errors: null });
-      setConformsTo(null);
-      setLandingPageLinks(null);
-      setCollectionsLinks(null);
-      setLandingPageTitle(null);
-      setLandingPageDescription(null);
-      setLandingPageKeywords(null);
-      setServiceDescUrl(null);
-      
-      try {
-        console.log('Loading collections from:', apiUrl);
-        const result = await getCollections(apiUrl, getAuthCredentials(apiUrl));
-        
-        // Always update collections, even if empty (to clear previous results)
-        setCollections(result.collections || []);
-        console.log(`Loaded ${result.collections?.length || 0} collections`);
-        
-        // Update validation result
-        setValidationResult(result.validation);
-        
-        // Update landing page info for display
-        setLandingPageTitle(result.landingPageTitle || null);
-        setLandingPageDescription(result.landingPageDescription || null);
-        setServiceDescUrl(result.serviceDescUrl || null);
-        setConformsTo(result.conformsTo || null);
-        setLandingPageLinks(result.landingPageLinks || null);
-        setCollectionsLinks(result.collectionsLinks || null);
-        setLandingPageKeywords(result.landingPageKeywords || null);
-        
-        // Clear any previous extent/location data when switching services
-        setSelectedCollectionExtents(null);
-        setLocationFeatures(null);
-        setSelectedCollection(null);
-        setClickedCoords([]);
-        setDataQuery('');
-      } catch (error) {
-        console.error('Error loading collections:', error);
-        setCollections([]); // Clear collections on error
-        setValidationResult({
-          isValid: false,
-          errors: [{ message: error instanceof Error ? error.message : 'Unknown error loading collections' }]
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    loadCollections();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiUrl, validationTrigger]); // Added validationTrigger to dependencies
-
   const [openCollectionIndex, setOpenCollectionIndex] = useState<number | null>(null);
 
-  // URL rebuilding effects are now consolidated in useQueryUrl hook
+  // Callbacks for ServiceSelector
+  const handleBeforeLoad = () => {
+    setCollections([]);
+    setOpenCollectionIndex(null);
+    setSelectedCollection(null);
+    resetQueryState();
+    setCollectionUrl('');
+    setGeoJsonLayers([]);
+    setValidationResult({ isValid: true, errors: null });
+    setConformsTo(null);
+    setLandingPageLinks(null);
+    setCollectionsLinks(null);
+    setLandingPageTitle(null);
+    setLandingPageDescription(null);
+    setLandingPageKeywords(null);
+    setSelectedCollectionExtents(null);
+    setLocationFeatures(null);
+    setClickedCoords([]);
+    setDataQuery('');
+  };
+
+  const handleLoadResult = (result: GetCollectionsResult) => {
+    setCollections(result.collections || []);
+    setValidationResult(result.validation);
+    setLandingPageTitle(result.landingPageTitle || null);
+    setLandingPageDescription(result.landingPageDescription || null);
+    setConformsTo(result.conformsTo || null);
+    setLandingPageLinks(result.landingPageLinks || null);
+    setCollectionsLinks(result.collectionsLinks || null);
+    setLandingPageKeywords(result.landingPageKeywords || null);
+  };
+
+  const handleLoadError = (error: Error) => {
+    setCollections([]);
+    setValidationResult({
+      isValid: false,
+      errors: [{ message: error.message }]
+    });
+  };
 
   // Sync top-level service license to context (so Map can show it as fallback).
   useEffect(() => {
@@ -330,7 +225,7 @@ const Sidebar = ({ open }: SidebarProps) => {
   useEffect(() => {
     if (selectedCollection && geoJsonLayers.length > 0) {
       const geoJsonLinks = getGeoJsonLinks(selectedCollection, selectedDatetime, datetimeMode, startDatetime, endDatetime);
-      const auth = getAuthCredentials(apiUrl);
+      const auth = getAuthCredentials(currentApiUrl);
       const updatedLayers = geoJsonLinks.map((link, index) => {
         // Preserve the visibility state and other properties from existing layers
         const existingLayer = geoJsonLayers[index];
@@ -349,38 +244,6 @@ const Sidebar = ({ open }: SidebarProps) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDatetime, datetimeMode, startDatetime, endDatetime]);
 
-  function handleApiUrlChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const newUrl = event.target.value;
-    setInputUrl(newUrl); // Update input state immediately for responsive UI
-    // Update selected service if it matches a predefined service (system or custom)
-    const matchingService = allServices.find(service => service.value === newUrl);
-    if (matchingService) {
-      setSelectedService(newUrl);
-    } else {
-      setSelectedService(''); // Set to empty if it's a custom URL
-    }
-  }
-
-  const handleServiceChange = (event: SelectChangeEvent) => {
-    const newService = event.target.value;
-    console.log('Service changed to:', newService);
-    setSelectedService(newService);
-    if (newService !== '') {
-      console.log('Setting API URL to:', newService);
-      setInputUrl(newService); // Update input immediately
-      setApiUrl(newService); // Trigger validation immediately for dropdown selection
-    }
-    // If "Custom" is selected (empty value), don't change the apiUrl
-  };
-
-  // Force validation/refresh handler for the button
-  const handleValidateClick = () => {
-    // Set apiUrl to current inputUrl to trigger validation
-    setApiUrl(inputUrl);
-    // Increment trigger to force re-validation even if URL hasn't changed
-    setValidationTrigger(prev => prev + 1);
-  };
-
   const handleItemClick = async (index: number, key: string) => {
     // Toggle collection: close if already open, open if closed (and close others)
     const newIndex = openCollectionIndex === index ? null : index;
@@ -396,7 +259,7 @@ const Sidebar = ({ open }: SidebarProps) => {
     // Initialize GeoJSON layers for the selected collection
     if (selectedColl) {
       const geoJsonLinks = getGeoJsonLinks(selectedColl, selectedDatetime, datetimeMode, startDatetime, endDatetime);
-      const auth = getAuthCredentials(apiUrl);
+      const auth = getAuthCredentials(currentApiUrl);
       const initialLayers = geoJsonLinks.map(link => ({
         url: link.url,
         title: link.title,
@@ -423,7 +286,7 @@ const Sidebar = ({ open }: SidebarProps) => {
       
       if (!baseUrl) {
         // Fallback to constructed URL if no data link found
-        baseUrl = apiUrl + "/collections/" + key;
+        baseUrl = currentApiUrl + "/collections/" + key;
       }
       // Collection URL - no query params added (isDataQuery = false)
       setCollectionUrl(buildUrlWithParams(baseUrl, '', [], false));
@@ -475,7 +338,7 @@ const Sidebar = ({ open }: SidebarProps) => {
         
         if (locationQueryUrl) {
           try {
-            const locationResult = await executeLocationQuery(locationQueryUrl, getAuthCredentials(apiUrl));
+            const locationResult = await executeLocationQuery(locationQueryUrl, getAuthCredentials(currentApiUrl));
             if (locationResult && locationResult.features) {
               setLocationFeatures(locationResult.features);
               setCurrentLocationCollection(collection.id); // Track which collection has location features
@@ -535,88 +398,19 @@ const Sidebar = ({ open }: SidebarProps) => {
         }}
         className="sidebar-scrollable"
       >
-        {/* EDR Service Selector and API URL - Moved to top */}
-        <Box sx={{ padding: 2, minWidth: 120, borderBottom: '1px solid rgba(0, 0, 0, 0.12)' }}>
-        <FormControl fullWidth sx={{ mb: 2 }}>
-          <InputLabel id="edr-service-select-label">EDR Service</InputLabel>
-          <Select
-            labelId="edr-service-select-label"
-            id="edr-service-select"
-            value={selectedService}
-            label="EDR Service"
-            onChange={handleServiceChange}
-            renderValue={(value) => {
-              const service = allServices.find(s => s.value === value);
-              return (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  {service?.isCustom ? (
-                    <Person fontSize="small" color="primary" />
-                  ) : (
-                    <CloudQueue fontSize="small" color="action" />
-                  )}
-                  <span>{service?.label || value}</span>
-                  {service?.hasAuth && (
-                    <Lock fontSize="small" sx={{ ml: 'auto', opacity: 0.6 }} />
-                  )}
-                </Box>
-              );
-            }}
-          >
-            {allServices.map((service) => (
-              <MenuItem 
-                key={service.value || 'custom'} 
-                value={service.value}
-                sx={{
-                  color: service.isCustom ? 'primary.main' : 'text.primary',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between'
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-                  <ListItemIcon sx={{ minWidth: 36 }}>
-                    {service.isCustom ? (
-                      <Person fontSize="small" color="primary" />
-                    ) : (
-                      <CloudQueue fontSize="small" color="action" />
-                    )}
-                  </ListItemIcon>
-                  {service.label}
-                </Box>
-                {service.hasAuth && (
-                  <Lock fontSize="small" sx={{ ml: 1, opacity: 0.6 }} />
-                )}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        <TextField 
-          fullWidth
-          id="apiUrl" 
-          label="API URL" 
-          value={inputUrl}
-          variant="outlined" 
-          onChange={handleApiUrlChange}
-          helperText="Validation will trigger 1 second after you stop typing"
+        <ServiceSelector
+          isLoading={isLoading}
+          setIsLoading={setIsLoading}
+          onBeforeLoad={handleBeforeLoad}
+          onLoadResult={handleLoadResult}
+          onLoadError={handleLoadError}
+          onApiUrlChange={setCurrentApiUrl}
+          selectedConformanceUrl={selectedConformanceUrl}
+          setSelectedConformanceUrl={setSelectedConformanceUrl}
+          landingPageTitle={landingPageTitle}
+          serviceDescUrl={serviceDescUrl}
+          setServiceDescUrl={setServiceDescUrl}
         />
-        <Button 
-          variant="contained" 
-          sx={{ mt: 1, mr: 1 }}
-          disabled={isLoading}
-          onClick={handleValidateClick}
-        >
-          {isLoading ? 'Loading...' : 'Validate'}
-        </Button>
-        <SwaggerUIViewer 
-          serviceDescUrl={serviceDescUrl} 
-          serviceName={landingPageTitle || undefined}
-        />
-        <ConformanceViewer 
-          conformanceUrl={selectedConformanceUrl}
-          onClose={() => setSelectedConformanceUrl(null)}
-        />
-        <SchemaInspector />
-      </Box>
       
       <Card sx={{ minWidth: 275 }}>
         <CardContent>
