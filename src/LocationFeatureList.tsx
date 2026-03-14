@@ -1,15 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
-import ListItemButton from '@mui/material/ListItemButton';
-import ListItemText from '@mui/material/ListItemText';
-import ListItemIcon from '@mui/material/ListItemIcon';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
-import Chip from '@mui/material/Chip';
-import Collapse from '@mui/material/Collapse';
-import ExpandLess from '@mui/icons-material/ExpandLess';
-import ExpandMore from '@mui/icons-material/ExpandMore';
 import TextField from '@mui/material/TextField';
+import CollapsibleSection from './CollapsibleSection';
 import InputAdornment from '@mui/material/InputAdornment';
 import SearchIcon from '@mui/icons-material/Search';
 import CancelIcon from '@mui/icons-material/Cancel';
@@ -37,7 +30,6 @@ interface LocationRow {
 }
 
 const LocationFeatureList: React.FC<LocationFeatureListProps> = ({ features, onFeatureSelect }) => {
-  const [open, setOpen] = useState(false);
 
   // Transform features into rows for DataGrid
   const rows: LocationRow[] = useMemo(() => {
@@ -61,10 +53,6 @@ const LocationFeatureList: React.FC<LocationFeatureListProps> = ({ features, onF
   if (!features || features.length === 0) {
     return null;
   }
-
-  const handleToggle = () => {
-    setOpen(!open);
-  };
 
   // Define columns for DataGrid
   const columns: GridColDef[] = [
@@ -144,38 +132,15 @@ const LocationFeatureList: React.FC<LocationFeatureListProps> = ({ features, onF
   }
 
   return (
-    <Box sx={{ mt: 1 }}>
-      <ListItemButton onClick={handleToggle} sx={{ pl: 0 }}>
-        <ListItemIcon sx={{ minWidth: 36 }}>
-          <LocationOnIcon color="primary" fontSize="small" />
-        </ListItemIcon>
-        <ListItemText 
-          primary={
-            <Box display="flex" alignItems="center" gap={1}>
-              <Typography variant="body2" fontWeight="medium">
-                Location Features
-              </Typography>
-              <Chip 
-                label={features.length} 
-                size="small" 
-                color="primary"
-                variant="outlined"
-                sx={{ height: 20, fontSize: '0.7rem' }}
-              />
-            </Box>
-          }
-          secondary={
-            <Typography variant="caption" color="text.secondary">
-              Click to view and search location features
-            </Typography>
-          }
-        />
-        {open ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
-      </ListItemButton>
-      
-      <Collapse in={open} timeout="auto" unmountOnExit>
-        <Box sx={{ backgroundColor: 'background.paper', borderRadius: 1 }}>
-          <Box sx={{ height: 520, width: '100%' }}>
+    <CollapsibleSection
+      title="Location Features"
+      icon={<LocationOnIcon color="primary" fontSize="small" />}
+      chipLabel={features.length}
+      subtitle="Click to view and search location features"
+      sx={{ mt: 1 }}
+    >
+      <Box sx={{ backgroundColor: 'background.paper', borderRadius: 1 }}>
+        <Box sx={{ height: 520, width: '100%' }}>
             <DataGrid
               rows={rows}
               columns={columns}
@@ -206,10 +171,9 @@ const LocationFeatureList: React.FC<LocationFeatureListProps> = ({ features, onF
               }}
               density="compact"
             />
-          </Box>
         </Box>
-      </Collapse>
-    </Box>
+      </Box>
+    </CollapsibleSection>
   );
 };
 
