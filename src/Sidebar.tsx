@@ -1,14 +1,10 @@
 import Paper from '@mui/material/Paper';
 import List from '@mui/material/List';
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
 import ListItemText from '@mui/material/ListItemText';
 import ListItemButton from '@mui/material/ListItemButton';
 import Collapse from '@mui/material/Collapse';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
-import ErrorIcon from '@mui/icons-material/Error';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import InputLabel from '@mui/material/InputLabel';
@@ -19,8 +15,6 @@ import Link from '@mui/material/Link';
 import Alert from '@mui/material/Alert';
 import AlertTitle from '@mui/material/AlertTitle';
 import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import Tooltip from '@mui/material/Tooltip';
 import Checkbox from '@mui/material/Checkbox';
 import Radio from '@mui/material/Radio';
 import RadioGroup from '@mui/material/RadioGroup';
@@ -35,15 +29,14 @@ import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs, { Dayjs } from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import React, { useEffect, useState, useMemo } from 'react';
-import { Collection, ValidationResult, GetCollectionsResult, normalizeBbox, hasLocationQuery, getLocationQueryUrl, executeLocationQuery, normalizeTemporal, formatConformanceClass, expandTemporalValues, expandVerticalValues, expandCustomDimensionValues, getOverallTemporalExtent, Link as ApiLink, normalizeHref } from './DataRetrievalAPI';
+import { Collection, ValidationResult, GetCollectionsResult, normalizeBbox, hasLocationQuery, getLocationQueryUrl, executeLocationQuery, normalizeTemporal, expandTemporalValues, expandVerticalValues, expandCustomDimensionValues, getOverallTemporalExtent, Link as ApiLink, normalizeHref } from './DataRetrievalAPI';
 import CollectionInfo, { parseLicense, LicenseInfo } from './CollectionInfo';
-import ValidationResults from './ValidationResult';
 import LocationFeatureList from './LocationFeatureList';
+import ServiceInfoPanel from './ServiceInfoPanel';
 import TemporalExtent from './TemporalExtent';
 import VerticalExtent from './VerticalExtent';
 import CollectionValidationErrors from './CollectionValidationErrors';
 import ItemsTable from './ItemsTable';
-import KeywordChips from './KeywordChips';
 import ServiceSelector from './ServiceSelector';
 import { useGeoJsonLayers } from './contexts/GeoJsonLayerContext';
 import { useMapInteraction } from './contexts/MapInteractionContext';
@@ -91,7 +84,6 @@ const Sidebar = ({ open }: SidebarProps) => {
   const [currentApiUrl, setCurrentApiUrl] = useState('https://opendata.fmi.fi/edr');
   const [collections, setCollections] = useState<Collection[]>([]);
   const [validationResult, setValidationResult] = useState<ValidationResult>({ isValid: true, errors: null });
-  const [showValidationDetails, setShowValidationDetails] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [currentLocationCollection, setCurrentLocationCollection] = useState<string | null>(null);
   const [landingPageTitle, setLandingPageTitle] = useState<string | null>(null);
@@ -115,9 +107,6 @@ const Sidebar = ({ open }: SidebarProps) => {
   }, [collectionsLinks, landingPageLinks]);
 
   const [selectedConformanceUrl, setSelectedConformanceUrl] = useState<string | null>(null);
-  const [showServiceLinks, setShowServiceLinks] = useState(false); // State for collapsible links section
-  const [showConformanceClasses, setShowConformanceClasses] = useState(false); // State for collapsible conformance section
-  const [showValidation, setShowValidation] = useState(false); // State for collapsible validation section
   // Query states are now managed via useQueryUrl hook
   const [showCollectionValidation, setShowCollectionValidation] = useState<{[key: string]: boolean}>({});
 
@@ -370,10 +359,6 @@ const Sidebar = ({ open }: SidebarProps) => {
 
 
 
-  const toggleValidationDetails = () => {
-    setShowValidationDetails(!showValidationDetails);
-  };
-
   return (
     <Box
       sx={{
@@ -412,230 +397,15 @@ const Sidebar = ({ open }: SidebarProps) => {
           setServiceDescUrl={setServiceDescUrl}
         />
       
-      <Card sx={{ minWidth: 275 }}>
-        <CardContent>
-          {/* Service Information from Landing Page */}
-          {(landingPageTitle || landingPageDescription) && (
-            <Box sx={{ mb: 2, p: 2, backgroundColor: 'rgba(25, 118, 210, 0.08)', borderRadius: 1 }}>
-              {landingPageTitle && (
-                <Typography variant="h6" gutterBottom sx={{ color: 'primary.main', fontWeight: 600 }}>
-                  {landingPageTitle}
-                </Typography>
-              )}
-              {landingPageDescription && (
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                  {landingPageDescription}
-                </Typography>
-              )}
-              {landingPageKeywords && landingPageKeywords.length > 0 && (
-                <KeywordChips keywords={landingPageKeywords} />
-              )}
-            </Box>
-          )}
-          
-          {/* OGC API Conformance Classes */}
-          {conformsTo && conformsTo.length > 0 && (() => {
-            // Filter and format OGC API conformance classes, keeping original URLs
-            const ogcApiConformance = conformsTo
-              .map(url => ({
-                url,
-                formatted: formatConformanceClass(url)
-              }))
-              .filter(item => item.formatted !== null);
-            
-            // Remove duplicates based on URL
-            const uniqueConformance = Array.from(
-              new Map(ogcApiConformance.map(item => [item.url, item])).values()
-            );
-            
-            if (uniqueConformance.length > 0) {
-              return (
-                <Box sx={{ mb: 2 }}>
-                  <ListItemButton 
-                    onClick={() => setShowConformanceClasses(!showConformanceClasses)}
-                    sx={{ 
-                      p: 1.5, 
-                      backgroundColor: 'rgba(76, 175, 80, 0.08)', 
-                      borderRadius: 1,
-                      '&:hover': {
-                        backgroundColor: 'rgba(76, 175, 80, 0.15)',
-                      }
-                    }}
-                  >
-                    <ListItemText 
-                      primary={
-                        <Typography variant="subtitle2" sx={{ color: 'success.main', fontWeight: 600 }}>
-                          Conformance Classes ({uniqueConformance.length})
-                        </Typography>
-                      }
-                    />
-                    {showConformanceClasses ? <ExpandLess /> : <ExpandMore />}
-                  </ListItemButton>
-                  <Collapse in={showConformanceClasses} timeout="auto" unmountOnExit>
-                    <Box sx={{ p: 2, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                      {uniqueConformance.map((item, index) => (
-                        <Tooltip key={index} title={item.url} arrow>
-                          <Chip
-                            label={item.formatted}
-                            size="small"
-                            color="success"
-                            variant="outlined"
-                            onClick={() => setSelectedConformanceUrl(item.url)}
-                            clickable
-                            sx={{ 
-                              fontSize: '0.7rem',
-                              height: '22px',
-                              cursor: 'pointer',
-                              '&:hover': {
-                                backgroundColor: 'rgba(76, 175, 80, 0.2)',
-                              }
-                            }}
-                          />
-                        </Tooltip>
-                      ))}
-                    </Box>
-                  </Collapse>
-                </Box>
-              );
-            }
-            return null;
-          })()}
-          
-          {/* Service Links Section */}
-          {landingPageLinks && landingPageLinks.length > 0 && (
-            <Box sx={{ mb: 2 }}>
-              <ListItemButton 
-                onClick={() => setShowServiceLinks(!showServiceLinks)}
-                sx={{ 
-                  p: 1.5, 
-                  backgroundColor: 'rgba(156, 39, 176, 0.08)', 
-                  borderRadius: 1,
-                  '&:hover': {
-                    backgroundColor: 'rgba(156, 39, 176, 0.15)',
-                  }
-                }}
-              >
-                <ListItemText 
-                  primary={
-                    <Typography variant="subtitle2" sx={{ color: 'secondary.main', fontWeight: 600 }}>
-                      Service Links ({landingPageLinks.length})
-                    </Typography>
-                  }
-                />
-                {showServiceLinks ? <ExpandLess /> : <ExpandMore />}
-              </ListItemButton>
-              <Collapse in={showServiceLinks} timeout="auto" unmountOnExit>
-                <List component="div" disablePadding>
-                  {landingPageLinks.map((link, index) => {
-                    // Normalize href which might be a string or an object
-                    const normalizedHref = normalizeHref(link.href);
-                    
-                    // Skip links without valid href to prevent crashes
-                    if (!normalizedHref) {
-                      return null;
-                    }
-                    return (
-                      <ListItemButton
-                        key={index}
-                        sx={{ pl: 3, py: 0.5 }}
-                        component="a"
-                        href={normalizedHref}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <ListItemText
-                          primary={
-                            <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
-                              {link.title || link.rel || 'Link'}
-                            </Typography>
-                          }
-                          secondary={
-                            <>
-                              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem', display: 'block' }}>
-                                {link.rel && `rel: ${link.rel}`}
-                                {link.type && ` • type: ${link.type}`}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem', display: 'block', wordBreak: 'break-all' }}>
-                                {normalizedHref}
-                              </Typography>
-                            </>
-                          }
-                        />
-                      </ListItemButton>
-                    );
-                  })}
-                </List>
-              </Collapse>
-            </Box>
-          )}
-          
-          {/* Schema Validation Section */}
-          <Box sx={{ mb: 2 }}>
-            <ListItemButton 
-              onClick={() => setShowValidation(!showValidation)}
-              sx={{ 
-                p: 1.5, 
-                backgroundColor: !validationResult.isValid ? 'rgba(237, 108, 2, 0.08)' : 'rgba(46, 125, 50, 0.08)', 
-                borderRadius: 1,
-                '&:hover': {
-                  backgroundColor: !validationResult.isValid ? 'rgba(237, 108, 2, 0.15)' : 'rgba(46, 125, 50, 0.15)',
-                }
-              }}
-            >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
-                {!validationResult.isValid ? (
-                  <ErrorIcon sx={{ fontSize: 20, color: 'warning.main' }} />
-                ) : (
-                  <CheckCircleIcon sx={{ fontSize: 20, color: 'success.main' }} />
-                )}
-                <ListItemText 
-                  primary={
-                    <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                      Schema Validation Status
-                      {!validationResult.isValid && (() => {
-                        // Count validation failures
-                        let failureCount = 0;
-                        if (validationResult.landingPageValidation && !validationResult.landingPageValidation.isValid) failureCount++;
-                        if (validationResult.collectionsValidation && !validationResult.collectionsValidation.isValid) failureCount++;
-                        if (validationResult.conformanceValidation && !validationResult.conformanceValidation.isValid) failureCount++;
-                        
-                        return failureCount > 0 ? (
-                          <Chip 
-                            label={`${failureCount} issue${failureCount > 1 ? 's' : ''}`}
-                            size="small"
-                            color="warning"
-                            sx={{ ml: 1, height: 20 }}
-                          />
-                        ) : null;
-                      })()}
-                    </Typography>
-                  }
-                />
-              </Box>
-              {showValidation ? <ExpandLess /> : <ExpandMore />}
-            </ListItemButton>
-            <Collapse in={showValidation} timeout="auto" unmountOnExit>
-              <Box sx={{ p: 2 }}>
-                <ValidationResults 
-                  validation={validationResult} 
-                  expanded={showValidationDetails} 
-                />
-                
-                {validationResult.errors && validationResult.errors.length > 0 && (
-                  <Button 
-                    variant="outlined" 
-                    size="small" 
-                    onClick={toggleValidationDetails}
-                    sx={{ mt: 1 }}
-                  >
-                    {showValidationDetails ? 'Hide Details' : 'Show Details'}
-                  </Button>
-                )}
-              </Box>
-            </Collapse>
-          </Box>
-        </CardContent>
-      </Card>
+      <ServiceInfoPanel
+        landingPageTitle={landingPageTitle}
+        landingPageDescription={landingPageDescription}
+        landingPageKeywords={landingPageKeywords}
+        conformsTo={conformsTo}
+        landingPageLinks={landingPageLinks}
+        validationResult={validationResult}
+        onConformanceClick={setSelectedConformanceUrl}
+      />
       
       <List component="nav">
         {isLoading ? (
