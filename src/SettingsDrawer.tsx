@@ -28,17 +28,8 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import FormControl from '@mui/material/FormControl';
 import FormLabel from '@mui/material/FormLabel';
 
-export interface CustomService {
-  id: string;
-  name: string;
-  url: string;
-  username?: string;
-  password?: string;
-  apiKey?: string;
-  apiKeyParam?: string; // The query parameter name for the API key (default: 'api-key')
-  bearerToken?: string;
-  customAuthHeader?: string; // Custom Authorization header value
-}
+import { CustomService } from './types/CustomService';
+export type { CustomService };
 
 interface SettingsDrawerProps {
   open: boolean;

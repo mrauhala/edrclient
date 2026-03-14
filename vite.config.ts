@@ -20,6 +20,19 @@ export default defineConfig({
   build: {
     outDir: 'build',
     sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-ol': ['ol', 'ol-layerswitcher'],
+          'vendor-mui': [
+            '@mui/material',
+            '@mui/icons-material',
+            '@mui/x-date-pickers',
+          ],
+          'vendor-ajv': ['ajv', 'ajv-formats'],
+        },
+      },
+    },
   },
   server: {
     port: 3000,

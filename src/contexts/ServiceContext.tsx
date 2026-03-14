@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
-import { CustomService } from '../SettingsDrawer';
+import { CustomService } from '../types/CustomService';
 import { AuthCredentials } from '../DataRetrievalAPI';
 
 interface ServiceContextValue {

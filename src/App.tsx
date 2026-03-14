@@ -1,12 +1,15 @@
 import Sidebar from './Sidebar';
 import TopMenu from './TopMenu';
-import SettingsDrawer, { CustomService } from './SettingsDrawer';
-import DataModal from './DataModal';
-import React, { useState, useMemo, useEffect } from 'react';
+import { CustomService } from './types/CustomService';
+import React, { lazy, Suspense, useState, useMemo, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import OpenLayersMap from './Map';
+
+// Lazy-loaded components (not needed for first paint)
+const OpenLayersMap = lazy(() => import('./Map'));
+const SettingsDrawer = lazy(() => import('./SettingsDrawer'));
+const DataModal = lazy(() => import('./DataModal'));
 import { GeoJsonLayerProvider, useGeoJsonLayers } from './contexts/GeoJsonLayerContext';
 import { MapInteractionProvider } from './contexts/MapInteractionContext';
 import { CollectionProvider, useCollection } from './contexts/CollectionContext';
@@ -297,9 +300,11 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
             overflow: 'hidden',
           }}
         >
-          <OpenLayersMap
-            zoomLevel={2}
-          />
+          <Suspense fallback={<Box sx={{ width: '100%', height: '100%', bgcolor: 'background.default' }} />}>
+            <OpenLayersMap
+              zoomLevel={2}
+            />
+          </Suspense>
         </Box>
       </Box>
       
@@ -359,27 +364,31 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
         </Box>
       </Paper>
       
-      <SettingsDrawer 
-        open={settingsDrawerOpen}
-        onClose={handleSettingsDrawerToggle}
-        themeMode={themeMode}
-        onThemeModeChange={handleThemeModeChange}
-        customServices={customServices}
-        onAddService={handleAddService}
-        onUpdateService={handleUpdateService}
-        onRemoveService={handleRemoveService}
-        onServiceSelect={handleServiceSelect}
-      />
+      <Suspense fallback={null}>
+        <SettingsDrawer
+          open={settingsDrawerOpen}
+          onClose={handleSettingsDrawerToggle}
+          themeMode={themeMode}
+          onThemeModeChange={handleThemeModeChange}
+          customServices={customServices}
+          onAddService={handleAddService}
+          onUpdateService={handleUpdateService}
+          onRemoveService={handleRemoveService}
+          onServiceSelect={handleServiceSelect}
+        />
+      </Suspense>
 
-      <DataModal
-        open={modalOpen}
-        onClose={handleCloseModal}
-        data={modalData}
-        contentType={modalContentType}
-        isLoading={modalLoading}
-        error={modalError}
-        url={collectionUrl}
-      />
+      <Suspense fallback={null}>
+        <DataModal
+          open={modalOpen}
+          onClose={handleCloseModal}
+          data={modalData}
+          contentType={modalContentType}
+          isLoading={modalLoading}
+          error={modalError}
+          url={collectionUrl}
+        />
+      </Suspense>
     </Box>
     </ThemeProvider>
   );
