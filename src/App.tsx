@@ -2,13 +2,15 @@ import Sidebar from './Sidebar';
 import TopMenu from './TopMenu';
 import SettingsDrawer, { CustomService } from './SettingsDrawer';
 import DataModal from './DataModal';
-import { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import OpenLayersMap from './Map';
-import { Collection } from './DataRetrievalAPI';
-import { LicenseInfo } from './CollectionInfo';
+import { GeoJsonLayerProvider, useGeoJsonLayers } from './contexts/GeoJsonLayerContext';
+import { MapInteractionProvider } from './contexts/MapInteractionContext';
+import { CollectionProvider, useCollection } from './contexts/CollectionContext';
+import { ServiceProvider, useService } from './contexts/ServiceContext';
 import Paper from '@mui/material/Paper';
 import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
@@ -22,14 +24,6 @@ import axios from 'axios';
 
 
 function App() {
-  // Load theme mode from localStorage or default to 'system'
-  const [themeMode, setThemeMode] = useState<'light' | 'dark' | 'system'>(() => {
-    const savedMode = localStorage.getItem('themeMode');
-    return (savedMode === 'light' || savedMode === 'dark' || savedMode === 'system') 
-      ? savedMode 
-      : 'system';
-  });
-
   // Load custom services from localStorage
   const [customServices, setCustomServices] = useState<CustomService[]>(() => {
     const savedServices = localStorage.getItem('customServices');
@@ -40,23 +34,49 @@ function App() {
     }
   });
 
-  const [settingsDrawerOpen, setSettingsDrawerOpen] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [collectionUrl, setCollectionUrl] = useState<string>('');
   const [selectedServiceUrl, setSelectedServiceUrl] = useState<string | null>(null);
 
-  const [boundingBox, setBoundingBox] = useState<[number, number, number, number]>([-180, -90, 180, 90]);
-  const [selectedCollectionExtents, setSelectedCollectionExtents] = useState<[number, number, number, number][] | null>(null);
-  const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
-  const [landingPageLicense, setLandingPageLicense] = useState<LicenseInfo | null>(null);
-  const [locationFeatures, setLocationFeatures] = useState<any[] | null>(null);
-  const [selectedFeature, setSelectedFeature] = useState<any | null>(null);
-  const [clickedCoords, setClickedCoords] = useState<[number, number][]>([]);
-  const [selectedArea, setSelectedArea] = useState<[number, number][][]>([]);
-  const [radiusKm, setRadiusKm] = useState<number>(10); // Default 10km radius
-  const [dataQuery, setDataQuery] = useState<string>('');
-  const [geoJsonLayers, setGeoJsonLayers] = useState<{url: string, title: string, visible: boolean, labelProperty?: string, apiKey?: string, apiKeyParam?: string}[]>([]);
-  const [selectedGeoJsonFeature, setSelectedGeoJsonFeature] = useState<any | null>(null);
+  // Save custom services to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('customServices', JSON.stringify(customServices));
+  }, [customServices]);
+
+  return (
+    <ServiceProvider customServices={customServices} selectedServiceUrl={selectedServiceUrl} setSelectedServiceUrl={setSelectedServiceUrl}>
+      <CollectionProvider>
+        <MapInteractionProvider>
+          <GeoJsonLayerProvider>
+            <AppContent
+              customServices={customServices}
+              setCustomServices={setCustomServices}
+            />
+          </GeoJsonLayerProvider>
+        </MapInteractionProvider>
+      </CollectionProvider>
+    </ServiceProvider>
+  );
+}
+
+interface AppContentProps {
+  customServices: CustomService[];
+  setCustomServices: React.Dispatch<React.SetStateAction<CustomService[]>>;
+}
+
+function AppContent({ customServices, setCustomServices }: AppContentProps) {
+  // Load theme mode from localStorage or default to 'system'
+  const [themeMode, setThemeMode] = useState<'light' | 'dark' | 'system'>(() => {
+    const savedMode = localStorage.getItem('themeMode');
+    return (savedMode === 'light' || savedMode === 'dark' || savedMode === 'system')
+      ? savedMode
+      : 'system';
+  });
+
+  const [settingsDrawerOpen, setSettingsDrawerOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  const { setGeoJsonLayers } = useGeoJsonLayers();
+  const { collectionUrl } = useCollection();
+  const { getAuthCredentials, setSelectedServiceUrl } = useService();
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
@@ -72,11 +92,6 @@ function App() {
   useEffect(() => {
     localStorage.setItem('themeMode', themeMode);
   }, [themeMode]);
-
-  // Save custom services to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem('customServices', JSON.stringify(customServices));
-  }, [customServices]);
 
   // Determine actual mode based on themeMode setting
   const actualMode = useMemo(() => {
@@ -129,47 +144,6 @@ function App() {
     [actualMode]
   );
 
-  const handleFeatureSelect = (feature: any | null) => {
-    setSelectedFeature(feature);
-    
-    // If a feature is selected and it has coordinates, update the bounding box to zoom to it
-    if (feature && feature.geometry && feature.geometry.coordinates) {
-      const coords = feature.geometry.coordinates;
-      if (feature.geometry.type === 'Point') {
-        const [lon, lat] = coords;
-        // Create a small bounding box around the point for zooming
-        const margin = 0.5; // Margin around the point (in degrees)
-        setBoundingBox([lon - margin, lat - margin, lon + margin, lat + margin]);
-      }
-    }
-  };
-
-  // Helper function to get auth credentials for a given URL
-  const getAuthCredentials = (url: string) => {
-    const service = customServices.find(s => url.includes(s.url));
-    if (service) {
-      if (service.customAuthHeader) {
-        return {
-          customAuthHeader: service.customAuthHeader
-        };
-      } else if (service.bearerToken) {
-        return {
-          bearerToken: service.bearerToken
-        };
-      } else if (service.apiKey) {
-        return {
-          apiKey: service.apiKey,
-          apiKeyParam: service.apiKeyParam
-        };
-      } else if (service.username) {
-        return {
-          username: service.username,
-          password: service.password || ''
-        };
-      }
-    }
-    return undefined;
-  };
 
   const handleCopyUrl = () => {
     if (collectionUrl) {
@@ -310,25 +284,8 @@ function App() {
           paddingBottom: '56px', // Height of the bottom bar
         }}
       >
-        <Sidebar 
-          open={sidebarOpen} 
-          onCollectionExtentChange={setSelectedCollectionExtents} 
-          onLocationFeaturesChange={setLocationFeatures} 
-          onFeatureSelect={handleFeatureSelect} 
-          onSelectedCollectionChange={setSelectedCollection} 
-          onMapClick={setClickedCoords} 
-          onDataQueryChange={setDataQuery} 
-          clickedCoords={clickedCoords} 
-          selectedArea={selectedArea}
-          radiusKm={radiusKm}
-          locationFeatures={locationFeatures}
-          selectedFeature={selectedFeature}
-          onCollectionUrlChange={setCollectionUrl}
-          customServices={customServices}
-          onServiceUrlSelect={selectedServiceUrl}
-          onGeoJsonLayersChange={setGeoJsonLayers}
-          onLandingPageLicenseChange={setLandingPageLicense}
-          getAuthCredentials={getAuthCredentials}
+        <Sidebar
+          open={sidebarOpen}
         />
         
         <Box 
@@ -342,24 +299,6 @@ function App() {
         >
           <OpenLayersMap
             zoomLevel={2}
-            boundingBox={boundingBox}
-            selectedCollectionExtents={selectedCollectionExtents}
-            selectedCollection={selectedCollection}
-            landingPageLicense={landingPageLicense}
-            locationFeatures={locationFeatures}
-            selectedFeature={selectedFeature}
-            onFeatureSelect={handleFeatureSelect}
-            clickedCoords={clickedCoords}
-            selectedArea={selectedArea}
-            radiusKm={radiusKm}
-            onRadiusChange={setRadiusKm}
-            dataQuery={dataQuery}
-            onMapClick={setClickedCoords}
-            onAreaSelect={setSelectedArea}
-            geoJsonLayers={geoJsonLayers}
-            selectedGeoJsonFeature={selectedGeoJsonFeature}
-            onGeoJsonFeatureSelect={setSelectedGeoJsonFeature}
-            onGeoJsonLayerUpdate={setGeoJsonLayers}
           />
         </Box>
       </Box>
