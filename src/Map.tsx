@@ -20,33 +20,21 @@ import { bbox as bboxStrategy } from 'ol/loadingstrategy';
 import FeatureInfo from './FeatureInfo';
 import GeoJsonFeatureViewer from './GeoJsonFeatureViewer';
 import LayerManager from './LayerManager';
-import { Collection, normalizeHref } from './DataRetrievalAPI';
-import CollectionInfo, { LicenseInfo } from './CollectionInfo';
+import { normalizeHref } from './DataRetrievalAPI';
+import CollectionInfo from './CollectionInfo';
+import { useGeoJsonLayers, type GeoJsonLayer } from './contexts/GeoJsonLayerContext';
+import { useMapInteraction } from './contexts/MapInteractionContext';
+import { useCollection } from './contexts/CollectionContext';
 
 
 interface MapProps {
   zoomLevel: number;
-  boundingBox: [number, number, number, number];
-  selectedCollectionExtents?: [number, number, number, number][] | null;
-  selectedCollection?: Collection | null;
-  landingPageLicense?: LicenseInfo | null;
-  locationFeatures?: any[] | null;
-  selectedFeature?: any | null;
-  clickedCoords?: [number, number][];
-  selectedArea?: [number, number][][];
-  radiusKm?: number;
-  dataQuery?: string;
-  onFeatureSelect?: (feature: any | null) => void;
-  onMapClick?: (coords: [number, number][]) => void;
-  onAreaSelect?: (area: [number, number][][]) => void;
-  onRadiusChange?: (radius: number) => void;
-  geoJsonLayers?: {url: string, title: string, visible: boolean, labelProperty?: string, data?: any, apiKey?: string, apiKeyParam?: string}[];
-  selectedGeoJsonFeature?: any | null;
-  onGeoJsonFeatureSelect?: (feature: any | null) => void;
-  onGeoJsonLayerUpdate?: (layers: {url: string, title: string, visible: boolean, labelProperty?: string, data?: any, apiKey?: string, apiKeyParam?: string}[]) => void;
 }
 
-const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCollectionExtents, selectedCollection, landingPageLicense, locationFeatures, selectedFeature, clickedCoords, selectedArea, radiusKm, dataQuery, onFeatureSelect, onMapClick, onAreaSelect, onRadiusChange, geoJsonLayers = [], selectedGeoJsonFeature, onGeoJsonFeatureSelect, onGeoJsonLayerUpdate }) => {
+const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
+  const { geoJsonLayers, setGeoJsonLayers, selectedGeoJsonFeature, setSelectedGeoJsonFeature } = useGeoJsonLayers();
+  const { clickedCoords, setClickedCoords, selectedArea, setSelectedArea, radiusKm, setRadiusKm, dataQuery } = useMapInteraction();
+  const { selectedCollection, selectedCollectionExtents, locationFeatures, selectedFeature, setSelectedFeature, landingPageLicense } = useCollection();
   const [map, setMap] = useState<Map | null>(null);
   const [vectorLayer, setVectorLayer] = useState<VectorLayer<VectorSource> | null>(null);
   const [locationLayer, setLocationLayer] = useState<VectorLayer<VectorSource> | null>(null);
@@ -56,16 +44,15 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
   const [drawInteraction, setDrawInteraction] = useState<Draw | null>(null);
   const [geoJsonVectorLayers, setGeoJsonVectorLayers] = useState<{[key: string]: VectorLayer<VectorSource>}>({});
   const [geoJsonMetadata, setGeoJsonMetadata] = useState<{[key: string]: {numberReturned?: number, numberMatched?: number}}>({});
-  const [allMapLayers, setAllMapLayers] = useState<{url: string, title: string, visible: boolean, labelProperty?: string, data?: any, apiKey?: string, apiKeyParam?: string}[]>([]);
-  const boundingBoxRef = useRef(boundingBox);
+  const [allMapLayers, setAllMapLayers] = useState<GeoJsonLayer[]>([]);
   const selectedExtentsRef = useRef(selectedCollectionExtents);
   const locationFeaturesRef = useRef(locationFeatures);
   const selectedFeatureRef = useRef(selectedFeature);
   const tooltipRef = useRef<HTMLDivElement>(null);
-  const onFeatureSelectRef = useRef(onFeatureSelect);
+  const onFeatureSelectRef = useRef(setSelectedFeature);
   const selectedAreaRef = useRef(selectedArea);
   const clickedCoordsRef = useRef(clickedCoords);
-  const geoJsonLayersRef = useRef<{url: string, title: string, visible: boolean, labelProperty?: string, data?: any, apiKey?: string, apiKeyParam?: string}[]>([]);
+  const geoJsonLayersRef = useRef<GeoJsonLayer[]>([]);
 
   // Update selectedFeatureRef when selectedFeature changes
   useEffect(() => {
@@ -85,8 +72,8 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
 
   // Keep the callback ref updated
   useEffect(() => {
-    onFeatureSelectRef.current = onFeatureSelect;
-  }, [onFeatureSelect]);
+    onFeatureSelectRef.current = setSelectedFeature;
+  }, [setSelectedFeature]);
 
   // Keep the area ref updated
   useEffect(() => {
@@ -527,42 +514,27 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, geoJsonLayers]);
 
+  // Zoom to feature when a location feature is selected
   useEffect(() => {
-    if (map && boundingBoxRef.current !== boundingBox) {
-      // Convert bounding box coordinates [west, south, east, north] to extent
-      const [west, south, east, north] = boundingBox;
-      
-      // Validate coordinates
-      if (isFinite(west) && isFinite(south) && isFinite(east) && isFinite(north)) {
-        // Check if the extent has valid area
-        const hasValidArea = west !== east && south !== north;
-        
-        if (!hasValidArea) {
-          console.warn('Bounding box has no area, skipping fit');
-        } else {
-          const extent = [
-            ...fromLonLat([west, south]),
-            ...fromLonLat([east, north])
-          ];
-          
-          // Additional check for transformed extent
-          if (extent.every(coord => isFinite(coord)) && extent[0] !== extent[2] && extent[1] !== extent[3]) {
-            try {
-              map.getView().fit(extent, { padding: [10, 10, 10, 10] });
-            } catch (error) {
-              console.error('Error fitting bounding box to map view:', error, extent);
-            }
-          } else {
-            console.warn('Transformed bounding box extent is invalid, skipping fit');
+    if (!map || !selectedFeature?.geometry?.coordinates) return;
+    const coords = selectedFeature.geometry.coordinates;
+    if (selectedFeature.geometry.type === 'Point') {
+      const [lon, lat] = coords;
+      const margin = 0.5;
+      const bbox: [number, number, number, number] = [lon - margin, lat - margin, lon + margin, lat + margin];
+      const [west, south, east, north] = bbox;
+      if (isFinite(west) && isFinite(south) && isFinite(east) && isFinite(north) && west !== east && south !== north) {
+        const extent = [...fromLonLat([west, south]), ...fromLonLat([east, north])];
+        if (extent.every(coord => isFinite(coord)) && extent[0] !== extent[2] && extent[1] !== extent[3]) {
+          try {
+            map.getView().fit(extent, { padding: [10, 10, 10, 10] });
+          } catch (error) {
+            console.error('Error fitting to feature:', error);
           }
         }
-      } else {
-        console.warn('Invalid bounding box coordinates:', { west, south, east, north });
       }
-      
-      boundingBoxRef.current = boundingBox;
     }
-  }, [map, boundingBox]);
+  }, [map, selectedFeature]);
 
   useEffect(() => {
     // Create vector source and layer for bounding box rectangles
@@ -742,8 +714,8 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
           return layer === 'geojson';
         });
         
-        if (geoJsonFeature && onGeoJsonFeatureSelect) {
-          onGeoJsonFeatureSelect(geoJsonFeature);
+        if (geoJsonFeature) {
+          setSelectedGeoJsonFeature(geoJsonFeature);
           return; // Don't check for location features if GeoJSON feature was clicked
         }
         
@@ -764,16 +736,12 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
         } else {
           // Clicked somewhere else, clear selections
           onFeatureSelectRef.current?.(null);
-          if (onGeoJsonFeatureSelect) {
-            onGeoJsonFeatureSelect(null);
-          }
+          setSelectedGeoJsonFeature(null);
         }
       } else {
         // No features at click point, clear selections
         onFeatureSelectRef.current?.(null);
-        if (onGeoJsonFeatureSelect) {
-          onGeoJsonFeatureSelect(null);
-        }
+        setSelectedGeoJsonFeature(null);
       }
     });
 
@@ -838,7 +806,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
     return () => {
       openLayersMap.setTarget(undefined);
     };
-  }, [zoomLevel, onGeoJsonFeatureSelect]); // Removed onFeatureSelect from dependencies to prevent map recreation
+  }, [zoomLevel, setSelectedGeoJsonFeature]); // Removed onFeatureSelect from dependencies to prevent map recreation
 
   // Effect to update marker/trajectory when clicked coordinates change (for position, radius, trajectory)
   useEffect(() => {
@@ -960,11 +928,9 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
           }
           if (x >= minLon && x <= maxLon && y >= minLat && y <= maxLat) {
             // For all three query types, update clickedCoords
-            if (onMapClick) {
-              const currentCoords = clickedCoordsRef.current || [];
-              const newCoords: [number, number][] = [...currentCoords, [x, y]];
-              onMapClick(newCoords);
-            }
+            const currentCoords = clickedCoordsRef.current || [];
+            const newCoords: [number, number][] = [...currentCoords, [x, y]];
+            setClickedCoords(newCoords);
           }
         }
       }
@@ -975,7 +941,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
     return () => {
       map.un('singleclick', handleMapClick);
     };
-  }, [map, dataQuery, selectedCollection, onMapClick]);
+  }, [map, dataQuery, selectedCollection, setClickedCoords]);
 
   // Effect to handle area and trajectory selection with drawing tool
   useEffect(() => {
@@ -1014,11 +980,9 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
           const [lon, lat] = toLonLat(coord);
           return [lon, lat];
         });
-        if (onAreaSelect) {
-          const currentAreas = selectedAreaRef.current || [];
-          const newAreas: [number, number][][] = [...currentAreas, lonLatCoords];
-          onAreaSelect(newAreas);
-        }
+        const currentAreas = selectedAreaRef.current || [];
+        const newAreas: [number, number][][] = [...currentAreas, lonLatCoords];
+        setSelectedArea(newAreas);
       });
 
       map.addInteraction(draw);
@@ -1056,9 +1020,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
           const [lon, lat] = toLonLat(coord);
           return [lon, lat];
         });
-        if (onMapClick) {
-          onMapClick(lonLatCoords);
-        }
+        setClickedCoords(lonLatCoords);
       });
 
       map.addInteraction(draw);
@@ -1074,12 +1036,12 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
       if (areaLayer) {
         const source = areaLayer.getSource();
         if (source) source.clear();
-        if (onAreaSelect) onAreaSelect([]);
+        setSelectedArea([]);
       }
       if (markerLayer) {
         const source = markerLayer.getSource();
         if (source) source.clear();
-        if (onMapClick) onMapClick([]);
+        setClickedCoords([]);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1188,9 +1150,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
   const handleLayerManagerChange = (updatedLayers: typeof allMapLayers) => {
     // Filter out internal layers - use data.type instead of URL patterns
     const geoJsonUpdates = updatedLayers.filter(l => !l.data || l.data.type !== 'internal');
-    if (onGeoJsonLayerUpdate) {
-      onGeoJsonLayerUpdate(geoJsonUpdates);
-    }
+    setGeoJsonLayers(geoJsonUpdates);
     
     // Update internal layer visibility - use data.layerType instead of URL
     updatedLayers.forEach(layer => {
@@ -1222,13 +1182,13 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
     if (!internalLayerTypes.has('markers') && markerLayer) {
       const source = markerLayer.getSource();
       if (source) source.clear();
-      if (onMapClick) onMapClick([]);
+      setClickedCoords([]);
     }
-    
+
     if (!internalLayerTypes.has('area') && areaLayer) {
       const source = areaLayer.getSource();
       if (source) source.clear();
-      if (onAreaSelect) onAreaSelect([]);
+      setSelectedArea([]);
     }
   };
 
@@ -1244,8 +1204,8 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
           <button
             style={{ marginRight: '8px', padding: '6px 12px', borderRadius: '4px', border: 'none', background: '#00BFFF', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}
             onClick={() => {
-              if (onMapClick && trajectoryCoords.length > 1) {
-                onMapClick(trajectoryCoords);
+              if (trajectoryCoords.length > 1) {
+                setClickedCoords(trajectoryCoords);
               }
             }}
             disabled={trajectoryCoords.length < 2}
@@ -1430,9 +1390,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
         >
           <button
             onClick={() => {
-              if (onMapClick) {
-                onMapClick([]);
-              }
+              setClickedCoords([]);
             }}
             style={{
               backgroundColor: 'rgba(255, 68, 68, 0.9)',
@@ -1469,9 +1427,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
           >
             <button
               onClick={() => {
-                if (onMapClick) {
-                  onMapClick([]);
-                }
+                setClickedCoords([]);
                 if (markerLayer) {
                   const source = markerLayer.getSource();
                   if (source) source.clear();
@@ -1539,9 +1495,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
         >
           <button
             onClick={() => {
-              if (onAreaSelect) {
-                onAreaSelect([]);
-              }
+              setSelectedArea([]);
               // Also clear the area layer
               if (areaLayer) {
                 const source = areaLayer.getSource();
@@ -1648,9 +1602,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
         >
           <button
             onClick={() => {
-              if (onMapClick) {
-                onMapClick([]);
-              }
+              setClickedCoords([]);
             }}
             style={{
               backgroundColor: 'rgba(255, 68, 68, 0.9)',
@@ -1692,9 +1644,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
               max="500"
               value={radiusKm}
               onChange={(e) => {
-                if (onRadiusChange) {
-                  onRadiusChange(Number(e.target.value));
-                }
+                setRadiusKm(Number(e.target.value));
               }}
               style={{
                 width: '150px',
@@ -1729,17 +1679,17 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel, boundingBox, selectedCol
       
       <GeoJsonFeatureViewer
         feature={selectedGeoJsonFeature}
-        onClose={() => onGeoJsonFeatureSelect?.(null)}
+        onClose={() => setSelectedGeoJsonFeature(null)}
         metadata={selectedGeoJsonFeature?.get ? geoJsonMetadata[selectedGeoJsonFeature.get('layerUrl')] : undefined}
         selectedLabelProperty={selectedGeoJsonFeature?.get ? 
           geoJsonLayers.find(l => l.url === selectedGeoJsonFeature.get('layerUrl'))?.labelProperty : undefined}
         onSelectLabelProperty={(propertyName) => {
-          if (selectedGeoJsonFeature?.get && onGeoJsonLayerUpdate) {
+          if (selectedGeoJsonFeature?.get) {
             const layerUrl = selectedGeoJsonFeature.get('layerUrl');
             const updatedLayers = geoJsonLayers.map(layer => 
               layer.url === layerUrl ? { ...layer, labelProperty: propertyName } : layer
             );
-            onGeoJsonLayerUpdate(updatedLayers);
+            setGeoJsonLayers(updatedLayers);
           }
         }}
       />

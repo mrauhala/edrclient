@@ -11,8 +11,8 @@ import SearchIcon from '@mui/icons-material/Search';
 import CancelIcon from '@mui/icons-material/Cancel';
 import ListIcon from '@mui/icons-material/List';
 import axios from 'axios';
-import { AuthCredentials } from './DataRetrievalAPI';
 import KeywordChips from './KeywordChips';
+import { useService } from './contexts/ServiceContext';
 import { 
   DataGrid, 
   GridColDef,
@@ -25,7 +25,6 @@ import {
 interface ItemsTableProps {
   url: string;
   title?: string;
-  getAuthCredentials: (url: string) => AuthCredentials | undefined;
   onFeatureClick?: (feature: FeatureItem) => void;
 }
 
@@ -50,7 +49,8 @@ interface ItemRow {
   [key: string]: any;
 }
 
-const ItemsTable: React.FC<ItemsTableProps> = ({ url, title, getAuthCredentials, onFeatureClick }) => {
+const ItemsTable: React.FC<ItemsTableProps> = ({ url, title, onFeatureClick }) => {
+  const { getAuthCredentials } = useService();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<FeatureCollection | null>(null);

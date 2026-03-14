@@ -50,32 +50,17 @@ import CollectionValidationErrors from './CollectionValidationErrors';
 import SwaggerUIViewer from './SwaggerUIViewer';
 import ConformanceViewer from './ConformanceViewer';
 import ItemsTable from './ItemsTable';
-import { CustomService } from './SettingsDrawer';
-import { AuthCredentials } from './DataRetrievalAPI';
 import KeywordChips from './KeywordChips';
+import { useGeoJsonLayers } from './contexts/GeoJsonLayerContext';
+import { useMapInteraction } from './contexts/MapInteractionContext';
+import { useCollection } from './contexts/CollectionContext';
+import { useService } from './contexts/ServiceContext';
 
 // Configure dayjs to use UTC plugin
 dayjs.extend(utc);
 
 interface SidebarProps {
   open: boolean;
-  onCollectionExtentChange?: (extents: [number, number, number, number][] | null) => void;
-  onLocationFeaturesChange?: (features: any[] | null) => void;
-  onFeatureSelect?: (feature: any) => void;
-  onSelectedCollectionChange?: (collection: Collection | null) => void;
-  onMapClick?: (coords: [number, number][]) => void;
-  onDataQueryChange?: (dataQuery: string) => void;
-  onCollectionUrlChange?: (url: string) => void;
-  clickedCoords?: [number, number][];
-  selectedArea?: [number, number][][];
-  radiusKm?: number;
-  locationFeatures?: any[] | null;
-  selectedFeature?: any | null;
-  customServices?: CustomService[];
-  onServiceUrlSelect?: string | null;
-  onGeoJsonLayersChange?: (layers: {url: string, title: string, visible: boolean, labelProperty?: string, data?: any, apiKey?: string, apiKeyParam?: string}[]) => void;
-  onLandingPageLicenseChange?: (license: LicenseInfo | null) => void;
-  getAuthCredentials: (url: string) => AuthCredentials | undefined;
 }
 
 // EDR service options
@@ -101,10 +86,14 @@ const edrServices = [
   { label: 'Custom', value: '' }
 ];
 
-const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onFeatureSelect, onSelectedCollectionChange, onMapClick, onDataQueryChange, onCollectionUrlChange, clickedCoords, selectedArea, radiusKm, locationFeatures, selectedFeature, customServices = [], onServiceUrlSelect = null, onGeoJsonLayersChange, onLandingPageLicenseChange, getAuthCredentials }: SidebarProps) => {
+const Sidebar = ({ open }: SidebarProps) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md')); // Mobile/tablet breakpoint at 900px
   const sidebarWidth = isMobile ? '100%' : 480;
+  const { geoJsonLayers, setGeoJsonLayers } = useGeoJsonLayers();
+  const { clickedCoords, setClickedCoords, selectedArea, radiusKm, setDataQuery } = useMapInteraction();
+  const { selectedCollection, setSelectedCollection, setSelectedCollectionExtents, locationFeatures, setLocationFeatures, selectedFeature, setSelectedFeature, setLandingPageLicense, collectionUrl, setCollectionUrl } = useCollection();
+  const { customServices, getAuthCredentials, selectedServiceUrl: onServiceUrlSelect } = useService();
   
   const [apiUrl, setApiUrl] = useState('https://opendata.fmi.fi/edr');
   const [selectedService, setSelectedService] = useState('https://opendata.fmi.fi/edr');
@@ -174,7 +163,7 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
   const [showServiceLinks, setShowServiceLinks] = useState(false); // State for collapsible links section
   const [showConformanceClasses, setShowConformanceClasses] = useState(false); // State for collapsible conformance section
   const [showValidation, setShowValidation] = useState(false); // State for collapsible validation section
-  const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
+  // selectedCollection is now managed via CollectionContext
   const [selectedDataQuery, setSelectedDataQuery] = useState<string>('');
   const [selectedFormat, setSelectedFormat] = useState<string>('');
   const [selectedParameters, setSelectedParameters] = useState<string[]>([]);
@@ -190,9 +179,9 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
   const [customDimensionModes, setCustomDimensionModes] = useState<{[dimensionId: string]: 'individual' | 'range'}>({});
   const [customDimensionStarts, setCustomDimensionStarts] = useState<{[dimensionId: string]: string}>({});
   const [customDimensionEnds, setCustomDimensionEnds] = useState<{[dimensionId: string]: string}>({});
-  const [collectionUrl, setCollectionUrl] = useState<string>('');
+  // collectionUrl is now managed via CollectionContext
   const [showCollectionValidation, setShowCollectionValidation] = useState<{[key: string]: boolean}>({});
-  const [activeGeoJsonLayers, setActiveGeoJsonLayers] = useState<{url: string, title: string, visible: boolean, labelProperty?: string, data?: any, apiKey?: string, apiKeyParam?: string}[]>([]);
+  // GeoJSON layers are now managed via GeoJsonLayerContext (geoJsonLayers/setGeoJsonLayers)
 
   // Helper function to extract GeoJSON links from a collection
   const getGeoJsonLinks = (
@@ -293,7 +282,7 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
       setStartDatetime('');
       setEndDatetime('');
       setCollectionUrl('');
-      setActiveGeoJsonLayers([]);
+      setGeoJsonLayers([]);
       
       // Clear validation result, conformance, and landing page info immediately
       setValidationResult({ isValid: true, errors: null });
@@ -304,11 +293,6 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
       setLandingPageDescription(null);
       setLandingPageKeywords(null);
       setServiceDescUrl(null);
-      
-      // Clear GeoJSON layers
-      if (onGeoJsonLayersChange) {
-        onGeoJsonLayersChange([]);
-      }
       
       try {
         console.log('Loading collections from:', apiUrl);
@@ -331,21 +315,11 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
         setLandingPageKeywords(result.landingPageKeywords || null);
         
         // Clear any previous extent/location data when switching services
-        if (onCollectionExtentChange) {
-          onCollectionExtentChange(null);
-        }
-        if (onLocationFeaturesChange) {
-          onLocationFeaturesChange(null);
-        }
-        if (onSelectedCollectionChange) {
-          onSelectedCollectionChange(null);
-        }
-        if (onMapClick) {
-          onMapClick([]);
-        }
-        if (onDataQueryChange) {
-          onDataQueryChange('');
-        }
+        setSelectedCollectionExtents(null);
+        setLocationFeatures(null);
+        setSelectedCollection(null);
+        setClickedCoords([]);
+        setDataQuery('');
       } catch (error) {
         console.error('Error loading collections:', error);
         setCollections([]); // Clear collections on error
@@ -392,12 +366,10 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clickedCoords]);
 
-  // Notify parent when top-level service license changes (so Map can show it as fallback).
+  // Sync top-level service license to context (so Map can show it as fallback).
   useEffect(() => {
-    if (onLandingPageLicenseChange) {
-      onLandingPageLicenseChange(topLevelLicense);
-    }
-  }, [topLevelLicense, onLandingPageLicenseChange]);
+    setLandingPageLicense(topLevelLicense);
+  }, [topLevelLicense, setLandingPageLicense]);
 
   // Effect to rebuild URL when selected area changes
   useEffect(() => {
@@ -491,12 +463,12 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
 
   // Effect to update GeoJSON layers when datetime values change
   useEffect(() => {
-    if (selectedCollection && activeGeoJsonLayers.length > 0) {
+    if (selectedCollection && geoJsonLayers.length > 0) {
       const geoJsonLinks = getGeoJsonLinks(selectedCollection, selectedDatetime, datetimeMode, startDatetime, endDatetime);
       const auth = getAuthCredentials(apiUrl);
       const updatedLayers = geoJsonLinks.map((link, index) => {
         // Preserve the visibility state and other properties from existing layers
-        const existingLayer = activeGeoJsonLayers[index];
+        const existingLayer = geoJsonLayers[index];
         return {
           url: link.url,
           title: link.title,
@@ -507,10 +479,7 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
           apiKeyParam: auth?.apiKeyParam
         };
       });
-      setActiveGeoJsonLayers(updatedLayers);
-      if (onGeoJsonLayersChange) {
-        onGeoJsonLayersChange(updatedLayers);
-      }
+      setGeoJsonLayers(updatedLayers);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDatetime, datetimeMode, startDatetime, endDatetime]);
@@ -622,13 +591,6 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedParameters]);
-
-  // Effect to notify parent when URL changes
-  useEffect(() => {
-    if (onCollectionUrlChange) {
-      onCollectionUrlChange(collectionUrl);
-    }
-  }, [collectionUrl, onCollectionUrlChange]);
 
   function handleApiUrlChange(event: React.ChangeEvent<HTMLInputElement>) {
     const newUrl = event.target.value;
@@ -863,16 +825,10 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
         apiKey: auth?.apiKey,
         apiKeyParam: auth?.apiKeyParam
       }));
-      setActiveGeoJsonLayers(initialLayers);
-      if (onGeoJsonLayersChange) {
-        onGeoJsonLayersChange(initialLayers);
-      }
+      setGeoJsonLayers(initialLayers);
     } else {
       // Clear GeoJSON layers when collection is closed
-      setActiveGeoJsonLayers([]);
-      if (onGeoJsonLayersChange) {
-        onGeoJsonLayersChange([]);
-      }
+      setGeoJsonLayers([]);
     }
     
     // Find the "data" link from collection links
@@ -903,25 +859,17 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
       setVerticalMode('individual'); // Reset vertical mode
       setStartVertical(''); // Reset start vertical
       setEndVertical(''); // Reset end vertical
-      if (onMapClick) {
-        onMapClick([]); // Clear clicked coordinates when collection changes
-      }
-      if (onDataQueryChange) {
-        onDataQueryChange(''); // Notify parent that data query was cleared
-      }
+      setClickedCoords([]); // Clear clicked coordinates when collection changes
+      setDataQuery(''); // Clear data query when collection changes
     } else {
       setCollectionUrl('');
       setSelectedFormat(''); // Reset format when collection is deselected
       setSelectedParameters([]); // Reset parameters when collection is deselected
-      if (onMapClick) {
-        onMapClick([]); // Clear clicked coordinates
-      }
+      setClickedCoords([]); // Clear clicked coordinates
     }
     
-    // Notify parent about selected collection change
-    if (onSelectedCollectionChange) {
-      onSelectedCollectionChange(selectedColl);
-    }
+    // Update context with selected collection
+    setSelectedCollection(selectedColl);
     
     // Only show extent and location data if collection is being opened
     if (newIndex !== null) {
@@ -938,67 +886,54 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
         
         try {
           const normalizedBboxes = normalizeBbox(collection.extent.spatial.bbox);
-          if (normalizedBboxes && onCollectionExtentChange) {
-            onCollectionExtentChange(normalizedBboxes);
-          } else if (onCollectionExtentChange) {
+          if (normalizedBboxes) {
+            setSelectedCollectionExtents(normalizedBboxes);
+          } else {
             // normalizeBbox returned null, clear extent
-            onCollectionExtentChange(null);
+            setSelectedCollectionExtents(null);
           }
         } catch (error) {
           console.warn('Error normalizing bbox:', error);
-          if (onCollectionExtentChange) {
-            onCollectionExtentChange(null);
-          }
+          setSelectedCollectionExtents(null);
         }
       } else {
         // Clear extent if collection doesn't have valid bbox
-        if (onCollectionExtentChange) {
-          onCollectionExtentChange(null);
-        }
+        setSelectedCollectionExtents(null);
       }
       
       // Check for location query support and execute if available
-      if (collection && hasLocationQuery(collection) && onLocationFeaturesChange) {
+      if (collection && hasLocationQuery(collection)) {
         const locationQueryUrl = getLocationQueryUrl(collection);
         
         if (locationQueryUrl) {
           try {
             const locationResult = await executeLocationQuery(locationQueryUrl, getAuthCredentials(apiUrl));
             if (locationResult && locationResult.features) {
-              onLocationFeaturesChange(locationResult.features);
+              setLocationFeatures(locationResult.features);
               setCurrentLocationCollection(collection.id); // Track which collection has location features
             } else {
-              onLocationFeaturesChange(null);
+              setLocationFeatures(null);
               setCurrentLocationCollection(null);
             }
           } catch (error) {
             console.error('Error executing location query:', error);
-            onLocationFeaturesChange(null);
+            setLocationFeatures(null);
             setCurrentLocationCollection(null);
           }
         }
       } else {
-        if (onLocationFeaturesChange) {
-          // Clear location features if collection doesn't support location queries
-          onLocationFeaturesChange(null);
-          setCurrentLocationCollection(null);
-        }
+        // Clear location features if collection doesn't support location queries
+        setLocationFeatures(null);
+        setCurrentLocationCollection(null);
       }
     } else {
       // Collection is being closed - clear all map data
       console.log('Collection being closed, clearing map data');
-      if (onCollectionExtentChange) {
-        onCollectionExtentChange(null);
-      }
-      if (onLocationFeaturesChange) {
-        onLocationFeaturesChange(null);
-        setCurrentLocationCollection(null);
-      }
+      setSelectedCollectionExtents(null);
+      setLocationFeatures(null);
+      setCurrentLocationCollection(null);
       // Clear GeoJSON layers when collection is closed
-      setActiveGeoJsonLayers([]);
-      if (onGeoJsonLayersChange) {
-        onGeoJsonLayersChange([]);
-      }
+      setGeoJsonLayers([]);
     }
   };
 
@@ -1465,13 +1400,10 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
                           setSelectedFormat(formatToUse);
                         }
                         
-                        // Notify parent about data query change
-                        if (onDataQueryChange) {
-                          onDataQueryChange(queryType);
-                        }
+                        setDataQuery(queryType);
                         // Clear clicked coordinates when changing data query
-                        if (queryType.toLowerCase() !== 'position' && onMapClick) {
-                          onMapClick([]);
+                        if (queryType.toLowerCase() !== 'position') {
+                          setClickedCoords([]);
                         }
                         let baseUrl = '';
                         if (queryType && collection.data_queries[queryType]?.link?.href) {
@@ -2493,15 +2425,12 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
                           };
                           
                           // Find existing layers that are not selected items (keep original layers)
-                          const nonSelectedLayers = activeGeoJsonLayers.filter(l => !l.title.startsWith('Selected: '));
+                          const nonSelectedLayers = geoJsonLayers.filter(l => !l.title.startsWith('Selected: '));
                           
                           // Always add the new selected feature (replacing any previous selection)
                           const updatedLayers = [...nonSelectedLayers, featureLayer];
                           
-                          setActiveGeoJsonLayers(updatedLayers);
-                          if (onGeoJsonLayersChange) {
-                            onGeoJsonLayersChange(updatedLayers);
-                          }
+                          setGeoJsonLayers(updatedLayers);
                         };
                         
                         return (
@@ -2509,7 +2438,6 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
                             key={idx}
                             url={normalizedHref}
                             title={link.title || 'Items'}
-                            getAuthCredentials={getAuthCredentials}
                             onFeatureClick={handleItemFeatureClick}
                           />
                         );
@@ -2527,7 +2455,7 @@ const Sidebar = ({ open, onCollectionExtentChange, onLocationFeaturesChange, onF
                       <Box sx={{ mt: 1 }}>
                         <LocationFeatureList 
                           features={locationFeatures} 
-                          onFeatureSelect={onFeatureSelect}
+                          onFeatureSelect={setSelectedFeature}
                         />
                       </Box>
                     )}
