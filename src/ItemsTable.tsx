@@ -1,14 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
-import Collapse from '@mui/material/Collapse';
-import ExpandLess from '@mui/icons-material/ExpandLess';
-import ExpandMore from '@mui/icons-material/ExpandMore';
 import Chip from '@mui/material/Chip';
 import TextField from '@mui/material/TextField';
+import CollapsibleSection from './CollapsibleSection';
 import InputAdornment from '@mui/material/InputAdornment';
 import SearchIcon from '@mui/icons-material/Search';
 import CancelIcon from '@mui/icons-material/Cancel';
@@ -54,17 +51,14 @@ interface ItemRow {
 }
 
 const ItemsTable: React.FC<ItemsTableProps> = ({ url, title, getAuthCredentials, onFeatureClick }) => {
-  const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<FeatureCollection | null>(null);
 
-  const handleToggle = () => {
-    if (!open && !data && !loading) {
-      // Fetch data on first open
+  const handleOpen = () => {
+    if (!data && !loading) {
       fetchItems();
     }
-    setOpen(!open);
   };
 
   const fetchItems = async () => {
@@ -241,38 +235,15 @@ const ItemsTable: React.FC<ItemsTableProps> = ({ url, title, getAuthCredentials,
   }
 
   return (
-    <Box sx={{ mt: 1, mb: 1 }}>
-      <Button
-        onClick={handleToggle}
-        endIcon={open ? <ExpandLess /> : <ExpandMore />}
-        variant="outlined"
-        size="small"
-        fullWidth
-        sx={{ 
-          justifyContent: 'space-between', 
-          textTransform: 'none',
-          pl: 0.5,
-        }}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <ListIcon fontSize="small" color="primary" />
-          <Typography variant="body2" fontWeight="medium">
-            {title || 'Items'}
-          </Typography>
-          {data && (
-            <Chip 
-              label={`${data.features.length} items`}
-              size="small"
-              color="primary"
-              variant="outlined"
-              sx={{ height: 20, fontSize: '0.7rem' }}
-            />
-          )}
-        </Box>
-      </Button>
-      
-      <Collapse in={open} timeout="auto" unmountOnExit>
-        <Box sx={{ mt: 1 }}>
+    <CollapsibleSection
+      title={title || 'Items'}
+      icon={<ListIcon fontSize="small" color="primary" />}
+      chipLabel={data ? `${data.features.length} items` : undefined}
+      variant="button"
+      onOpen={handleOpen}
+      sx={{ mt: 1, mb: 1 }}
+    >
+      <Box sx={{ mt: 1 }}>
           {loading && (
             <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
               <CircularProgress size={24} />
@@ -336,8 +307,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({ url, title, getAuthCredentials,
             </Alert>
           )}
         </Box>
-      </Collapse>
-    </Box>
+    </CollapsibleSection>
   );
 };
 
