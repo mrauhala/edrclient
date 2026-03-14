@@ -55,6 +55,7 @@ import { useGeoJsonLayers } from './contexts/GeoJsonLayerContext';
 import { useMapInteraction } from './contexts/MapInteractionContext';
 import { useCollection } from './contexts/CollectionContext';
 import { useService } from './contexts/ServiceContext';
+import { useQueryUrl } from './hooks/useQueryUrl';
 
 // Configure dayjs to use UTC plugin
 dayjs.extend(utc);
@@ -91,9 +92,30 @@ const Sidebar = ({ open }: SidebarProps) => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md')); // Mobile/tablet breakpoint at 900px
   const sidebarWidth = isMobile ? '100%' : 480;
   const { geoJsonLayers, setGeoJsonLayers } = useGeoJsonLayers();
-  const { clickedCoords, setClickedCoords, selectedArea, radiusKm, setDataQuery } = useMapInteraction();
-  const { selectedCollection, setSelectedCollection, setSelectedCollectionExtents, locationFeatures, setLocationFeatures, selectedFeature, setSelectedFeature, setLandingPageLicense, collectionUrl, setCollectionUrl } = useCollection();
+  const { setClickedCoords, setDataQuery } = useMapInteraction();
+  const { selectedCollection, setSelectedCollection, setSelectedCollectionExtents, locationFeatures, setLocationFeatures, setSelectedFeature, setLandingPageLicense, setCollectionUrl } = useCollection();
   const { customServices, getAuthCredentials, selectedServiceUrl: onServiceUrlSelect } = useService();
+  const queryState = useQueryUrl();
+  const {
+    selectedDataQuery, setSelectedDataQuery,
+    selectedFormat, setSelectedFormat,
+    selectedParameters, setSelectedParameters,
+    selectedDatetime, setSelectedDatetime,
+    datetimeMode, setDatetimeMode,
+    startDatetime, setStartDatetime,
+    endDatetime, setEndDatetime,
+    selectedVertical, setSelectedVertical,
+    verticalMode, setVerticalMode,
+    startVertical, setStartVertical,
+    endVertical, setEndVertical,
+    selectedCustomDimensions, setSelectedCustomDimensions,
+    customDimensionModes, setCustomDimensionModes,
+    customDimensionStarts, setCustomDimensionStarts,
+    customDimensionEnds, setCustomDimensionEnds,
+    resetQueryState,
+    getEffectiveOutputFormats,
+    buildUrlWithParams,
+  } = queryState;
   
   const [apiUrl, setApiUrl] = useState('https://opendata.fmi.fi/edr');
   const [selectedService, setSelectedService] = useState('https://opendata.fmi.fi/edr');
@@ -163,25 +185,8 @@ const Sidebar = ({ open }: SidebarProps) => {
   const [showServiceLinks, setShowServiceLinks] = useState(false); // State for collapsible links section
   const [showConformanceClasses, setShowConformanceClasses] = useState(false); // State for collapsible conformance section
   const [showValidation, setShowValidation] = useState(false); // State for collapsible validation section
-  // selectedCollection is now managed via CollectionContext
-  const [selectedDataQuery, setSelectedDataQuery] = useState<string>('');
-  const [selectedFormat, setSelectedFormat] = useState<string>('');
-  const [selectedParameters, setSelectedParameters] = useState<string[]>([]);
-  const [selectedDatetime, setSelectedDatetime] = useState<string>(''); // Changed from array to single string
-  const [datetimeMode, setDatetimeMode] = useState<'individual' | 'range'>('individual');
-  const [startDatetime, setStartDatetime] = useState<string>('');
-  const [endDatetime, setEndDatetime] = useState<string>('');
-  const [selectedVertical, setSelectedVertical] = useState<string>('');
-  const [verticalMode, setVerticalMode] = useState<'individual' | 'range'>('individual');
-  const [startVertical, setStartVertical] = useState<string>('');
-  const [endVertical, setEndVertical] = useState<string>('');
-  const [selectedCustomDimensions, setSelectedCustomDimensions] = useState<{[dimensionId: string]: string}>({});
-  const [customDimensionModes, setCustomDimensionModes] = useState<{[dimensionId: string]: 'individual' | 'range'}>({});
-  const [customDimensionStarts, setCustomDimensionStarts] = useState<{[dimensionId: string]: string}>({});
-  const [customDimensionEnds, setCustomDimensionEnds] = useState<{[dimensionId: string]: string}>({});
-  // collectionUrl is now managed via CollectionContext
+  // Query states are now managed via useQueryUrl hook
   const [showCollectionValidation, setShowCollectionValidation] = useState<{[key: string]: boolean}>({});
-  // GeoJSON layers are now managed via GeoJsonLayerContext (geoJsonLayers/setGeoJsonLayers)
 
   // Helper function to extract GeoJSON links from a collection
   const getGeoJsonLinks = (
@@ -236,24 +241,6 @@ const Sidebar = ({ open }: SidebarProps) => {
       .filter(item => item !== null) as {url: string, title: string}[];
   };
 
-  // Helper function to get effective output formats (data query level overrides collection level)
-  const getEffectiveOutputFormats = (collection: Collection, dataQueryType: string): string[] => {
-    // Check if data query has its own output_formats
-    if (dataQueryType && 
-        collection.data_queries[dataQueryType]?.link?.variables?.output_formats &&
-        Array.isArray(collection.data_queries[dataQueryType].link.variables.output_formats) &&
-        collection.data_queries[dataQueryType].link.variables.output_formats.length > 0) {
-      return collection.data_queries[dataQueryType].link.variables.output_formats;
-    }
-    
-    // Fall back to collection-level output_formats
-    if (collection.output_formats && Array.isArray(collection.output_formats)) {
-      return collection.output_formats;
-    }
-    
-    return [];
-  };
-
   // Debounce effect for text input - only update apiUrl after 1 second of no typing
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -274,13 +261,7 @@ const Sidebar = ({ open }: SidebarProps) => {
       
       // Reset all query-related states when service changes
       setSelectedCollection(null);
-      setSelectedDataQuery('');
-      setSelectedFormat('');
-      setSelectedParameters([]);
-      setSelectedDatetime('');
-      setDatetimeMode('individual');
-      setStartDatetime('');
-      setEndDatetime('');
+      resetQueryState();
       setCollectionUrl('');
       setGeoJsonLayers([]);
       
@@ -338,128 +319,12 @@ const Sidebar = ({ open }: SidebarProps) => {
 
   const [openCollectionIndex, setOpenCollectionIndex] = useState<number | null>(null);
 
-  // Effect to rebuild URL when clicked coordinates change (position)
-  useEffect(() => {
-    if (selectedDataQuery && selectedDataQuery.toLowerCase() === 'position' && clickedCoords) {
-      const isDataQuery = !!selectedDataQuery;
-      if (selectedCollection && selectedCollection.data_queries[selectedDataQuery]?.link?.href) {
-        const normalizedHref = normalizeHref(selectedCollection.data_queries[selectedDataQuery].link.href);
-        if (normalizedHref) {
-          setCollectionUrl(buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, clickedCoords, null, radiusKm, selectedDataQuery, null, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical, selectedCustomDimensions, customDimensionModes, customDimensionStarts, customDimensionEnds));
-        }
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clickedCoords]);
-
-  // Effect to rebuild URL when trajectory coordinates change
-  useEffect(() => {
-    if (selectedDataQuery && selectedDataQuery.toLowerCase() === 'trajectory' && clickedCoords && clickedCoords.length > 1) {
-      const isDataQuery = !!selectedDataQuery;
-      if (selectedCollection && selectedCollection.data_queries[selectedDataQuery]?.link?.href) {
-        const normalizedHref = normalizeHref(selectedCollection.data_queries[selectedDataQuery].link.href);
-        if (normalizedHref) {
-          setCollectionUrl(buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, clickedCoords, null, radiusKm, selectedDataQuery, null, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical, selectedCustomDimensions, customDimensionModes, customDimensionStarts, customDimensionEnds));
-        }
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clickedCoords]);
+  // URL rebuilding effects are now consolidated in useQueryUrl hook
 
   // Sync top-level service license to context (so Map can show it as fallback).
   useEffect(() => {
     setLandingPageLicense(topLevelLicense);
   }, [topLevelLicense, setLandingPageLicense]);
-
-  // Effect to rebuild URL when selected area changes
-  useEffect(() => {
-    if (selectedDataQuery && selectedDataQuery.toLowerCase() === 'area' && selectedArea) {
-      const isDataQuery = !!selectedDataQuery;
-      // Find the current collection and rebuild the URL
-      if (selectedCollection && selectedCollection.data_queries[selectedDataQuery]?.link?.href) {
-        const normalizedHref = normalizeHref(selectedCollection.data_queries[selectedDataQuery].link.href);
-        if (normalizedHref) {
-          setCollectionUrl(buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, null, selectedArea, radiusKm, selectedDataQuery, null, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical, selectedCustomDimensions, customDimensionModes, customDimensionStarts, customDimensionEnds));
-        }
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedArea]);
-
-  // Effect to rebuild URL when radius query coordinates or radius change
-  useEffect(() => {
-    if (selectedDataQuery && selectedDataQuery.toLowerCase() === 'radius') {
-      const isDataQuery = !!selectedDataQuery;
-      // Find the current collection and rebuild the URL
-      if (selectedCollection && selectedCollection.data_queries[selectedDataQuery]?.link?.href) {
-        const normalizedHref = normalizeHref(selectedCollection.data_queries[selectedDataQuery].link.href);
-        if (normalizedHref) {
-          setCollectionUrl(buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, clickedCoords, null, radiusKm, selectedDataQuery, null, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical, selectedCustomDimensions, customDimensionModes, customDimensionStarts, customDimensionEnds));
-        }
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clickedCoords, radiusKm]);
-
-  // Effect to rebuild URL when selected location feature changes
-  useEffect(() => {
-    if (selectedDataQuery && selectedDataQuery.toLowerCase() === 'locations' && selectedFeature) {
-      const isDataQuery = !!selectedDataQuery;
-      // Find the current collection and rebuild the URL
-      if (selectedCollection && selectedCollection.data_queries[selectedDataQuery]?.link?.href) {
-        const normalizedHref = normalizeHref(selectedCollection.data_queries[selectedDataQuery].link.href);
-        if (normalizedHref) {
-          setCollectionUrl(buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, null, null, radiusKm, selectedDataQuery, selectedFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical, selectedCustomDimensions, customDimensionModes, customDimensionStarts, customDimensionEnds));
-        }
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedFeature]);
-
-  // Effect to rebuild URL when selected datetime changes
-  useEffect(() => {
-    if (selectedDataQuery && selectedCollection) {
-      const isDataQuery = !!selectedDataQuery;
-      if (selectedCollection.data_queries[selectedDataQuery]?.link?.href) {
-        const normalizedHref = normalizeHref(selectedCollection.data_queries[selectedDataQuery].link.href);
-        if (normalizedHref) {
-          const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-          setCollectionUrl(buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical, selectedCustomDimensions, customDimensionModes, customDimensionStarts, customDimensionEnds));
-        }
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDatetime]);
-
-  // Effect to rebuild URL when selected vertical changes
-  useEffect(() => {
-    if (selectedDataQuery && selectedCollection) {
-      const isDataQuery = !!selectedDataQuery;
-      if (selectedCollection.data_queries[selectedDataQuery]?.link?.href) {
-        const normalizedHref = normalizeHref(selectedCollection.data_queries[selectedDataQuery].link.href);
-        if (normalizedHref) {
-          const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-          setCollectionUrl(buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical, selectedCustomDimensions, customDimensionModes, customDimensionStarts, customDimensionEnds));
-        }
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedVertical, verticalMode, startVertical, endVertical]);
-
-  // Effect to rebuild URL when custom dimensions change
-  useEffect(() => {
-    if (selectedDataQuery && selectedCollection) {
-      const isDataQuery = !!selectedDataQuery;
-      if (selectedCollection.data_queries[selectedDataQuery]?.link?.href) {
-        const normalizedHref = normalizeHref(selectedCollection.data_queries[selectedDataQuery].link.href);
-        if (normalizedHref) {
-          const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-          setCollectionUrl(buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical, selectedCustomDimensions, customDimensionModes, customDimensionStarts, customDimensionEnds));
-        }
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCustomDimensions, customDimensionModes, customDimensionStarts, customDimensionEnds]);
 
   // Effect to update GeoJSON layers when datetime values change
   useEffect(() => {
@@ -483,114 +348,6 @@ const Sidebar = ({ open }: SidebarProps) => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDatetime, datetimeMode, startDatetime, endDatetime]);
-
-  // Effect to rebuild URL when data query changes (to apply persisted parameters)
-  useEffect(() => {
-    if (selectedDataQuery && selectedCollection) {
-      const isDataQuery = !!selectedDataQuery;
-      if (selectedCollection.data_queries[selectedDataQuery]?.link) {
-        // Get effective output formats for this data query
-        const effectiveFormats = getEffectiveOutputFormats(selectedCollection, selectedDataQuery);
-        
-        // Determine which format to use
-        let formatToUse = selectedFormat;
-        
-        // Check if current selection is still valid
-        if (selectedFormat && !effectiveFormats.includes(selectedFormat)) {
-          // Current selection no longer available, need to pick a new one
-          formatToUse = '';
-        }
-        
-        // If no valid format selected, try to use default_output_format
-        if (!formatToUse && selectedCollection.data_queries[selectedDataQuery]?.link?.variables?.default_output_format) {
-          const defaultFormat = selectedCollection.data_queries[selectedDataQuery].link.variables.default_output_format!;
-          // Only use default if it's in the available formats
-          if (effectiveFormats.includes(defaultFormat)) {
-            formatToUse = defaultFormat;
-          }
-        }
-        
-        // Update format state if it changed
-        if (formatToUse !== selectedFormat) {
-          setSelectedFormat(formatToUse);
-        }
-        
-        const normalizedHref = normalizeHref(selectedCollection.data_queries[selectedDataQuery].link.href);
-        if (normalizedHref) {
-          const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-          // Use the current datetime mode (user can now choose individual or range)
-          const newUrl = buildUrlWithParams(normalizedHref, formatToUse, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical);
-          console.log('Data query changed, updating URL with persisted parameters:', newUrl);
-          setCollectionUrl(newUrl);
-        }
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDataQuery]);
-
-  // Effect to rebuild URL when start/end datetime changes (for range mode or when no values exist)
-  useEffect(() => {
-    console.log('DateTime range useEffect triggered', { startDatetime, endDatetime, selectedDataQuery, datetimeMode });
-    if (selectedDataQuery && selectedCollection) {
-      const isDataQuery = !!selectedDataQuery;
-      if (selectedCollection.data_queries[selectedDataQuery]?.link?.href) {
-        // Check if we should use range datetime
-        const hasValues = selectedCollection.extent?.temporal?.values && selectedCollection.extent.temporal.values.length > 0;
-        const shouldUseRange = datetimeMode === 'range' || !hasValues;
-        
-        console.log('DateTime check:', { hasValues, shouldUseRange, datetimeMode });
-        
-        if (shouldUseRange && (startDatetime || endDatetime)) {
-          const normalizedHref = normalizeHref(selectedCollection.data_queries[selectedDataQuery].link.href);
-          if (normalizedHref) {
-            const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-            // Use 'range' mode when !hasValues even if datetimeMode is 'individual'
-            const effectiveMode = !hasValues ? 'range' : datetimeMode;
-            const newUrl = buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, effectiveMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical);
-            console.log('Setting collection URL with datetime:', newUrl);
-            setCollectionUrl(newUrl);
-          }
-        }
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startDatetime, endDatetime]);
-
-  // Effect to rebuild URL when format changes
-  useEffect(() => {
-    if (selectedDataQuery && selectedCollection && selectedFormat) {
-      const isDataQuery = !!selectedDataQuery;
-      if (selectedCollection.data_queries[selectedDataQuery]?.link?.href) {
-        const normalizedHref = normalizeHref(selectedCollection.data_queries[selectedDataQuery].link.href);
-        if (normalizedHref) {
-          const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-          const hasValues = selectedCollection.extent?.temporal?.values && selectedCollection.extent.temporal.values.length > 0;
-          const effectiveMode = !hasValues ? 'range' : datetimeMode;
-          const newUrl = buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, effectiveMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical);
-          setCollectionUrl(newUrl);
-        }
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedFormat]);
-
-  // Effect to rebuild URL when parameters change
-  useEffect(() => {
-    if (selectedDataQuery && selectedCollection && selectedParameters.length > 0) {
-      const isDataQuery = !!selectedDataQuery;
-      if (selectedCollection.data_queries[selectedDataQuery]?.link?.href) {
-        const normalizedHref = normalizeHref(selectedCollection.data_queries[selectedDataQuery].link.href);
-        if (normalizedHref) {
-          const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-          const hasValues = selectedCollection.extent?.temporal?.values && selectedCollection.extent.temporal.values.length > 0;
-          const effectiveMode = !hasValues ? 'range' : datetimeMode;
-          const newUrl = buildUrlWithParams(normalizedHref, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, effectiveMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical);
-          setCollectionUrl(newUrl);
-        }
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedParameters]);
 
   function handleApiUrlChange(event: React.ChangeEvent<HTMLInputElement>) {
     const newUrl = event.target.value;
@@ -622,184 +379,6 @@ const Sidebar = ({ open }: SidebarProps) => {
     setApiUrl(inputUrl);
     // Increment trigger to force re-validation even if URL hasn't changed
     setValidationTrigger(prev => prev + 1);
-  };
-
-  // Helper function to build URL with query parameters
-  const buildUrlWithParams = (
-    baseUrl: string, 
-    format: string, 
-    parameters: string[], 
-    isDataQuery: boolean, 
-    coords: [number, number][] | null | undefined = null, 
-    area: [number, number][][] | null | undefined = null, 
-    radius: number | undefined = undefined, 
-    queryType: string = '', 
-    locationFeature: any | null = null, 
-    datetime: string = '', // Changed from array to single string
-    dtMode: 'individual' | 'range' = 'individual',
-    dtStart: string = '',
-    dtEnd: string = '',
-    vertical: string = '',
-    vMode: 'individual' | 'range' = 'individual',
-    vStart: string = '',
-    vEnd: string = '',
-    customDims: {[dimensionId: string]: string} = {},
-    customDimModes: {[dimensionId: string]: 'individual' | 'range'} = {},
-    customDimStarts: {[dimensionId: string]: string} = {},
-    customDimEnds: {[dimensionId: string]: string} = {}
-  ) => {
-    if (!baseUrl) return baseUrl;
-    
-    try {
-      let url = new URL(baseUrl);
-      
-      // Handle location query type - add location ID or use href from feature
-      if (queryType.toLowerCase() === 'locations' && locationFeature) {
-        // First, check if the feature has an href property
-        if (locationFeature.properties?.href) {
-          // Use the href from the feature properties as the complete URL
-          url = new URL(locationFeature.properties.href);
-        } else if (locationFeature.id) {
-          // If no href, append the location ID to the base URL path (only if not already present)
-          const pathParts = url.pathname.split('/').filter(part => part.length > 0);
-          const locationId = String(locationFeature.id);
-          // Check if the location ID is not already the last part of the path
-          if (pathParts[pathParts.length - 1] !== locationId) {
-            pathParts.push(locationId);
-            url.pathname = '/' + pathParts.join('/');
-          }
-        }
-      }
-      
-      // Only add query parameters if this is a data query URL (not a collection URL)
-      if (isDataQuery) {
-        if (format) {
-          url.searchParams.set('f', format);
-        } else {
-          url.searchParams.delete('f');
-        }
-        
-        // Add parameters as a single comma-separated parameter-name query param
-        if (parameters && parameters.length > 0) {
-          url.searchParams.set('parameter-name', parameters.join(','));
-        } else {
-          url.searchParams.delete('parameter-name');
-        }
-        
-        // Add datetime parameter
-        console.log('buildUrlWithParams datetime params:', { dtMode, dtStart, dtEnd, datetime });
-        if (dtMode === 'range' && dtStart && dtEnd) {
-          // Time range mode: format as start/end
-          console.log('Setting datetime range:', `${dtStart}/${dtEnd}`);
-          url.searchParams.set('datetime', `${dtStart}/${dtEnd}`);
-        } else if (dtMode === 'individual' && datetime) {
-          // Individual time mode: single datetime value
-          console.log('Setting individual datetime:', datetime);
-          url.searchParams.set('datetime', datetime);
-        } else {
-          console.log('Deleting datetime parameter');
-          url.searchParams.delete('datetime');
-        }
-        
-        // Add vertical (z) parameter
-        if (vMode === 'range' && vStart && vEnd) {
-          // Vertical range mode: format as start/end
-          url.searchParams.set('z', `${vStart}/${vEnd}`);
-        } else if (vMode === 'individual' && vertical) {
-          // Individual vertical level: single value
-          url.searchParams.set('z', vertical);
-        } else {
-          url.searchParams.delete('z');
-        }
-        
-        // Add custom dimension parameters
-        Object.keys(customDims).forEach(dimensionId => {
-          const mode = customDimModes[dimensionId] || 'individual';
-          const value = customDims[dimensionId];
-          const start = customDimStarts[dimensionId];
-          const end = customDimEnds[dimensionId];
-          
-          if (mode === 'range' && start && end) {
-            // Range mode: format as start/end
-            url.searchParams.set(dimensionId, `${start}/${end}`);
-          } else if (mode === 'individual' && value) {
-            // Individual mode: single value
-            url.searchParams.set(dimensionId, value);
-          } else {
-            url.searchParams.delete(dimensionId);
-          }
-        });
-        
-        // Add coords parameter
-        if (queryType.toLowerCase() === 'position' && coords && coords.length > 0) {
-          if (coords.length === 1) {
-            // Single POINT
-            const [lon, lat] = coords[0];
-            url.searchParams.set('coords', `POINT(${lon.toFixed(3)} ${lat.toFixed(3)})`);
-          } else {
-            // MULTIPOINT
-            const points = coords.map(c => `(${c[0].toFixed(3)} ${c[1].toFixed(3)})`).join(',');
-            url.searchParams.set('coords', `MULTIPOINT(${points})`);
-          }
-        } else if (queryType.toLowerCase() === 'trajectory' && coords && coords.length > 1) {
-          // LINESTRING for trajectory
-          const linestring = coords.map(c => `${c[0].toFixed(3)} ${c[1].toFixed(3)}`).join(', ');
-          url.searchParams.set('coords', `LINESTRING(${linestring})`);
-        } else if (queryType.toLowerCase() === 'radius' && coords && coords.length > 0) {
-          // Radius query uses POINT/MULTIPOINT like position
-          if (coords.length === 1) {
-            // Single POINT
-            const [lon, lat] = coords[0];
-            url.searchParams.set('coords', `POINT(${lon.toFixed(3)} ${lat.toFixed(3)})`);
-          } else {
-            // MULTIPOINT
-            const points = coords.map(c => `(${c[0].toFixed(3)} ${c[1].toFixed(3)})`).join(',');
-            url.searchParams.set('coords', `MULTIPOINT(${points})`);
-          }
-          // Add radius parameters
-          if (radius !== undefined) {
-            url.searchParams.set('within', radius.toString());
-            url.searchParams.set('within-units', 'km');
-          }
-        } else if (queryType.toLowerCase() === 'area' && area && area.length > 0) {
-          if (area.length === 1) {
-            // Single POLYGON
-            const wktCoords = area[0].map(coord => `${coord[0].toFixed(2)} ${coord[1].toFixed(2)}`).join(',');
-            url.searchParams.set('coords', `POLYGON((${wktCoords}))`);
-          } else {
-            // MULTIPOLYGON
-            const polygons = area.map(polygon => {
-              const wktCoords = polygon.map(coord => `${coord[0].toFixed(2)} ${coord[1].toFixed(2)}`).join(',');
-              return `((${wktCoords}))`;
-            }).join(',');
-            url.searchParams.set('coords', `MULTIPOLYGON(${polygons})`);
-          }
-        } else if (queryType.toLowerCase() !== 'locations') {
-          // Don't delete coords for location queries
-          url.searchParams.delete('coords');
-          url.searchParams.delete('within');
-          url.searchParams.delete('within-units');
-        }
-      } else {
-        // Remove query params when it's not a data query
-        url.searchParams.delete('f');
-        url.searchParams.delete('parameter-name');
-        url.searchParams.delete('datetime');
-        url.searchParams.delete('z');
-        // Remove all custom dimension parameters
-        Object.keys(customDims).forEach(dimensionId => {
-          url.searchParams.delete(dimensionId);
-        });
-        url.searchParams.delete('coords');
-        url.searchParams.delete('within');
-        url.searchParams.delete('within-units');
-      }
-      
-      return url.toString();
-    } catch (error) {
-      // If URL is invalid, return as is
-      return baseUrl;
-    }
   };
 
   const handleItemClick = async (index: number, key: string) => {
@@ -847,24 +426,13 @@ const Sidebar = ({ open }: SidebarProps) => {
         baseUrl = apiUrl + "/collections/" + key;
       }
       // Collection URL - no query params added (isDataQuery = false)
-      setCollectionUrl(buildUrlWithParams(baseUrl, selectedFormat, selectedParameters, false, null, null, radiusKm, '', null, '', 'individual', '', '', '', 'individual', '', ''));
-      setSelectedDataQuery(''); // Reset data query selection
-      setSelectedFormat(''); // Reset format when collection changes
-      setSelectedParameters([]); // Reset parameters when collection changes
-      setSelectedDatetime(''); // Reset datetime selection when collection changes
-      setDatetimeMode('individual'); // Reset datetime mode
-      setStartDatetime(''); // Reset start datetime
-      setEndDatetime(''); // Reset end datetime
-      setSelectedVertical(''); // Reset vertical selection when collection changes
-      setVerticalMode('individual'); // Reset vertical mode
-      setStartVertical(''); // Reset start vertical
-      setEndVertical(''); // Reset end vertical
+      setCollectionUrl(buildUrlWithParams(baseUrl, '', [], false));
+      resetQueryState();
       setClickedCoords([]); // Clear clicked coordinates when collection changes
       setDataQuery(''); // Clear data query when collection changes
     } else {
       setCollectionUrl('');
-      setSelectedFormat(''); // Reset format when collection is deselected
-      setSelectedParameters([]); // Reset parameters when collection is deselected
+      resetQueryState();
       setClickedCoords([]); // Clear clicked coordinates
     }
     
@@ -1373,61 +941,28 @@ const Sidebar = ({ open }: SidebarProps) => {
                       onChange={(e) => {
                         const queryType = e.target.value;
                         setSelectedDataQuery(queryType);
-                        
-                        // Get effective output formats for this data query
+
+                        // Auto-select format for this data query
                         const effectiveFormats = getEffectiveOutputFormats(collection, queryType);
-                        
-                        // Determine which format to use
                         let formatToUse = selectedFormat;
-                        
-                        // Check if current selection is still valid
                         if (selectedFormat && !effectiveFormats.includes(selectedFormat)) {
-                          // Current selection no longer available, need to pick a new one
                           formatToUse = '';
                         }
-                        
-                        // If no valid format selected, try to use default_output_format
                         if (!formatToUse && queryType && collection.data_queries[queryType]?.link?.variables?.default_output_format) {
                           const defaultFormat = collection.data_queries[queryType].link.variables.default_output_format;
-                          // Only use default if it's in the available formats
                           if (effectiveFormats.includes(defaultFormat)) {
                             formatToUse = defaultFormat;
                           }
                         }
-                        
-                        // Update format state if it changed
                         if (formatToUse !== selectedFormat) {
                           setSelectedFormat(formatToUse);
                         }
-                        
+
                         setDataQuery(queryType);
-                        // Clear clicked coordinates when changing data query
                         if (queryType.toLowerCase() !== 'position') {
                           setClickedCoords([]);
                         }
-                        let baseUrl = '';
-                        if (queryType && collection.data_queries[queryType]?.link?.href) {
-                          const normalizedHref = normalizeHref(collection.data_queries[queryType].link.href);
-                          if (normalizedHref) {
-                            baseUrl = normalizedHref;
-                          }
-                        }
-                        
-                        if (!baseUrl) {
-                          // Reset to data link
-                          const dataLink = collection.links.find(link => link.rel === 'data');
-                          if (dataLink?.href) {
-                            const normalizedHref = normalizeHref(dataLink.href);
-                            if (normalizedHref) {
-                              baseUrl = normalizedHref;
-                            }
-                          }
-                        }
-                        // Apply format and parameter if data query is selected (use formatToUse which may be the default)
-                        const isDataQuery = !!queryType;
-                        const locationFeature = queryType.toLowerCase() === 'locations' ? selectedFeature : null;
-                        const newUrl = buildUrlWithParams(baseUrl, formatToUse, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, queryType, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical);
-                        setCollectionUrl(newUrl);
+                        // URL rebuild is handled by useQueryUrl consolidated effect
                       }}
                       size="small"
                     >
@@ -1454,13 +989,7 @@ const Sidebar = ({ open }: SidebarProps) => {
                         value={selectedFormat}
                         label="Output Format"
                         onChange={(e) => {
-                          const format = e.target.value;
-                          setSelectedFormat(format);
-                          // Update URL with format parameter while preserving current base URL
-                          // Only add params if data query is selected
-                          const isDataQuery = !!selectedDataQuery;
-                          const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-                          setCollectionUrl(buildUrlWithParams(collectionUrl, format, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical));
+                          setSelectedFormat(e.target.value);
                         }}
                         size="small"
                       >
@@ -1489,11 +1018,6 @@ const Sidebar = ({ open }: SidebarProps) => {
                       onChange={(e) => {
                         const parameters = typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value;
                         setSelectedParameters(parameters);
-                        // Update URL with parameter-name parameter
-                        // Only add params if data query is selected
-                        const isDataQuery = !!selectedDataQuery;
-                        const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-                        setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, parameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical));
                       }}
                       size="small"
                       renderValue={(selected) => selected.join(', ')}
@@ -1559,24 +1083,6 @@ const Sidebar = ({ open }: SidebarProps) => {
                               setStartDatetime('');
                               setEndDatetime('');
                             }
-                            // Update URL
-                            const isDataQuery = !!selectedDataQuery;
-                            const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-                            setCollectionUrl(buildUrlWithParams(
-                              collectionUrl, 
-                              selectedFormat, 
-                              selectedParameters, 
-                              isDataQuery, 
-                              clickedCoords, 
-                              selectedArea, 
-                              radiusKm, 
-                              selectedDataQuery, 
-                              locationFeature, 
-                              '', 
-                              newMode,
-                              '',
-                              ''
-                            ));
                           }}
                           sx={{ gap: 2 }}
                         >
@@ -1734,10 +1240,6 @@ const Sidebar = ({ open }: SidebarProps) => {
                               onChange={(e) => {
                                 const datetime = e.target.value as string;
                                 setSelectedDatetime(datetime);
-                                // Update URL with datetime parameter
-                                const isDataQuery = !!selectedDataQuery;
-                                const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-                                setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, datetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, endVertical));
                               }}
                               size="small"
                               MenuProps={{
@@ -1799,10 +1301,6 @@ const Sidebar = ({ open }: SidebarProps) => {
                                   onChange={(e) => {
                                     const newStart = e.target.value;
                                     setStartDatetime(newStart);
-                                    // Update URL
-                                    const isDataQuery = !!selectedDataQuery;
-                                    const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-                                    setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, newStart, endDatetime, selectedVertical, verticalMode, startVertical, endVertical));
                                   }}
                                   MenuProps={{
                                     PaperProps: {
@@ -1837,10 +1335,6 @@ const Sidebar = ({ open }: SidebarProps) => {
                                   onChange={(e) => {
                                     const newEnd = e.target.value;
                                     setEndDatetime(newEnd);
-                                    // Update URL
-                                    const isDataQuery = !!selectedDataQuery;
-                                    const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-                                    setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, newEnd, selectedVertical, verticalMode, startVertical, endVertical));
                                   }}
                                   MenuProps={{
                                     PaperProps: {
@@ -1954,28 +1448,6 @@ const Sidebar = ({ open }: SidebarProps) => {
                               setStartVertical('');
                               setEndVertical('');
                             }
-                            // Update URL
-                            const isDataQuery = !!selectedDataQuery;
-                            const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-                            setCollectionUrl(buildUrlWithParams(
-                              collectionUrl, 
-                              selectedFormat, 
-                              selectedParameters, 
-                              isDataQuery, 
-                              clickedCoords, 
-                              selectedArea, 
-                              radiusKm, 
-                              selectedDataQuery, 
-                              locationFeature, 
-                              selectedDatetime, 
-                              datetimeMode,
-                              startDatetime,
-                              endDatetime,
-                              '', 
-                              newMode,
-                              '',
-                              ''
-                            ));
                           }}
                           sx={{ gap: 2 }}
                         >
@@ -2004,10 +1476,6 @@ const Sidebar = ({ open }: SidebarProps) => {
                               onChange={(e) => {
                                 const vertical = e.target.value as string;
                                 setSelectedVertical(vertical);
-                                // Update URL with vertical parameter
-                                const isDataQuery = !!selectedDataQuery;
-                                const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-                                setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime, vertical, verticalMode, startVertical, endVertical));
                               }}
                               size="small"
                               MenuProps={{
@@ -2037,10 +1505,6 @@ const Sidebar = ({ open }: SidebarProps) => {
                             onChange={(e) => {
                               const vertical = e.target.value;
                               setSelectedVertical(vertical);
-                              // Update URL with vertical parameter
-                              const isDataQuery = !!selectedDataQuery;
-                              const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-                              setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime, vertical, verticalMode, startVertical, endVertical));
                             }}
                             fullWidth
                             size="small"
@@ -2065,10 +1529,6 @@ const Sidebar = ({ open }: SidebarProps) => {
                                   onChange={(e) => {
                                     const newStart = e.target.value;
                                     setStartVertical(newStart);
-                                    // Update URL
-                                    const isDataQuery = !!selectedDataQuery;
-                                    const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-                                    setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, newStart, endVertical));
                                   }}
                                   MenuProps={{
                                     PaperProps: {
@@ -2103,10 +1563,6 @@ const Sidebar = ({ open }: SidebarProps) => {
                                   onChange={(e) => {
                                     const newEnd = e.target.value;
                                     setEndVertical(newEnd);
-                                    // Update URL
-                                    const isDataQuery = !!selectedDataQuery;
-                                    const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-                                    setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, newEnd));
                                   }}
                                   MenuProps={{
                                     PaperProps: {
@@ -2141,10 +1597,6 @@ const Sidebar = ({ open }: SidebarProps) => {
                                 onChange={(e) => {
                                   const newStart = e.target.value;
                                   setStartVertical(newStart);
-                                  // Update URL
-                                  const isDataQuery = !!selectedDataQuery;
-                                  const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-                                  setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, newStart, endVertical));
                                 }}
                                 fullWidth
                                 size="small"
@@ -2157,10 +1609,6 @@ const Sidebar = ({ open }: SidebarProps) => {
                                 onChange={(e) => {
                                   const newEnd = e.target.value;
                                   setEndVertical(newEnd);
-                                  // Update URL
-                                  const isDataQuery = !!selectedDataQuery;
-                                  const locationFeature = selectedDataQuery.toLowerCase() === 'locations' ? selectedFeature : null;
-                                  setCollectionUrl(buildUrlWithParams(collectionUrl, selectedFormat, selectedParameters, isDataQuery, clickedCoords, selectedArea, radiusKm, selectedDataQuery, locationFeature, selectedDatetime, datetimeMode, startDatetime, endDatetime, selectedVertical, verticalMode, startVertical, newEnd));
                                 }}
                                 fullWidth
                                 size="small"
