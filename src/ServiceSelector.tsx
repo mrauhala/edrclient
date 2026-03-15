@@ -1,13 +1,14 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import Box from '@mui/material/Box';
+import Chip from '@mui/material/Chip';
 import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
+import ListSubheader from '@mui/material/ListSubheader';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
 import ListItemIcon from '@mui/material/ListItemIcon';
-import CloudQueue from '@mui/icons-material/CloudQueue';
 import Person from '@mui/icons-material/Person';
 import Lock from '@mui/icons-material/Lock';
 import { getCollections, GetCollectionsResult } from './DataRetrievalAPI';
@@ -15,29 +16,15 @@ import SchemaInspector from './SchemaInspector';
 import SwaggerUIViewer from './SwaggerUIViewer';
 import ConformanceViewer from './ConformanceViewer';
 import { useService } from './contexts/ServiceContext';
+import systemServices from './config/services.json';
+import { ServiceType, ServiceDefinition } from './types/ServiceType';
+import { SERVICE_TYPE_CONFIG, SERVICE_TYPE_ORDER } from './config/serviceTypeConfig';
 
-// EDR service options
-const edrServices = [
-  { label: '[EDR] IMO Climate API', value: 'https://api.vedur.is/weather/rodeo/' },
-  { label: '[EDR] FMI Open Data', value: 'https://opendata.fmi.fi/edr' },
-  { label: '[EDR] SWIM MET Norway', value: 'https://aviation.met.no' },
-  { label: '[EDR] SWIM IBL', value: 'https://swim.iblsoft.com/edr' },
-  { label: '[EDR] SWIM SMHI', value: 'https://aviation.smhi.se' },
-  { label: '[EDR] Met Office Labs', value: 'https://labs.metoffice.gov.uk/edr' },
-  { label: '[EDR] Meteogate Observations', value: 'https://api.meteogate.eu/eu-eumetnet-surface-observations' },
-  { label: '[EDR] Meteogate Climate Observations', value: 'https://api.meteogate.eu/eu-eumetnet-climate-observations/v1' },
-  { label: '[EDR] Meteogate Weather Radar', value: 'https://api.meteogate.eu/eu-eumetnet-weather-radar' },
-  { label: '[EDR] SmartMet Kenya', value: 'https://data-kenya.smartmet.org/edr' },
-  { label: '[EDR] SmartMet Ethiopia', value: 'https://data-ethiopia.smartmet.org/edr' },
-  { label: '[Records] WMO GDC WIS2 Germany', value: 'https://wis2.dwd.de/gdc/' },
-  { label: '[Records] WMO GDC WIS2 Canada', value: 'https://wis2-gdc.weather.gc.ca' },
-  { label: '[Records] WMO GDC WIS2 China', value: 'https://gdc.wis.cma.cn' },
-  { label: '[STAC] Copernicus Dataspace', value: 'https://stac.dataspace.copernicus.eu/v1/' },
-  { label: '[STAC] MET Norway Radar', value: 'https://radar-stacapi.met.no/v1/' },
-  { label: '[STAC] Swiss Federal Spatial Data', value: 'https://data.geo.admin.ch/api/stac/v1/' },
-  { label: '[Features] MSC GeoMet', value: 'https://api.weather.gc.ca' },
-  { label: 'Custom', value: '' }
-];
+const typedSystemServices: ServiceDefinition[] = systemServices as ServiceDefinition[];
+
+const DEFAULT_SERVICE_URL = typedSystemServices.find(s => s.type === ServiceType.EDR && s.label === 'FMI Open Data')?.url
+  ?? typedSystemServices[0]?.url
+  ?? '';
 
 interface ServiceSelectorProps {
   isLoading: boolean;
@@ -68,9 +55,9 @@ const ServiceSelector = ({
 }: ServiceSelectorProps) => {
   const { customServices, getAuthCredentials, selectedServiceUrl: onServiceUrlSelect } = useService();
 
-  const [apiUrl, setApiUrl] = useState('https://opendata.fmi.fi/edr');
-  const [selectedService, setSelectedService] = useState('https://opendata.fmi.fi/edr');
-  const [inputUrl, setInputUrl] = useState('https://opendata.fmi.fi/edr');
+  const [apiUrl, setApiUrl] = useState(DEFAULT_SERVICE_URL);
+  const [selectedService, setSelectedService] = useState(DEFAULT_SERVICE_URL);
+  const [inputUrl, setInputUrl] = useState(DEFAULT_SERVICE_URL);
   const [validationTrigger, setValidationTrigger] = useState(0);
 
   // Effect to handle external service URL selection (from settings)
@@ -82,29 +69,47 @@ const ServiceSelector = ({
     }
   }, [onServiceUrlSelect]);
 
-  // Combine system services with custom services
-  const allServices = useMemo(() => {
-    const customServiceItems = customServices.map(service => ({
-      label: service.name,
-      value: service.url,
-      isCustom: true,
-      hasAuth: !!(service.username || service.password || service.apiKey || service.bearerToken)
-    }));
+  // Grouped system services by type
+  const groupedSystemServices = useMemo(() => {
+    const groups = new Map<ServiceType, ServiceDefinition[]>();
+    for (const svc of typedSystemServices) {
+      const list = groups.get(svc.type) || [];
+      list.push(svc);
+      groups.set(svc.type, list);
+    }
+    for (const [, list] of groups) {
+      list.sort((a, b) => a.label.localeCompare(b.label));
+    }
+    return groups;
+  }, []);
 
-    const sortedSystemServices = [...edrServices.filter(s => s.value !== '')].sort((a, b) =>
-      a.label.localeCompare(b.label)
-    );
+  // Custom service items
+  const customServiceItems = useMemo(() =>
+    [...customServices]
+      .map(service => ({
+        label: service.name,
+        url: service.url,
+        hasAuth: !!(service.username || service.password || service.apiKey || service.bearerToken),
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label)),
+    [customServices]
+  );
 
-    const sortedCustomServices = [...customServiceItems].sort((a, b) =>
-      a.label.localeCompare(b.label)
-    );
+  // Flat lookup: URL → ServiceDefinition (for renderValue)
+  const serviceByUrl = useMemo(() => {
+    const map = new Map<string, ServiceDefinition>();
+    for (const svc of typedSystemServices) {
+      map.set(svc.url, svc);
+    }
+    return map;
+  }, []);
 
-    return [
-      ...sortedSystemServices.map(s => ({ ...s, isCustom: false, hasAuth: false })),
-      ...sortedCustomServices,
-      { label: 'Custom', value: '', isCustom: false, hasAuth: false }
-    ];
-  }, [customServices]);
+  // All URLs for matching input to selection
+  const allServiceUrls = useMemo(() => {
+    const urls = new Set(typedSystemServices.map(s => s.url));
+    for (const cs of customServiceItems) urls.add(cs.url);
+    return urls;
+  }, [customServiceItems]);
 
   // Notify parent when apiUrl changes (for auth lookups)
   useEffect(() => {
@@ -149,8 +154,7 @@ const ServiceSelector = ({
   function handleApiUrlChange(event: React.ChangeEvent<HTMLInputElement>) {
     const newUrl = event.target.value;
     setInputUrl(newUrl);
-    const matchingService = allServices.find(service => service.value === newUrl);
-    if (matchingService) {
+    if (allServiceUrls.has(newUrl)) {
       setSelectedService(newUrl);
     } else {
       setSelectedService('');
@@ -171,59 +175,140 @@ const ServiceSelector = ({
     setValidationTrigger(prev => prev + 1);
   };
 
+  function renderServiceChip(type: ServiceType, size: 'small' | 'medium' = 'small') {
+    const config = SERVICE_TYPE_CONFIG[type];
+    return (
+      <Chip
+        label={config.abbreviation}
+        size={size}
+        sx={{
+          bgcolor: config.color,
+          color: '#fff',
+          fontWeight: 600,
+          fontSize: '0.7rem',
+          height: size === 'small' ? 20 : 24,
+          '& .MuiChip-label': { px: 0.75 },
+        }}
+      />
+    );
+  }
+
+  function renderGroupHeader(type: ServiceType) {
+    return (
+      <ListSubheader
+        key={`header-${type}`}
+        sx={{
+          fontWeight: 700,
+          fontSize: '0.75rem',
+          textTransform: 'uppercase',
+          letterSpacing: '0.05em',
+          color: 'text.secondary',
+          lineHeight: '32px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+        }}
+      >
+        {renderServiceChip(type)}
+        {type}
+      </ListSubheader>
+    );
+  }
+
   return (
     <Box sx={{ padding: 2, minWidth: 120, borderBottom: '1px solid rgba(0, 0, 0, 0.12)' }}>
       <FormControl fullWidth sx={{ mb: 2 }}>
-        <InputLabel id="edr-service-select-label">EDR Service</InputLabel>
+        <InputLabel id="service-select-label">OGC API Service</InputLabel>
         <Select
-          labelId="edr-service-select-label"
-          id="edr-service-select"
+          labelId="service-select-label"
+          id="service-select"
           value={selectedService}
-          label="EDR Service"
+          label="OGC API Service"
           onChange={handleServiceChange}
           renderValue={(value) => {
-            const service = allServices.find(s => s.value === value);
-            return (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                {service?.isCustom ? (
+            const systemSvc = serviceByUrl.get(value);
+            if (systemSvc) {
+              return (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  {renderServiceChip(systemSvc.type)}
+                  <span>{systemSvc.label}</span>
+                </Box>
+              );
+            }
+            const customSvc = customServiceItems.find(s => s.url === value);
+            if (customSvc) {
+              return (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Person fontSize="small" color="primary" />
-                ) : (
-                  <CloudQueue fontSize="small" color="action" />
-                )}
-                <span>{service?.label || value}</span>
-                {service?.hasAuth && (
-                  <Lock fontSize="small" sx={{ ml: 'auto', opacity: 0.6 }} />
-                )}
-              </Box>
-            );
+                  <span>{customSvc.label}</span>
+                  {customSvc.hasAuth && (
+                    <Lock fontSize="small" sx={{ ml: 'auto', opacity: 0.6 }} />
+                  )}
+                </Box>
+              );
+            }
+            return <span>Custom</span>;
           }}
         >
-          {allServices.map((service) => (
-            <MenuItem
-              key={service.value || 'custom'}
-              value={service.value}
+          {/* System services grouped by type */}
+          {SERVICE_TYPE_ORDER.map(type => {
+            const items = groupedSystemServices.get(type);
+            if (!items?.length) return null;
+            return [
+              renderGroupHeader(type),
+              ...items.map(svc => (
+                <MenuItem key={svc.url} value={svc.url}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    {renderServiceChip(svc.type)}
+                    {svc.label}
+                  </Box>
+                </MenuItem>
+              )),
+            ];
+          })}
+
+          {/* Custom services group */}
+          {customServiceItems.length > 0 && [
+            <ListSubheader
+              key="header-custom"
               sx={{
-                color: service.isCustom ? 'primary.main' : 'text.primary',
+                fontWeight: 700,
+                fontSize: '0.75rem',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                color: 'text.secondary',
+                lineHeight: '32px',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'space-between'
+                gap: 1,
               }}
             >
-              <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-                <ListItemIcon sx={{ minWidth: 36 }}>
-                  {service.isCustom ? (
+              <Person fontSize="small" color="primary" />
+              Custom Services
+            </ListSubheader>,
+            ...customServiceItems.map(svc => (
+              <MenuItem
+                key={svc.url}
+                value={svc.url}
+                sx={{ color: 'primary.main' }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+                  <ListItemIcon sx={{ minWidth: 36 }}>
                     <Person fontSize="small" color="primary" />
-                  ) : (
-                    <CloudQueue fontSize="small" color="action" />
-                  )}
-                </ListItemIcon>
-                {service.label}
-              </Box>
-              {service.hasAuth && (
-                <Lock fontSize="small" sx={{ ml: 1, opacity: 0.6 }} />
-              )}
-            </MenuItem>
-          ))}
+                  </ListItemIcon>
+                  {svc.label}
+                </Box>
+                {svc.hasAuth && (
+                  <Lock fontSize="small" sx={{ ml: 1, opacity: 0.6 }} />
+                )}
+              </MenuItem>
+            )),
+          ]}
+
+          {/* Manual URL entry option */}
+          <MenuItem key="custom" value="">
+            Custom
+          </MenuItem>
         </Select>
       </FormControl>
       <TextField

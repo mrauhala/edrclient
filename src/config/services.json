@@ -1,0 +1,20 @@
+[
+  { "label": "IMO Climate API", "url": "https://api.vedur.is/weather/rodeo/", "type": "EDR" },
+  { "label": "FMI Open Data", "url": "https://opendata.fmi.fi/edr", "type": "EDR" },
+  { "label": "SWIM MET Norway", "url": "https://aviation.met.no", "type": "EDR" },
+  { "label": "SWIM IBL", "url": "https://swim.iblsoft.com/edr", "type": "EDR" },
+  { "label": "SWIM SMHI", "url": "https://aviation.smhi.se", "type": "EDR" },
+  { "label": "Met Office Labs", "url": "https://labs.metoffice.gov.uk/edr", "type": "EDR" },
+  { "label": "Meteogate Observations", "url": "https://api.meteogate.eu/eu-eumetnet-surface-observations", "type": "EDR" },
+  { "label": "Meteogate Climate Observations", "url": "https://api.meteogate.eu/eu-eumetnet-climate-observations/v1", "type": "EDR" },
+  { "label": "Meteogate Weather Radar", "url": "https://api.meteogate.eu/eu-eumetnet-weather-radar", "type": "EDR" },
+  { "label": "SmartMet Kenya", "url": "https://data-kenya.smartmet.org/edr", "type": "EDR" },
+  { "label": "SmartMet Ethiopia", "url": "https://data-ethiopia.smartmet.org/edr", "type": "EDR" },
+  { "label": "WMO GDC WIS2 Germany", "url": "https://wis2.dwd.de/gdc/", "type": "Records" },
+  { "label": "WMO GDC WIS2 Canada", "url": "https://wis2-gdc.weather.gc.ca", "type": "Records" },
+  { "label": "WMO GDC WIS2 China", "url": "https://gdc.wis.cma.cn", "type": "Records" },
+  { "label": "Copernicus Dataspace", "url": "https://stac.dataspace.copernicus.eu/v1/", "type": "STAC" },
+  { "label": "MET Norway Radar", "url": "https://radar-stacapi.met.no/v1/", "type": "STAC" },
+  { "label": "Swiss Federal Spatial Data", "url": "https://data.geo.admin.ch/api/stac/v1/", "type": "STAC" },
+  { "label": "MSC GeoMet", "url": "https://api.weather.gc.ca", "type": "Features" }
+]
