@@ -29,6 +29,12 @@ import FormControl from '@mui/material/FormControl';
 import FormLabel from '@mui/material/FormLabel';
 
 import { CustomService } from './types/CustomService';
+import { ServiceType } from './types/ServiceType';
+import { SERVICE_TYPE_CONFIG, SERVICE_TYPE_ORDER } from './config/serviceTypeConfig';
+import Select, { SelectChangeEvent } from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
+import InputLabel from '@mui/material/InputLabel';
+import Chip from '@mui/material/Chip';
 export type { CustomService };
 
 interface SettingsDrawerProps {
@@ -63,6 +69,7 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
   const [serviceApiKeyParam, setServiceApiKeyParam] = useState('api-key');
   const [serviceBearerToken, setServiceBearerToken] = useState('');
   const [serviceCustomAuthHeader, setServiceCustomAuthHeader] = useState('');
+  const [serviceType, setServiceType] = useState<ServiceType | ''>('');
   const [authMethod, setAuthMethod] = useState<'none' | 'basic' | 'apikey' | 'bearer' | 'custom'>('none');
   const [editingService, setEditingService] = useState<CustomService | null>(null);
 
@@ -74,6 +81,7 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
     setEditingService(null);
     setServiceName('');
     setServiceUrl('');
+    setServiceType('');
     setServiceUsername('');
     setServicePassword('');
     setServiceApiKey('');
@@ -88,13 +96,14 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
     setEditingService(service);
     setServiceName(service.name);
     setServiceUrl(service.url);
+    setServiceType(service.type || '');
     setServiceUsername(service.username || '');
     setServicePassword(service.password || '');
     setServiceApiKey(service.apiKey || '');
     setServiceApiKeyParam(service.apiKeyParam || 'api-key');
     setServiceBearerToken(service.bearerToken || '');
     setServiceCustomAuthHeader(service.customAuthHeader || '');
-    
+
     // Determine auth method based on what's set
     if (service.customAuthHeader) {
       setAuthMethod('custom');
@@ -115,6 +124,7 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
     setDialogOpen(false);
     setServiceName('');
     setServiceUrl('');
+    setServiceType('');
     setServiceUsername('');
     setServicePassword('');
     setServiceApiKey('');
@@ -133,6 +143,7 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
           ...editingService,
           name: serviceName.trim(),
           url: serviceUrl.trim(),
+          type: serviceType || undefined,
           username: authMethod === 'basic' ? (serviceUsername.trim() || undefined) : undefined,
           password: authMethod === 'basic' ? (servicePassword.trim() || undefined) : undefined,
           apiKey: authMethod === 'apikey' ? (serviceApiKey.trim() || undefined) : undefined,
@@ -147,6 +158,7 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
           id: Date.now().toString(),
           name: serviceName.trim(),
           url: serviceUrl.trim(),
+          type: serviceType || undefined,
           username: authMethod === 'basic' ? (serviceUsername.trim() || undefined) : undefined,
           password: authMethod === 'basic' ? (servicePassword.trim() || undefined) : undefined,
           apiKey: authMethod === 'apikey' ? (serviceApiKey.trim() || undefined) : undefined,
@@ -329,9 +341,45 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
             value={serviceUrl}
             onChange={(e) => setServiceUrl(e.target.value)}
             placeholder="https://example.com/api"
-            sx={{ mb: 3 }}
+            sx={{ mb: 2 }}
           />
-          
+
+          <FormControl fullWidth sx={{ mb: 3 }}>
+            <InputLabel id="service-type-label">Service Type (optional)</InputLabel>
+            <Select
+              labelId="service-type-label"
+              value={serviceType}
+              label="Service Type (optional)"
+              onChange={(e: SelectChangeEvent) => setServiceType(e.target.value as ServiceType | '')}
+            >
+              <MenuItem value="">
+                <em>None</em>
+              </MenuItem>
+              {SERVICE_TYPE_ORDER.map(type => {
+                const config = SERVICE_TYPE_CONFIG[type];
+                return (
+                  <MenuItem key={type} value={type}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Chip
+                        label={config.abbreviation}
+                        size="small"
+                        sx={{
+                          bgcolor: config.color,
+                          color: '#fff',
+                          fontWeight: 600,
+                          fontSize: '0.7rem',
+                          height: 20,
+                          '& .MuiChip-label': { px: 0.75 },
+                        }}
+                      />
+                      {type}
+                    </Box>
+                  </MenuItem>
+                );
+              })}
+            </Select>
+          </FormControl>
+
           <FormControl component="fieldset" sx={{ mb: 2 }}>
             <FormLabel component="legend">Authentication Method</FormLabel>
             <RadioGroup
