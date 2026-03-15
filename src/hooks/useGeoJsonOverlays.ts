@@ -43,6 +43,7 @@ export function useGeoJsonOverlays(map: Map | null): UseGeoJsonOverlaysReturn {
 
         if (existingLayer && !needsStyleUpdate) {
           existingLayer.setOpacity(layerConfig.opacity ?? 1);
+          if (layerConfig.zIndex !== undefined) existingLayer.setZIndex(layerConfig.zIndex);
           newLayers[layerKey] = existingLayer;
         } else if (existingLayer && needsStyleUpdate) {
           existingLayer.setStyle((feature) => {
@@ -59,6 +60,7 @@ export function useGeoJsonOverlays(map: Map | null): UseGeoJsonOverlaysReturn {
 
           existingLayer.set('labelProperty', layerConfig.labelProperty);
           existingLayer.setOpacity(layerConfig.opacity ?? 1);
+          if (layerConfig.zIndex !== undefined) existingLayer.setZIndex(layerConfig.zIndex);
           existingLayer.changed();
           newLayers[layerKey] = existingLayer;
         } else {
@@ -164,6 +166,7 @@ export function useGeoJsonOverlays(map: Map | null): UseGeoJsonOverlaysReturn {
 
           geoJsonLayer.set('labelProperty', layerConfig.labelProperty);
           geoJsonLayer.setOpacity(layerConfig.opacity ?? 1);
+          if (layerConfig.zIndex !== undefined) geoJsonLayer.setZIndex(layerConfig.zIndex);
           map.addLayer(geoJsonLayer);
           newLayers[layerKey] = geoJsonLayer;
         }
