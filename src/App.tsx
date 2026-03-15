@@ -11,6 +11,7 @@ const OpenLayersMap = lazy(() => import('./Map'));
 const SettingsDrawer = lazy(() => import('./SettingsDrawer'));
 const DataModal = lazy(() => import('./DataModal'));
 import { GeoJsonLayerProvider, useGeoJsonLayers } from './contexts/GeoJsonLayerContext';
+import { LayerManagerProvider } from './contexts/LayerManagerContext';
 import { MapInteractionProvider } from './contexts/MapInteractionContext';
 import { CollectionProvider, useCollection } from './contexts/CollectionContext';
 import { ServiceProvider, useService } from './contexts/ServiceContext';
@@ -49,10 +50,12 @@ function App() {
       <CollectionProvider>
         <MapInteractionProvider>
           <GeoJsonLayerProvider>
-            <AppContent
-              customServices={customServices}
-              setCustomServices={setCustomServices}
-            />
+            <LayerManagerProvider>
+              <AppContent
+                customServices={customServices}
+                setCustomServices={setCustomServices}
+              />
+            </LayerManagerProvider>
           </GeoJsonLayerProvider>
         </MapInteractionProvider>
       </CollectionProvider>

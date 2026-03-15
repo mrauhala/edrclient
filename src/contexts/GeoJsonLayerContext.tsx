@@ -8,6 +8,8 @@ export interface GeoJsonLayer {
   data?: any;
   apiKey?: string;
   apiKeyParam?: string;
+  opacity?: number;
+  zIndex?: number;
 }
 
 interface GeoJsonLayerContextValue {
