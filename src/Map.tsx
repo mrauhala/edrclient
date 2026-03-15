@@ -21,6 +21,7 @@ import FeatureInfo from './FeatureInfo';
 import GeoJsonFeatureViewer from './GeoJsonFeatureViewer';
 import LayerManager from './LayerManager';
 import { normalizeHref } from './DataRetrievalAPI';
+import { sanitizeUrl } from './utils/sanitizeUrl';
 import CollectionInfo from './CollectionInfo';
 import { useGeoJsonLayers, type GeoJsonLayer } from './contexts/GeoJsonLayerContext';
 import { useMapInteraction } from './contexts/MapInteractionContext';
@@ -411,7 +412,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
                 finalUrl = `${finalUrl}&${paramName}=${layerConfig.apiKey}`;
               }
               
-              console.log('Loading GeoJSON with bbox:', finalUrl);
+              console.log('Loading GeoJSON with bbox:', sanitizeUrl(finalUrl));
               
               fetch(finalUrl)
                 .then(response => response.json())
@@ -762,7 +763,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
         const displayName = properties.name || properties.id || properties.title || 'Feature';
         
         if (tooltipRef.current) {
-          tooltipRef.current.innerHTML = `${layerTitle}: ${displayName}`;
+          tooltipRef.current.textContent = `${layerTitle}: ${displayName}`;
           tooltipRef.current.style.display = 'block';
         }
         tooltip.setPosition(event.coordinate);
@@ -784,7 +785,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
         if (originalFeature) {
           const name = originalFeature.properties?.name || originalFeature.id || 'Unknown Location';
           if (tooltipRef.current) {
-            tooltipRef.current.innerHTML = name;
+            tooltipRef.current.textContent = name;
             tooltipRef.current.style.display = 'block';
           }
           tooltip.setPosition(event.coordinate);

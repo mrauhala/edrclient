@@ -363,6 +363,7 @@ const DataModal: React.FC<DataModalProps> = ({
               {viewMode === 'preview' && isIWXXM() && transformedHtml ? (
                 <iframe
                   srcDoc={transformedHtml}
+                  sandbox="allow-same-origin"
                   style={{
                     width: '100%',
                     height: '100%',

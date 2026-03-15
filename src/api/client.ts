@@ -2,6 +2,7 @@ import axios from 'axios';
 import SchemaValidator from '../SchemaValidator';
 import type { AuthCredentials, Collection, CollectionsResponse, GetCollectionsResult, LandingPage, Link, ValidationError, ValidationResult } from '../types/api';
 import { normalizeHref } from '../utils/href';
+import { sanitizeUrl } from '../utils/sanitizeUrl';
 import { getAxiosConfig, addApiKeyToUrl } from './auth';
 
 export async function getCollections(apiUrl: string, auth?: AuthCredentials): Promise<GetCollectionsResult> {
@@ -14,13 +15,13 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
   let dataLinkError: ValidationError | null = null;
 
   try {
-    console.log('=== Starting getCollections for:', apiUrl, '===');
+    console.log('=== Starting getCollections for:', sanitizeUrl(apiUrl), '===');
 
     // Check if this is DMI service (to avoid f=json bug)
     const isDMI = apiUrl.includes('api.meteogate.eu/dk/edr');
 
     // Step 1: Fetch and validate the landing page
-    console.log('Step 1: Fetching landing page from:', apiUrl);
+    console.log('Step 1: Fetching landing page from:', sanitizeUrl(apiUrl));
 
     // Add f=json format parameter if not already present
     // Skip for DMI service as it incorrectly includes f=json in the href paths
@@ -73,7 +74,7 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
           console.warn('Multiple data links found:', collectionsUrlCandidates);
         }
         collectionsUrl = collectionsUrlCandidates[0];
-        console.log('Found collections URL from landing page:', collectionsUrl);
+        console.log('Found collections URL from landing page:', collectionsUrl ? sanitizeUrl(collectionsUrl) : collectionsUrl);
       }
 
       // Look for a link with rel='service-desc' for OpenAPI/Swagger documentation
@@ -92,7 +93,7 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
         const normalizedHref = normalizeHref(serviceDescLink.href);
         if (normalizedHref) {
           serviceDescUrl = normalizedHref;
-          console.log('Found service description URL from landing page:', serviceDescUrl);
+          console.log('Found service description URL from landing page:', sanitizeUrl(serviceDescUrl));
         }
       }
 
@@ -100,7 +101,7 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
         const normalizedHref = normalizeHref(conformanceLink.href);
         if (normalizedHref) {
           conformanceUrl = normalizedHref;
-          console.log('Found conformance URL from landing page:', conformanceUrl);
+          console.log('Found conformance URL from landing page:', sanitizeUrl(conformanceUrl));
         }
       }
     } else {
@@ -119,7 +120,7 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
     let conformsTo: string[] | undefined = undefined;
     if (conformanceUrl) {
       try {
-        console.log('Step 2: Fetching conformance to determine schema type:', conformanceUrl);
+        console.log('Step 2: Fetching conformance to determine schema type:', sanitizeUrl(conformanceUrl));
         const conformanceUrlWithFormat = new URL(conformanceUrl);
         if (!conformanceUrlWithFormat.searchParams.has('f')) {
           conformanceUrlWithFormat.searchParams.set('f', 'json');
@@ -224,13 +225,13 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
       throw new Error('Collections URL could not be determined');
     }
 
-    console.log('Step 6: Fetching collections. Candidates:', collectionsUrlCandidates);
+    console.log('Step 6: Fetching collections. Candidates:', collectionsUrlCandidates.map(sanitizeUrl));
     let response: Awaited<ReturnType<typeof axios.get<CollectionsResponse>>> | null = null;
     let lastFetchError: unknown = null;
 
     for (const candidate of collectionsUrlCandidates) {
       try {
-        console.log('Trying collections URL:', candidate);
+        console.log('Trying collections URL:', sanitizeUrl(candidate));
         const urlWithFormat = new URL(candidate);
         if (!urlWithFormat.searchParams.has('f') && !isDMI) {
           urlWithFormat.searchParams.set('f', 'json');
@@ -239,11 +240,11 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
         response = await axios.get<CollectionsResponse>(finalUrl, getAxiosConfig(auth));
         collectionsUrl = candidate; // record which URL actually worked
         lastFetchError = null;
-        console.log('Collections fetch succeeded from:', candidate, 'status:', response.status);
+        console.log('Collections fetch succeeded from:', sanitizeUrl(candidate), 'status:', response.status);
         break;
       } catch (err) {
         lastFetchError = err;
-        console.warn('Collections fetch failed for:', candidate, err);
+        console.warn('Collections fetch failed for:', sanitizeUrl(candidate), err);
       }
     }
 
