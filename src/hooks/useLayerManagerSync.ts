@@ -21,7 +21,7 @@ export function useLayerManagerSync(
   radiusLayer: VectorLayer<VectorSource> | null,
 ): void {
   const { geoJsonLayers, setGeoJsonLayers } = useGeoJsonLayers();
-  const { selectedArea, radiusKm, setClickedCoords, setSelectedArea } = useMapInteraction();
+  const { clickedCoords, selectedArea, radiusKm, setClickedCoords, setSelectedArea } = useMapInteraction();
   const { selectedCollection, selectedCollectionExtents, locationFeatures } = useCollection();
   const { setAllMapLayers, setHandleLayerManagerChange } = useLayerManager();
 
@@ -158,7 +158,7 @@ export function useLayerManagerSync(
     });
 
     setAllMapLayers(layers);
-  }, [geoJsonLayers, vectorLayer, locationLayer, markerLayer, areaLayer, radiusLayer, selectedCollectionExtents, locationFeatures, selectedArea, radiusKm, selectedCollection, setAllMapLayers]);
+  }, [geoJsonLayers, vectorLayer, locationLayer, markerLayer, areaLayer, radiusLayer, selectedCollectionExtents, locationFeatures, clickedCoords, selectedArea, radiusKm, selectedCollection, setAllMapLayers]);
 
   const handleLayerManagerChange = useCallback((updatedLayers: GeoJsonLayer[]) => {
     // Update zIndex ref from the new order
