@@ -324,6 +324,7 @@ export class SchemaValidator {
             const errors = validatorSet.collections.errors.map((error: any) => ({
               schema: displayName,
               schemaType: schemaType,
+              section: 'Collections',
               path: error.instancePath || error.dataPath || 'root',
               message: `${error.instancePath || error.dataPath || ''}: ${error.message}`,
               keyword: error.keyword
@@ -434,6 +435,7 @@ export class SchemaValidator {
           if (validatorSet.landingPage.errors) {
             const errors = validatorSet.landingPage.errors.map((error: any) => ({
               schema: displayName,
+              section: 'Landing Page',
               path: error.instancePath || error.dataPath || 'root',
               message: `${error.instancePath || error.dataPath || ''}: ${error.message}`,
               keyword: error.keyword
@@ -509,6 +511,7 @@ export class SchemaValidator {
           if (validatorSet.conformance.errors) {
             const errors = validatorSet.conformance.errors.map((error: any) => ({
               schema: displayName,
+              section: 'Conformance',
               path: error.instancePath || error.dataPath || 'root',
               message: `${error.instancePath || error.dataPath || ''}: ${error.message}`,
               keyword: error.keyword

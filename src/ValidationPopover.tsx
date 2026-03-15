@@ -146,25 +146,26 @@ const ValidationPopover: React.FC = () => {
                   {schema}
                 </Typography>
                 {(() => {
-                  // Group errors by collectionId within this schema group
-                  const byCollection: { key: string; label: string | null; items: ValidationError[] }[] = [];
+                  // Group errors by section label within this schema group
+                  const bySection: { key: string; label: string; items: ValidationError[] }[] = [];
                   const seen = new Map<string, ValidationError[]>();
                   for (const error of errors) {
-                    const key = error.collectionId || '';
+                    const label = error.collectionId
+                      ? `Collection: ${error.collectionId}`
+                      : error.section || 'General';
+                    const key = label;
                     if (!seen.has(key)) {
-                      const group = { key, label: error.collectionId || null, items: [] as ValidationError[] };
-                      byCollection.push(group);
+                      const group = { key, label, items: [] as ValidationError[] };
+                      bySection.push(group);
                       seen.set(key, group.items);
                     }
                     seen.get(key)!.push(error);
                   }
-                  return byCollection.map((group) => (
+                  return bySection.map((group) => (
                     <Box key={group.key}>
-                      {group.label && (
-                        <Typography variant="caption" sx={{ display: 'block', px: 1.5, pt: 0.75, pb: 0.25, fontWeight: 600, color: 'info.main' }}>
-                          {group.label}
-                        </Typography>
-                      )}
+                      <Typography variant="caption" sx={{ display: 'block', px: 1.5, pt: 0.75, pb: 0.25, fontWeight: 600, color: 'info.main' }}>
+                        {group.label}
+                      </Typography>
                       {group.items.map((error, idx) => {
                         const msg = error.path && error.message.startsWith(error.path)
                           ? error.message.slice(error.path.length).replace(/^:\s*/, '')
