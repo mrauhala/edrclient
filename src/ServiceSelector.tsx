@@ -8,7 +8,6 @@ import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
-import ListItemIcon from '@mui/material/ListItemIcon';
 import Person from '@mui/icons-material/Person';
 import Lock from '@mui/icons-material/Lock';
 import { getCollections, GetCollectionsResult } from './DataRetrievalAPI';
@@ -25,6 +24,14 @@ const typedSystemServices: ServiceDefinition[] = systemServices as ServiceDefini
 const DEFAULT_SERVICE_URL = typedSystemServices.find(s => s.type === ServiceType.EDR && s.label === 'FMI Open Data')?.url
   ?? typedSystemServices[0]?.url
   ?? '';
+
+interface ServiceItem {
+  label: string;
+  url: string;
+  type: ServiceType;
+  isCustom: boolean;
+  hasAuth: boolean;
+}
 
 interface ServiceSelectorProps {
   isLoading: boolean;
@@ -69,47 +76,81 @@ const ServiceSelector = ({
     }
   }, [onServiceUrlSelect]);
 
-  // Grouped system services by type
-  const groupedSystemServices = useMemo(() => {
-    const groups = new Map<ServiceType, ServiceDefinition[]>();
-    for (const svc of typedSystemServices) {
-      const list = groups.get(svc.type) || [];
-      list.push(svc);
-      groups.set(svc.type, list);
-    }
-    for (const [, list] of groups) {
-      list.sort((a, b) => a.label.localeCompare(b.label));
-    }
-    return groups;
-  }, []);
-
-  // Custom service items
+  // Build typed custom service items
   const customServiceItems = useMemo(() =>
-    [...customServices]
-      .map(service => ({
-        label: service.name,
-        url: service.url,
-        hasAuth: !!(service.username || service.password || service.apiKey || service.bearerToken),
-      }))
-      .sort((a, b) => a.label.localeCompare(b.label)),
+    customServices.map(service => ({
+      label: service.name,
+      url: service.url,
+      type: service.type,
+      hasAuth: !!(service.username || service.password || service.apiKey || service.bearerToken),
+    })),
     [customServices]
   );
 
-  // Flat lookup: URL → ServiceDefinition (for renderValue)
-  const serviceByUrl = useMemo(() => {
-    const map = new Map<string, ServiceDefinition>();
+  // Typed custom services (have a ServiceType) — merged into type groups
+  const typedCustomItems = useMemo(() =>
+    customServiceItems.filter(s => s.type),
+    [customServiceItems]
+  );
+
+  // Untyped custom services — go in "Custom Services" group
+  const untypedCustomItems = useMemo(() =>
+    customServiceItems
+      .filter(s => !s.type)
+      .sort((a, b) => a.label.localeCompare(b.label)),
+    [customServiceItems]
+  );
+
+  // Grouped services by type: system + typed custom merged together
+  const groupedServices = useMemo(() => {
+    const groups = new Map<ServiceType, ServiceItem[]>();
+
+    // Add system services
     for (const svc of typedSystemServices) {
-      map.set(svc.url, svc);
+      const list = groups.get(svc.type) || [];
+      list.push({ ...svc, isCustom: false, hasAuth: false });
+      groups.set(svc.type, list);
+    }
+
+    // Add typed custom services into the same groups
+    for (const svc of typedCustomItems) {
+      const type = svc.type!;
+      const list = groups.get(type) || [];
+      list.push({ label: svc.label, url: svc.url, type, isCustom: true, hasAuth: svc.hasAuth });
+      groups.set(type, list);
+    }
+
+    // Sort each group alphabetically
+    for (const [, list] of groups) {
+      list.sort((a, b) => a.label.localeCompare(b.label));
+    }
+
+    return groups;
+  }, [typedCustomItems]);
+
+  // Flat lookup: URL → ServiceItem (for renderValue)
+  const serviceByUrl = useMemo(() => {
+    const map = new Map<string, ServiceItem>();
+    for (const [, items] of groupedServices) {
+      for (const item of items) {
+        map.set(item.url, item);
+      }
+    }
+    for (const svc of untypedCustomItems) {
+      map.set(svc.url, { label: svc.label, url: svc.url, type: ServiceType.EDR, isCustom: true, hasAuth: svc.hasAuth });
     }
     return map;
-  }, []);
+  }, [groupedServices, untypedCustomItems]);
 
   // All URLs for matching input to selection
   const allServiceUrls = useMemo(() => {
-    const urls = new Set(typedSystemServices.map(s => s.url));
-    for (const cs of customServiceItems) urls.add(cs.url);
+    const urls = new Set<string>();
+    for (const [, items] of groupedServices) {
+      for (const item of items) urls.add(item.url);
+    }
+    for (const svc of untypedCustomItems) urls.add(svc.url);
     return urls;
-  }, [customServiceItems]);
+  }, [groupedServices, untypedCustomItems]);
 
   // Notify parent when apiUrl changes (for auth lookups)
   useEffect(() => {
@@ -175,43 +216,38 @@ const ServiceSelector = ({
     setValidationTrigger(prev => prev + 1);
   };
 
-  function renderServiceChip(type: ServiceType, size: 'small' | 'medium' = 'small') {
+  function renderServiceChip(type: ServiceType) {
     const config = SERVICE_TYPE_CONFIG[type];
     return (
       <Chip
         label={config.abbreviation}
-        size={size}
+        size="small"
         sx={{
           bgcolor: config.color,
           color: '#fff',
           fontWeight: 600,
           fontSize: '0.7rem',
-          height: size === 'small' ? 20 : 24,
+          height: 20,
           '& .MuiChip-label': { px: 0.75 },
         }}
       />
     );
   }
 
-  function renderGroupHeader(type: ServiceType) {
+  function renderServiceMenuItem(svc: ServiceItem) {
     return (
-      <ListSubheader
-        key={`header-${type}`}
-        sx={{
-          fontWeight: 700,
-          fontSize: '0.75rem',
-          textTransform: 'uppercase',
-          letterSpacing: '0.05em',
-          color: 'text.secondary',
-          lineHeight: '32px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
-        }}
-      >
-        {renderServiceChip(type)}
-        {type}
-      </ListSubheader>
+      <MenuItem key={svc.url} value={svc.url}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
+          {renderServiceChip(svc.type)}
+          <span style={{ flex: 1 }}>{svc.label}</span>
+          {svc.isCustom && (
+            <Person fontSize="small" color="primary" sx={{ opacity: 0.7 }} />
+          )}
+          {svc.hasAuth && (
+            <Lock fontSize="small" sx={{ opacity: 0.6 }} />
+          )}
+        </Box>
+      </MenuItem>
     );
   }
 
@@ -226,22 +262,21 @@ const ServiceSelector = ({
           label="OGC API Service"
           onChange={handleServiceChange}
           renderValue={(value) => {
-            const systemSvc = serviceByUrl.get(value);
-            if (systemSvc) {
+            const svc = serviceByUrl.get(value);
+            if (svc) {
+              const isUntyped = untypedCustomItems.some(s => s.url === value);
               return (
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  {renderServiceChip(systemSvc.type)}
-                  <span>{systemSvc.label}</span>
-                </Box>
-              );
-            }
-            const customSvc = customServiceItems.find(s => s.url === value);
-            if (customSvc) {
-              return (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Person fontSize="small" color="primary" />
-                  <span>{customSvc.label}</span>
-                  {customSvc.hasAuth && (
+                  {isUntyped ? (
+                    <Person fontSize="small" color="primary" />
+                  ) : (
+                    renderServiceChip(svc.type)
+                  )}
+                  <span>{svc.label}</span>
+                  {svc.isCustom && !isUntyped && (
+                    <Person fontSize="small" color="primary" sx={{ opacity: 0.7 }} />
+                  )}
+                  {svc.hasAuth && (
                     <Lock fontSize="small" sx={{ ml: 'auto', opacity: 0.6 }} />
                   )}
                 </Box>
@@ -250,25 +285,30 @@ const ServiceSelector = ({
             return <span>Custom</span>;
           }}
         >
-          {/* System services grouped by type */}
+          {/* Services grouped by type (system + typed custom merged) */}
           {SERVICE_TYPE_ORDER.map(type => {
-            const items = groupedSystemServices.get(type);
+            const items = groupedServices.get(type);
             if (!items?.length) return null;
             return [
-              renderGroupHeader(type),
-              ...items.map(svc => (
-                <MenuItem key={svc.url} value={svc.url}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    {renderServiceChip(svc.type)}
-                    {svc.label}
-                  </Box>
-                </MenuItem>
-              )),
+              <ListSubheader
+                key={`header-${type}`}
+                sx={{
+                  fontWeight: 700,
+                  fontSize: '0.75rem',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  color: 'text.secondary',
+                  lineHeight: '32px',
+                }}
+              >
+                {type}
+              </ListSubheader>,
+              ...items.map(svc => renderServiceMenuItem(svc)),
             ];
           })}
 
-          {/* Custom services group */}
-          {customServiceItems.length > 0 && [
+          {/* Untyped custom services group */}
+          {untypedCustomItems.length > 0 && [
             <ListSubheader
               key="header-custom"
               sx={{
@@ -283,24 +323,20 @@ const ServiceSelector = ({
                 gap: 1,
               }}
             >
-              <Person fontSize="small" color="primary" />
               Custom Services
             </ListSubheader>,
-            ...customServiceItems.map(svc => (
+            ...untypedCustomItems.map(svc => (
               <MenuItem
                 key={svc.url}
                 value={svc.url}
-                sx={{ color: 'primary.main' }}
               >
-                <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-                  <ListItemIcon sx={{ minWidth: 36 }}>
-                    <Person fontSize="small" color="primary" />
-                  </ListItemIcon>
-                  {svc.label}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
+                  <Person fontSize="small" color="primary" />
+                  <span style={{ flex: 1 }}>{svc.label}</span>
+                  {svc.hasAuth && (
+                    <Lock fontSize="small" sx={{ opacity: 0.6 }} />
+                  )}
                 </Box>
-                {svc.hasAuth && (
-                  <Lock fontSize="small" sx={{ ml: 1, opacity: 0.6 }} />
-                )}
               </MenuItem>
             )),
           ]}

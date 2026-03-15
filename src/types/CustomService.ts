@@ -1,7 +1,10 @@
+import { ServiceType } from './ServiceType';
+
 export interface CustomService {
   id: string;
   name: string;
   url: string;
+  type?: ServiceType;
   username?: string;
   password?: string;
   apiKey?: string;
