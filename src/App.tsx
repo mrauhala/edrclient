@@ -12,6 +12,7 @@ const SettingsDrawer = lazy(() => import('./SettingsDrawer'));
 const DataModal = lazy(() => import('./DataModal'));
 import { GeoJsonLayerProvider, useGeoJsonLayers } from './contexts/GeoJsonLayerContext';
 import { LayerManagerProvider } from './contexts/LayerManagerContext';
+import { ValidationProvider } from './contexts/ValidationContext';
 import { MapInteractionProvider } from './contexts/MapInteractionContext';
 import { CollectionProvider, useCollection } from './contexts/CollectionContext';
 import { ServiceProvider, useService } from './contexts/ServiceContext';
@@ -51,10 +52,12 @@ function App() {
         <MapInteractionProvider>
           <GeoJsonLayerProvider>
             <LayerManagerProvider>
-              <AppContent
-                customServices={customServices}
-                setCustomServices={setCustomServices}
-              />
+              <ValidationProvider>
+                <AppContent
+                  customServices={customServices}
+                  setCustomServices={setCustomServices}
+                />
+              </ValidationProvider>
             </LayerManagerProvider>
           </GeoJsonLayerProvider>
         </MapInteractionProvider>

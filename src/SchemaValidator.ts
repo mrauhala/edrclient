@@ -329,7 +329,7 @@ export class SchemaValidator {
               keyword: error.keyword
             }));
             
-            // Group errors by collection
+            // Group errors by collection and tag each error with collectionId
             errors.forEach((err: any) => {
               // Parse path to extract collection index: /collections/0/... or /collections/1/...
               const pathMatch = err.path.match(/^\/collections\/(\d+)/);
@@ -337,6 +337,7 @@ export class SchemaValidator {
                 const collectionIndex = parseInt(pathMatch[1], 10);
                 const collectionId = collectionIndexMap[collectionIndex];
                 if (collectionId) {
+                  err.collectionId = collectionId;
                   if (!collectionErrors[collectionId]) {
                     collectionErrors[collectionId] = [];
                   }
