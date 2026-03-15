@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import List from '@mui/material/List';
 import ListItemText from '@mui/material/ListItemText';
 import ListItemButton from '@mui/material/ListItemButton';
@@ -295,7 +295,16 @@ const CollectionsList = ({
         ))
       }
       {collections.map((collection, index) => (
-        <React.Fragment key={collection.id || index}>
+        <Box
+          key={collection.id || index}
+          sx={{
+            border: '1px solid',
+            borderColor: 'divider',
+            borderRadius: 1,
+            mb: '4px',
+            overflow: 'hidden',
+          }}
+        >
           <ListItemButton
             onClick={() => handleItemClick(index, collection.id)}
             sx={{
@@ -305,7 +314,8 @@ const CollectionsList = ({
                 : validationResult.collectionErrors[collection.id]
                   ? 'warning.main'
                   : 'success.main',
-              pl: '13px',
+              pl: '10px',
+              py: 0.5,
             }}
           >
             <ListItemText
@@ -313,6 +323,7 @@ const CollectionsList = ({
                 <CollectionInfo
                   collection={collection}
                   fallbackLicense={topLevelLicense}
+                  clampDescription={openCollectionIndex !== index}
                   validationErrors={
                     validationResult.collectionErrors
                       ? (validationResult.collectionErrors[collection.id] ?? [])
@@ -570,7 +581,7 @@ const CollectionsList = ({
             </Box>
             </Collapse>
           </Collapse>
-        </React.Fragment>
+        </Box>
       ))}
     </List>
   );

@@ -42,6 +42,8 @@ interface CollectionInfoProps {
    * [...]      = show "⚠ N issues".
    */
   validationErrors?: ValidationError[] | null;
+  /** Clamp the description to a max number of lines. Default: false (show full). */
+  clampDescription?: boolean;
 }
 
 /** Resolve a licence link into a { label, href } pair.
@@ -82,6 +84,7 @@ export default function CollectionInfo({
   dark = false,
   fallbackLicense = null,
   validationErrors,
+  clampDescription = false,
 }: CollectionInfoProps) {
   // ── Colour tokens ────────────────────────────────────────────────────────
   const textPrimary   = dark ? 'rgba(255,255,255,1)'    : 'text.primary';
@@ -251,7 +254,19 @@ export default function CollectionInfo({
               }}
             />
           )}
-          <Typography variant="body2" component="span" sx={{ color: textSecondary }}>
+          <Typography
+            variant="body2"
+            component="span"
+            sx={{
+              color: textSecondary,
+              ...(clampDescription && {
+                display: '-webkit-box',
+                WebkitLineClamp: 6,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+              }),
+            }}
+          >
             {collection.description}
           </Typography>
         </Box>
@@ -324,7 +339,7 @@ export default function CollectionInfo({
               },
             }}
           >
-            <KeywordChips keywords={collection.keywords} size="small" />
+            <KeywordChips keywords={collection.keywords} size="small" maxVisible={5} />
           </Box>
         </Box>
       )}
