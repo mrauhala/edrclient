@@ -1,84 +1,160 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
-import ListItemText from '@mui/material/ListItemText';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import DeleteIcon from '@mui/icons-material/Delete';
 import LayersIcon from '@mui/icons-material/Layers';
 import Divider from '@mui/material/Divider';
 import Tooltip from '@mui/material/Tooltip';
-import CollapsibleSection from './CollapsibleSection';
+import Chip from '@mui/material/Chip';
+import Slider from '@mui/material/Slider';
+import Badge from '@mui/material/Badge';
+import Popover from '@mui/material/Popover';
+import { useLayerManager } from './contexts/LayerManagerContext';
 
-interface Layer {
-  url: string;
-  title: string;
-  visible: boolean;
-  labelProperty?: string;
-  data?: any;
-  apiKey?: string;
-  apiKeyParam?: string;
+function getLayerTypeLabel(layer: { url: string; data?: any }): string {
+  if (layer.data?.type === 'internal') {
+    switch (layer.data.layerType) {
+      case 'bbox': return 'Extent';
+      case 'locations': return 'Locations';
+      case 'markers': return 'Markers';
+      case 'area': return 'Area';
+      case 'radius': return 'Radius';
+      default: return 'Map Layer';
+    }
+  }
+  return 'GeoJSON';
 }
 
-interface LayerManagerProps {
-  layers: Layer[];
-  onLayersChange: (layers: Layer[]) => void;
-}
+const LayerManager: React.FC = () => {
+  const { allMapLayers, handleLayerManagerChange } = useLayerManager();
+  const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
 
-const LayerManager: React.FC<LayerManagerProps> = ({ layers, onLayersChange }) => {
+  const handleOpen = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
+  const open = Boolean(anchorEl);
+
   const handleVisibilityToggle = (index: number) => {
-    const updatedLayers = layers.map((layer, i) => 
+    const updatedLayers = allMapLayers.map((layer, i) =>
       i === index ? { ...layer, visible: !layer.visible } : layer
     );
-    onLayersChange(updatedLayers);
+    handleLayerManagerChange(updatedLayers);
   };
 
   const handleDelete = (index: number) => {
-    const updatedLayers = layers.filter((_, i) => i !== index);
-    onLayersChange(updatedLayers);
+    const updatedLayers = allMapLayers.filter((_, i) => i !== index);
+    handleLayerManagerChange(updatedLayers);
   };
 
-  if (layers.length === 0) {
-    return null;
-  }
+  const handleOpacityChange = (index: number, newOpacity: number) => {
+    const updatedLayers = allMapLayers.map((layer, i) =>
+      i === index ? { ...layer, opacity: newOpacity } : layer
+    );
+    handleLayerManagerChange(updatedLayers);
+  };
 
-  const visibleCount = layers.filter(l => l.visible).length;
+  const layerCount = allMapLayers.length;
 
   return (
-    <CollapsibleSection
-      title="Map Layers"
-      icon={<LayersIcon color="primary" fontSize="small" />}
-      chipLabel={`${visibleCount}/${layers.length}`}
-      subtitle="Manage visible layers on the map"
-      defaultOpen={true}
-      sx={{ mb: 2 }}
-    >
-      <Box sx={{
-        border: 1,
-        borderColor: 'divider',
-        borderRadius: 1,
-        backgroundColor: 'background.paper'
-      }}>
-        <List dense disablePadding>
-            {layers.map((layer, index) => (
-              <React.Fragment key={index}>
-                {index > 0 && <Divider />}
-                <ListItem
-                  sx={{
-                    py: 1,
-                    backgroundColor: layer.visible ? 'action.hover' : 'transparent',
-                    '&:hover': {
-                      backgroundColor: layer.visible ? 'action.selected' : 'action.hover',
-                    },
-                  }}
-                  secondaryAction={
-                    <Box sx={{ display: 'flex', gap: 0.5 }}>
+    <>
+      <Tooltip title="Map Layers">
+        <IconButton
+          size="small"
+          color="inherit"
+          aria-label="map layers"
+          onClick={handleOpen}
+        >
+          <Badge
+            badgeContent={layerCount}
+            color="secondary"
+            invisible={layerCount === 0}
+          >
+            <LayersIcon />
+          </Badge>
+        </IconButton>
+      </Tooltip>
+      <Popover
+        open={open}
+        anchorEl={anchorEl}
+        onClose={handleClose}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'right',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
+        slotProps={{
+          paper: {
+            sx: {
+              width: 360,
+              maxHeight: 480,
+            }
+          }
+        }}
+      >
+        <Box sx={{ px: 2, py: 1.5, borderBottom: 1, borderColor: 'divider' }}>
+          <Typography variant="subtitle2">
+            Map Layers ({layerCount})
+          </Typography>
+        </Box>
+        {layerCount === 0 ? (
+          <Box sx={{ p: 2 }}>
+            <Typography variant="body2" color="text.secondary">
+              No layers on the map
+            </Typography>
+          </Box>
+        ) : (
+          <List dense disablePadding sx={{ overflow: 'auto' }}>
+            {allMapLayers.map((layer, index) => {
+              const typeLabel = getLayerTypeLabel(layer);
+              const opacity = layer.opacity ?? 1;
+              return (
+                <React.Fragment key={`${layer.url}-${index}`}>
+                  {index > 0 && <Divider />}
+                  <ListItem
+                    sx={{
+                      flexDirection: 'column',
+                      alignItems: 'stretch',
+                      py: 1,
+                      px: 2,
+                      backgroundColor: layer.visible ? 'action.hover' : 'transparent',
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            fontWeight: layer.visible ? 600 : 400,
+                            color: layer.visible ? 'text.primary' : 'text.secondary',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {layer.title}
+                        </Typography>
+                      </Box>
+                      <Chip
+                        label={typeLabel}
+                        size="small"
+                        variant="outlined"
+                        sx={{ fontSize: '0.65rem', height: 20 }}
+                      />
                       <Tooltip title={layer.visible ? 'Hide layer' : 'Show layer'}>
-                        <IconButton 
-                          edge="end" 
+                        <IconButton
                           size="small"
                           onClick={() => handleVisibilityToggle(index)}
                           color={layer.visible ? 'primary' : 'default'}
@@ -87,79 +163,41 @@ const LayerManager: React.FC<LayerManagerProps> = ({ layers, onLayersChange }) =
                         </IconButton>
                       </Tooltip>
                       <Tooltip title="Remove layer">
-                        <IconButton 
-                          edge="end" 
+                        <IconButton
                           size="small"
                           onClick={() => handleDelete(index)}
                           color="error"
+                          sx={{ ml: -0.5 }}
                         >
                           <DeleteIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
                     </Box>
-                  }
-                >
-                  <ListItemText
-                    primary={
-                      <Typography 
-                        variant="body2" 
-                        sx={{ 
-                          fontWeight: layer.visible ? 600 : 400,
-                          color: layer.visible ? 'text.primary' : 'text.secondary'
-                        }}
-                      >
-                        {layer.title}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5, pl: 0.5 }}>
+                      <Typography variant="caption" color="text.secondary" sx={{ minWidth: 48 }}>
+                        Opacity
                       </Typography>
-                    }
-                    secondary={
-                      // Show URL for GeoJSON layers with real URLs
-                      (layer.url && 
-                       !layer.url.startsWith('selected-item-') && 
-                       !layer.url.startsWith('collection-bbox') &&
-                       !layer.url.startsWith('clicked-markers') &&
-                       !layer.url.startsWith('selected-area') &&
-                       !layer.url.startsWith('radius-circle')) ? (
-                        <Typography 
-                          variant="caption" 
-                          sx={{ 
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                            display: 'block',
-                            maxWidth: '250px'
-                          }}
-                        >
-                          {layer.url}
-                        </Typography>
-                      ) : layer.data?.type === 'internal' && layer.data?.layerType !== 'locations' ? (
-                        <Typography 
-                          variant="caption" 
-                          sx={{ 
-                            color: 'text.secondary',
-                            fontStyle: 'italic'
-                          }}
-                        >
-                          Map layer
-                        </Typography>
-                      ) : layer.data ? (
-                        <Typography 
-                          variant="caption" 
-                          sx={{ 
-                            color: 'text.secondary',
-                            fontStyle: 'italic'
-                          }}
-                        >
-                          Selected feature from items
-                        </Typography>
-                      ) : null
-                    }
-                  />
-                </ListItem>
-              </React.Fragment>
-            ))}
-        </List>
-      </Box>
-    </CollapsibleSection>
+                      <Slider
+                        size="small"
+                        value={opacity}
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        onChange={(_e, value) => handleOpacityChange(index, value as number)}
+                        sx={{ flex: 1 }}
+                      />
+                      <Typography variant="caption" color="text.secondary" sx={{ minWidth: 28, textAlign: 'right' }}>
+                        {Math.round(opacity * 100)}%
+                      </Typography>
+                    </Box>
+                  </ListItem>
+                </React.Fragment>
+              );
+            })}
+          </List>
+        )}
+      </Popover>
+    </>
   );
 };
 

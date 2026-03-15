@@ -3,7 +3,6 @@ import React from 'react';
 import 'ol/ol.css';
 import FeatureInfo from './FeatureInfo';
 import GeoJsonFeatureViewer from './GeoJsonFeatureViewer';
-import LayerManager from './LayerManager';
 import CollectionInfo from './CollectionInfo';
 import { useGeoJsonLayers } from './contexts/GeoJsonLayerContext';
 import { useMapInteraction } from './contexts/MapInteractionContext';
@@ -37,7 +36,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
 
   useMapInteractions(map, markerLayer, areaLayer, radiusLayer);
 
-  const { allMapLayers, handleLayerManagerChange } = useLayerManagerSync(
+  useLayerManagerSync(
     vectorLayer, locationLayer, markerLayer, areaLayer, radiusLayer,
   );
 
@@ -479,20 +478,6 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
           </div>
         </div>
       )}
-
-      {/* Layer Manager */}
-      <div style={{
-        position: 'absolute',
-        bottom: '10px',
-        left: '10px',
-        zIndex: 1000,
-        maxWidth: '400px',
-      }}>
-        <LayerManager
-          layers={allMapLayers}
-          onLayersChange={handleLayerManagerChange}
-        />
-      </div>
 
       <FeatureInfo
         feature={selectedFeature}

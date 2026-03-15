@@ -1,15 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
 import { normalizeHref } from '../DataRetrievalAPI';
 import { useGeoJsonLayers, type GeoJsonLayer } from '../contexts/GeoJsonLayerContext';
 import { useMapInteraction } from '../contexts/MapInteractionContext';
 import { useCollection } from '../contexts/CollectionContext';
-
-export interface UseLayerManagerSyncReturn {
-  allMapLayers: GeoJsonLayer[];
-  handleLayerManagerChange: (layers: GeoJsonLayer[]) => void;
-}
+import { useLayerManager } from '../contexts/LayerManagerContext';
 
 export function useLayerManagerSync(
   vectorLayer: VectorLayer<VectorSource> | null,
@@ -17,18 +13,18 @@ export function useLayerManagerSync(
   markerLayer: VectorLayer<VectorSource> | null,
   areaLayer: VectorLayer<VectorSource> | null,
   radiusLayer: VectorLayer<VectorSource> | null,
-): UseLayerManagerSyncReturn {
+): void {
   const { geoJsonLayers, setGeoJsonLayers } = useGeoJsonLayers();
   const { selectedArea, radiusKm, setClickedCoords, setSelectedArea } = useMapInteraction();
   const { selectedCollection, selectedCollectionExtents, locationFeatures } = useCollection();
-  const [allMapLayers, setAllMapLayers] = useState<GeoJsonLayer[]>([]);
+  const { setAllMapLayers, setHandleLayerManagerChange } = useLayerManager();
 
-  // Sync all map layers into allMapLayers state for LayerManager
+  // Sync all map layers into context for LayerManager
   useEffect(() => {
     const layers: GeoJsonLayer[] = [];
 
-    // Add GeoJSON layers
-    layers.push(...geoJsonLayers);
+    // Add GeoJSON layers (ensure opacity defaults)
+    layers.push(...geoJsonLayers.map(l => ({ ...l, opacity: l.opacity ?? 1 })));
 
     // Add collection bbox layer
     if (vectorLayer && selectedCollectionExtents && selectedCollectionExtents.length > 0) {
@@ -39,6 +35,7 @@ export function useLayerManagerSync(
           url: 'collection-bbox',
           title: 'Collection Extent',
           visible: vectorLayer.getVisible(),
+          opacity: vectorLayer.getOpacity(),
           data: { type: 'internal', layerType: 'bbox' }
         });
       }
@@ -58,6 +55,7 @@ export function useLayerManagerSync(
         url: locationUrl,
         title: `Location Features (${locationFeatures.length})`,
         visible: locationLayer.getVisible(),
+        opacity: locationLayer.getOpacity(),
         data: { type: 'internal', layerType: 'locations' }
       });
     }
@@ -71,6 +69,7 @@ export function useLayerManagerSync(
           url: 'clicked-markers',
           title: `Clicked Points (${featureCount})`,
           visible: markerLayer.getVisible(),
+          opacity: markerLayer.getOpacity(),
           data: { type: 'internal', layerType: 'markers' }
         });
       }
@@ -82,6 +81,7 @@ export function useLayerManagerSync(
         url: 'selected-area',
         title: 'Selected Area',
         visible: areaLayer.getVisible(),
+        opacity: areaLayer.getOpacity(),
         data: { type: 'internal', layerType: 'area' }
       });
     }
@@ -95,37 +95,54 @@ export function useLayerManagerSync(
           url: 'radius-circle',
           title: `Radius Circle (${radiusKm} km)`,
           visible: radiusLayer.getVisible(),
+          opacity: radiusLayer.getOpacity(),
           data: { type: 'internal', layerType: 'radius' }
         });
       }
     }
 
     setAllMapLayers(layers);
-  }, [geoJsonLayers, vectorLayer, locationLayer, markerLayer, areaLayer, radiusLayer, selectedCollectionExtents, locationFeatures, selectedArea, radiusKm, selectedCollection]);
+  }, [geoJsonLayers, vectorLayer, locationLayer, markerLayer, areaLayer, radiusLayer, selectedCollectionExtents, locationFeatures, selectedArea, radiusKm, selectedCollection, setAllMapLayers]);
 
-  const handleLayerManagerChange = (updatedLayers: GeoJsonLayer[]) => {
-    // Filter out internal layers
+  const handleLayerManagerChange = useCallback((updatedLayers: GeoJsonLayer[]) => {
+    // Filter out internal layers and update GeoJSON layers in context
     const geoJsonUpdates = updatedLayers.filter(l => !l.data || l.data.type !== 'internal');
     setGeoJsonLayers(geoJsonUpdates);
 
-    // Update internal layer visibility
+    // Update internal layer visibility and opacity
     updatedLayers.forEach(layer => {
       if (layer.data?.type === 'internal') {
+        const opacity = layer.opacity ?? 1;
         switch (layer.data.layerType) {
           case 'bbox':
-            if (vectorLayer) vectorLayer.setVisible(layer.visible);
+            if (vectorLayer) {
+              vectorLayer.setVisible(layer.visible);
+              vectorLayer.setOpacity(opacity);
+            }
             break;
           case 'locations':
-            if (locationLayer) locationLayer.setVisible(layer.visible);
+            if (locationLayer) {
+              locationLayer.setVisible(layer.visible);
+              locationLayer.setOpacity(opacity);
+            }
             break;
           case 'markers':
-            if (markerLayer) markerLayer.setVisible(layer.visible);
+            if (markerLayer) {
+              markerLayer.setVisible(layer.visible);
+              markerLayer.setOpacity(opacity);
+            }
             break;
           case 'area':
-            if (areaLayer) areaLayer.setVisible(layer.visible);
+            if (areaLayer) {
+              areaLayer.setVisible(layer.visible);
+              areaLayer.setOpacity(opacity);
+            }
             break;
           case 'radius':
-            if (radiusLayer) radiusLayer.setVisible(layer.visible);
+            if (radiusLayer) {
+              radiusLayer.setVisible(layer.visible);
+              radiusLayer.setOpacity(opacity);
+            }
             break;
         }
       }
@@ -146,7 +163,10 @@ export function useLayerManagerSync(
       if (source) source.clear();
       setSelectedArea([]);
     }
-  };
+  }, [vectorLayer, locationLayer, markerLayer, areaLayer, radiusLayer, setGeoJsonLayers, setClickedCoords, setSelectedArea]);
 
-  return { allMapLayers, handleLayerManagerChange };
+  // Register the handler in context
+  useEffect(() => {
+    setHandleLayerManagerChange(handleLayerManagerChange);
+  }, [handleLayerManagerChange, setHandleLayerManagerChange]);
 }

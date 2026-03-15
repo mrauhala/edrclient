@@ -6,6 +6,7 @@ import IconButton from '@mui/material/IconButton';
 import MenuIcon from '@mui/icons-material/Menu';
 import SettingsIcon from '@mui/icons-material/Settings';
 import Tooltip from '@mui/material/Tooltip';
+import LayerManager from './LayerManager';
 
 interface TopMenuProps {
   onMenuClick: () => void;
@@ -29,6 +30,7 @@ const TopMenu: React.FC<TopMenuProps> = ({ onMenuClick, onSettingsClick }) => {
         <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontSize: '1.1rem' }}>
           OGC API Browser
         </Typography>
+        <LayerManager />
         <Tooltip title="Settings">
           <IconButton
             size="small"
@@ -36,6 +38,7 @@ const TopMenu: React.FC<TopMenuProps> = ({ onMenuClick, onSettingsClick }) => {
             color="inherit"
             aria-label="open settings"
             onClick={onSettingsClick}
+            sx={{ ml: 1 }}
           >
             <SettingsIcon />
           </IconButton>
