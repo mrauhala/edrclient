@@ -9,6 +9,7 @@ import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
 import ErrorIcon from '@mui/icons-material/Error';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import InfoIcon from '@mui/icons-material/Info';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
@@ -197,48 +198,72 @@ const ServiceInfoPanel = ({
 
         {/* Schema Validation Section */}
         <Box sx={{ mb: 2 }}>
-          <ListItemButton
-            onClick={() => setShowValidation(!showValidation)}
-            sx={{
-              p: 1.5,
-              backgroundColor: !validationResult.isValid ? 'rgba(237, 108, 2, 0.08)' : 'rgba(46, 125, 50, 0.08)',
-              borderRadius: 1,
-              '&:hover': {
-                backgroundColor: !validationResult.isValid ? 'rgba(237, 108, 2, 0.15)' : 'rgba(46, 125, 50, 0.15)',
-              }
-            }}
-          >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
-              {!validationResult.isValid ? (
-                <ErrorIcon sx={{ fontSize: 20, color: 'warning.main' }} />
-              ) : (
-                <CheckCircleIcon sx={{ fontSize: 20, color: 'success.main' }} />
-              )}
-              <ListItemText
-                primary={
-                  <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                    Schema Validation Status
-                    {!validationResult.isValid && (() => {
-                      let failureCount = 0;
-                      if (validationResult.landingPageValidation && !validationResult.landingPageValidation.isValid) failureCount++;
-                      if (validationResult.collectionsValidation && !validationResult.collectionsValidation.isValid) failureCount++;
-                      if (validationResult.conformanceValidation && !validationResult.conformanceValidation.isValid) failureCount++;
+          {(() => {
+            const schemasSkipped = !validationResult.schemaCount;
+            const bgColor = schemasSkipped
+              ? 'rgba(237, 108, 2, 0.08)'
+              : !validationResult.isValid
+                ? 'rgba(237, 108, 2, 0.08)'
+                : 'rgba(46, 125, 50, 0.08)';
+            const hoverColor = schemasSkipped
+              ? 'rgba(237, 108, 2, 0.15)'
+              : !validationResult.isValid
+                ? 'rgba(237, 108, 2, 0.15)'
+                : 'rgba(46, 125, 50, 0.15)';
 
-                      return failureCount > 0 ? (
-                        <Chip
-                          label={`${failureCount} issue${failureCount > 1 ? 's' : ''}`}
-                          size="small"
-                          color="warning"
-                          sx={{ ml: 1, height: 20 }}
-                        />
-                      ) : null;
-                    })()}
-                  </Typography>
-                }
-              />
-            </Box>
-            {showValidation ? <ExpandLess /> : <ExpandMore />}
-          </ListItemButton>
+            return (
+              <ListItemButton
+                onClick={() => setShowValidation(!showValidation)}
+                sx={{
+                  p: 1.5,
+                  backgroundColor: bgColor,
+                  borderRadius: 1,
+                  '&:hover': { backgroundColor: hoverColor },
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
+                  {schemasSkipped ? (
+                    <InfoIcon sx={{ fontSize: 20, color: 'warning.main' }} />
+                  ) : !validationResult.isValid ? (
+                    <ErrorIcon sx={{ fontSize: 20, color: 'warning.main' }} />
+                  ) : (
+                    <CheckCircleIcon sx={{ fontSize: 20, color: 'success.main' }} />
+                  )}
+                  <ListItemText
+                    primary={
+                      <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                        Schema Validation Status
+                        {schemasSkipped ? (
+                          <Chip
+                            label="Skipped"
+                            size="small"
+                            color="warning"
+                            variant="outlined"
+                            sx={{ ml: 1, height: 20 }}
+                          />
+                        ) : !validationResult.isValid ? (() => {
+                          let failureCount = 0;
+                          if (validationResult.landingPageValidation && !validationResult.landingPageValidation.isValid) failureCount++;
+                          if (validationResult.collectionsValidation && !validationResult.collectionsValidation.isValid) failureCount++;
+                          if (validationResult.conformanceValidation && !validationResult.conformanceValidation.isValid) failureCount++;
+
+                          return failureCount > 0 ? (
+                            <Chip
+                              label={`${failureCount} issue${failureCount > 1 ? 's' : ''}`}
+                              size="small"
+                              color="warning"
+                              sx={{ ml: 1, height: 20 }}
+                            />
+                          ) : null;
+                        })() : null}
+                      </Typography>
+                    }
+                  />
+                </Box>
+                {showValidation ? <ExpandLess /> : <ExpandMore />}
+              </ListItemButton>
+            );
+          })()}
           <Collapse in={showValidation} timeout="auto" unmountOnExit>
             <Box sx={{ p: 2 }}>
               <ValidationResults

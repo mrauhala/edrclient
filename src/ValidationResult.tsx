@@ -3,6 +3,7 @@ import { Alert, AlertTitle, Box, Collapse, List, ListItem, Typography, Chip, Div
 import { ValidationResult } from './DataRetrievalAPI';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
+import InfoIcon from '@mui/icons-material/Info';
 
 interface ValidationResultsProps {
   validation: ValidationResult;
@@ -91,16 +92,44 @@ const ValidationResults: React.FC<ValidationResultsProps> = ({ validation, expan
     </Box>
   );
 
+  // No schemas loaded — validation was skipped entirely
+  const schemasSkipped = !validation.schemaCount;
+
+  if (schemasSkipped) {
+    return (
+      <Alert severity="warning" sx={{ mb: 2 }} icon={<InfoIcon />}>
+        <AlertTitle>Schema Validation Status</AlertTitle>
+        <Chip
+          label="Validation Skipped"
+          color="warning"
+          size="small"
+          sx={{ mr: 1, mb: 1 }}
+        />
+        <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+          No schemas were loaded — validation was not performed
+        </Typography>
+
+        {schemaInfo}
+
+        <Box sx={{ mt: 2 }}>
+          {renderSchemaSection('Landing Page', validation.landingPageValidation)}
+          {renderSchemaSection('Collections', validation.collectionsValidation)}
+          {renderSchemaSection('Conformance', validation.conformanceValidation)}
+        </Box>
+      </Alert>
+    );
+  }
+
   // If there are no errors or we've manually set isValid to true despite errors
   if (validation.isValid) {
     return (
       <Alert severity="info" sx={{ mb: 2 }}>
         <AlertTitle>Schema Validation Status</AlertTitle>
-        <Chip 
-          label="API Response Loaded" 
-          color="success" 
-          size="small" 
-          sx={{ mr: 1, mb: 1 }} 
+        <Chip
+          label="API Response Loaded"
+          color="success"
+          size="small"
+          sx={{ mr: 1, mb: 1 }}
         />
         {validation.errors && validation.errors.length > 0 ? (
           <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
@@ -111,15 +140,15 @@ const ValidationResults: React.FC<ValidationResultsProps> = ({ validation, expan
             Response structure looks good
           </Typography>
         )}
-        
+
         {schemaInfo}
-        
+
         <Box sx={{ mt: 2 }}>
           {renderSchemaSection('Landing Page', validation.landingPageValidation)}
           {renderSchemaSection('Collections', validation.collectionsValidation)}
           {renderSchemaSection('Conformance', validation.conformanceValidation)}
         </Box>
-        
+
         <Collapse in={expanded}>
           <Divider sx={{ my: 2 }} />
           <Typography variant="subtitle2" gutterBottom>
