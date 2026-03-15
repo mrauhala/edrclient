@@ -7,6 +7,7 @@ import Alert from '@mui/material/Alert';
 import AlertTitle from '@mui/material/AlertTitle';
 import React from 'react';
 import { parameterNames, ParameterDefinition } from './DataRetrievalAPI';
+import { sanitizeUrl } from './utils/sanitizeUrl';
 
 
 interface ParameterFormProps {
@@ -21,7 +22,7 @@ const FormatForm = ({ parameters, queryUrl, setQueryUrl }: ParameterFormProps) =
   const handleParameter = (event: SelectChangeEvent) => {
     setParameter(event.target.value as string);
     setQueryUrl(event.target.value);
-    console.log(queryUrl);
+    console.log(sanitizeUrl(queryUrl));
   };
 
   // Handle both array and object formats for parameters

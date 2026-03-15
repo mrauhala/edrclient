@@ -1,8 +1,9 @@
+import type { AxiosRequestConfig } from 'axios';
 import type { AuthCredentials } from '../types/api';
 
 // Helper function to create axios config with basic auth if credentials are provided
-export function getAxiosConfig(auth?: AuthCredentials) {
-  const config: any = {};
+export function getAxiosConfig(auth?: AuthCredentials): AxiosRequestConfig {
+  const config: AxiosRequestConfig = {};
 
   if (auth) {
     // Custom Authorization header (takes precedence over all)

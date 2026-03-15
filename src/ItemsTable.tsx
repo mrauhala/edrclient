@@ -13,6 +13,7 @@ import ListIcon from '@mui/icons-material/List';
 import axios from 'axios';
 import KeywordChips from './KeywordChips';
 import { useService } from './contexts/ServiceContext';
+import { getAxiosConfig, addApiKeyToUrl } from './api/auth';
 import { 
   DataGrid, 
   GridColDef,
@@ -67,29 +68,13 @@ const ItemsTable: React.FC<ItemsTableProps> = ({ url, title, onFeatureClick }) =
     
     try {
       const auth = getAuthCredentials(url);
-      const headers: Record<string, string> = {};
-      
-      if (auth) {
-        if (auth.username && auth.password) {
-          const token = btoa(`${auth.username}:${auth.password}`);
-          headers['Authorization'] = `Basic ${token}`;
-        } else if (auth.bearerToken) {
-          headers['Authorization'] = `Bearer ${auth.bearerToken}`;
-        } else if (auth.apiKey && auth.apiKeyParam) {
-          // API key will be added as URL parameter
-        }
-      }
 
-      // Add API key and limit to URL if provided
-      let fetchUrl = url;
-      const separator = url.includes('?') ? '&' : '?';
-      fetchUrl = `${url}${separator}limit=2000`;
-      
-      if (auth?.apiKey && auth?.apiKeyParam) {
-        fetchUrl = `${fetchUrl}&${auth.apiKeyParam}=${auth.apiKey}`;
-      }
+      // Build URL with limit and API key
+      const urlObj = new URL(url);
+      urlObj.searchParams.set('limit', '2000');
+      const fetchUrl = addApiKeyToUrl(urlObj.toString(), auth);
 
-      const response = await axios.get(fetchUrl, { headers });
+      const response = await axios.get(fetchUrl, getAxiosConfig(auth));
       
       if (response.data && (response.data.type === 'FeatureCollection' || response.data.type === 'Feature')) {
         setData(response.data.type === 'Feature' ? { type: 'FeatureCollection', features: [response.data] } : response.data);

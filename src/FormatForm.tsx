@@ -6,6 +6,7 @@ import Select, { SelectChangeEvent } from '@mui/material/Select';
 import Alert from '@mui/material/Alert';
 import AlertTitle from '@mui/material/AlertTitle';
 import React from 'react';
+import { sanitizeUrl } from './utils/sanitizeUrl';
 
 
 interface FormatFormProps {
@@ -21,7 +22,7 @@ const FormatForm = ({ formats, queryUrl, setQueryUrl }: FormatFormProps) => {
     setFormat(event.target.value as string);
     queryUrl = event.target.value as string;
     setQueryUrl(event.target.value);
-    console.log(queryUrl);
+    console.log(sanitizeUrl(queryUrl));
   };
 
   return (

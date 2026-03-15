@@ -1,6 +1,7 @@
 import axios from 'axios';
 import type { AuthCredentials, Collection, LocationQueryResult } from '../types/api';
 import { normalizeHref } from '../utils/href';
+import { sanitizeUrl } from '../utils/sanitizeUrl';
 import { getAxiosConfig, addApiKeyToUrl } from './auth';
 
 // Function to get all supported data query types for a collection
@@ -65,7 +66,7 @@ export function getLocationQueryUrl(collection: Collection): string | null {
 // Function to execute a location query
 export async function executeLocationQuery(queryUrl: string, auth?: AuthCredentials): Promise<LocationQueryResult | null> {
   try {
-    console.log('Executing location query:', queryUrl);
+    console.log('Executing location query:', sanitizeUrl(queryUrl));
 
     // Add f=json format parameter if not already present
     const url = new URL(queryUrl);
