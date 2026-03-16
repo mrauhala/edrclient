@@ -142,6 +142,9 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
           document.dispatchEvent(new Event('close-layers-popover'));
           document.dispatchEvent(new Event('toggle-validation-popover'));
           break;
+        case 'i':
+          document.dispatchEvent(new Event('toggle-collection-info'));
+          break;
         default:
           return;
       }

@@ -20,6 +20,7 @@ OGC API client for browsing EDR, Features, Records, and STAC API services.
 | `S` | Toggle settings drawer |
 | `L` | Toggle layers popover |
 | `V` | Toggle validation popover |
+| `I` | Toggle collection info panel (collapsed/expanded) |
 
 ### Map (when focused)
 
