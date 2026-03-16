@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
@@ -184,6 +184,21 @@ const LayerManager: React.FC = () => {
   const { allMapLayers, handleLayerManagerChange } = useLayerManager();
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
 
+  // Close when validation popover opens; listen for keyboard toggle
+  useEffect(() => {
+    const handleClose = () => setAnchorEl(null);
+    const handleToggle = () => {
+      const btn = document.getElementById('layers-button') as HTMLButtonElement | null;
+      if (btn) setAnchorEl(prev => prev ? null : btn);
+    };
+    document.addEventListener('close-layers-popover', handleClose);
+    document.addEventListener('toggle-layers-popover', handleToggle);
+    return () => {
+      document.removeEventListener('close-layers-popover', handleClose);
+      document.removeEventListener('toggle-layers-popover', handleToggle);
+    };
+  }, []);
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 5 },
@@ -193,8 +208,12 @@ const LayerManager: React.FC = () => {
     })
   );
 
-  const handleOpen = (event: React.MouseEvent<HTMLButtonElement>) => {
-    setAnchorEl(event.currentTarget);
+  const handleToggle = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setAnchorEl(prev => {
+      if (prev) return null;
+      document.dispatchEvent(new Event('close-validation-popover'));
+      return event.currentTarget;
+    });
   };
 
   const handleClose = () => {
@@ -256,10 +275,11 @@ const LayerManager: React.FC = () => {
     <>
       <Tooltip title="Map Layers">
         <IconButton
+          id="layers-button"
           size="small"
           color="inherit"
           aria-label="map layers"
-          onClick={handleOpen}
+          onClick={handleToggle}
         >
           <Badge
             badgeContent={layerCount}

@@ -1,7 +1,7 @@
 import Sidebar from './Sidebar';
 import TopMenu from './TopMenu';
 import { CustomService } from './types/CustomService';
-import React, { lazy, Suspense, useState, useMemo, useEffect } from 'react';
+import React, { lazy, Suspense, useState, useMemo, useEffect, useCallback } from 'react';
 import Box from '@mui/material/Box';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -15,6 +15,7 @@ import { LayerManagerProvider } from './contexts/LayerManagerContext';
 import { ValidationProvider } from './contexts/ValidationContext';
 import { MapInteractionProvider } from './contexts/MapInteractionContext';
 import { CollectionProvider, useCollection } from './contexts/CollectionContext';
+import { useCollectionKeyboardNav } from './hooks/useCollectionKeyboardNav';
 import { ServiceProvider, useService } from './contexts/ServiceContext';
 import Paper from '@mui/material/Paper';
 import TextField from '@mui/material/TextField';
@@ -85,6 +86,7 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
 
   const { setGeoJsonLayers } = useGeoJsonLayers();
   const { collectionUrl } = useCollection();
+  useCollectionKeyboardNav();
   const { getAuthCredentials, setSelectedServiceUrl } = useService();
 
   // Modal state
@@ -110,13 +112,44 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
     return themeMode;
   }, [themeMode, prefersDarkMode]);
 
-  const handleSidebarToggle = () => {
-    setSidebarOpen(!sidebarOpen);
-  };
+  const handleSidebarToggle = useCallback(() => {
+    setSidebarOpen(prev => !prev);
+  }, []);
 
-  const handleSettingsDrawerToggle = () => {
-    setSettingsDrawerOpen(!settingsDrawerOpen);
-  };
+  const handleSettingsDrawerToggle = useCallback(() => {
+    setSettingsDrawerOpen(prev => !prev);
+  }, []);
+
+  // Single-letter keyboard shortcuts: B=sidebar, S=settings, L=layers, V=validation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+      switch (e.key.toLowerCase()) {
+        case 'b':
+          handleSidebarToggle();
+          break;
+        case 's':
+          handleSettingsDrawerToggle();
+          break;
+        case 'l':
+          document.dispatchEvent(new Event('close-validation-popover'));
+          document.dispatchEvent(new Event('toggle-layers-popover'));
+          break;
+        case 'v':
+          document.dispatchEvent(new Event('close-layers-popover'));
+          document.dispatchEvent(new Event('toggle-validation-popover'));
+          break;
+        default:
+          return;
+      }
+      e.preventDefault();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [handleSidebarToggle, handleSettingsDrawerToggle]);
 
   const handleThemeModeChange = (mode: 'light' | 'dark' | 'system') => {
     setThemeMode(mode);
@@ -160,7 +193,7 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
     }
   };
 
-  const handleFetchData = async () => {
+  const handleFetchData = useCallback(async () => {
     if (!collectionUrl) return;
     
     setModalOpen(true);
@@ -260,7 +293,20 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
     } finally {
       setModalLoading(false);
     }
-  };
+  }, [collectionUrl, getAuthCredentials, setGeoJsonLayers]);
+
+  // Cmd+Enter (Mac) / Ctrl+Enter (Windows) to fetch data
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        e.stopPropagation();
+        handleFetchData();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown, true);
+    return () => document.removeEventListener('keydown', handleKeyDown, true);
+  }, [handleFetchData]);
 
   const handleCloseModal = () => {
     setModalOpen(false);

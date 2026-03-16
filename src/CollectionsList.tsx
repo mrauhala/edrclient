@@ -93,7 +93,7 @@ const CollectionsList = ({
 }: CollectionsListProps) => {
   const { geoJsonLayers, setGeoJsonLayers } = useGeoJsonLayers();
   const { setClickedCoords, setDataQuery } = useMapInteraction();
-  const { selectedCollection, setSelectedCollection, setSelectedCollectionExtents, locationFeatures, setLocationFeatures, setSelectedFeature, setCollectionUrl } = useCollection();
+  const { selectedCollection, setSelectedCollection, setSelectedCollectionExtents, locationFeatures, setLocationFeatures, setSelectedFeature, setCollectionUrl, selectCollectionByIndexRef } = useCollection();
   const { getAuthCredentials } = useService();
   const {
     selectedDatetime,
@@ -107,6 +107,17 @@ const CollectionsList = ({
   const [openCollectionIndex, setOpenCollectionIndex] = useState<number | null>(null);
   const [currentLocationCollection, setCurrentLocationCollection] = useState<string | null>(null);
   const [showCollectionValidation, setShowCollectionValidation] = useState<{[key: string]: boolean}>({});
+
+  // Scroll selected collection into view after collapse/expand animations settle
+  useEffect(() => {
+    if (openCollectionIndex !== null) {
+      const timer = setTimeout(() => {
+        const el = document.querySelector(`[data-collection-index="${openCollectionIndex}"]`);
+        el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [openCollectionIndex]);
 
   // Effect to update GeoJSON layers when datetime values change
   useEffect(() => {
@@ -240,6 +251,14 @@ const CollectionsList = ({
     }
   };
 
+  // Register selection callback for keyboard navigation
+  useEffect(() => {
+    selectCollectionByIndexRef.current = (index: number) => {
+      handleItemClick(index, collections[index].id);
+    };
+    return () => { selectCollectionByIndexRef.current = null; };
+  });
+
   return (
     <List component="nav">
       {isLoading ? (
@@ -297,6 +316,7 @@ const CollectionsList = ({
       {collections.map((collection, index) => (
         <Box
           key={collection.id || index}
+          data-collection-index={index}
           sx={{
             border: '1px solid',
             borderColor: 'divider',

@@ -3,7 +3,7 @@ import Box from '@mui/material/Box';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useEffect, useState, useMemo, useCallback } from 'react';
-import { Collection, GetCollectionsResult, Link as ApiLink } from './DataRetrievalAPI';
+import { GetCollectionsResult, Link as ApiLink } from './DataRetrievalAPI';
 import { useValidation } from './contexts/ValidationContext';
 import { parseLicense, LicenseInfo } from './CollectionInfo';
 import ServiceInfoPanel from './ServiceInfoPanel';
@@ -24,13 +24,12 @@ const Sidebar = ({ open }: SidebarProps) => {
   const sidebarWidth = isMobile ? '100%' : 480;
   const { setGeoJsonLayers } = useGeoJsonLayers();
   const { setClickedCoords, setDataQuery } = useMapInteraction();
-  const { setSelectedCollection, setSelectedCollectionExtents, setLocationFeatures, setLandingPageLicense, setCollectionUrl } = useCollection();
+  const { collections, setCollections, setSelectedCollection, setSelectedCollectionExtents, setLocationFeatures, setLandingPageLicense, setCollectionUrl } = useCollection();
   const queryState = useQueryUrl();
   const { resetQueryState } = queryState;
   const { validationResult, setValidationResult } = useValidation();
 
   const [currentApiUrl, setCurrentApiUrl] = useState('https://opendata.fmi.fi/edr');
-  const [collections, setCollections] = useState<Collection[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [landingPageTitle, setLandingPageTitle] = useState<string | null>(null);
   const [landingPageDescription, setLandingPageDescription] = useState<string | null>(null);
@@ -74,7 +73,7 @@ const Sidebar = ({ open }: SidebarProps) => {
     setLocationFeatures(null);
     setClickedCoords([]);
     setDataQuery('');
-  }, [resetQueryState, setCollectionUrl, setGeoJsonLayers, setSelectedCollection, setSelectedCollectionExtents, setLocationFeatures, setClickedCoords, setDataQuery, setValidationResult]);
+  }, [setCollections, resetQueryState, setCollectionUrl, setGeoJsonLayers, setSelectedCollection, setSelectedCollectionExtents, setLocationFeatures, setClickedCoords, setDataQuery, setValidationResult]);
 
   const handleLoadResult = useCallback((result: GetCollectionsResult) => {
     setCollections(result.collections || []);
@@ -85,7 +84,7 @@ const Sidebar = ({ open }: SidebarProps) => {
     setLandingPageLinks(result.landingPageLinks || null);
     setCollectionsLinks(result.collectionsLinks || null);
     setLandingPageKeywords(result.landingPageKeywords || null);
-  }, [setValidationResult]);
+  }, [setCollections, setValidationResult]);
 
   const handleLoadError = useCallback((error: Error) => {
     setCollections([]);
@@ -93,7 +92,7 @@ const Sidebar = ({ open }: SidebarProps) => {
       isValid: false,
       errors: [{ message: error.message }]
     });
-  }, [setValidationResult]);
+  }, [setCollections, setValidationResult]);
 
   return (
     <Box
