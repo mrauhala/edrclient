@@ -42,7 +42,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-      <div id="map" key="main-map" style={{ width: '100%', height: '100%' }} />
+      <div id="map" key="main-map" tabIndex={0} style={{ width: '100%', height: '100%', outline: 'none' }} />
 
       {/* Tooltip element */}
       <div

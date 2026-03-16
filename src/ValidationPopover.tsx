@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
@@ -51,6 +51,21 @@ const ValidationPopover: React.FC = () => {
   const { validationResult } = useValidation();
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
 
+  // Close when layers popover opens; listen for keyboard toggle
+  useEffect(() => {
+    const handleClose = () => setAnchorEl(null);
+    const handleToggle = () => {
+      const btn = document.getElementById('validation-button') as HTMLButtonElement | null;
+      if (btn) setAnchorEl(prev => prev ? null : btn);
+    };
+    document.addEventListener('close-validation-popover', handleClose);
+    document.addEventListener('toggle-validation-popover', handleToggle);
+    return () => {
+      document.removeEventListener('close-validation-popover', handleClose);
+      document.removeEventListener('toggle-validation-popover', handleToggle);
+    };
+  }, []);
+
   const open = Boolean(anchorEl);
   const hasService = validationResult.schemaCount !== undefined || validationResult.errors !== null;
   const errorCount = validationResult.errors?.length ?? 0;
@@ -75,10 +90,15 @@ const ValidationPopover: React.FC = () => {
     <>
       <Tooltip title="Validation Results">
         <IconButton
+          id="validation-button"
           size="small"
           color="inherit"
           aria-label="validation results"
-          onClick={(e) => setAnchorEl(e.currentTarget)}
+          onClick={(e) => setAnchorEl(prev => {
+            if (prev) return null;
+            document.dispatchEvent(new Event('close-layers-popover'));
+            return e.currentTarget;
+          })}
         >
           <Badge
             badgeContent={errorCount}

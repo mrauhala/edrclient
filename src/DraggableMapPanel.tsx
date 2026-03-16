@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
 import ExpandMore from '@mui/icons-material/ExpandMore';
@@ -20,6 +20,13 @@ export default function DraggableMapPanel({ collection, fallbackLicense }: Dragg
 
   const [pos, setPos] = useState({ x: 10, y: 10 });
   const [collapsed, setCollapsed] = useState(true);
+
+  useEffect(() => {
+    const handleToggle = () => setCollapsed(c => !c);
+    document.addEventListener('toggle-collection-info', handleToggle);
+    return () => document.removeEventListener('toggle-collection-info', handleToggle);
+  }, []);
+
   const [dragging, setDragging] = useState(false);
   const dragStart = useRef({ x: 0, y: 0, posX: 0, posY: 0 });
   const panelRef = useRef<HTMLDivElement>(null);

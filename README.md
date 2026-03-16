@@ -1,6 +1,27 @@
-# Getting Started with Create React App
+# EDR Client
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+OGC API client for browsing EDR, Features, Records, and STAC API services.
+
+## Keyboard Shortcuts
+
+| Key | Action |
+|---|---|
+| **Navigation** | |
+| `PageDown` | Select next collection |
+| `PageUp` | Select previous collection |
+| `Cmd+Enter` / `Ctrl+Enter` | Fetch data from the query URL |
+| **UI Panels** | |
+| `B` | Toggle sidebar |
+| `S` | Toggle settings drawer |
+| `L` | Toggle layers popover |
+| `V` | Toggle validation popover |
+| `I` | Toggle collection info panel (collapsed/expanded) |
+| **Map** (click map to focus) | |
+| Arrow keys | Pan the map |
+| `+` / `-` | Zoom in / out |
+
+> Single-letter shortcuts are disabled when an input field has focus.
+> Layers and validation popovers are mutually exclusive.
 
 ## Available Scripts
 
