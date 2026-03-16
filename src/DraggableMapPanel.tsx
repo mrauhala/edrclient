@@ -5,6 +5,7 @@ import ExpandMore from '@mui/icons-material/ExpandMore';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import CollectionInfo, { LicenseInfo } from './CollectionInfo';
 import { Collection } from './DataRetrievalAPI';
+import { useValidation } from './contexts/ValidationContext';
 
 interface DraggableMapPanelProps {
   collection: Collection;
@@ -12,6 +13,11 @@ interface DraggableMapPanelProps {
 }
 
 export default function DraggableMapPanel({ collection, fallbackLicense }: DraggableMapPanelProps) {
+  const { validationResult } = useValidation();
+  const validationErrors = validationResult.collectionErrors
+    ? (validationResult.collectionErrors[collection.id] ?? [])
+    : undefined;
+
   const [pos, setPos] = useState({ x: 10, y: 10 });
   const [collapsed, setCollapsed] = useState(true);
   const [dragging, setDragging] = useState(false);
@@ -108,9 +114,9 @@ export default function DraggableMapPanel({ collection, fallbackLicense }: Dragg
         </IconButton>
 
         {collapsed ? (
-          <CollectionInfo collection={collection} dark compact fallbackLicense={fallbackLicense} />
+          <CollectionInfo collection={collection} dark compact fallbackLicense={fallbackLicense} validationErrors={validationErrors} />
         ) : (
-          <CollectionInfo collection={collection} dark clampDescription fallbackLicense={fallbackLicense} />
+          <CollectionInfo collection={collection} dark clampDescription fallbackLicense={fallbackLicense} validationErrors={validationErrors} />
         )}
       </Box>
     </Box>
