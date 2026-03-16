@@ -3,7 +3,7 @@ import React from 'react';
 import 'ol/ol.css';
 import FeatureInfo from './FeatureInfo';
 import GeoJsonFeatureViewer from './GeoJsonFeatureViewer';
-import CollectionInfo from './CollectionInfo';
+import DraggableMapPanel from './DraggableMapPanel';
 import { useGeoJsonLayers } from './contexts/GeoJsonLayerContext';
 import { useMapInteraction } from './contexts/MapInteractionContext';
 import { useCollection } from './contexts/CollectionContext';
@@ -65,25 +65,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
 
       {/* Collection Legend */}
       {selectedCollection && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '10px',
-            left: '10px',
-            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-            color: 'white',
-            padding: '12px 16px',
-            borderRadius: '8px',
-            fontSize: '14px',
-            fontWeight: 'normal',
-            maxWidth: '350px',
-            zIndex: 1000,
-            boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
-            border: '1px solid rgba(255,255,255,0.2)',
-          }}
-        >
-          <CollectionInfo collection={selectedCollection} dark fallbackLicense={landingPageLicense} />
-        </div>
+        <DraggableMapPanel collection={selectedCollection} fallbackLicense={landingPageLicense} />
       )}
 
       {/* Coordinates Legend - Lower Right Corner */}

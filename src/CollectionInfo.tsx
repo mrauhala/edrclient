@@ -44,6 +44,8 @@ interface CollectionInfoProps {
   validationErrors?: ValidationError[] | null;
   /** Clamp the description to a max number of lines. Default: false (show full). */
   clampDescription?: boolean;
+  /** Show only title, ID, and extent badges. Default: false. */
+  compact?: boolean;
 }
 
 /** Resolve a licence link into a { label, href } pair.
@@ -85,6 +87,7 @@ export default function CollectionInfo({
   fallbackLicense = null,
   validationErrors,
   clampDescription = false,
+  compact = false,
 }: CollectionInfoProps) {
   // ── Colour tokens ────────────────────────────────────────────────────────
   const textPrimary   = dark ? 'rgba(255,255,255,1)'    : 'text.primary';
@@ -232,143 +235,148 @@ export default function CollectionInfo({
         </Box>
       )}
 
-      {/* 4. Description (with optional thumbnail) */}
-      {collection.description && (
-        <Box sx={{ position: 'relative', mb: 0.5 }}>
-          {collection.assets?.thumbnail?.href && (
-            <Box
-              component="img"
-              src={collection.assets.thumbnail.href}
-              alt={collection.assets.thumbnail.title ?? collection.title ?? 'Collection thumbnail'}
-              sx={{
-                float: 'right',
-                width: 100,
-                height: 100,
-                objectFit: 'cover',
-                borderRadius: 1,
-                ml: 1.5,
-                mb: 1,
-              }}
-              onError={(e) => {
-                (e.target as HTMLElement).style.display = 'none';
-              }}
-            />
-          )}
-          <Typography
-            variant="body2"
-            component="span"
-            sx={{
-              color: textSecondary,
-              ...(clampDescription && {
-                display: '-webkit-box',
-                WebkitLineClamp: 6,
-                WebkitBoxOrient: 'vertical',
-                overflow: 'hidden',
-              }),
-            }}
-          >
-            {collection.description}
-          </Typography>
-        </Box>
-      )}
-
-      {/* 5–10. Metadata rows: spatial CRS, temporal, vertical, itemType, licence */}
-      {(spatialCrs || temporalDisplay || verticalDisplay || collection.itemType || license) && (
+      {/* Sections 4–11 hidden in compact mode */}
+      {!compact && (
         <>
-          <Divider sx={{ my: 1.25, borderColor: dark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.08)' }} />
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {spatialCrs && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Public sx={{ fontSize: '15px', color: dark ? 'rgba(255,255,255,0.32)' : '#c5c5c5', flexShrink: 0 }} />
-                <Box sx={{ fontSize: '0.75rem', color: textSecondary }}>{spatialCrs}</Box>
-              </Box>
-            )}
-            {temporalDisplay && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <AccessTime sx={{ fontSize: '15px', color: dark ? 'rgba(255,255,255,0.32)' : '#c5c5c5', flexShrink: 0 }} />
-                <Box sx={{ fontSize: '0.75rem', color: textSecondary }}>{temporalDisplay}</Box>
-              </Box>
-            )}
-            {verticalDisplay && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Height sx={{ fontSize: '15px', color: dark ? 'rgba(255,255,255,0.32)' : '#c5c5c5', flexShrink: 0 }} />
-                <Box sx={{ fontSize: '0.75rem', color: textSecondary }}>{verticalDisplay}</Box>
-              </Box>
-            )}
-            {collection.itemType && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Category sx={{ fontSize: '15px', color: dark ? 'rgba(255,255,255,0.32)' : '#c5c5c5', flexShrink: 0 }} />
-                <Box sx={{ fontSize: '0.75rem', color: textSecondary }}>{collection.itemType}</Box>
-              </Box>
-            )}
-            {license && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Balance sx={{ fontSize: '15px', color: dark ? 'rgba(255,255,255,0.32)' : '#c5c5c5', flexShrink: 0 }} />
-                <Link
-                  href={license.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  sx={{ fontSize: '0.75rem', color: textSecondary, textDecorationColor: 'inherit' }}
-                >
-                  {license.label}
-                </Link>
-              </Box>
-            )}
-          </Box>
-        </>
-      )}
-
-      {/* 10. Keywords */}
-      {collection.keywords && collection.keywords.length > 0 && (
-        <Box sx={{ mt: 1 }}>
-          <Box sx={sectionLabelSx}>Keywords</Box>
-          <Box
-            sx={{
-              '& .MuiChip-root': {
-                borderRadius: '4px',
-                ...(dark
-                  ? {
-                      backgroundColor: 'rgba(255,255,255,0.05)',
-                      borderColor: 'rgba(255,255,255,0.17)',
-                      color: 'rgba(255,255,255,0.60)',
-                    }
-                  : {
-                      backgroundColor: 'action.hover',
-                      borderColor: 'divider',
-                    }),
-              },
-            }}
-          >
-            <KeywordChips keywords={collection.keywords} size="small" maxVisible={5} />
-          </Box>
-        </Box>
-      )}
-
-      {/* 11. Data queries */}
-      {effectiveQueries.length > 0 && (
-        <Box sx={{ mt: 1 }}>
-          <Box sx={sectionLabelSx}>Queries</Box>
-          <Box sx={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-            {effectiveQueries.map((queryType) => (
-              <Chip
-                key={queryType}
-                label={queryType.toUpperCase()}
-                size="small"
-                color={dark ? 'default' : 'primary'}
-                variant="filled"
+          {/* 4. Description (with optional thumbnail) */}
+          {collection.description && (
+            <Box sx={{ position: 'relative', mb: 0.5 }}>
+              {collection.assets?.thumbnail?.href && (
+                <Box
+                  component="img"
+                  src={collection.assets.thumbnail.href}
+                  alt={collection.assets.thumbnail.title ?? collection.title ?? 'Collection thumbnail'}
+                  sx={{
+                    float: 'right',
+                    width: 100,
+                    height: 100,
+                    objectFit: 'cover',
+                    borderRadius: 1,
+                    ml: 1.5,
+                    mb: 1,
+                  }}
+                  onError={(e) => {
+                    (e.target as HTMLElement).style.display = 'none';
+                  }}
+                />
+              )}
+              <Typography
+                variant="body2"
+                component="span"
                 sx={{
-                  ...chipBaseSx,
-                  borderRadius: '4px',
-                  ...(dark && {
-                    backgroundColor: 'rgba(255,255,255,0.18)',
-                    color: 'rgba(255,255,255,0.92)',
-                    '&:hover': { backgroundColor: 'rgba(255,255,255,0.25)' },
+                  color: textSecondary,
+                  ...(clampDescription && {
+                    display: '-webkit-box',
+                    WebkitLineClamp: 6,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
                   }),
                 }}
-              />
-            ))}
-          </Box>
-        </Box>
+              >
+                {collection.description}
+              </Typography>
+            </Box>
+          )}
+
+          {/* 5–10. Metadata rows: spatial CRS, temporal, vertical, itemType, licence */}
+          {(spatialCrs || temporalDisplay || verticalDisplay || collection.itemType || license) && (
+            <>
+              <Divider sx={{ my: 1.25, borderColor: dark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.08)' }} />
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {spatialCrs && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Public sx={{ fontSize: '15px', color: dark ? 'rgba(255,255,255,0.32)' : '#c5c5c5', flexShrink: 0 }} />
+                    <Box sx={{ fontSize: '0.75rem', color: textSecondary }}>{spatialCrs}</Box>
+                  </Box>
+                )}
+                {temporalDisplay && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <AccessTime sx={{ fontSize: '15px', color: dark ? 'rgba(255,255,255,0.32)' : '#c5c5c5', flexShrink: 0 }} />
+                    <Box sx={{ fontSize: '0.75rem', color: textSecondary }}>{temporalDisplay}</Box>
+                  </Box>
+                )}
+                {verticalDisplay && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Height sx={{ fontSize: '15px', color: dark ? 'rgba(255,255,255,0.32)' : '#c5c5c5', flexShrink: 0 }} />
+                    <Box sx={{ fontSize: '0.75rem', color: textSecondary }}>{verticalDisplay}</Box>
+                  </Box>
+                )}
+                {collection.itemType && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Category sx={{ fontSize: '15px', color: dark ? 'rgba(255,255,255,0.32)' : '#c5c5c5', flexShrink: 0 }} />
+                    <Box sx={{ fontSize: '0.75rem', color: textSecondary }}>{collection.itemType}</Box>
+                  </Box>
+                )}
+                {license && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Balance sx={{ fontSize: '15px', color: dark ? 'rgba(255,255,255,0.32)' : '#c5c5c5', flexShrink: 0 }} />
+                    <Link
+                      href={license.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      sx={{ fontSize: '0.75rem', color: textSecondary, textDecorationColor: 'inherit' }}
+                    >
+                      {license.label}
+                    </Link>
+                  </Box>
+                )}
+              </Box>
+            </>
+          )}
+
+          {/* 10. Keywords */}
+          {collection.keywords && collection.keywords.length > 0 && (
+            <Box sx={{ mt: 1 }}>
+              <Box sx={sectionLabelSx}>Keywords</Box>
+              <Box
+                sx={{
+                  '& .MuiChip-root': {
+                    borderRadius: '4px',
+                    ...(dark
+                      ? {
+                          backgroundColor: 'rgba(255,255,255,0.05)',
+                          borderColor: 'rgba(255,255,255,0.17)',
+                          color: 'rgba(255,255,255,0.60)',
+                        }
+                      : {
+                          backgroundColor: 'action.hover',
+                          borderColor: 'divider',
+                        }),
+                  },
+                }}
+              >
+                <KeywordChips keywords={collection.keywords} size="small" maxVisible={5} />
+              </Box>
+            </Box>
+          )}
+
+          {/* 11. Data queries */}
+          {effectiveQueries.length > 0 && (
+            <Box sx={{ mt: 1 }}>
+              <Box sx={sectionLabelSx}>Queries</Box>
+              <Box sx={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                {effectiveQueries.map((queryType) => (
+                  <Chip
+                    key={queryType}
+                    label={queryType.toUpperCase()}
+                    size="small"
+                    color={dark ? 'default' : 'primary'}
+                    variant="filled"
+                    sx={{
+                      ...chipBaseSx,
+                      borderRadius: '4px',
+                      ...(dark && {
+                        backgroundColor: 'rgba(255,255,255,0.18)',
+                        color: 'rgba(255,255,255,0.92)',
+                        '&:hover': { backgroundColor: 'rgba(255,255,255,0.25)' },
+                      }),
+                    }}
+                  />
+                ))}
+              </Box>
+            </Box>
+          )}
+        </>
       )}
 
     </Box>
