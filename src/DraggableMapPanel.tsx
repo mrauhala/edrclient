@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
 import ExpandMore from '@mui/icons-material/ExpandMore';
@@ -17,12 +17,6 @@ export default function DraggableMapPanel({ collection, fallbackLicense }: Dragg
   const [dragging, setDragging] = useState(false);
   const dragStart = useRef({ x: 0, y: 0, posX: 0, posY: 0 });
   const panelRef = useRef<HTMLDivElement>(null);
-
-  // Reset position and collapse when collection changes
-  useEffect(() => {
-    setPos({ x: 10, y: 10 });
-    setCollapsed(true);
-  }, [collection]);
 
   const constrainPosition = useCallback((x: number, y: number) => {
     const panel = panelRef.current;
