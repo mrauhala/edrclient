@@ -324,12 +324,13 @@ export class SchemaValidator {
             const errors = validatorSet.collections.errors.map((error: any) => ({
               schema: displayName,
               schemaType: schemaType,
+              section: 'Collections',
               path: error.instancePath || error.dataPath || 'root',
               message: `${error.instancePath || error.dataPath || ''}: ${error.message}`,
               keyword: error.keyword
             }));
             
-            // Group errors by collection
+            // Group errors by collection and tag each error with collectionId
             errors.forEach((err: any) => {
               // Parse path to extract collection index: /collections/0/... or /collections/1/...
               const pathMatch = err.path.match(/^\/collections\/(\d+)/);
@@ -337,6 +338,7 @@ export class SchemaValidator {
                 const collectionIndex = parseInt(pathMatch[1], 10);
                 const collectionId = collectionIndexMap[collectionIndex];
                 if (collectionId) {
+                  err.collectionId = collectionId;
                   if (!collectionErrors[collectionId]) {
                     collectionErrors[collectionId] = [];
                   }
@@ -433,6 +435,7 @@ export class SchemaValidator {
           if (validatorSet.landingPage.errors) {
             const errors = validatorSet.landingPage.errors.map((error: any) => ({
               schema: displayName,
+              section: 'Landing Page',
               path: error.instancePath || error.dataPath || 'root',
               message: `${error.instancePath || error.dataPath || ''}: ${error.message}`,
               keyword: error.keyword
@@ -508,6 +511,7 @@ export class SchemaValidator {
           if (validatorSet.conformance.errors) {
             const errors = validatorSet.conformance.errors.map((error: any) => ({
               schema: displayName,
+              section: 'Conformance',
               path: error.instancePath || error.dataPath || 'root',
               message: `${error.instancePath || error.dataPath || ''}: ${error.message}`,
               keyword: error.keyword

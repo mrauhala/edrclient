@@ -3,7 +3,8 @@ import Box from '@mui/material/Box';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useEffect, useState, useMemo, useCallback } from 'react';
-import { Collection, ValidationResult, GetCollectionsResult, Link as ApiLink } from './DataRetrievalAPI';
+import { Collection, GetCollectionsResult, Link as ApiLink } from './DataRetrievalAPI';
+import { useValidation } from './contexts/ValidationContext';
 import { parseLicense, LicenseInfo } from './CollectionInfo';
 import ServiceInfoPanel from './ServiceInfoPanel';
 import ServiceSelector from './ServiceSelector';
@@ -26,10 +27,10 @@ const Sidebar = ({ open }: SidebarProps) => {
   const { setSelectedCollection, setSelectedCollectionExtents, setLocationFeatures, setLandingPageLicense, setCollectionUrl } = useCollection();
   const queryState = useQueryUrl();
   const { resetQueryState } = queryState;
+  const { validationResult, setValidationResult } = useValidation();
 
   const [currentApiUrl, setCurrentApiUrl] = useState('https://opendata.fmi.fi/edr');
   const [collections, setCollections] = useState<Collection[]>([]);
-  const [validationResult, setValidationResult] = useState<ValidationResult>({ isValid: true, errors: null });
   const [isLoading, setIsLoading] = useState(false);
   const [landingPageTitle, setLandingPageTitle] = useState<string | null>(null);
   const [landingPageDescription, setLandingPageDescription] = useState<string | null>(null);
@@ -73,7 +74,7 @@ const Sidebar = ({ open }: SidebarProps) => {
     setLocationFeatures(null);
     setClickedCoords([]);
     setDataQuery('');
-  }, [resetQueryState, setCollectionUrl, setGeoJsonLayers, setSelectedCollection, setSelectedCollectionExtents, setLocationFeatures, setClickedCoords, setDataQuery]);
+  }, [resetQueryState, setCollectionUrl, setGeoJsonLayers, setSelectedCollection, setSelectedCollectionExtents, setLocationFeatures, setClickedCoords, setDataQuery, setValidationResult]);
 
   const handleLoadResult = useCallback((result: GetCollectionsResult) => {
     setCollections(result.collections || []);
@@ -84,7 +85,7 @@ const Sidebar = ({ open }: SidebarProps) => {
     setLandingPageLinks(result.landingPageLinks || null);
     setCollectionsLinks(result.collectionsLinks || null);
     setLandingPageKeywords(result.landingPageKeywords || null);
-  }, []);
+  }, [setValidationResult]);
 
   const handleLoadError = useCallback((error: Error) => {
     setCollections([]);
@@ -92,7 +93,7 @@ const Sidebar = ({ open }: SidebarProps) => {
       isValid: false,
       errors: [{ message: error.message }]
     });
-  }, []);
+  }, [setValidationResult]);
 
   return (
     <Box
