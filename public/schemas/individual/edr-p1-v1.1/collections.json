@@ -291,7 +291,7 @@
                     "items": {
                       "type": "string",
                       "minItems": 1,
-                      "format": "date-time",
+                      "format": "string",
                       "nullable": true,
                       "example": [
                         [
@@ -1649,7 +1649,7 @@
                             "items": {
                               "type": "string",
                               "minItems": 1,
-                              "format": "date-time",
+                              "format": "string",
                               "nullable": true,
                               "example": [
                                 [
