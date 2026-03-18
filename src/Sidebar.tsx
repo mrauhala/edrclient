@@ -12,6 +12,7 @@ import CollectionsList from './CollectionsList';
 import { useGeoJsonLayers } from './contexts/GeoJsonLayerContext';
 import { useMapInteraction } from './contexts/MapInteractionContext';
 import { useCollection } from './contexts/CollectionContext';
+import { useService } from './contexts/ServiceContext';
 import { useQueryUrl } from './hooks/useQueryUrl';
 
 interface SidebarProps {
@@ -25,13 +26,13 @@ const Sidebar = ({ open }: SidebarProps) => {
   const { setGeoJsonLayers } = useGeoJsonLayers();
   const { setClickedCoords, setDataQuery } = useMapInteraction();
   const { collections, setCollections, setSelectedCollection, setSelectedCollectionExtents, setLocationFeatures, setLandingPageLicense, setCollectionUrl } = useCollection();
+  const { setLandingPageTitle, setActiveServiceUrl } = useService();
   const queryState = useQueryUrl();
   const { resetQueryState } = queryState;
   const { validationResult, setValidationResult } = useValidation();
 
   const [currentApiUrl, setCurrentApiUrl] = useState('https://opendata.fmi.fi/edr');
   const [isLoading, setIsLoading] = useState(false);
-  const [landingPageTitle, setLandingPageTitle] = useState<string | null>(null);
   const [landingPageDescription, setLandingPageDescription] = useState<string | null>(null);
   const [serviceDescUrl, setServiceDescUrl] = useState<string | null>(null);
   const [conformsTo, setConformsTo] = useState<string[] | null>(null);
@@ -73,7 +74,7 @@ const Sidebar = ({ open }: SidebarProps) => {
     setLocationFeatures(null);
     setClickedCoords([]);
     setDataQuery('');
-  }, [setCollections, resetQueryState, setCollectionUrl, setGeoJsonLayers, setSelectedCollection, setSelectedCollectionExtents, setLocationFeatures, setClickedCoords, setDataQuery, setValidationResult]);
+  }, [setCollections, resetQueryState, setCollectionUrl, setGeoJsonLayers, setSelectedCollection, setSelectedCollectionExtents, setLocationFeatures, setClickedCoords, setDataQuery, setValidationResult, setLandingPageTitle]);
 
   const handleLoadResult = useCallback((result: GetCollectionsResult) => {
     setCollections(result.collections || []);
@@ -84,7 +85,7 @@ const Sidebar = ({ open }: SidebarProps) => {
     setLandingPageLinks(result.landingPageLinks || null);
     setCollectionsLinks(result.collectionsLinks || null);
     setLandingPageKeywords(result.landingPageKeywords || null);
-  }, [setCollections, setValidationResult]);
+  }, [setCollections, setValidationResult, setLandingPageTitle]);
 
   const handleLoadError = useCallback((error: Error) => {
     setCollections([]);
@@ -124,16 +125,14 @@ const Sidebar = ({ open }: SidebarProps) => {
           onBeforeLoad={handleBeforeLoad}
           onLoadResult={handleLoadResult}
           onLoadError={handleLoadError}
-          onApiUrlChange={setCurrentApiUrl}
+          onApiUrlChange={(url: string) => { setCurrentApiUrl(url); setActiveServiceUrl(url); }}
           selectedConformanceUrl={selectedConformanceUrl}
           setSelectedConformanceUrl={setSelectedConformanceUrl}
-          landingPageTitle={landingPageTitle}
           serviceDescUrl={serviceDescUrl}
           setServiceDescUrl={setServiceDescUrl}
         />
 
         <ServiceInfoPanel
-          landingPageTitle={landingPageTitle}
           landingPageDescription={landingPageDescription}
           landingPageKeywords={landingPageKeywords}
           conformsTo={conformsTo}

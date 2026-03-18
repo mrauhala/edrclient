@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, type ReactNode } from 'react';
+import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
 import { CustomService } from '../types/CustomService';
 import { AuthCredentials } from '../DataRetrievalAPI';
 
@@ -7,6 +7,10 @@ interface ServiceContextValue {
   getAuthCredentials: (url: string) => AuthCredentials | undefined;
   selectedServiceUrl: string | null;
   setSelectedServiceUrl: (url: string | null) => void;
+  landingPageTitle: string | null;
+  setLandingPageTitle: (title: string | null) => void;
+  activeServiceUrl: string | null;
+  setActiveServiceUrl: (url: string | null) => void;
 }
 
 const ServiceContext = createContext<ServiceContextValue | null>(null);
@@ -19,6 +23,8 @@ interface ServiceProviderProps {
 }
 
 export function ServiceProvider({ children, customServices, selectedServiceUrl, setSelectedServiceUrl }: ServiceProviderProps) {
+  const [landingPageTitle, setLandingPageTitle] = useState<string | null>(null);
+  const [activeServiceUrl, setActiveServiceUrl] = useState<string | null>(null);
   const getAuthCredentials = useMemo(() => {
     return (url: string): AuthCredentials | undefined => {
       const service = customServices.find(s => url.includes(s.url));
@@ -42,7 +48,11 @@ export function ServiceProvider({ children, customServices, selectedServiceUrl, 
     getAuthCredentials,
     selectedServiceUrl,
     setSelectedServiceUrl,
-  }), [customServices, getAuthCredentials, selectedServiceUrl, setSelectedServiceUrl]);
+    landingPageTitle,
+    setLandingPageTitle,
+    activeServiceUrl,
+    setActiveServiceUrl,
+  }), [customServices, getAuthCredentials, selectedServiceUrl, setSelectedServiceUrl, landingPageTitle, activeServiceUrl]);
 
   return (
     <ServiceContext.Provider value={value}>

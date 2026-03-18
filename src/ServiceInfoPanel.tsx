@@ -18,9 +18,9 @@ import Tooltip from '@mui/material/Tooltip';
 import { ValidationResult, formatConformanceClass, Link as ApiLink, normalizeHref } from './DataRetrievalAPI';
 import ValidationResults from './ValidationResult';
 import KeywordChips from './KeywordChips';
+import { useService } from './contexts/ServiceContext';
 
 interface ServiceInfoPanelProps {
-  landingPageTitle: string | null;
   landingPageDescription: string | null;
   landingPageKeywords: string[] | null;
   conformsTo: string[] | null;
@@ -30,7 +30,6 @@ interface ServiceInfoPanelProps {
 }
 
 const ServiceInfoPanel = ({
-  landingPageTitle,
   landingPageDescription,
   landingPageKeywords,
   conformsTo,
@@ -38,6 +37,7 @@ const ServiceInfoPanel = ({
   validationResult,
   onConformanceClick,
 }: ServiceInfoPanelProps) => {
+  const { landingPageTitle } = useService();
   const [showConformanceClasses, setShowConformanceClasses] = useState(false);
   const [showServiceLinks, setShowServiceLinks] = useState(false);
   const [showValidation, setShowValidation] = useState(false);
