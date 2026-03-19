@@ -161,6 +161,12 @@ export interface GetCollectionsResult {
   landingPageLinks?: Link[]; // Links from the landing page
   landingPageKeywords?: string[]; // Keywords from the landing page
   collectionsLinks?: Link[]; // Top-level links from the /collections endpoint response
+  // Raw API responses for validation error inspection
+  rawResponses?: {
+    landingPage?: unknown;
+    collections?: unknown;
+    conformance?: unknown;
+  };
 }
 
 export interface LocationQueryResult {

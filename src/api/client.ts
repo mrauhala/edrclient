@@ -360,6 +360,11 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
       landingPageLinks: landingPageData?.links,
       landingPageKeywords: landingPageData?.keywords,
       collectionsLinks,
+      rawResponses: {
+        landingPage: landingPageData,
+        collections: data,
+        conformance: conformsTo ? { conformsTo } : undefined,
+      },
     };
   } catch (error) {
     console.error('Error fetching collections:', error);

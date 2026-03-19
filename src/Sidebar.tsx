@@ -29,7 +29,7 @@ const Sidebar = ({ open }: SidebarProps) => {
   const { setLandingPageTitle, setActiveServiceUrl } = useService();
   const queryState = useQueryUrl();
   const { resetQueryState } = queryState;
-  const { validationResult, setValidationResult } = useValidation();
+  const { validationResult, setValidationResult, setEndpointUrls, setRawResponses } = useValidation();
 
   const [currentApiUrl, setCurrentApiUrl] = useState('https://opendata.fmi.fi/edr');
   const [isLoading, setIsLoading] = useState(false);
@@ -64,6 +64,8 @@ const Sidebar = ({ open }: SidebarProps) => {
     setCollectionUrl('');
     setGeoJsonLayers([]);
     setValidationResult({ isValid: true, errors: null });
+    setEndpointUrls({});
+    setRawResponses({});
     setConformsTo(null);
     setLandingPageLinks(null);
     setCollectionsLinks(null);
@@ -74,18 +76,24 @@ const Sidebar = ({ open }: SidebarProps) => {
     setLocationFeatures(null);
     setClickedCoords([]);
     setDataQuery('');
-  }, [setCollections, resetQueryState, setCollectionUrl, setGeoJsonLayers, setSelectedCollection, setSelectedCollectionExtents, setLocationFeatures, setClickedCoords, setDataQuery, setValidationResult, setLandingPageTitle]);
+  }, [setCollections, resetQueryState, setCollectionUrl, setGeoJsonLayers, setSelectedCollection, setSelectedCollectionExtents, setLocationFeatures, setClickedCoords, setDataQuery, setValidationResult, setEndpointUrls, setRawResponses, setLandingPageTitle]);
 
   const handleLoadResult = useCallback((result: GetCollectionsResult) => {
     setCollections(result.collections || []);
     setValidationResult(result.validation);
+    setEndpointUrls({
+      landingPage: result.landingPageUrl,
+      collections: result.collectionsUrl,
+      conformance: result.conformanceUrl,
+    });
+    setRawResponses(result.rawResponses || {});
     setLandingPageTitle(result.landingPageTitle || null);
     setLandingPageDescription(result.landingPageDescription || null);
     setConformsTo(result.conformsTo || null);
     setLandingPageLinks(result.landingPageLinks || null);
     setCollectionsLinks(result.collectionsLinks || null);
     setLandingPageKeywords(result.landingPageKeywords || null);
-  }, [setCollections, setValidationResult, setLandingPageTitle]);
+  }, [setCollections, setValidationResult, setEndpointUrls, setRawResponses, setLandingPageTitle]);
 
   const handleLoadError = useCallback((error: Error) => {
     setCollections([]);
