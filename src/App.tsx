@@ -95,6 +95,9 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
   const [modalContentType, setModalContentType] = useState<string | null>(null);
   const [modalLoading, setModalLoading] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
+  const [modalUrl, setModalUrl] = useState<string>('');
+  const [modalValidationErrors, setModalValidationErrors] = useState<import('./types/api').ValidationError[]>([]);
+  const [modalScrollToPath, setModalScrollToPath] = useState<string | undefined>();
 
   // Detect system preference
   const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
@@ -154,6 +157,26 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [handleSidebarToggle, handleSettingsDrawerToggle]);
 
+  // Listen for validation error clicks to open API response viewer with stored data
+  const handleOpenValidationResponse = useCallback((e: Event) => {
+    const { url, errors, scrollToPath, data: responseData } = (e as CustomEvent).detail;
+    if (!url || !responseData) return;
+
+    setModalOpen(true);
+    setModalLoading(false);
+    setModalError(null);
+    setModalData(responseData);
+    setModalContentType('application/json');
+    setModalUrl(url);
+    setModalValidationErrors(errors || []);
+    setModalScrollToPath(scrollToPath);
+  }, []);
+
+  useEffect(() => {
+    document.addEventListener('open-validation-response', handleOpenValidationResponse);
+    return () => document.removeEventListener('open-validation-response', handleOpenValidationResponse);
+  }, [handleOpenValidationResponse]);
+
   const handleThemeModeChange = (mode: 'light' | 'dark' | 'system') => {
     setThemeMode(mode);
   };
@@ -198,8 +221,11 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
 
   const handleFetchData = useCallback(async () => {
     if (!collectionUrl) return;
-    
+
     setModalOpen(true);
+    setModalUrl(collectionUrl);
+    setModalValidationErrors([]);
+    setModalScrollToPath(undefined);
     setModalLoading(true);
     setModalError(null);
     setModalData(null);
@@ -313,6 +339,8 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
 
   const handleCloseModal = () => {
     setModalOpen(false);
+    setModalValidationErrors([]);
+    setModalScrollToPath(undefined);
   };
 
   // Update document data-theme attribute when theme changes
@@ -441,7 +469,9 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
           contentType={modalContentType}
           isLoading={modalLoading}
           error={modalError}
-          url={collectionUrl}
+          url={modalUrl || collectionUrl}
+          validationErrors={modalValidationErrors}
+          scrollToPath={modalScrollToPath}
         />
       </Suspense>
     </Box>

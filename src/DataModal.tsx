@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
@@ -11,7 +11,11 @@ import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import CodeIcon from '@mui/icons-material/Code';
 import PreviewIcon from '@mui/icons-material/Preview';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import Box from '@mui/material/Box';
+import Chip from '@mui/material/Chip';
 import Typography from '@mui/material/Typography';
 import Tooltip from '@mui/material/Tooltip';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -20,6 +24,8 @@ import { useTheme } from '@mui/material/styles';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import CoverageJsonChart from './CoverageJsonChart';
+import type { ValidationError } from './DataRetrievalAPI';
+import { findLineForJsonPointer, findCollectionRange, getCollectionIndexFromPath } from './utils/jsonPointerToLine';
 
 interface DataModalProps {
   open: boolean;
@@ -29,21 +35,26 @@ interface DataModalProps {
   isLoading: boolean;
   error: string | null;
   url: string;
+  validationErrors?: ValidationError[];
+  scrollToPath?: string;
 }
 
-const DataModal: React.FC<DataModalProps> = ({ 
-  open, 
-  onClose, 
-  data, 
-  contentType, 
-  isLoading, 
-  error, 
-  url 
+const DataModal: React.FC<DataModalProps> = ({
+  open,
+  onClose,
+  data,
+  contentType,
+  isLoading,
+  error,
+  url,
+  validationErrors = [],
+  scrollToPath,
 }) => {
   const theme = useTheme();
   const [viewMode, setViewMode] = useState<'code' | 'preview'>('code');
   const [transformedHtml, setTransformedHtml] = useState<string | null>(null);
   const [transformError, setTransformError] = useState<string | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   
   // Check if data is IWXXM XML
   const isIWXXM = useCallback(() => {
@@ -233,6 +244,153 @@ const DataModal: React.FC<DataModalProps> = ({
     return language === 'json' || language === 'xml';
   };
 
+  // Compute formatted data once for highlighting calculations
+  const formattedData = useMemo(() => formatData(), [data, contentType]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Compute error line numbers, collection gutter ranges, and per-line error map
+  const { errorLines, errorLineList, gutterRanges, initialErrorIdx } = useMemo(() => {
+    const empty = {
+      errorLines: new Set<number>(),
+      errorLineList: [] as { line: number; errors: ValidationError[] }[],
+      gutterRanges: [] as { start: number; end: number }[],
+      initialErrorIdx: 0,
+    };
+    if (!validationErrors.length || !formattedData || !contentType?.includes('json')) return empty;
+
+    const errLines = new Set<number>();
+    const byLine = new Map<number, ValidationError[]>();
+    const ranges: { start: number; end: number }[] = [];
+    const seenCollections = new Set<number>();
+    let targetLine = 0;
+
+    for (const err of validationErrors) {
+      if (!err.path || err.path === 'root') continue;
+      const line = findLineForJsonPointer(formattedData, err.path);
+      if (line > 0) {
+        errLines.add(line);
+        if (!byLine.has(line)) byLine.set(line, []);
+        byLine.get(line)!.push(err);
+      }
+
+      const collIdx = getCollectionIndexFromPath(err.path);
+      if (collIdx !== null && !seenCollections.has(collIdx)) {
+        seenCollections.add(collIdx);
+        const range = findCollectionRange(formattedData, collIdx);
+        if (range) ranges.push(range);
+      }
+
+      if (scrollToPath && err.path === scrollToPath && line > 0) {
+        targetLine = line;
+      }
+    }
+
+    if (!targetLine && scrollToPath && scrollToPath !== 'root') {
+      targetLine = findLineForJsonPointer(formattedData, scrollToPath);
+    }
+
+    // Build sorted list of unique error lines with their errors
+    const sortedLines = Array.from(byLine.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([line, errors]) => ({ line, errors }));
+
+    // Find initial index based on scrollToPath
+    let initIdx = 0;
+    if (targetLine > 0) {
+      const idx = sortedLines.findIndex(e => e.line === targetLine);
+      if (idx >= 0) initIdx = idx;
+    }
+
+    return { errorLines: errLines, errorLineList: sortedLines, gutterRanges: ranges, initialErrorIdx: initIdx };
+  }, [validationErrors, formattedData, contentType, scrollToPath]);
+
+  // Navigation state
+  const [currentErrorIdx, setCurrentErrorIdx] = useState(0);
+
+  // Reset navigation index when errors change or when initially opened
+  useEffect(() => {
+    setCurrentErrorIdx(initialErrorIdx);
+  }, [initialErrorIdx]);
+
+  const currentError = errorLineList[currentErrorIdx];
+
+  // Scroll to a specific line number in the code view
+  const scrollToLineNumber = useCallback((lineNum: number) => {
+    let attempts = 0;
+    const interval = setInterval(() => {
+      attempts++;
+      const container = scrollContainerRef.current;
+      if (!container) { if (attempts > 30) clearInterval(interval); return; }
+
+      const target = container.querySelector(`[data-line-number="${lineNum}"]`) as HTMLElement | null;
+      if (!target) { if (attempts > 30) clearInterval(interval); return; }
+
+      clearInterval(interval);
+      const containerRect = container.getBoundingClientRect();
+      const targetRect = target.getBoundingClientRect();
+      const offsetInContainer = targetRect.top - containerRect.top + container.scrollTop;
+      container.scrollTo({
+        top: offsetInContainer - container.clientHeight / 2,
+        behavior: 'smooth',
+      });
+    }, 100);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Initial scroll on open
+  useEffect(() => {
+    if (!currentError || !data || isLoading) return;
+    return scrollToLineNumber(currentError.line);
+  }, [currentError?.line, data, isLoading, scrollToLineNumber]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handlePrevError = useCallback(() => {
+    if (currentErrorIdx <= 0) return;
+    const newIdx = currentErrorIdx - 1;
+    setCurrentErrorIdx(newIdx);
+    scrollToLineNumber(errorLineList[newIdx].line);
+  }, [currentErrorIdx, errorLineList, scrollToLineNumber]);
+
+  const handleNextError = useCallback(() => {
+    if (currentErrorIdx >= errorLineList.length - 1) return;
+    const newIdx = currentErrorIdx + 1;
+    setCurrentErrorIdx(newIdx);
+    scrollToLineNumber(errorLineList[newIdx].line);
+  }, [currentErrorIdx, errorLineList, scrollToLineNumber]);
+
+  // Keyboard navigation: Ctrl/Cmd + ArrowUp/Down for prev/next error
+  useEffect(() => {
+    if (!open || !errorLineList.length) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      if (e.key === 'ArrowUp') { e.preventDefault(); handlePrevError(); }
+      else if (e.key === 'ArrowDown') { e.preventDefault(); handleNextError(); }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [open, errorLineList.length, handlePrevError, handleNextError]);
+
+  // Build lineProps for SyntaxHighlighter — includes data attribute for scroll targeting
+  const getLineProps = useCallback((lineNumber: number): Record<string, unknown> => {
+    const isError = errorLines.has(lineNumber);
+    const isInGutter = gutterRanges.some(r => lineNumber >= r.start && lineNumber <= r.end);
+
+    const style: React.CSSProperties = {};
+
+    if (isError) {
+      style.backgroundColor = theme.palette.mode === 'dark'
+        ? 'rgba(244, 67, 54, 0.2)'
+        : 'rgba(244, 67, 54, 0.12)';
+      style.borderLeft = `3px solid ${theme.palette.error.main}`;
+      style.marginLeft = '-3px';
+    } else if (isInGutter) {
+      style.borderLeft = `3px solid ${theme.palette.mode === 'dark'
+        ? 'rgba(255, 152, 0, 0.4)'
+        : 'rgba(255, 152, 0, 0.5)'}`;
+      style.marginLeft = '-3px';
+    }
+
+    return { style, 'data-line-number': lineNumber };
+  }, [errorLines, gutterRanges, theme.palette.mode, theme.palette.error.main]);
+
   return (
     <Dialog 
       open={open} 
@@ -312,11 +470,42 @@ const DataModal: React.FC<DataModalProps> = ({
               justifyContent: 'space-between',
               alignItems: 'center'
             }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <Typography variant="body2" color="text.secondary">
                   Content Type: {getContentTypeLabel()}
                 </Typography>
-                
+
+                {errorLineList.length > 0 && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25, ml: 1 }}>
+                    <Chip
+                      icon={<ErrorOutlineIcon />}
+                      label={`${errorLineList.length} ${errorLineList.length === 1 ? 'error' : 'errors'}`}
+                      color="error"
+                      size="small"
+                      variant="outlined"
+                    />
+                    <IconButton
+                      size="small"
+                      onClick={handlePrevError}
+                      disabled={currentErrorIdx <= 0}
+                      aria-label="Previous error"
+                    >
+                      <KeyboardArrowUpIcon fontSize="small" />
+                    </IconButton>
+                    <Typography variant="caption" sx={{ minWidth: 32, textAlign: 'center', userSelect: 'none' }}>
+                      {currentErrorIdx + 1}/{errorLineList.length}
+                    </Typography>
+                    <IconButton
+                      size="small"
+                      onClick={handleNextError}
+                      disabled={currentErrorIdx >= errorLineList.length - 1}
+                      aria-label="Next error"
+                    >
+                      <KeyboardArrowDownIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
+                )}
+
                 {shouldShowToggle() && (
                   <ToggleButtonGroup
                     value={viewMode}
@@ -353,13 +542,54 @@ const DataModal: React.FC<DataModalProps> = ({
                 {transformError}
               </Alert>
             )}
-            
-            <Box sx={{ 
-              flex: 1, 
-              overflow: 'auto',
-              p: 0,
-              backgroundColor: 'background.paper'
-            }}>
+
+            {currentError && (
+              <Box sx={{
+                px: 1.5,
+                py: 0.75,
+                backgroundColor: 'background.default',
+                borderBottom: '1px solid',
+                borderLeft: `3px solid ${theme.palette.error.main}`,
+                borderColor: 'divider',
+                display: 'flex',
+                alignItems: 'baseline',
+                gap: 1,
+                flexWrap: 'wrap',
+                minHeight: 32,
+              }}>
+                <Typography variant="caption" sx={{ fontFamily: 'monospace', fontSize: '0.7rem', color: 'text.secondary', flexShrink: 0 }}>
+                  L{currentError.line}
+                </Typography>
+                {currentError.errors.map((err, i) => {
+                  const msg = err.path && err.message.startsWith(err.path)
+                    ? err.message.slice(err.path.length).replace(/^:\s*/, '')
+                    : err.message;
+                  return (
+                    <Box key={i} sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
+                      {err.path && (
+                        <Typography variant="caption" sx={{ fontFamily: 'monospace', fontSize: '0.7rem', color: 'text.secondary' }}>
+                          {err.path}
+                        </Typography>
+                      )}
+                      {err.keyword && (
+                        <Chip label={err.keyword} size="small" variant="outlined" sx={{ fontSize: '0.6rem', height: 16 }} />
+                      )}
+                      <Typography variant="caption" sx={{ color: 'text.primary' }}>{msg}</Typography>
+                    </Box>
+                  );
+                })}
+              </Box>
+            )}
+
+            <Box
+              ref={scrollContainerRef}
+              sx={{
+                flex: 1,
+                overflow: 'auto',
+                p: 0,
+                backgroundColor: 'background.paper',
+              }}
+            >
               {viewMode === 'preview' && isIWXXM() && transformedHtml ? (
                 <iframe
                   srcDoc={transformedHtml}
@@ -388,19 +618,20 @@ const DataModal: React.FC<DataModalProps> = ({
                     showLineNumbers
                     wrapLines
                     wrapLongLines
+                    lineProps={(lineNumber: number) => getLineProps(lineNumber)}
                   >
-                    {formatData()}
+                    {formattedData}
                   </SyntaxHighlighter>
                 ) : (
-                  <pre style={{ 
-                    margin: 0, 
+                  <pre style={{
+                    margin: 0,
                     padding: '16px',
-                    fontFamily: 'monospace', 
+                    fontFamily: 'monospace',
                     fontSize: '0.875rem',
                     whiteSpace: 'pre-wrap',
                     wordBreak: 'break-word'
                   }}>
-                    {formatData()}
+                    {formattedData}
                   </pre>
                 )
               )}

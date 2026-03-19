@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
@@ -7,12 +7,15 @@ import Popover from '@mui/material/Popover';
 import Tooltip from '@mui/material/Tooltip';
 import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
+import ButtonBase from '@mui/material/ButtonBase';
 import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
 import GppBadIcon from '@mui/icons-material/GppBad';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { useValidation } from './contexts/ValidationContext';
+import type { EndpointUrls, RawResponses } from './contexts/ValidationContext';
 import type { ValidationError } from './DataRetrievalAPI';
 
 function SectionStatus({ label, validation }: {
@@ -47,8 +50,26 @@ function SectionStatus({ label, validation }: {
   );
 }
 
+function getUrlForSection(section: string | undefined, urls: EndpointUrls): string | undefined {
+  switch (section) {
+    case 'Landing Page': return urls.landingPage;
+    case 'Conformance': return urls.conformance;
+    case 'Collections': return urls.collections;
+    default: return urls.collections;
+  }
+}
+
+function getResponseForSection(section: string | undefined, responses: RawResponses): unknown | undefined {
+  switch (section) {
+    case 'Landing Page': return responses.landingPage;
+    case 'Conformance': return responses.conformance;
+    case 'Collections': return responses.collections;
+    default: return responses.collections;
+  }
+}
+
 const ValidationPopover: React.FC = () => {
-  const { validationResult } = useValidation();
+  const { validationResult, endpointUrls, rawResponses } = useValidation();
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
 
   // Close when layers popover opens; listen for keyboard toggle
@@ -83,6 +104,28 @@ const ValidationPopover: React.FC = () => {
     }
     return grouped;
   }, [validationResult.errors]);
+
+  const handleErrorClick = useCallback((error: ValidationError) => {
+    const url = getUrlForSection(error.section, endpointUrls);
+    const responseData = getResponseForSection(error.section, rawResponses);
+    if (!url || !responseData) return;
+
+    // Gather all errors for the same section so they can all be highlighted
+    const sectionErrors = validationResult.errors?.filter(
+      e => (e.section || 'Collections') === (error.section || 'Collections')
+    ) ?? [];
+
+    document.dispatchEvent(new CustomEvent('open-validation-response', {
+      detail: {
+        url,
+        section: error.section,
+        scrollToPath: error.path,
+        errors: sectionErrors,
+        data: JSON.stringify(responseData, null, 2),
+      },
+    }));
+    setAnchorEl(null);
+  }, [endpointUrls, rawResponses, validationResult.errors]);
 
   if (!hasService) return null;
 
@@ -190,12 +233,31 @@ const ValidationPopover: React.FC = () => {
                         const msg = error.path && error.message.startsWith(error.path)
                           ? error.message.slice(error.path.length).replace(/^:\s*/, '')
                           : error.message;
+                        const hasUrl = !!getUrlForSection(error.section, endpointUrls) && !!getResponseForSection(error.section, rawResponses);
                         return (
-                          <Box key={idx} sx={{ px: 1.5, py: 0.5 }}>
+                          <ButtonBase
+                            key={idx}
+                            component="div"
+                            disabled={!hasUrl}
+                            onClick={() => handleErrorClick(error)}
+                            sx={{
+                              display: 'block',
+                              width: '100%',
+                              textAlign: 'left',
+                              px: 1.5,
+                              py: 0.5,
+                              cursor: hasUrl ? 'pointer' : 'default',
+                              borderRadius: 0.5,
+                              '&:hover': hasUrl ? { bgcolor: 'action.hover' } : {},
+                            }}
+                          >
                             {error.path && (
-                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontFamily: 'monospace', fontSize: '0.7rem' }}>
-                                {error.path}
-                              </Typography>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>
+                                  {error.path}
+                                </Typography>
+                                {hasUrl && <OpenInNewIcon sx={{ fontSize: 10, color: 'text.disabled' }} />}
+                              </Box>
                             )}
                             <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
                               {error.keyword && (
@@ -203,7 +265,7 @@ const ValidationPopover: React.FC = () => {
                               )}
                               <Typography variant="caption">{msg}</Typography>
                             </Box>
-                          </Box>
+                          </ButtonBase>
                         );
                       })}
                     </Box>
