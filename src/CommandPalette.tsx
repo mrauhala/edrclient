@@ -3,7 +3,9 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import TextField from '@mui/material/TextField';
-import Popover from '@mui/material/Popover';
+import Popper from '@mui/material/Popper';
+import Paper from '@mui/material/Paper';
+import ClickAwayListener from '@mui/material/ClickAwayListener';
 import Dialog from '@mui/material/Dialog';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
@@ -19,12 +21,15 @@ import FolderIcon from '@mui/icons-material/Folder';
 import ArticleIcon from '@mui/icons-material/Article';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CloseIcon from '@mui/icons-material/Close';
+import FilterListIcon from '@mui/icons-material/FilterList';
+import CheckIcon from '@mui/icons-material/Check';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useCollection } from './contexts/CollectionContext';
 import { useService } from './contexts/ServiceContext';
 import systemServices from './config/services.json';
-import { ServiceDefinition } from './types/ServiceType';
+import { ServiceDefinition, ServiceType } from './types/ServiceType';
+import { SERVICE_TYPE_CONFIG, SERVICE_TYPE_ORDER } from './config/serviceTypeConfig';
 import type { Collection } from './types/api';
 
 const typedSystemServices: ServiceDefinition[] = systemServices as ServiceDefinition[];
@@ -37,6 +42,7 @@ const DEFAULT_FILTERS = new Set<FilterField>(['title', 'description', 'keywords'
 interface ServiceItem {
   label: string;
   url: string;
+  type?: ServiceType;
   isActive: boolean;
 }
 
@@ -131,10 +137,13 @@ function SearchContent({
   highlightedIndex,
   onSelect,
   selectedCollectionId,
+  onKeyDown,
   onClose,
   isDesktop,
   isKeyboardNav,
   setIsKeyboardNav,
+  showFilters,
+  setShowFilters,
   inputRef,
   listRef,
 }: {
@@ -151,57 +160,16 @@ function SearchContent({
   highlightedIndex: number;
   onSelect: (index: number) => void;
   selectedCollectionId: string | null;
+  onKeyDown: (e: React.KeyboardEvent) => void;
   onClose: () => void;
   isDesktop: boolean;
   isKeyboardNav: boolean;
   setIsKeyboardNav: (v: boolean) => void;
+  showFilters: boolean;
+  setShowFilters: React.Dispatch<React.SetStateAction<boolean>>;
   inputRef: React.RefObject<HTMLInputElement | null>;
   listRef: React.RefObject<HTMLUListElement | null>;
 }) {
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    const tabOrder: ActiveTab[] = ['services', 'collections'];
-    const resultCount = activeTab === 'services' ? filteredServices.length : filteredCollections.length;
-
-    switch (e.key) {
-      case 'Escape':
-        e.preventDefault();
-        onClose();
-        break;
-      case 'ArrowDown':
-        e.preventDefault();
-        setIsKeyboardNav(true);
-        if (resultCount > 0) {
-          const next = (highlightedIndex + 1) % resultCount;
-          onSelect(-1); // signal to parent to update index
-          document.dispatchEvent(new CustomEvent('search-highlight', { detail: next }));
-        }
-        break;
-      case 'ArrowUp':
-        e.preventDefault();
-        setIsKeyboardNav(true);
-        if (resultCount > 0) {
-          const prev = highlightedIndex <= 0 ? resultCount - 1 : highlightedIndex - 1;
-          document.dispatchEvent(new CustomEvent('search-highlight', { detail: prev }));
-        }
-        break;
-      case 'Enter':
-        e.preventDefault();
-        if (highlightedIndex >= 0) {
-          onSelect(highlightedIndex);
-        }
-        break;
-      case 'Tab':
-        e.preventDefault();
-        {
-          const currentIdx = tabOrder.indexOf(activeTab);
-          const nextIdx = e.shiftKey
-            ? (currentIdx - 1 + tabOrder.length) % tabOrder.length
-            : (currentIdx + 1) % tabOrder.length;
-          setActiveTab(tabOrder[nextIdx]);
-        }
-        break;
-    }
-  }, [activeTab, filteredServices.length, filteredCollections.length, highlightedIndex, onClose, onSelect, setActiveTab, setIsKeyboardNav]);
 
   // Scroll highlighted item into view
   useEffect(() => {
@@ -213,90 +181,101 @@ function SearchContent({
   const results = activeTab === 'services' ? filteredServices : filteredCollections;
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Search input */}
-      <TextField
-        inputRef={inputRef}
-        fullWidth
-        size="small"
-        placeholder="Search collections, services..."
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        onKeyDown={handleKeyDown}
-        autoFocus
-        slotProps={{
-          input: {
-            startAdornment: (
-              <InputAdornment position="start">
-                {!isDesktop ? (
-                  <IconButton size="small" onClick={onClose} edge="start">
-                    <ArrowBackIcon />
-                  </IconButton>
-                ) : (
-                  <SearchIcon sx={{ color: 'text.secondary' }} />
-                )}
-              </InputAdornment>
-            ),
-            endAdornment: query ? (
-              <InputAdornment position="end">
-                <IconButton size="small" onClick={() => setQuery('')} edge="end">
-                  <CloseIcon fontSize="small" />
-                </IconButton>
-              </InputAdornment>
-            ) : undefined,
-          },
-        }}
-        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 0 }, '& fieldset': { border: 'none', borderBottom: 1, borderColor: 'divider' } }}
-      />
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      {/* Fixed header: search input (mobile only) + tabs + filter toggle */}
+      <Box sx={{ flexShrink: 0 }}>
+        {!isDesktop && (
+          <TextField
+            inputRef={inputRef}
+            fullWidth
+            size="small"
+            placeholder="Search collections, services..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={onKeyDown}
+            autoFocus
+            slotProps={{
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <IconButton size="small" onClick={onClose} edge="start">
+                      <ArrowBackIcon />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+                endAdornment: (
+                  <InputAdornment position="end">
+                    {query && (
+                      <IconButton size="small" onClick={() => setQuery('')} edge="end">
+                        <CloseIcon fontSize="small" />
+                      </IconButton>
+                    )}
+                    {activeTab === 'collections' && (
+                      <IconButton
+                        size="small"
+                        onClick={() => setShowFilters(prev => !prev)}
+                        color={showFilters ? 'primary' : 'default'}
+                        edge="end"
+                      >
+                        <FilterListIcon fontSize="small" />
+                      </IconButton>
+                    )}
+                  </InputAdornment>
+                ),
+              },
+            }}
+            sx={{ '& .MuiOutlinedInput-root': { borderRadius: 0 }, '& fieldset': { border: 'none', borderBottom: 1, borderColor: 'divider' } }}
+          />
+        )}
 
-      {/* Category tabs */}
-      <Tabs
-        value={activeTab}
-        onChange={(_, v) => setActiveTab(v)}
-        variant="fullWidth"
-        sx={{ minHeight: 36, borderBottom: 1, borderColor: 'divider', '& .MuiTab-root': { minHeight: 36, py: 0.5, textTransform: 'none', fontSize: '0.8rem' } }}
-      >
-        <Tab
-          value="services"
-          icon={<DnsIcon sx={{ fontSize: 16 }} />}
-          iconPosition="start"
-          label={<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>Services <CountBadge count={serviceCount} active={activeTab === 'services'} /></Box>}
-          sx={{ gap: 0.5 }}
-        />
-        <Tab
-          value="collections"
-          icon={<FolderIcon sx={{ fontSize: 16 }} />}
-          iconPosition="start"
-          label={<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>Collections <CountBadge count={collectionCount} active={activeTab === 'collections'} /></Box>}
-          sx={{ gap: 0.5 }}
-        />
-        <Tab
-          value="items"
-          icon={<ArticleIcon sx={{ fontSize: 16 }} />}
-          iconPosition="start"
-          label="Items"
-          disabled
-          sx={{ gap: 0.5 }}
-        />
-      </Tabs>
+        <Tabs
+          value={activeTab}
+          onChange={(_, v) => setActiveTab(v)}
+          variant="fullWidth"
+          sx={{ minHeight: 36, borderBottom: 1, borderColor: 'divider', '& .MuiTab-root': { minHeight: 36, py: 0.5, textTransform: 'none', fontSize: '0.8rem' } }}
+        >
+          <Tab
+            value="services"
+            icon={<DnsIcon sx={{ fontSize: 16 }} />}
+            iconPosition="start"
+            label={<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>Services <CountBadge count={serviceCount} active={activeTab === 'services'} /></Box>}
+            sx={{ gap: 0.5 }}
+          />
+          <Tab
+            value="collections"
+            icon={<FolderIcon sx={{ fontSize: 16 }} />}
+            iconPosition="start"
+            label={<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>Collections <CountBadge count={collectionCount} active={activeTab === 'collections'} /></Box>}
+            sx={{ gap: 0.5 }}
+          />
+          <Tab
+            value="items"
+            icon={<ArticleIcon sx={{ fontSize: 16 }} />}
+            iconPosition="start"
+            label="Items"
+            disabled
+            sx={{ gap: 0.5 }}
+          />
+        </Tabs>
 
-      {/* Filter chips (Collections tab only) */}
-      {activeTab === 'collections' && (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, px: 1.5, py: 0.75, borderBottom: 1, borderColor: 'divider', flexWrap: 'wrap' }}>
-          <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>Search in:</Typography>
-          {(['title', 'description', 'keywords', 'id'] as FilterField[]).map((field) => (
-            <Chip
-              key={field}
-              label={field.charAt(0).toUpperCase() + field.slice(1)}
-              size="small"
-              variant={filters.has(field) ? 'filled' : 'outlined'}
-              color={filters.has(field) ? 'primary' : 'default'}
-              onClick={() => toggleFilter(field)}
-              sx={{ height: 22, fontSize: '0.7rem' }}
-            />
-          ))}
-        </Box>
-      )}
+        {activeTab === 'collections' && showFilters && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, px: 1.5, py: 0.75, borderBottom: 1, borderColor: 'divider', flexWrap: 'wrap' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>Search in:</Typography>
+            {(['title', 'description', 'keywords', 'id'] as FilterField[]).map((field) => (
+              <Chip
+                key={field}
+                icon={filters.has(field) ? <CheckIcon sx={{ fontSize: 14 }} /> : undefined}
+                label={field.charAt(0).toUpperCase() + field.slice(1)}
+                size="small"
+                variant={filters.has(field) ? 'filled' : 'outlined'}
+                color={filters.has(field) ? 'primary' : 'default'}
+                onClick={() => toggleFilter(field)}
+                sx={{ height: 22, fontSize: '0.7rem' }}
+              />
+            ))}
+          </Box>
+        )}
+      </Box>
 
       {/* Results list */}
       <List
@@ -309,6 +288,26 @@ function SearchContent({
         role="listbox"
         onMouseMove={() => { if (isKeyboardNav) setIsKeyboardNav(false); }}
       >
+        {results.length > 0 && (
+          <Typography
+            variant="caption"
+            sx={{
+              display: 'block',
+              px: 1.5,
+              pt: 1.25,
+              pb: 0.5,
+              fontSize: '0.65rem',
+              fontWeight: 700,
+              letterSpacing: '0.09em',
+              textTransform: 'uppercase',
+              color: 'text.disabled',
+            }}
+          >
+            {activeTab === 'services'
+              ? `Matching services (${filteredServices.length})`
+              : `Matching collections (${filteredCollections.length})`}
+          </Typography>
+        )}
         {results.length === 0 ? (
           <Box sx={{ p: 3, textAlign: 'center' }}>
             <Typography variant="body2" color="text.secondary">
@@ -333,8 +332,23 @@ function SearchContent({
               onClick={() => onSelect(idx)}
               sx={{ py: isDesktop ? 0.75 : 1.25 }}
             >
-              <ListItemIcon sx={{ minWidth: 36 }}>
-                <DnsIcon sx={{ fontSize: 20, color: svc.isActive ? 'success.main' : 'text.secondary' }} />
+              <ListItemIcon sx={{ minWidth: 42 }}>
+                {svc.type && SERVICE_TYPE_CONFIG[svc.type] ? (
+                  <Chip
+                    label={SERVICE_TYPE_CONFIG[svc.type].abbreviation}
+                    size="small"
+                    sx={{
+                      bgcolor: SERVICE_TYPE_CONFIG[svc.type].color,
+                      color: '#fff',
+                      fontWeight: 600,
+                      fontSize: '0.65rem',
+                      height: 20,
+                      '& .MuiChip-label': { px: 0.75 },
+                    }}
+                  />
+                ) : (
+                  <DnsIcon sx={{ fontSize: 20, color: 'text.secondary' }} />
+                )}
               </ListItemIcon>
               <ListItemText
                 primary={highlightMatch(svc.label, query)}
@@ -437,9 +451,9 @@ const CommandPalette: React.FC = () => {
   const [filters, setFilters] = useState<Set<FilterField>>(new Set(DEFAULT_FILTERS));
   const [highlightedIndex, setHighlightedIndex] = useState(0);
   const [isKeyboardNav, setIsKeyboardNav] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
   const [anchorEl, setAnchorEl] = useState<HTMLDivElement | null>(null);
-  const popoverRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
@@ -448,15 +462,23 @@ const CommandPalette: React.FC = () => {
     const items: ServiceItem[] = typedSystemServices.map(s => ({
       label: s.label,
       url: s.url,
+      type: s.type,
       isActive: s.url === activeServiceUrl,
     }));
     for (const cs of customServices) {
       items.push({
         label: cs.name,
         url: cs.url,
+        type: cs.type,
         isActive: cs.url === activeServiceUrl,
       });
     }
+    items.sort((a, b) => {
+      const ai = a.type ? SERVICE_TYPE_ORDER.indexOf(a.type) : SERVICE_TYPE_ORDER.length;
+      const bi = b.type ? SERVICE_TYPE_ORDER.indexOf(b.type) : SERVICE_TYPE_ORDER.length;
+      if (ai !== bi) return ai - bi;
+      return a.label.localeCompare(b.label);
+    });
     return items;
   }, [activeServiceUrl, customServices]);
 
@@ -528,19 +550,6 @@ const CommandPalette: React.FC = () => {
     }
   }, [open]);
 
-  // Close on click outside (trigger + popover are both "inside")
-  useEffect(() => {
-    if (!open) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (anchorEl?.contains(target)) return;
-      if (popoverRef.current?.contains(target)) return;
-      setOpen(false);
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [open, anchorEl]);
-
   const toggleFilter = useCallback((field: FilterField) => {
     setFilters(prev => {
       const next = new Set(prev);
@@ -574,6 +583,50 @@ const CommandPalette: React.FC = () => {
     handleClose();
   }, [activeTab, filteredServices, filteredCollections, selectedCollection?.id, setSelectedServiceUrl, selectCollectionByIndexRef, handleClose]);
 
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    const tabOrder: ActiveTab[] = ['services', 'collections'];
+    const resultCount = activeTab === 'services' ? filteredServices.length : filteredCollections.length;
+
+    switch (e.key) {
+      case 'Escape':
+        e.preventDefault();
+        handleClose();
+        break;
+      case 'ArrowDown':
+        e.preventDefault();
+        setIsKeyboardNav(true);
+        if (resultCount > 0) {
+          const next = (highlightedIndex + 1) % resultCount;
+          document.dispatchEvent(new CustomEvent('search-highlight', { detail: next }));
+        }
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setIsKeyboardNav(true);
+        if (resultCount > 0) {
+          const prev = highlightedIndex <= 0 ? resultCount - 1 : highlightedIndex - 1;
+          document.dispatchEvent(new CustomEvent('search-highlight', { detail: prev }));
+        }
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (highlightedIndex >= 0) {
+          handleSelect(highlightedIndex);
+        }
+        break;
+      case 'Tab':
+        e.preventDefault();
+        {
+          const currentIdx = tabOrder.indexOf(activeTab);
+          const nextIdx = e.shiftKey
+            ? (currentIdx - 1 + tabOrder.length) % tabOrder.length
+            : (currentIdx + 1) % tabOrder.length;
+          setActiveTab(tabOrder[nextIdx]);
+        }
+        break;
+    }
+  }, [activeTab, filteredServices.length, filteredCollections.length, highlightedIndex, handleClose, handleSelect, setIsKeyboardNav]);
+
   const searchContent = (
     <SearchContent
       query={query}
@@ -589,10 +642,13 @@ const CommandPalette: React.FC = () => {
       selectedCollectionId={selectedCollection?.id ?? null}
       highlightedIndex={highlightedIndex}
       onSelect={handleSelect}
+      onKeyDown={handleKeyDown}
       onClose={handleClose}
       isDesktop={isDesktop}
       isKeyboardNav={isKeyboardNav}
       setIsKeyboardNav={setIsKeyboardNav}
+      showFilters={showFilters}
+      setShowFilters={setShowFilters}
       inputRef={inputRef}
       listRef={listRef}
     />
@@ -600,80 +656,120 @@ const CommandPalette: React.FC = () => {
 
   if (isDesktop) {
     return (
-      <>
-        {/* Trigger: pill-shaped search box */}
+      <ClickAwayListener onClickAway={() => { if (open) handleClose(); }}>
+        <Box sx={{ flexGrow: 1, maxWidth: 320, ml: 'auto' }}>
+        {/* Search box in top bar — static trigger or real input */}
         <Box
           ref={setAnchorEl}
-          onClick={() => {
-            if (open) {
-              inputRef.current?.focus();
-            } else {
-              handleOpen();
-            }
-          }}
+          onClick={() => { if (!open) handleOpen(); }}
           sx={{
-            flexGrow: 1,
-            maxWidth: 320,
-            ml: 'auto',
             display: 'flex',
             alignItems: 'center',
             gap: 1,
-            px: 1.5,
-            py: 0.5,
+            px: open ? 0 : 1.5,
+            py: open ? 0 : 0.5,
             borderRadius: 2,
-            border: '1px solid rgba(255,255,255,0.3)',
-            bgcolor: 'rgba(255,255,255,0.1)',
-            cursor: 'pointer',
+            border: open ? 'none' : '1px solid rgba(255,255,255,0.3)',
+            bgcolor: open ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.1)',
+            cursor: open ? 'text' : 'pointer',
             transition: 'background 0.2s, border-color 0.2s',
             '&:hover': {
-              bgcolor: 'rgba(255,255,255,0.18)',
+              bgcolor: open ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.18)',
               borderColor: 'rgba(255,255,255,0.5)',
             },
           }}
         >
-          <SearchIcon sx={{ fontSize: 18, color: 'rgba(255,255,255,0.5)' }} />
-          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.5)', flex: 1, fontSize: '0.8rem' }}>
-            Search...
-          </Typography>
-          <Box
-            component="kbd"
-            sx={{
-              px: 0.75,
-              py: '1px',
-              borderRadius: 0.5,
-              bgcolor: 'rgba(255,255,255,0.15)',
-              border: '1px solid rgba(255,255,255,0.25)',
-              fontSize: '0.65rem',
-              color: 'rgba(255,255,255,0.6)',
-              fontFamily: 'inherit',
-              lineHeight: 1.4,
-            }}
-          >
-            /
-          </Box>
+          {open ? (
+            <TextField
+              inputRef={inputRef}
+              fullWidth
+              size="small"
+              placeholder="Search collections, services..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={handleKeyDown}
+              autoFocus
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon sx={{ color: 'rgba(255,255,255,0.5)' }} />
+                    </InputAdornment>
+                  ),
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      {query && (
+                        <IconButton size="small" onClick={() => setQuery('')} sx={{ color: 'rgba(255,255,255,0.5)' }}>
+                          <CloseIcon fontSize="small" />
+                        </IconButton>
+                      )}
+                      {activeTab === 'collections' && (
+                        <IconButton
+                          size="small"
+                          onClick={() => setShowFilters(prev => !prev)}
+                          sx={{ color: showFilters ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.5)' }}
+                        >
+                          <FilterListIcon fontSize="small" />
+                        </IconButton>
+                      )}
+                    </InputAdornment>
+                  ),
+                },
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2,
+                  color: '#fff',
+                  fontSize: '0.8rem',
+                  '& fieldset': { border: '1px solid rgba(255,255,255,0.5)' },
+                  '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.7)' },
+                  '&.Mui-focused fieldset': { borderColor: 'rgba(255,255,255,0.8)' },
+                },
+                '& .MuiOutlinedInput-input::placeholder': { color: 'rgba(255,255,255,0.5)', opacity: 1 },
+              }}
+            />
+          ) : (
+            <>
+              <SearchIcon sx={{ fontSize: 18, color: 'rgba(255,255,255,0.5)' }} />
+              <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.5)', flex: 1, fontSize: '0.8rem' }}>
+                Search...
+              </Typography>
+              <Box
+                component="kbd"
+                sx={{
+                  px: 0.75,
+                  py: '1px',
+                  borderRadius: 0.5,
+                  bgcolor: 'rgba(255,255,255,0.15)',
+                  border: '1px solid rgba(255,255,255,0.25)',
+                  fontSize: '0.65rem',
+                  color: 'rgba(255,255,255,0.6)',
+                  fontFamily: 'inherit',
+                  lineHeight: 1.4,
+                }}
+              >
+                /
+              </Box>
+            </>
+          )}
         </Box>
 
-        <Popover
-          open={open}
-          anchorEl={anchorEl}
-          onClose={(_, reason) => {
-            if (reason === 'backdropClick') return;
-            handleClose();
-          }}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-          disableAutoFocus
-          disableEnforceFocus
-          slotProps={{
-            paper: {
-              ref: popoverRef,
-              sx: { width: 500, maxHeight: 480, display: 'flex', flexDirection: 'column' },
-            },
-          }}
-        >
-          {searchContent}
-        </Popover>
-      </>
+          <Popper
+            open={open}
+            anchorEl={anchorEl}
+            placement="bottom-end"
+            style={{ zIndex: 1300 }}
+            disablePortal={false}
+          >
+            <Paper
+              elevation={8}
+              sx={{ width: 500, maxHeight: 480, display: 'flex', flexDirection: 'column', overflow: 'hidden', mt: 0.5 }}
+            >
+              {searchContent}
+            </Paper>
+          </Popper>
+        </Box>
+      </ClickAwayListener>
     );
   }
 
