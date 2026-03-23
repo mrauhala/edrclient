@@ -212,6 +212,7 @@ const LayerManager: React.FC = () => {
     setAnchorEl(prev => {
       if (prev) return null;
       document.dispatchEvent(new Event('close-validation-popover'));
+      document.dispatchEvent(new Event('close-search-popover'));
       return event.currentTarget;
     });
   };

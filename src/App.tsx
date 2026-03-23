@@ -148,6 +148,11 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
         case 'i':
           document.dispatchEvent(new Event('toggle-collection-info'));
           break;
+        case '/':
+          document.dispatchEvent(new Event('close-validation-popover'));
+          document.dispatchEvent(new Event('close-layers-popover'));
+          document.dispatchEvent(new Event('toggle-search-popover'));
+          break;
         default:
           return;
       }
