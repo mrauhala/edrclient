@@ -140,6 +140,7 @@ const ValidationPopover: React.FC = () => {
           onClick={(e) => setAnchorEl(prev => {
             if (prev) return null;
             document.dispatchEvent(new Event('close-layers-popover'));
+            document.dispatchEvent(new Event('close-search-popover'));
             return e.currentTarget;
           })}
         >

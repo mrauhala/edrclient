@@ -1,5 +1,6 @@
 import React from 'react';
 import AppBar from '@mui/material/AppBar';
+import Box from '@mui/material/Box';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
@@ -10,6 +11,7 @@ import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import Tooltip from '@mui/material/Tooltip';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
+import CommandPalette from './CommandPalette';
 import LayerManager from './LayerManager';
 import ValidationPopover from './ValidationPopover';
 import { useService } from './contexts/ServiceContext';
@@ -92,20 +94,22 @@ const TopMenu: React.FC<TopMenuProps> = ({ onMenuClick, onSettingsClick }) => {
           </Breadcrumbs>
         )}
         {(!showBreadcrumb || !serviceName) && <div style={{ flexGrow: 1 }} />}
-        <ValidationPopover />
-        <LayerManager />
-        <Tooltip title="Settings">
-          <IconButton
-            size="small"
-            edge="end"
-            color="inherit"
-            aria-label="open settings"
-            onClick={onSettingsClick}
-            sx={{ ml: 1 }}
-          >
+        <CommandPalette />
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ml: 1 }}>
+          <ValidationPopover />
+          <LayerManager />
+          <Tooltip title="Settings">
+            <IconButton
+              size="small"
+              edge="end"
+              color="inherit"
+              aria-label="open settings"
+              onClick={onSettingsClick}
+            >
             <SettingsIcon />
           </IconButton>
-        </Tooltip>
+          </Tooltip>
+        </Box>
       </Toolbar>
     </AppBar>
   );
