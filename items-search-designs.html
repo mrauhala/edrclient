@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Items Search – Command Palette Design</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Roboto', sans-serif; background: #f0f0f0; color: #212121; padding: 32px; }
+  h1 { font-size: 1.5rem; font-weight: 500; margin-bottom: 4px; }
+  h2 { font-size: 1.15rem; font-weight: 500; margin-bottom: 12px; color: #1976d2; }
+  .subtitle { font-size: 0.875rem; color: #666; margin-bottom: 32px; }
+  .section { margin-bottom: 56px; }
+  .section-label {
+    display: inline-block; padding: 3px 10px; border-radius: 4px;
+    font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; margin-bottom: 12px;
+  }
+  .label-state { background: #e3f2fd; color: #1565c0; }
+  .label-interaction { background: #e8f5e9; color: #2e7d32; }
+  .label-disabled { background: #f5f5f5; color: #999; }
+  .note {
+    font-size: 0.8rem; color: #666; line-height: 1.6; margin-top: 10px; max-width: 800px;
+  }
+  .note strong { color: #333; }
+  .note ul { padding-left: 18px; margin: 4px 0 8px; }
+  .note kbd {
+    display: inline-block; padding: 1px 6px; border-radius: 3px;
+    background: #f5f5f5; border: 1px solid #ddd; font-size: 0.7rem;
+    font-family: 'Roboto', sans-serif; color: #555; vertical-align: middle;
+  }
+
+  /* ── App frame ───────────────────────────────────────────────────────── */
+  .app-frame {
+    border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    background: #fff; position: relative; max-width: 800px;
+  }
+  .app-frame > .topbar { border-radius: 10px 10px 0 0; }
+
+  /* ── Top bar ─────────────────────────────────────────────────────────── */
+  .topbar {
+    background: #1976d2; color: #fff; display: flex; align-items: center;
+    padding: 0 12px; height: 48px; gap: 10px; position: relative; z-index: 10;
+  }
+  .topbar .material-icons.menu { font-size: 22px; cursor: pointer; flex-shrink: 0; }
+  .topbar .app-title { font-size: 1rem; font-weight: 500; white-space: nowrap; flex-shrink: 0; }
+
+  /* ── Search box (top bar) ──────────────────────────────────────────── */
+  .search-active {
+    flex: 1; max-width: 320px; margin-left: auto; position: relative;
+  }
+  .search-input-box {
+    display: flex; align-items: center; gap: 6px;
+    border: 1px solid rgba(255,255,255,0.5); border-radius: 8px;
+    padding: 4px 10px; background: rgba(255,255,255,0.22);
+  }
+  .search-input-box .material-icons { font-size: 18px; color: rgba(255,255,255,0.5); }
+  .search-input-box input {
+    border: none; background: transparent; color: #fff; font-size: 0.8rem;
+    outline: none; flex: 1; font-family: 'Roboto', sans-serif;
+  }
+  .search-input-box input::placeholder { color: rgba(255,255,255,0.5); }
+
+  /* ── Dropdown panel ────────────────────────────────────────────────── */
+  .dropdown {
+    position: absolute; top: calc(100% + 4px); right: 0;
+    width: 500px; background: #fff; border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.18); overflow: hidden;
+    color: #212121;
+  }
+
+  /* ── Static dropdown (for mockups) ─────────────────────────────────── */
+  .static-dropdown {
+    width: 500px; background: #fff; border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.18); overflow: hidden;
+    color: #212121; margin-top: 8px;
+  }
+
+  /* ── Tabs ───────────────────────────────────────────────────────────── */
+  .tabs {
+    display: flex; border-bottom: 1px solid #e0e0e0; min-height: 36px;
+  }
+  .tab {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    gap: 6px; padding: 6px 12px; font-size: 0.8rem; color: #666;
+    cursor: pointer; text-transform: none; border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+  }
+  .tab:hover { color: #333; background: #f5f5f5; }
+  .tab.active { color: #1976d2; border-bottom-color: #1976d2; font-weight: 500; }
+  .tab.disabled { color: #bbb; cursor: default; pointer-events: none; }
+  .tab .material-icons { font-size: 16px; }
+  .tab .badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 18px; height: 18px; padding: 0 4px;
+    border-radius: 9px; font-size: 0.65rem; font-weight: 700;
+    background: #e0e0e0; color: #666;
+  }
+  .tab.active .badge { background: #bbdefb; color: #1565c0; }
+
+  /* ── Section header ────────────────────────────────────────────────── */
+  .section-header {
+    padding: 10px 16px 4px;
+    font-size: 0.65rem; font-weight: 700; letter-spacing: 0.09em;
+    text-transform: uppercase; color: #999;
+  }
+
+  /* ── Result items ──────────────────────────────────────────────────── */
+  .result-item {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 8px 16px; cursor: pointer; transition: background 0.15s;
+  }
+  .result-item:hover { background: #f5f5f5; }
+  .result-item.highlighted { background: #e3f2fd; }
+  .result-item .icon { flex-shrink: 0; margin-top: 2px; }
+  .result-item .icon .material-icons { font-size: 20px; color: #999; }
+  .result-item .icon .material-icons.active-icon { color: #4caf50; }
+  .result-item .content { flex: 1; min-width: 0; }
+  .result-item .primary {
+    font-size: 0.85rem; font-weight: 500; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .result-item .secondary {
+    font-size: 0.75rem; color: #999; margin-top: 2px;
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  }
+  .result-item mark {
+    background: #fff9c4; color: #f57f17; padding: 0 1px;
+    border-radius: 2px; font-weight: 500;
+  }
+  .result-item .active-label {
+    font-size: 0.7rem; color: #4caf50; font-weight: 600;
+    flex-shrink: 0; align-self: center; margin-left: 8px;
+  }
+
+  /* ── Geometry chip ─────────────────────────────────────────────────── */
+  .geo-chip {
+    display: inline-flex; align-items: center;
+    padding: 1px 6px; border-radius: 10px; font-size: 0.65rem;
+    font-weight: 500; border: 1px solid;
+  }
+  .geo-chip.point { background: #e8f5e9; border-color: #a5d6a7; color: #2e7d32; }
+  .geo-chip.polygon { background: #e3f2fd; border-color: #90caf9; color: #1565c0; }
+  .geo-chip.linestring { background: #fff3e0; border-color: #ffcc80; color: #e65100; }
+  .geo-chip.multipolygon { background: #ede7f6; border-color: #b39ddb; color: #4527a0; }
+
+  /* ── Property preview ──────────────────────────────────────────────── */
+  .prop-preview {
+    font-size: 0.7rem; color: #999; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; max-width: 300px;
+  }
+
+  /* ── Footer ────────────────────────────────────────────────────────── */
+  .footer {
+    display: flex; gap: 16px; padding: 6px 16px;
+    border-top: 1px solid #e0e0e0; background: #fafafa;
+  }
+  .footer .hint {
+    font-size: 0.7rem; color: #999; display: flex; align-items: center; gap: 4px;
+  }
+  .footer kbd {
+    display: inline-block; padding: 1px 5px; border-radius: 3px;
+    background: #fff; border: 1px solid #ddd; font-size: 0.6rem;
+    font-family: 'Roboto', sans-serif; color: #666;
+  }
+
+  /* ── Loading state ─────────────────────────────────────────────────── */
+  .loading-state {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; padding: 40px 16px; gap: 12px;
+  }
+  .spinner {
+    width: 24px; height: 24px; border: 3px solid #e0e0e0;
+    border-top-color: #1976d2; border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Empty state ───────────────────────────────────────────────────── */
+  .empty-state {
+    padding: 32px 16px; text-align: center;
+  }
+  .empty-state .msg { font-size: 0.85rem; color: #999; }
+  .empty-state .hint-text { font-size: 0.75rem; color: #bbb; margin-top: 4px; }
+
+  /* ── Pagination bar ────────────────────────────────────────────────── */
+  .pagination-bar {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 4px 16px; border-top: 1px solid #e0e0e0;
+  }
+  .pagination-bar .page-info {
+    font-size: 0.7rem; color: #999;
+  }
+  .pagination-bar .nav-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 50%; border: none;
+    background: transparent; color: #666; cursor: pointer;
+    transition: background 0.15s;
+  }
+  .pagination-bar .nav-btn:hover { background: #f0f0f0; }
+  .pagination-bar .nav-btn.disabled { color: #ccc; cursor: default; pointer-events: none; }
+  .pagination-bar .nav-btn .material-icons { font-size: 20px; }
+</style>
+</head>
+<body>
+
+<h1>Items Search – Command Palette Design</h1>
+<p class="subtitle">Design mockups for the Items tab in the command palette search</p>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     STATE 1: Items tab active — search results
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <span class="section-label label-state">State 1 — Items Search Results</span>
+  <h2>Items tab active with search query</h2>
+
+  <div class="app-frame">
+    <div class="topbar">
+      <span class="material-icons menu">menu</span>
+      <span class="app-title">EDR Client</span>
+      <div class="search-active">
+        <div class="search-input-box">
+          <span class="material-icons">search</span>
+          <input type="text" value="helsinki" placeholder="Search collections, services...">
+          <span class="material-icons" style="font-size:16px; cursor:pointer;">close</span>
+        </div>
+        <div class="dropdown">
+          <!-- Tabs -->
+          <div class="tabs">
+            <div class="tab">
+              <span class="material-icons">dns</span>
+              Services <span class="badge">12</span>
+            </div>
+            <div class="tab">
+              <span class="material-icons">folder</span>
+              Collections <span class="badge">3</span>
+            </div>
+            <div class="tab active">
+              <span class="material-icons">article</span>
+              Items <span class="badge">8</span>
+            </div>
+          </div>
+
+          <!-- Section header -->
+          <div class="section-header">Matching items (8)</div>
+
+          <!-- Results -->
+          <div class="result-item highlighted">
+            <div class="icon"><span class="material-icons">article</span></div>
+            <div class="content">
+              <div class="primary"><mark>Helsinki</mark> Weather Station</div>
+              <div class="secondary">
+                <span class="geo-chip point">Point</span>
+                <span class="prop-preview">station_id: FI-HEL-001 &middot; status: active</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="result-item">
+            <div class="icon"><span class="material-icons">article</span></div>
+            <div class="content">
+              <div class="primary"><mark>Helsinki</mark>-Vantaa Airport</div>
+              <div class="secondary">
+                <span class="geo-chip point">Point</span>
+                <span class="prop-preview">station_id: FI-HEL-002 &middot; elevation: 56m</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="result-item">
+            <div class="icon"><span class="material-icons">article</span></div>
+            <div class="content">
+              <div class="primary"><mark>Helsinki</mark> Harbour</div>
+              <div class="secondary">
+                <span class="geo-chip polygon">Polygon</span>
+                <span class="prop-preview">type: maritime &middot; depth_avg: 12.5m</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="result-item">
+            <div class="icon"><span class="material-icons">article</span></div>
+            <div class="content">
+              <div class="primary"><mark>Helsinki</mark> Coastal Zone</div>
+              <div class="secondary">
+                <span class="geo-chip multipolygon">MultiPolygon</span>
+                <span class="prop-preview">zone_type: environmental &middot; area: 245 km²</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="result-item">
+            <div class="icon"><span class="material-icons">article</span></div>
+            <div class="content">
+              <div class="primary"><mark>Helsinki</mark> Metro Line</div>
+              <div class="secondary">
+                <span class="geo-chip linestring">LineString</span>
+                <span class="prop-preview">operator: HSL &middot; length: 21.1 km</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pagination -->
+          <div class="pagination-bar">
+            <button class="nav-btn disabled"><span class="material-icons">navigate_before</span></button>
+            <span class="page-info">1–200 of 1,247</span>
+            <button class="nav-btn"><span class="material-icons">navigate_next</span></button>
+          </div>
+
+          <!-- Footer -->
+          <div class="footer">
+            <span class="hint"><kbd>↑↓</kbd> navigate</span>
+            <span class="hint"><kbd>Enter</kbd> add to map</span>
+            <span class="hint"><kbd>Tab</kbd> switch tab</span>
+            <span class="hint"><kbd>Esc</kbd> close</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="height: 420px; background: #fafafa; border-radius: 0 0 10px 10px;"></div>
+  </div>
+
+  <div class="note">
+    <strong>Behaviour:</strong>
+    <ul>
+      <li>Items are fetched page-by-page using <code>limit</code> and <code>offset</code> query parameters (e.g., <code>?limit=200&amp;offset=0</code>)</li>
+      <li>Prev/Next buttons navigate between pages; search filters the current page client-side</li>
+      <li>Geometry type shown as colored chip (Point=green, Polygon=blue, LineString=orange, MultiPolygon=purple)</li>
+      <li>Key properties shown as preview text after the geometry chip</li>
+      <li>Pagination bar shows "1–200 of 1,247" with Prev (disabled on first page) and Next buttons</li>
+      <li><kbd>Enter</kbd> adds the highlighted item to the map as a "Selected: …" layer</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     STATE 2: Items tab — loading state
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <span class="section-label label-state">State 2 — Loading Items</span>
+  <h2>Items tab — first activation, fetching from API</h2>
+
+  <div class="static-dropdown">
+    <div class="tabs">
+      <div class="tab">
+        <span class="material-icons">dns</span>
+        Services <span class="badge">12</span>
+      </div>
+      <div class="tab">
+        <span class="material-icons">folder</span>
+        Collections <span class="badge">5</span>
+      </div>
+      <div class="tab active">
+        <span class="material-icons">article</span>
+        Items
+      </div>
+    </div>
+
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <span style="font-size: 0.8rem; color: #999;">Loading items from Weather Stations...</span>
+    </div>
+
+    <div class="footer">
+      <span class="hint"><kbd>Tab</kbd> switch tab</span>
+      <span class="hint"><kbd>Esc</kbd> close</span>
+    </div>
+  </div>
+
+  <div class="note">
+    <strong>Behaviour:</strong>
+    <ul>
+      <li>Spinner shown while fetching items from the <code>/collections/{id}/items?limit=200</code> endpoint</li>
+      <li>Collection title shown in loading message for context</li>
+      <li>No count badge until items are loaded</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     STATE 3: Items tab — loaded, no search query
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <span class="section-label label-state">State 3 — All Items (no query)</span>
+  <h2>Items tab with loaded items, no search query entered</h2>
+
+  <div class="static-dropdown">
+    <div class="tabs">
+      <div class="tab">
+        <span class="material-icons">dns</span>
+        Services <span class="badge">12</span>
+      </div>
+      <div class="tab">
+        <span class="material-icons">folder</span>
+        Collections <span class="badge">5</span>
+      </div>
+      <div class="tab active">
+        <span class="material-icons">article</span>
+        Items <span class="badge">47</span>
+      </div>
+    </div>
+
+    <div class="section-header">All items (47)</div>
+
+    <div class="result-item highlighted">
+      <div class="icon"><span class="material-icons">article</span></div>
+      <div class="content">
+        <div class="primary">Helsinki Weather Station</div>
+        <div class="secondary">
+          <span class="geo-chip point">Point</span>
+          <span class="prop-preview">station_id: FI-HEL-001 &middot; status: active</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="result-item">
+      <div class="icon"><span class="material-icons">article</span></div>
+      <div class="content">
+        <div class="primary">Espoo Observation Point</div>
+        <div class="secondary">
+          <span class="geo-chip point">Point</span>
+          <span class="prop-preview">station_id: FI-ESP-003 &middot; status: active</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="result-item">
+      <div class="icon"><span class="material-icons">article</span></div>
+      <div class="content">
+        <div class="primary">Tampere Monitoring Zone</div>
+        <div class="secondary">
+          <span class="geo-chip polygon">Polygon</span>
+          <span class="prop-preview">zone_type: air_quality &middot; area: 180 km²</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="result-item">
+      <div class="icon"><span class="material-icons">article</span></div>
+      <div class="content">
+        <div class="primary">Turku Coastal Route</div>
+        <div class="secondary">
+          <span class="geo-chip linestring">LineString</span>
+          <span class="prop-preview">route_type: shipping &middot; length: 45.2 km</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination-bar">
+      <button class="nav-btn disabled"><span class="material-icons">navigate_before</span></button>
+      <span class="page-info">1–47 of 47</span>
+      <button class="nav-btn disabled"><span class="material-icons">navigate_next</span></button>
+    </div>
+
+    <div class="footer">
+      <span class="hint"><kbd>↑↓</kbd> navigate</span>
+      <span class="hint"><kbd>Enter</kbd> add to map</span>
+      <span class="hint"><kbd>Tab</kbd> switch tab</span>
+      <span class="hint"><kbd>Esc</kbd> close</span>
+    </div>
+  </div>
+
+  <div class="note">
+    <strong>Behaviour:</strong>
+    <ul>
+      <li>All items on the current page shown when no search query is entered</li>
+      <li>Count badge shows items on current page</li>
+      <li>Pagination bar shows range (e.g., "1–47 of 47") with Prev/Next buttons</li>
+      <li>Both buttons disabled when all items fit in one page</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     STATE 4: Items tab — no results
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <span class="section-label label-state">State 4 — No Results</span>
+  <h2>Items tab — search returns no matches</h2>
+
+  <div class="static-dropdown">
+    <div class="tabs">
+      <div class="tab">
+        <span class="material-icons">dns</span>
+        Services <span class="badge">0</span>
+      </div>
+      <div class="tab">
+        <span class="material-icons">folder</span>
+        Collections <span class="badge">0</span>
+      </div>
+      <div class="tab active">
+        <span class="material-icons">article</span>
+        Items <span class="badge">0</span>
+      </div>
+    </div>
+
+    <div class="empty-state">
+      <div class="msg">No results for "asdfgh"</div>
+      <div class="hint-text">Try a different tab or search term</div>
+    </div>
+
+    <div class="footer">
+      <span class="hint"><kbd>Tab</kbd> switch tab</span>
+      <span class="hint"><kbd>Esc</kbd> close</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     STATE 5: Items tab disabled
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <span class="section-label label-disabled">State 5 — Tab Disabled</span>
+  <h2>Items tab disabled — collection has no items link</h2>
+
+  <div class="static-dropdown">
+    <div class="tabs">
+      <div class="tab">
+        <span class="material-icons">dns</span>
+        Services <span class="badge">12</span>
+      </div>
+      <div class="tab active">
+        <span class="material-icons">folder</span>
+        Collections <span class="badge">5</span>
+      </div>
+      <div class="tab disabled">
+        <span class="material-icons">article</span>
+        Items
+      </div>
+    </div>
+
+    <div class="section-header">All collections (5)</div>
+
+    <div class="result-item highlighted">
+      <div class="icon"><span class="material-icons" style="color: #4caf50;">folder</span></div>
+      <div class="content">
+        <div class="primary">Temperature Observations</div>
+        <div class="secondary">
+          <span style="font-size: 0.75rem; color: #999;">Hourly temperature measurements from automatic weather stations</span>
+        </div>
+      </div>
+      <span class="active-label">active</span>
+    </div>
+
+    <div class="result-item">
+      <div class="icon"><span class="material-icons" style="color: #999;">folder</span></div>
+      <div class="content">
+        <div class="primary">Precipitation Forecast</div>
+        <div class="secondary">
+          <span style="font-size: 0.75rem; color: #999;">48-hour precipitation forecast grid data</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <span class="hint"><kbd>↑↓</kbd> navigate</span>
+      <span class="hint"><kbd>Enter</kbd> select</span>
+      <span class="hint"><kbd>Tab</kbd> switch tab</span>
+      <span class="hint"><kbd>Esc</kbd> close</span>
+    </div>
+  </div>
+
+  <div class="note">
+    <strong>Behaviour:</strong>
+    <ul>
+      <li>Items tab is grayed out and not clickable when the active collection has no <code>rel=items</code> link with <code>type=application/geo+json</code></li>
+      <li>Tab key cycling skips the disabled Items tab</li>
+      <li>EDR-only collections (positions, area, corridor queries) will have Items disabled</li>
+      <li>When switching from a collection with items to one without, the palette auto-switches to Collections tab</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     STATE 6: Item selected — added to map
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <span class="section-label label-interaction">State 6 — Item Selection Flow</span>
+  <h2>User selects an item → feature added to map</h2>
+
+  <div style="display: flex; align-items: center; gap: 24px; flex-wrap: wrap;">
+    <!-- Before -->
+    <div>
+      <div style="font-size: 0.7rem; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px;">1. User highlights item</div>
+      <div class="static-dropdown" style="width: 420px;">
+        <div class="tabs">
+          <div class="tab" style="font-size: 0.75rem; padding: 4px 8px;">
+            <span class="material-icons">dns</span>
+            Services
+          </div>
+          <div class="tab" style="font-size: 0.75rem; padding: 4px 8px;">
+            <span class="material-icons">folder</span>
+            Collections
+          </div>
+          <div class="tab active" style="font-size: 0.75rem; padding: 4px 8px;">
+            <span class="material-icons">article</span>
+            Items
+          </div>
+        </div>
+        <div class="result-item">
+          <div class="icon"><span class="material-icons">article</span></div>
+          <div class="content">
+            <div class="primary" style="font-size: 0.8rem;">Helsinki Weather Station</div>
+            <div class="secondary"><span class="geo-chip point">Point</span></div>
+          </div>
+        </div>
+        <div class="result-item highlighted">
+          <div class="icon"><span class="material-icons">article</span></div>
+          <div class="content">
+            <div class="primary" style="font-size: 0.8rem;">Helsinki-Vantaa Airport</div>
+            <div class="secondary"><span class="geo-chip point">Point</span></div>
+          </div>
+        </div>
+        <div class="result-item">
+          <div class="icon"><span class="material-icons">article</span></div>
+          <div class="content">
+            <div class="primary" style="font-size: 0.8rem;">Helsinki Harbour</div>
+            <div class="secondary"><span class="geo-chip polygon">Polygon</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="font-size: 2rem; color: #ccc;">→</div>
+
+    <!-- After -->
+    <div>
+      <div style="font-size: 0.7rem; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px;">2. Palette closes, feature on map</div>
+      <div style="width: 300px; height: 200px; background: #e8eaed; border-radius: 10px; position: relative; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+        <!-- Fake map -->
+        <div style="position: absolute; inset: 0; background: linear-gradient(135deg, #c8e6c9 0%, #a5d6a7 30%, #81c784 60%, #e8f5e9 100%); opacity: 0.4;"></div>
+        <!-- Pin -->
+        <div style="position: absolute; top: 50%; left: 55%; transform: translate(-50%, -100%);">
+          <span class="material-icons" style="font-size: 32px; color: #1976d2; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">place</span>
+        </div>
+        <!-- Layer badge -->
+        <div style="position: absolute; bottom: 8px; left: 8px; right: 8px; background: rgba(255,255,255,0.95); border-radius: 6px; padding: 6px 10px; font-size: 0.7rem; box-shadow: 0 1px 4px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 6px;">
+          <span class="material-icons" style="font-size: 14px; color: #1976d2;">layers</span>
+          <span style="font-weight: 500;">Selected: Helsinki-Vantaa Airport</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note" style="margin-top: 16px;">
+    <strong>Behaviour:</strong>
+    <ul>
+      <li>Pressing <kbd>Enter</kbd> or clicking an item adds it as a GeoJSON layer titled "Selected: {name}"</li>
+      <li>Previous "Selected:" layers are removed (only one selection at a time)</li>
+      <li>Command palette closes automatically after selection</li>
+      <li>Map zooms/pans to show the selected feature</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     STATE 7: Records collection — server-side search via q parameter
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <span class="section-label label-interaction">State 7 — Records Server-Side Search</span>
+  <h2>itemType=record — search uses OGC API Records <code>q</code> parameter</h2>
+
+  <div class="app-frame">
+    <div class="topbar">
+      <span class="material-icons menu">menu</span>
+      <span class="app-title">EDR Client</span>
+      <div class="search-active">
+        <div class="search-input-box">
+          <span class="material-icons">search</span>
+          <input type="text" value="climate" placeholder="Search collections, services...">
+          <span class="material-icons" style="font-size:16px; cursor:pointer;">close</span>
+        </div>
+        <div class="dropdown">
+          <div class="tabs">
+            <div class="tab">
+              <span class="material-icons">dns</span>
+              Services <span class="badge">0</span>
+            </div>
+            <div class="tab">
+              <span class="material-icons">folder</span>
+              Collections <span class="badge">1</span>
+            </div>
+            <div class="tab active">
+              <span class="material-icons">article</span>
+              Items <span class="badge">24</span>
+            </div>
+          </div>
+
+          <div class="section-header">Search results (24)</div>
+
+          <div class="result-item highlighted">
+            <div class="icon"><span class="material-icons">article</span></div>
+            <div class="content">
+              <div class="primary">Global <mark>Climate</mark> Observations Dataset</div>
+              <div class="secondary">
+                <span class="geo-chip polygon">Polygon</span>
+                <span class="prop-preview">type: dataset &middot; publisher: WMO</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="result-item">
+            <div class="icon"><span class="material-icons">article</span></div>
+            <div class="content">
+              <div class="primary">Nordic <mark>Climate</mark> Projections</div>
+              <div class="secondary">
+                <span class="geo-chip multipolygon">MultiPolygon</span>
+                <span class="prop-preview">type: dataset &middot; publisher: FMI</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="result-item">
+            <div class="icon"><span class="material-icons">article</span></div>
+            <div class="content">
+              <div class="primary">Urban <mark>Climate</mark> Monitoring Network</div>
+              <div class="secondary">
+                <span class="geo-chip point">Point</span>
+                <span class="prop-preview">type: service &middot; publisher: SYKE</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pagination -->
+          <div class="pagination-bar">
+            <button class="nav-btn disabled"><span class="material-icons">navigate_before</span></button>
+            <span class="page-info">1–24 of 24</span>
+            <button class="nav-btn disabled"><span class="material-icons">navigate_next</span></button>
+          </div>
+
+          <div class="footer">
+            <span class="hint"><kbd>↑↓</kbd> navigate</span>
+            <span class="hint"><kbd>Enter</kbd> add to map</span>
+            <span class="hint"><kbd>Tab</kbd> switch tab</span>
+            <span class="hint"><kbd>Esc</kbd> close</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="height: 320px; background: #fafafa; border-radius: 0 0 10px 10px;"></div>
+  </div>
+
+  <div class="note">
+    <strong>Behaviour (Records collections — <code>itemType=record</code>):</strong>
+    <ul>
+      <li>When the collection has <code>itemType=record</code>, the search query is sent to the server using the OGC API Records <code>q</code> parameter (e.g., <code>?limit=200&amp;q=climate</code>)</li>
+      <li>Query is debounced (300ms) to avoid excessive server requests while typing</li>
+      <li>Results are returned already filtered by the server — no client-side filtering needed</li>
+      <li>Section header reads "Search results" instead of "Matching items" to reflect server-side search</li>
+      <li>Pagination resets to offset=0 when the search query changes</li>
+      <li>For non-record collections (<code>itemType</code> is not <code>record</code>), search remains client-side as before</li>
+    </ul>
+  </div>
+</div>
+
+</body>
+</html>
