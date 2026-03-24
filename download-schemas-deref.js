@@ -91,6 +91,20 @@ const schemas = [
     output: 'public/schemas/individual/common-p2-v1.0/collections.json'
   },
   
+  // OGC API EDR Part 1 v1.0 - Locations FeatureCollection
+  {
+    name: 'EDR Part 1 v1.0 - Locations FeatureCollection',
+    url: 'https://schemas.opengis.net/ogcapi/edr/1.0/openapi/schemas/edrFeatureCollectionGeoJSON.yaml',
+    output: 'public/schemas/edr/1.0/edrFeatureCollectionGeoJSON.json'
+  },
+
+  // OGC API EDR Part 1 v1.1 - Locations FeatureCollection
+  {
+    name: 'EDR Part 1 v1.1 - Locations FeatureCollection',
+    url: 'https://schemas.opengis.net/ogcapi/edr/1.1/openapi/schemas/edr-geojson/edrFeatureCollectionGeoJSON.yaml',
+    output: 'public/schemas/edr/1.1/edrFeatureCollectionGeoJSON.json'
+  },
+
   // OGC API Records Part 1 v1.0 - top level structure (no conformance schema available)
   {
     name: 'Records Part 1 v1.0 - Landing Page',

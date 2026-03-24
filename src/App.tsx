@@ -27,6 +27,7 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import axios from 'axios';
+import { QueryResultValidator } from './QueryResultValidator';
 
 
 function App() {
@@ -97,6 +98,7 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
   const [modalError, setModalError] = useState<string | null>(null);
   const [modalUrl, setModalUrl] = useState<string>('');
   const [modalValidationErrors, setModalValidationErrors] = useState<import('./types/api').ValidationError[]>([]);
+  const [modalValidationSchemaName, setModalValidationSchemaName] = useState<string | null>(null);
   const [modalScrollToPath, setModalScrollToPath] = useState<string | undefined>();
 
   // Detect system preference
@@ -230,6 +232,7 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
     setModalOpen(true);
     setModalUrl(collectionUrl);
     setModalValidationErrors([]);
+    setModalValidationSchemaName(null);
     setModalScrollToPath(undefined);
     setModalLoading(true);
     setModalError(null);
@@ -278,6 +281,17 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
         : JSON.stringify(response.data, null, 2);
       
       setModalData(responseData);
+
+      // Validate query result against registered schemas (e.g. CoverageJSON)
+      try {
+        const validation = await QueryResultValidator.getInstance().validate(responseData, contentType, collectionUrl);
+        if (validation.matched) {
+          setModalValidationSchemaName(validation.schemaName || null);
+          setModalValidationErrors(validation.errors || []);
+        }
+      } catch (e) {
+        console.error('Query result validation failed:', e);
+      }
 
       // If it's GeoJSON, add it as a layer
       // Check for various GeoJSON format indicators (case-insensitive)
@@ -345,6 +359,7 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
   const handleCloseModal = () => {
     setModalOpen(false);
     setModalValidationErrors([]);
+    setModalValidationSchemaName(null);
     setModalScrollToPath(undefined);
   };
 
@@ -476,6 +491,7 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
           error={modalError}
           url={modalUrl || collectionUrl}
           validationErrors={modalValidationErrors}
+          validationSchemaName={modalValidationSchemaName}
           scrollToPath={modalScrollToPath}
         />
       </Suspense>

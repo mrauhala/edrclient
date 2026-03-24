@@ -55,6 +55,7 @@ function getUrlForSection(section: string | undefined, urls: EndpointUrls): stri
     case 'Landing Page': return urls.landingPage;
     case 'Conformance': return urls.conformance;
     case 'Collections': return urls.collections;
+    case 'Locations': return urls.locations;
     default: return urls.collections;
   }
 }
@@ -64,6 +65,7 @@ function getResponseForSection(section: string | undefined, responses: RawRespon
     case 'Landing Page': return responses.landingPage;
     case 'Conformance': return responses.conformance;
     case 'Collections': return responses.collections;
+    case 'Locations': return responses.locations;
     default: return responses.collections;
   }
 }
@@ -177,6 +179,9 @@ const ValidationPopover: React.FC = () => {
           <SectionStatus label="Landing Page" validation={validationResult.landingPageValidation} />
           <SectionStatus label="Collections" validation={validationResult.collectionsValidation} />
           <SectionStatus label="Conformance" validation={validationResult.conformanceValidation} />
+          {validationResult.locationsValidation && (
+            <SectionStatus label="Locations" validation={validationResult.locationsValidation} />
+          )}
         </Box>
 
         {/* Error list or empty state */}

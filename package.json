@@ -25,6 +25,7 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-syntax-highlighter": "^16.1.0",
+    "react-window": "^2.2.7",
     "swagger-ui-react": "^5.32.1",
     "url": "^0.11.3",
     "web-vitals": "^3.5.0"

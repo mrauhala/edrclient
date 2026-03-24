@@ -134,6 +134,11 @@ export interface ValidationResult {
     errors: ValidationError[] | null;
     schemaResults?: Array<{ schema: string; isValid: boolean }>;
   };
+  locationsValidation?: {
+    isValid: boolean;
+    errors: ValidationError[] | null;
+    schemaResults?: Array<{ schema: string; isValid: boolean }>;
+  };
 }
 
 export interface CollectionsResponse {

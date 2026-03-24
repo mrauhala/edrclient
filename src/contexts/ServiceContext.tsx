@@ -11,6 +11,8 @@ interface ServiceContextValue {
   setLandingPageTitle: (title: string | null) => void;
   activeServiceUrl: string | null;
   setActiveServiceUrl: (url: string | null) => void;
+  conformsTo: string[] | null;
+  setConformsTo: (conformsTo: string[] | null) => void;
 }
 
 const ServiceContext = createContext<ServiceContextValue | null>(null);
@@ -25,6 +27,7 @@ interface ServiceProviderProps {
 export function ServiceProvider({ children, customServices, selectedServiceUrl, setSelectedServiceUrl }: ServiceProviderProps) {
   const [landingPageTitle, setLandingPageTitle] = useState<string | null>(null);
   const [activeServiceUrl, setActiveServiceUrl] = useState<string | null>(null);
+  const [conformsTo, setConformsTo] = useState<string[] | null>(null);
   const getAuthCredentials = useMemo(() => {
     return (url: string): AuthCredentials | undefined => {
       const service = customServices.find(s => url.includes(s.url));
@@ -52,7 +55,9 @@ export function ServiceProvider({ children, customServices, selectedServiceUrl, 
     setLandingPageTitle,
     activeServiceUrl,
     setActiveServiceUrl,
-  }), [customServices, getAuthCredentials, selectedServiceUrl, setSelectedServiceUrl, landingPageTitle, activeServiceUrl]);
+    conformsTo,
+    setConformsTo,
+  }), [customServices, getAuthCredentials, selectedServiceUrl, setSelectedServiceUrl, landingPageTitle, activeServiceUrl, conformsTo]);
 
   return (
     <ServiceContext.Provider value={value}>

@@ -1,25 +1,27 @@
-import { createContext, useContext, useState, useMemo, type ReactNode } from 'react';
+import { createContext, useContext, useState, useMemo, type ReactNode, type SetStateAction } from 'react';
 import type { ValidationResult } from '../DataRetrievalAPI';
 
 export interface EndpointUrls {
   landingPage?: string;
   collections?: string;
   conformance?: string;
+  locations?: string;
 }
 
 export interface RawResponses {
   landingPage?: unknown;
   collections?: unknown;
   conformance?: unknown;
+  locations?: unknown;
 }
 
 interface ValidationContextValue {
   validationResult: ValidationResult;
-  setValidationResult: (result: ValidationResult) => void;
+  setValidationResult: (result: SetStateAction<ValidationResult>) => void;
   endpointUrls: EndpointUrls;
-  setEndpointUrls: (urls: EndpointUrls) => void;
+  setEndpointUrls: (urls: SetStateAction<EndpointUrls>) => void;
   rawResponses: RawResponses;
-  setRawResponses: (responses: RawResponses) => void;
+  setRawResponses: (responses: SetStateAction<RawResponses>) => void;
 }
 
 const ValidationContext = createContext<ValidationContextValue | null>(null);

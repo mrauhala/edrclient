@@ -12,6 +12,7 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import CodeIcon from '@mui/icons-material/Code';
 import PreviewIcon from '@mui/icons-material/Preview';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import Box from '@mui/material/Box';
@@ -21,8 +22,7 @@ import Tooltip from '@mui/material/Tooltip';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
 import { useTheme } from '@mui/material/styles';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import VirtualizedCodeView from './VirtualizedCodeView';
 import CoverageJsonChart from './CoverageJsonChart';
 import type { ValidationError } from './DataRetrievalAPI';
 import { findLineForJsonPointer, findCollectionRange, getCollectionIndexFromPath } from './utils/jsonPointerToLine';
@@ -36,6 +36,7 @@ interface DataModalProps {
   error: string | null;
   url: string;
   validationErrors?: ValidationError[];
+  validationSchemaName?: string | null;
   scrollToPath?: string;
 }
 
@@ -48,6 +49,7 @@ const DataModal: React.FC<DataModalProps> = ({
   error,
   url,
   validationErrors = [],
+  validationSchemaName = null,
   scrollToPath,
 }) => {
   const theme = useTheme();
@@ -239,13 +241,13 @@ const DataModal: React.FC<DataModalProps> = ({
     return data;
   };
 
-  const shouldUseSyntaxHighlighting = () => {
+  // Compute formatted data once for highlighting calculations
+  const formattedData = useMemo(() => formatData(), [data, contentType]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const shouldUseCodeView = () => {
     const language = getLanguage();
     return language === 'json' || language === 'xml';
   };
-
-  // Compute formatted data once for highlighting calculations
-  const formattedData = useMemo(() => formatData(), [data, contentType]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Compute error line numbers, collection gutter ranges, and per-line error map
   const { errorLines, errorLineList, gutterRanges, initialErrorIdx } = useMemo(() => {
@@ -368,28 +370,7 @@ const DataModal: React.FC<DataModalProps> = ({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [open, errorLineList.length, handlePrevError, handleNextError]);
 
-  // Build lineProps for SyntaxHighlighter — includes data attribute for scroll targeting
-  const getLineProps = useCallback((lineNumber: number): Record<string, unknown> => {
-    const isError = errorLines.has(lineNumber);
-    const isInGutter = gutterRanges.some(r => lineNumber >= r.start && lineNumber <= r.end);
 
-    const style: React.CSSProperties = {};
-
-    if (isError) {
-      style.backgroundColor = theme.palette.mode === 'dark'
-        ? 'rgba(244, 67, 54, 0.2)'
-        : 'rgba(244, 67, 54, 0.12)';
-      style.borderLeft = `3px solid ${theme.palette.error.main}`;
-      style.marginLeft = '-3px';
-    } else if (isInGutter) {
-      style.borderLeft = `3px solid ${theme.palette.mode === 'dark'
-        ? 'rgba(255, 152, 0, 0.4)'
-        : 'rgba(255, 152, 0, 0.5)'}`;
-      style.marginLeft = '-3px';
-    }
-
-    return { style, 'data-line-number': lineNumber };
-  }, [errorLines, gutterRanges, theme.palette.mode, theme.palette.error.main]);
 
   return (
     <Dialog 
@@ -474,6 +455,17 @@ const DataModal: React.FC<DataModalProps> = ({
                 <Typography variant="body2" color="text.secondary">
                   Content Type: {getContentTypeLabel()}
                 </Typography>
+
+                {validationSchemaName && errorLineList.length === 0 && (
+                  <Chip
+                    icon={<CheckCircleOutlineIcon />}
+                    label={`${validationSchemaName}: Valid`}
+                    color="success"
+                    size="small"
+                    variant="outlined"
+                    sx={{ ml: 1 }}
+                  />
+                )}
 
                 {errorLineList.length > 0 && (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25, ml: 1 }}>
@@ -605,23 +597,16 @@ const DataModal: React.FC<DataModalProps> = ({
               ) : viewMode === 'preview' && isCoverageJsonPointSeries() ? (
                 <CoverageJsonChart data={data} />
               ) : (
-                shouldUseSyntaxHighlighting() ? (
-                  <SyntaxHighlighter
-                    language={getLanguage()}
-                    style={theme.palette.mode === 'dark' ? vscDarkPlus : vs}
-                    customStyle={{
-                      margin: 0,
-                      padding: '16px',
-                      fontSize: '0.875rem',
-                      backgroundColor: 'transparent',
-                    }}
-                    showLineNumbers
-                    wrapLines
-                    wrapLongLines
-                    lineProps={(lineNumber: number) => getLineProps(lineNumber)}
-                  >
-                    {formattedData}
-                  </SyntaxHighlighter>
+                shouldUseCodeView() ? (
+                  <VirtualizedCodeView
+                    code={formattedData}
+                    language={getLanguage() as 'json' | 'xml' | 'text'}
+                    isDark={theme.palette.mode === 'dark'}
+                    errorLines={errorLines}
+                    gutterRanges={gutterRanges}
+                    errorColor={theme.palette.error.main}
+                    scrollToLine={errorLineList[initialErrorIdx]?.line}
+                  />
                 ) : (
                   <pre style={{
                     margin: 0,
