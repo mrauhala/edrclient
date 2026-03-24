@@ -12,6 +12,7 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import CodeIcon from '@mui/icons-material/Code';
 import PreviewIcon from '@mui/icons-material/Preview';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import Box from '@mui/material/Box';
@@ -36,6 +37,7 @@ interface DataModalProps {
   error: string | null;
   url: string;
   validationErrors?: ValidationError[];
+  validationSchemaName?: string | null;
   scrollToPath?: string;
 }
 
@@ -48,6 +50,7 @@ const DataModal: React.FC<DataModalProps> = ({
   error,
   url,
   validationErrors = [],
+  validationSchemaName = null,
   scrollToPath,
 }) => {
   const theme = useTheme();
@@ -474,6 +477,17 @@ const DataModal: React.FC<DataModalProps> = ({
                 <Typography variant="body2" color="text.secondary">
                   Content Type: {getContentTypeLabel()}
                 </Typography>
+
+                {validationSchemaName && errorLineList.length === 0 && (
+                  <Chip
+                    icon={<CheckCircleOutlineIcon />}
+                    label={`${validationSchemaName}: Valid`}
+                    color="success"
+                    size="small"
+                    variant="outlined"
+                    sx={{ ml: 1 }}
+                  />
+                )}
 
                 {errorLineList.length > 0 && (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25, ml: 1 }}>
