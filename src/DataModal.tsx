@@ -22,8 +22,7 @@ import Tooltip from '@mui/material/Tooltip';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
 import { useTheme } from '@mui/material/styles';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import VirtualizedCodeView from './VirtualizedCodeView';
 import CoverageJsonChart from './CoverageJsonChart';
 import type { ValidationError } from './DataRetrievalAPI';
 import { findLineForJsonPointer, findCollectionRange, getCollectionIndexFromPath } from './utils/jsonPointerToLine';
@@ -242,13 +241,13 @@ const DataModal: React.FC<DataModalProps> = ({
     return data;
   };
 
-  const shouldUseSyntaxHighlighting = () => {
+  // Compute formatted data once for highlighting calculations
+  const formattedData = useMemo(() => formatData(), [data, contentType]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const shouldUseCodeView = () => {
     const language = getLanguage();
     return language === 'json' || language === 'xml';
   };
-
-  // Compute formatted data once for highlighting calculations
-  const formattedData = useMemo(() => formatData(), [data, contentType]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Compute error line numbers, collection gutter ranges, and per-line error map
   const { errorLines, errorLineList, gutterRanges, initialErrorIdx } = useMemo(() => {
@@ -371,28 +370,7 @@ const DataModal: React.FC<DataModalProps> = ({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [open, errorLineList.length, handlePrevError, handleNextError]);
 
-  // Build lineProps for SyntaxHighlighter — includes data attribute for scroll targeting
-  const getLineProps = useCallback((lineNumber: number): Record<string, unknown> => {
-    const isError = errorLines.has(lineNumber);
-    const isInGutter = gutterRanges.some(r => lineNumber >= r.start && lineNumber <= r.end);
 
-    const style: React.CSSProperties = {};
-
-    if (isError) {
-      style.backgroundColor = theme.palette.mode === 'dark'
-        ? 'rgba(244, 67, 54, 0.2)'
-        : 'rgba(244, 67, 54, 0.12)';
-      style.borderLeft = `3px solid ${theme.palette.error.main}`;
-      style.marginLeft = '-3px';
-    } else if (isInGutter) {
-      style.borderLeft = `3px solid ${theme.palette.mode === 'dark'
-        ? 'rgba(255, 152, 0, 0.4)'
-        : 'rgba(255, 152, 0, 0.5)'}`;
-      style.marginLeft = '-3px';
-    }
-
-    return { style, 'data-line-number': lineNumber };
-  }, [errorLines, gutterRanges, theme.palette.mode, theme.palette.error.main]);
 
   return (
     <Dialog 
@@ -619,23 +597,16 @@ const DataModal: React.FC<DataModalProps> = ({
               ) : viewMode === 'preview' && isCoverageJsonPointSeries() ? (
                 <CoverageJsonChart data={data} />
               ) : (
-                shouldUseSyntaxHighlighting() ? (
-                  <SyntaxHighlighter
-                    language={getLanguage()}
-                    style={theme.palette.mode === 'dark' ? vscDarkPlus : vs}
-                    customStyle={{
-                      margin: 0,
-                      padding: '16px',
-                      fontSize: '0.875rem',
-                      backgroundColor: 'transparent',
-                    }}
-                    showLineNumbers
-                    wrapLines
-                    wrapLongLines
-                    lineProps={(lineNumber: number) => getLineProps(lineNumber)}
-                  >
-                    {formattedData}
-                  </SyntaxHighlighter>
+                shouldUseCodeView() ? (
+                  <VirtualizedCodeView
+                    code={formattedData}
+                    language={getLanguage() as 'json' | 'xml' | 'text'}
+                    isDark={theme.palette.mode === 'dark'}
+                    errorLines={errorLines}
+                    gutterRanges={gutterRanges}
+                    errorColor={theme.palette.error.main}
+                    scrollToLine={errorLineList[initialErrorIdx]?.line}
+                  />
                 ) : (
                   <pre style={{
                     margin: 0,

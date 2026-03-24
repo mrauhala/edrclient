@@ -284,7 +284,7 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
 
       // Validate query result against registered schemas (e.g. CoverageJSON)
       try {
-        const validation = await QueryResultValidator.getInstance().validate(responseData, contentType);
+        const validation = await QueryResultValidator.getInstance().validate(responseData, contentType, collectionUrl);
         if (validation.matched) {
           setModalValidationSchemaName(validation.schemaName || null);
           setModalValidationErrors(validation.errors || []);

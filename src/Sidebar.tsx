@@ -26,7 +26,7 @@ const Sidebar = ({ open }: SidebarProps) => {
   const { setGeoJsonLayers } = useGeoJsonLayers();
   const { setClickedCoords, setDataQuery } = useMapInteraction();
   const { collections, setCollections, setSelectedCollection, setSelectedCollectionExtents, setLocationFeatures, setLandingPageLicense, setCollectionUrl } = useCollection();
-  const { setLandingPageTitle, setActiveServiceUrl } = useService();
+  const { setLandingPageTitle, setActiveServiceUrl, conformsTo, setConformsTo } = useService();
   const queryState = useQueryUrl();
   const { resetQueryState } = queryState;
   const { validationResult, setValidationResult, setEndpointUrls, setRawResponses } = useValidation();
@@ -35,7 +35,6 @@ const Sidebar = ({ open }: SidebarProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [landingPageDescription, setLandingPageDescription] = useState<string | null>(null);
   const [serviceDescUrl, setServiceDescUrl] = useState<string | null>(null);
-  const [conformsTo, setConformsTo] = useState<string[] | null>(null);
   const [landingPageLinks, setLandingPageLinks] = useState<ApiLink[] | null>(null);
   const [landingPageKeywords, setLandingPageKeywords] = useState<string[] | null>(null);
   const [collectionsLinks, setCollectionsLinks] = useState<ApiLink[] | null>(null);
@@ -76,7 +75,7 @@ const Sidebar = ({ open }: SidebarProps) => {
     setLocationFeatures(null);
     setClickedCoords([]);
     setDataQuery('');
-  }, [setCollections, resetQueryState, setCollectionUrl, setGeoJsonLayers, setSelectedCollection, setSelectedCollectionExtents, setLocationFeatures, setClickedCoords, setDataQuery, setValidationResult, setEndpointUrls, setRawResponses, setLandingPageTitle]);
+  }, [setCollections, resetQueryState, setCollectionUrl, setGeoJsonLayers, setSelectedCollection, setSelectedCollectionExtents, setLocationFeatures, setClickedCoords, setDataQuery, setValidationResult, setEndpointUrls, setRawResponses, setLandingPageTitle, setConformsTo]);
 
   const handleLoadResult = useCallback((result: GetCollectionsResult) => {
     setCollections(result.collections || []);
@@ -93,7 +92,7 @@ const Sidebar = ({ open }: SidebarProps) => {
     setLandingPageLinks(result.landingPageLinks || null);
     setCollectionsLinks(result.collectionsLinks || null);
     setLandingPageKeywords(result.landingPageKeywords || null);
-  }, [setCollections, setValidationResult, setEndpointUrls, setRawResponses, setLandingPageTitle]);
+  }, [setCollections, setValidationResult, setEndpointUrls, setRawResponses, setLandingPageTitle, setConformsTo]);
 
   const handleLoadError = useCallback((error: Error) => {
     setCollections([]);

@@ -9,7 +9,7 @@ interface QueryResultSchema {
   displayName: string;
   schemaType: 'json-schema';
   schemaPath: string;
-  detect: (data: string, contentType: string) => boolean;
+  detect: (data: string, contentType: string, url?: string) => boolean;
 }
 
 export interface QueryResultValidation {
@@ -38,6 +38,18 @@ function detectCoverageJson(data: string, contentType: string): boolean {
   }
 }
 
+function detectEdrLocations(data: string, contentType: string, url?: string): boolean {
+  // URL must contain /locations (not deeper like /locations/id/position)
+  if (!url || !/\/locations\/?(\?|$)/.test(url)) return false;
+  if (!contentType.includes('json')) return false;
+  try {
+    const parsed = JSON.parse(data);
+    return parsed.type === 'FeatureCollection';
+  } catch {
+    return false;
+  }
+}
+
 // --- Schema registry ---
 
 const SCHEMAS: QueryResultSchema[] = [
@@ -47,6 +59,13 @@ const SCHEMAS: QueryResultSchema[] = [
     schemaType: 'json-schema',
     schemaPath: '/schemas/covjson/1.0/coveragejson.json',
     detect: detectCoverageJson,
+  },
+  {
+    id: 'edr-locations',
+    displayName: 'EDR Locations FeatureCollection',
+    schemaType: 'json-schema',
+    schemaPath: '/schemas/edr/1.1/edrFeatureCollectionGeoJSON.json',
+    detect: detectEdrLocations,
   },
 ];
 
@@ -77,8 +96,8 @@ export class QueryResultValidator {
   /**
    * Validate query result data against the first matching schema in the registry.
    */
-  public async validate(data: string, contentType: string): Promise<QueryResultValidation> {
-    const schema = SCHEMAS.find(s => s.detect(data, contentType));
+  public async validate(data: string, contentType: string, url?: string): Promise<QueryResultValidation> {
+    const schema = SCHEMAS.find(s => s.detect(data, contentType, url));
     if (!schema) {
       return { matched: false };
     }

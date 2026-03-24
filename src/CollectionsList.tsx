@@ -22,6 +22,8 @@ import { useGeoJsonLayers } from './contexts/GeoJsonLayerContext';
 import { useMapInteraction } from './contexts/MapInteractionContext';
 import { useCollection } from './contexts/CollectionContext';
 import { useService } from './contexts/ServiceContext';
+import { useValidation } from './contexts/ValidationContext';
+import { detectEdrVersion, validateLocationsResponse } from './validation/locationsValidator';
 import { UseQueryUrlReturn } from './hooks/useQueryUrl';
 
 interface CollectionsListProps {
@@ -94,7 +96,8 @@ const CollectionsList = ({
   const { geoJsonLayers, setGeoJsonLayers } = useGeoJsonLayers();
   const { setClickedCoords, setDataQuery } = useMapInteraction();
   const { selectedCollection, setSelectedCollection, setSelectedCollectionExtents, locationFeatures, setLocationFeatures, setSelectedFeature, setCollectionUrl, selectCollectionByIndexRef } = useCollection();
-  const { getAuthCredentials } = useService();
+  const { getAuthCredentials, conformsTo } = useService();
+  const { setValidationResult, setEndpointUrls, setRawResponses } = useValidation();
   const {
     selectedDatetime,
     datetimeMode,
@@ -227,6 +230,31 @@ const CollectionsList = ({
             if (locationResult && locationResult.features) {
               setLocationFeatures(locationResult.features);
               setCurrentLocationCollection(collection.id);
+
+              // Validate locations response against EDR schema (non-blocking)
+              const edrVersion = detectEdrVersion(conformsTo);
+              if (edrVersion) {
+                validateLocationsResponse(locationResult, edrVersion).then(locValidation => {
+                  setValidationResult(prev => {
+                    const mergedErrors = [
+                      ...(prev.errors || []).filter(e => e.section !== 'Locations'),
+                      ...locValidation.errors,
+                    ];
+                    return {
+                      ...prev,
+                      locationsValidation: {
+                        isValid: locValidation.isValid,
+                        errors: locValidation.errors.length > 0 ? locValidation.errors : null,
+                        schemaResults: [{ schema: `EDR ${edrVersion} Locations`, isValid: locValidation.isValid }],
+                      },
+                      errors: mergedErrors.length > 0 ? mergedErrors : null,
+                      isValid: prev.isValid && locValidation.isValid,
+                    };
+                  });
+                  setEndpointUrls(prev => ({ ...prev, locations: locationQueryUrl }));
+                  setRawResponses(prev => ({ ...prev, locations: locationResult }));
+                });
+              }
             } else {
               setLocationFeatures(null);
               setCurrentLocationCollection(null);
@@ -248,6 +276,23 @@ const CollectionsList = ({
       setLocationFeatures(null);
       setCurrentLocationCollection(null);
       setGeoJsonLayers([]);
+      // Clear locations validation
+      setValidationResult(prev => {
+        const filteredErrors = (prev.errors || []).filter(e => e.section !== 'Locations');
+        const { locationsValidation: _, ...rest } = prev;
+        const sectionsValid = [
+          prev.landingPageValidation?.isValid ?? true,
+          prev.collectionsValidation?.isValid ?? true,
+          prev.conformanceValidation?.isValid ?? true,
+        ].every(Boolean);
+        return {
+          ...rest,
+          errors: filteredErrors.length > 0 ? filteredErrors : null,
+          isValid: sectionsValid && filteredErrors.length === 0,
+        };
+      });
+      setEndpointUrls(prev => ({ ...prev, locations: undefined }));
+      setRawResponses(prev => ({ ...prev, locations: undefined }));
     }
   };
 
