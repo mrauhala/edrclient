@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
@@ -56,8 +56,6 @@ const DataModal: React.FC<DataModalProps> = ({
   const [viewMode, setViewMode] = useState<'code' | 'preview'>('code');
   const [transformedHtml, setTransformedHtml] = useState<string | null>(null);
   const [transformError, setTransformError] = useState<string | null>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  
   // Check if data is IWXXM XML
   const isIWXXM = useCallback(() => {
     if (!data || !contentType) return false;
@@ -315,48 +313,15 @@ const DataModal: React.FC<DataModalProps> = ({
 
   const currentError = errorLineList[currentErrorIdx];
 
-  // Scroll to a specific line number in the code view
-  const scrollToLineNumber = useCallback((lineNum: number) => {
-    let attempts = 0;
-    const interval = setInterval(() => {
-      attempts++;
-      const container = scrollContainerRef.current;
-      if (!container) { if (attempts > 30) clearInterval(interval); return; }
-
-      const target = container.querySelector(`[data-line-number="${lineNum}"]`) as HTMLElement | null;
-      if (!target) { if (attempts > 30) clearInterval(interval); return; }
-
-      clearInterval(interval);
-      const containerRect = container.getBoundingClientRect();
-      const targetRect = target.getBoundingClientRect();
-      const offsetInContainer = targetRect.top - containerRect.top + container.scrollTop;
-      container.scrollTo({
-        top: offsetInContainer - container.clientHeight / 2,
-        behavior: 'smooth',
-      });
-    }, 100);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Initial scroll on open
-  useEffect(() => {
-    if (!currentError || !data || isLoading) return;
-    return scrollToLineNumber(currentError.line);
-  }, [currentError?.line, data, isLoading, scrollToLineNumber]); // eslint-disable-line react-hooks/exhaustive-deps
-
   const handlePrevError = useCallback(() => {
     if (currentErrorIdx <= 0) return;
-    const newIdx = currentErrorIdx - 1;
-    setCurrentErrorIdx(newIdx);
-    scrollToLineNumber(errorLineList[newIdx].line);
-  }, [currentErrorIdx, errorLineList, scrollToLineNumber]);
+    setCurrentErrorIdx(currentErrorIdx - 1);
+  }, [currentErrorIdx]);
 
   const handleNextError = useCallback(() => {
     if (currentErrorIdx >= errorLineList.length - 1) return;
-    const newIdx = currentErrorIdx + 1;
-    setCurrentErrorIdx(newIdx);
-    scrollToLineNumber(errorLineList[newIdx].line);
-  }, [currentErrorIdx, errorLineList, scrollToLineNumber]);
+    setCurrentErrorIdx(currentErrorIdx + 1);
+  }, [currentErrorIdx, errorLineList.length]);
 
   // Keyboard navigation: Ctrl/Cmd + ArrowUp/Down for prev/next error
   useEffect(() => {
@@ -574,7 +539,6 @@ const DataModal: React.FC<DataModalProps> = ({
             )}
 
             <Box
-              ref={scrollContainerRef}
               sx={{
                 flex: 1,
                 overflow: 'auto',
@@ -605,7 +569,7 @@ const DataModal: React.FC<DataModalProps> = ({
                     errorLines={errorLines}
                     gutterRanges={gutterRanges}
                     errorColor={theme.palette.error.main}
-                    scrollToLine={errorLineList[initialErrorIdx]?.line}
+                    scrollToLine={currentError?.line}
                   />
                 ) : (
                   <pre style={{
