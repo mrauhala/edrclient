@@ -109,6 +109,7 @@ export interface ValidationError {
   allowedValues?: any;
   schema?: any;
   data?: any;
+  params?: Record<string, any>;
   collectionId?: string;
   section?: string;
 }

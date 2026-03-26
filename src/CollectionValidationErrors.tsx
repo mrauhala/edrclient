@@ -38,13 +38,17 @@ const CollectionValidationErrors: React.FC<CollectionValidationErrorsProps> = ({
       message = message.replace(`/collections/${collectionId}/`, '');
     }
     
-    // Add context for specific validation types
-    if (error.keyword === 'required' && error.schema?.required) {
-      message += ` (Required fields: ${error.schema.required.join(', ')})`;
+    // Add context from AJV params
+    if (error.keyword === 'required' && error.params?.missingProperty) {
+      message += ` (missing: ${error.params.missingProperty})`;
     }
-    
-    if (error.allowedValues) {
-      message += ` (Allowed values: ${error.allowedValues.join(', ')})`;
+
+    if (error.params?.allowedValues) {
+      message += ` (Allowed: ${error.params.allowedValues.join(', ')})`;
+    }
+
+    if (error.params?.type) {
+      message += ` (expected type: ${error.params.type})`;
     }
     
     return message;

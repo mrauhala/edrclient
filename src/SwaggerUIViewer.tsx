@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
-import SwaggerUI from 'swagger-ui-react';
-import 'swagger-ui-react/swagger-ui.css';
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button, IconButton, Box } from '@mui/material';
+import React, { lazy, Suspense, useState } from 'react';
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, IconButton, Box, CircularProgress } from '@mui/material';
 import ApiIcon from '@mui/icons-material/Api';
 import CloseIcon from '@mui/icons-material/Close';
+
+// CSS loaded eagerly (small); JS loaded lazily (large ~1.5MB)
+import 'swagger-ui-react/swagger-ui.css';
+const LazySwaggerUI = lazy(() => import('swagger-ui-react'));
 
 interface SwaggerUIViewerProps {
   serviceDescUrl?: string | null;
@@ -66,7 +68,9 @@ const SwaggerUIViewer: React.FC<SwaggerUIViewerProps> = ({ serviceDescUrl, servi
         </DialogTitle>
         <DialogContent dividers sx={{ p: 0, height: 'calc(100% - 64px)', backgroundColor: '#fff' }}>
           <Box sx={{ height: '100%', overflow: 'auto', backgroundColor: '#fff' }}>
-            <SwaggerUI url={serviceDescUrl} />
+            <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>}>
+              <LazySwaggerUI url={serviceDescUrl} />
+            </Suspense>
           </Box>
         </DialogContent>
         <DialogActions>

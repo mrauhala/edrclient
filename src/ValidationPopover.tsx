@@ -265,11 +265,26 @@ const ValidationPopover: React.FC = () => {
                                 {hasUrl && <OpenInNewIcon sx={{ fontSize: 10, color: 'text.disabled' }} />}
                               </Box>
                             )}
-                            <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5, flexWrap: 'wrap' }}>
                               {error.keyword && (
                                 <Chip label={error.keyword} size="small" variant="outlined" sx={{ fontSize: '0.6rem', height: 16 }} />
                               )}
                               <Typography variant="caption">{msg}</Typography>
+                              {error.params?.missingProperty && (
+                                <Typography variant="caption" color="error.main" sx={{ fontFamily: 'monospace', fontSize: '0.65rem' }}>
+                                  missing: {error.params.missingProperty}
+                                </Typography>
+                              )}
+                              {error.params?.allowedValues && (
+                                <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace', fontSize: '0.65rem' }}>
+                                  allowed: {error.params.allowedValues.slice(0, 5).join(', ')}{error.params.allowedValues.length > 5 ? '...' : ''}
+                                </Typography>
+                              )}
+                              {error.data !== undefined && error.keyword !== 'required' && (
+                                <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace', fontSize: '0.65rem' }}>
+                                  got: {typeof error.data === 'object' ? JSON.stringify(error.data).slice(0, 60) : String(error.data).slice(0, 60)}
+                                </Typography>
+                              )}
                             </Box>
                           </ButtonBase>
                         );

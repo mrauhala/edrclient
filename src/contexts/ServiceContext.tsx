@@ -30,7 +30,18 @@ export function ServiceProvider({ children, customServices, selectedServiceUrl, 
   const [conformsTo, setConformsTo] = useState<string[] | null>(null);
   const getAuthCredentials = useMemo(() => {
     return (url: string): AuthCredentials | undefined => {
-      const service = customServices.find(s => url.includes(s.url));
+      const service = customServices.find(s => {
+        try {
+          const reqUrl = new URL(url);
+          const svcUrl = new URL(s.url);
+          return reqUrl.hostname === svcUrl.hostname
+            && reqUrl.port === svcUrl.port
+            && reqUrl.pathname.startsWith(svcUrl.pathname.replace(/\/$/, ''));
+        } catch {
+          // Fallback for invalid URLs
+          return url.includes(s.url);
+        }
+      });
       if (service) {
         if (service.customAuthHeader) {
           return { customAuthHeader: service.customAuthHeader };
