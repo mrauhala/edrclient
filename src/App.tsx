@@ -1,7 +1,7 @@
 import Sidebar from './Sidebar';
 import TopMenu from './TopMenu';
 import { CustomService } from './types/CustomService';
-import React, { lazy, Suspense, useState, useMemo, useEffect, useCallback } from 'react';
+import React, { lazy, Suspense, useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import Box from '@mui/material/Box';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -90,6 +90,9 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
   const { collectionUrl } = useCollection();
   useCollectionKeyboardNav();
   const { getAuthCredentials, setSelectedServiceUrl } = useService();
+
+  // Abort controller for in-flight data fetches
+  const fetchControllerRef = useRef<AbortController | null>(null);
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
@@ -230,6 +233,11 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
   const handleFetchData = useCallback(async () => {
     if (!collectionUrl) return;
 
+    // Cancel any in-flight fetch
+    fetchControllerRef.current?.abort();
+    const controller = new AbortController();
+    fetchControllerRef.current = controller;
+
     setModalOpen(true);
     setModalUrl(collectionUrl);
     setModalValidationErrors([]);
@@ -242,7 +250,7 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
 
     try {
       const auth = getAuthCredentials(collectionUrl);
-      
+
       // Add API key to URL if provided
       let finalUrl = collectionUrl;
       if (auth && (auth as any).apiKey) {
@@ -251,14 +259,15 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
         urlObj.searchParams.set(paramName, (auth as any).apiKey);
         finalUrl = urlObj.toString();
       }
-      
+
       const config: any = {
         responseType: 'text',
+        signal: controller.signal,
         headers: {
           'Accept': '*/*'
         }
       };
-      
+
       // Add Bearer token if provided
       if (auth && (auth as any).bearerToken) {
         config.headers['Authorization'] = `Bearer ${(auth as any).bearerToken}`;
@@ -270,7 +279,7 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
           password: (auth as any).password
         };
       }
-      
+
       const response = await axios.get(finalUrl, config);
 
       const contentType = response.headers['content-type'] || '';
@@ -337,6 +346,9 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
         }
       }
     } catch (error: any) {
+      // Ignore aborted requests (user started a new fetch or closed modal)
+      if (controller.signal.aborted) return;
+
       console.error('Error fetching data:', error);
 
       // Classify error for actionable feedback

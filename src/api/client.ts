@@ -5,7 +5,7 @@ import { normalizeHref } from '../utils/href';
 import { sanitizeUrl } from '../utils/sanitizeUrl';
 import { getAxiosConfig, addApiKeyToUrl } from './auth';
 
-export async function getCollections(apiUrl: string, auth?: AuthCredentials): Promise<GetCollectionsResult> {
+export async function getCollections(apiUrl: string, auth?: AuthCredentials, signal?: AbortSignal): Promise<GetCollectionsResult> {
   // Initialize the schema validator outside the try block so it's accessible in the catch block
   const validator = SchemaValidator.getInstance();
   // Hoisted so these are available in the catch block for partial error returns
@@ -33,7 +33,7 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
     // Add API key if provided
     const finalLandingPageUrl = addApiKeyToUrl(landingPageUrl.toString(), auth);
 
-    const landingPageResponse = await axios.get<LandingPage>(finalLandingPageUrl, getAxiosConfig(auth));
+    const landingPageResponse = await axios.get<LandingPage>(finalLandingPageUrl, getAxiosConfig(auth, signal));
     landingPageData = landingPageResponse.data;
 
     // Step 2: Extract the collections URL and conformance URL from landing page links
@@ -129,7 +129,7 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
         conformanceUrlWithFormat.searchParams.set('f', 'json');
       }
       const finalConformanceUrl = addApiKeyToUrl(conformanceUrlWithFormat.toString(), auth);
-      const conformanceResponse = await axios.get<{ conformsTo: string[] }>(finalConformanceUrl, getAxiosConfig(auth));
+      const conformanceResponse = await axios.get<{ conformsTo: string[] }>(finalConformanceUrl, getAxiosConfig(auth, signal));
       return conformanceResponse.data?.conformsTo;
     })();
 
@@ -151,7 +151,7 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
             urlWithFormat.searchParams.set('f', 'json');
           }
           const finalUrl = addApiKeyToUrl(urlWithFormat.toString(), auth);
-          result = await axios.get<CollectionsResponse>(finalUrl, getAxiosConfig(auth));
+          result = await axios.get<CollectionsResponse>(finalUrl, getAxiosConfig(auth, signal));
           collectionsUrl = candidate;
           console.log('Collections fetch succeeded from:', sanitizeUrl(candidate), 'status:', result.status);
           return result;

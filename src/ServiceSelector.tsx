@@ -168,6 +168,8 @@ const ServiceSelector = ({
 
   // Load collections when apiUrl changes
   useEffect(() => {
+    const controller = new AbortController();
+
     async function loadCollections() {
       setIsLoading(true);
       onBeforeLoad();
@@ -175,18 +177,23 @@ const ServiceSelector = ({
 
       try {
         console.log('Loading collections from:', apiUrl);
-        const result = await getCollections(apiUrl, getAuthCredentials(apiUrl));
+        const result = await getCollections(apiUrl, getAuthCredentials(apiUrl), controller.signal);
+        if (controller.signal.aborted) return;
         setServiceDescUrl(result.serviceDescUrl || null);
         onLoadResult(result);
       } catch (error) {
+        if (controller.signal.aborted) return;
         console.error('Error loading collections:', error);
         onLoadError(error instanceof Error ? error : new Error('Unknown error loading collections'));
       } finally {
-        setIsLoading(false);
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
       }
     }
 
     loadCollections();
+    return () => controller.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiUrl, validationTrigger]);
 

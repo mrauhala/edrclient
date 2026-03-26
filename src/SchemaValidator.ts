@@ -327,7 +327,9 @@ export class SchemaValidator {
               section: 'Collections',
               path: error.instancePath || error.dataPath || 'root',
               message: `${error.instancePath || error.dataPath || ''}: ${error.message}`,
-              keyword: error.keyword
+              keyword: error.keyword,
+              params: error.params,
+              data: error.data,
             }));
             
             // Group errors by collection and tag each error with collectionId
@@ -438,7 +440,9 @@ export class SchemaValidator {
               section: 'Landing Page',
               path: error.instancePath || error.dataPath || 'root',
               message: `${error.instancePath || error.dataPath || ''}: ${error.message}`,
-              keyword: error.keyword
+              keyword: error.keyword,
+              params: error.params,
+              data: error.data,
             }));
             allErrors.push(...errors);
           }
@@ -514,7 +518,9 @@ export class SchemaValidator {
               section: 'Conformance',
               path: error.instancePath || error.dataPath || 'root',
               message: `${error.instancePath || error.dataPath || ''}: ${error.message}`,
-              keyword: error.keyword
+              keyword: error.keyword,
+              params: error.params,
+              data: error.data,
             }));
             allErrors.push(...errors);
           }
