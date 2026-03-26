@@ -6,7 +6,7 @@ import Alert from '@mui/material/Alert';
 import Divider from '@mui/material/Divider';
 
 interface CoverageJsonChartProps {
-  data: string;
+  data: unknown;
 }
 
 interface CoverageJson {
@@ -307,21 +307,12 @@ const SingleCoverageChart: React.FC<{ coverage: CoverageJson; index?: number }> 
 
 // Main component that handles both Coverage and CoverageCollection
 const CoverageJsonChart: React.FC<CoverageJsonChartProps> = ({ data }) => {
-  let parsed;
-  let parseError: string | null = null;
+  const parsed = data as any;
 
-  try {
-    parsed = JSON.parse(data);
-  } catch (err) {
-    parseError = err instanceof Error ? err.message : 'Unknown error';
-  }
-
-  if (parseError) {
+  if (!parsed || typeof parsed !== 'object') {
     return (
       <Box sx={{ p: 2 }}>
-        <Alert severity="error">
-          Failed to parse CoverageJSON: {parseError}
-        </Alert>
+        <Alert severity="error">Invalid CoverageJSON data</Alert>
       </Box>
     );
   }
