@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
@@ -7,6 +7,7 @@ import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import CheckIcon from '@mui/icons-material/Check';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import CodeIcon from '@mui/icons-material/Code';
@@ -56,6 +57,10 @@ const DataModal: React.FC<DataModalProps> = ({
 }) => {
   const theme = useTheme();
   const [viewMode, setViewMode] = useState<'code' | 'preview'>('code');
+  const [copiedUrl, setCopiedUrl] = useState(false);
+  const [copiedData, setCopiedData] = useState(false);
+  const copyUrlTimer = useRef<ReturnType<typeof setTimeout>>();
+  const copyDataTimer = useRef<ReturnType<typeof setTimeout>>();
 
   const {
     parsedJson, isIWXXM, isCoverageJsonPointSeries, shouldShowToggle,
@@ -75,17 +80,27 @@ const DataModal: React.FC<DataModalProps> = ({
     }
   };
 
-  const handleCopyData = () => {
-    if (data) {
-      navigator.clipboard.writeText(data);
-    }
-  };
+  const handleCopyData = useCallback(() => {
+    if (!data) return;
+    navigator.clipboard.writeText(data).then(() => {
+      setCopiedData(true);
+      clearTimeout(copyDataTimer.current);
+      copyDataTimer.current = setTimeout(() => setCopiedData(false), 1500);
+    }).catch(() => {
+      // Clipboard write failed silently — no feedback shown
+    });
+  }, [data]);
 
-  const handleCopyUrl = () => {
-    if (url) {
-      navigator.clipboard.writeText(url);
-    }
-  };
+  const handleCopyUrl = useCallback(() => {
+    if (!url) return;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiedUrl(true);
+      clearTimeout(copyUrlTimer.current);
+      copyUrlTimer.current = setTimeout(() => setCopiedUrl(false), 1500);
+    }).catch(() => {
+      // Clipboard write failed silently — no feedback shown
+    });
+  }, [url]);
 
   return (
     <Dialog
@@ -95,8 +110,12 @@ const DataModal: React.FC<DataModalProps> = ({
       fullWidth
       PaperProps={{
         sx: {
-          height: '90vh',
-          maxHeight: '90vh',
+          height: { xs: '100vh', sm: '90vh' },
+          maxHeight: { xs: '100vh', sm: '90vh' },
+          m: { xs: 0, sm: 4 },
+          width: { xs: '100%', sm: undefined },
+          maxWidth: { xs: '100%', sm: undefined },
+          borderRadius: { xs: 0, sm: 1 },
         }
       }}
     >
@@ -115,13 +134,14 @@ const DataModal: React.FC<DataModalProps> = ({
               </Typography>
             )}
           </Box>
-          <Tooltip title="Copy URL">
+          <Tooltip title={copiedUrl ? "Copied!" : "Copy URL"}>
             <IconButton
               size="small"
               onClick={handleCopyUrl}
+              color={copiedUrl ? "success" : "default"}
               sx={{ ml: 1, flexShrink: 0 }}
             >
-              <ContentCopyIcon fontSize="small" />
+              {copiedUrl ? <CheckIcon fontSize="small" /> : <ContentCopyIcon fontSize="small" />}
             </IconButton>
           </Tooltip>
         </Box>
@@ -163,10 +183,12 @@ const DataModal: React.FC<DataModalProps> = ({
               borderBottom: '1px solid',
               borderColor: 'divider',
               display: 'flex',
+              flexWrap: 'wrap',
               justifyContent: 'space-between',
-              alignItems: 'center'
+              alignItems: 'center',
+              gap: 0.5,
             }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                 <Typography variant="body2" color="text.secondary">
                   Content Type: {contentTypeLabel}
                 </Typography>
@@ -237,9 +259,9 @@ const DataModal: React.FC<DataModalProps> = ({
                 )}
               </Box>
 
-              <Tooltip title="Copy to clipboard">
-                <IconButton size="small" onClick={handleCopyData}>
-                  <ContentCopyIcon fontSize="small" />
+              <Tooltip title={copiedData ? "Copied!" : "Copy to clipboard"}>
+                <IconButton size="small" onClick={handleCopyData} color={copiedData ? "success" : "default"}>
+                  {copiedData ? <CheckIcon fontSize="small" /> : <ContentCopyIcon fontSize="small" />}
                 </IconButton>
               </Tooltip>
             </Box>
