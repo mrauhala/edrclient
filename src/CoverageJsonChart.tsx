@@ -99,7 +99,7 @@ const SingleCoverageChart: React.FC<{ coverage: CoverageJson; index?: number }> 
 
       // Build series data for each parameter
       const series: Array<{
-        data: number[];
+        data: (number | null)[];
         label: string;
         valueFormatter?: (value: number | null) => string;
         yAxisKey?: string;
@@ -113,13 +113,9 @@ const SingleCoverageChart: React.FC<{ coverage: CoverageJson; index?: number }> 
         const parameter = parameters[paramKey];
 
         if (range.values && range.values.length > 0) {
-          // Filter out null values and create corresponding data points
-          const dataPoints = range.values.map((value, index) => ({
-            x: timestamps[index],
-            y: value !== null ? value : NaN
-          }));
-
-          const values = dataPoints.map(p => p.y);
+          const values: (number | null)[] = range.values.map((value, index) =>
+            index < timestamps.length ? value : null
+          );
           
           // Get parameter label (try English first, then Finnish, then fallback to key)
           let label = paramKey;
@@ -169,7 +165,7 @@ const SingleCoverageChart: React.FC<{ coverage: CoverageJson; index?: number }> 
           series.push({
             data: values,
             label: label,
-            valueFormatter: unit ? (value) => `${value} ${unit}` : undefined,
+            valueFormatter: unit ? (value) => value !== null ? `${value} ${unit}` : '—' : undefined,
             yAxisKey: yAxisKey
           });
         }
@@ -198,7 +194,7 @@ const SingleCoverageChart: React.FC<{ coverage: CoverageJson; index?: number }> 
     }
     const { series } = chartData as {
       timestamps: number[];
-      series: Array<{ data: number[]; label: string; valueFormatter?: (value: number | null) => string; yAxisKey?: string }>;
+      series: Array<{ data: (number | null)[]; label: string; valueFormatter?: (value: number | null) => string; yAxisKey?: string }>;
       unitMap: Map<string, string>;
     };
     return new Set(series.map(s => s.label));
@@ -214,7 +210,7 @@ const SingleCoverageChart: React.FC<{ coverage: CoverageJson; index?: number }> 
 
   const { timestamps, series, unitMap } = chartData as {
     timestamps: number[];
-    series: Array<{ data: number[]; label: string; valueFormatter?: (value: number | null) => string; yAxisKey?: string }>;
+    series: Array<{ data: (number | null)[]; label: string; valueFormatter?: (value: number | null) => string; yAxisKey?: string }>;
     unitMap: Map<string, string>;
   };
   
