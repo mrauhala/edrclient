@@ -56,66 +56,61 @@ const DataModal: React.FC<DataModalProps> = ({
   const [viewMode, setViewMode] = useState<'code' | 'preview'>('code');
   const [transformedHtml, setTransformedHtml] = useState<string | null>(null);
   const [transformError, setTransformError] = useState<string | null>(null);
+
+  // Parse JSON once, derive everything from it
+  const parsedJson = useMemo(() => {
+    if (!data || !contentType?.includes('json')) return null;
+    try {
+      return JSON.parse(data) as unknown;
+    } catch {
+      return null;
+    }
+  }, [data, contentType]);
+
   // Check if data is IWXXM XML
   const isIWXXM = useCallback(() => {
     if (!data || !contentType) return false;
-    return contentType.includes('xml') && 
-           (data.includes('iwxxm/3.0') || data.includes('iwxxm/2.1') || 
+    return contentType.includes('xml') &&
+           (data.includes('iwxxm/3.0') || data.includes('iwxxm/2.1') ||
             data.includes('METAR') || data.includes('TAF') || data.includes('SIGMET'));
   }, [data, contentType]);
-  
+
   // Check if data is CoverageJSON PointSeries or Grid with single point
-  const isCoverageJsonPointSeries = useCallback(() => {
-    if (!data || !contentType) return false;
-    if (!contentType.includes('json')) return false;
-    
-    try {
-      const parsed = JSON.parse(data);
-      
-      // Check if it's a CoverageCollection
-      if (parsed.type === 'CoverageCollection' && parsed.coverages && Array.isArray(parsed.coverages)) {
-        // Check if at least one coverage is chartable
-        return parsed.coverages.some((coverage: any) => {
-          const domainType = coverage.domain?.domainType;
-          
-          // PointSeries is supported
-          if (domainType === 'PointSeries') return true;
-          
-          // Grid with single x,y point is also supported
-          if (domainType === 'Grid') {
-            const xValues = coverage.domain?.axes?.x?.values;
-            const yValues = coverage.domain?.axes?.y?.values;
-            return xValues?.length === 1 && yValues?.length === 1;
-          }
-          
-          return false;
-        });
-      }
-      
-      // Check if it's a single Coverage
-      if (parsed.type !== 'Coverage') return false;
-      
-      const domainType = parsed.domain?.domainType;
-      
-      // PointSeries is supported
-      if (domainType === 'PointSeries') return true;
-      
-      // Grid with single x,y point is also supported
-      if (domainType === 'Grid') {
-        const xValues = parsed.domain?.axes?.x?.values;
-        const yValues = parsed.domain?.axes?.y?.values;
-        return xValues?.length === 1 && yValues?.length === 1;
-      }
-      
-      return false;
-    } catch (e) {
-      return false;
+  const isCoverageJsonPointSeries = useMemo(() => {
+    if (!parsedJson || typeof parsedJson !== 'object') return false;
+    const parsed = parsedJson as any;
+
+    // Check if it's a CoverageCollection
+    if (parsed.type === 'CoverageCollection' && parsed.coverages && Array.isArray(parsed.coverages)) {
+      return parsed.coverages.some((coverage: any) => {
+        const domainType = coverage.domain?.domainType;
+        if (domainType === 'PointSeries') return true;
+        if (domainType === 'Grid') {
+          const xValues = coverage.domain?.axes?.x?.values;
+          const yValues = coverage.domain?.axes?.y?.values;
+          return xValues?.length === 1 && yValues?.length === 1;
+        }
+        return false;
+      });
     }
-  }, [data, contentType]);
-  
+
+    // Check if it's a single Coverage
+    if (parsed.type !== 'Coverage') return false;
+
+    const domainType = parsed.domain?.domainType;
+    if (domainType === 'PointSeries') return true;
+    if (domainType === 'Grid') {
+      const xValues = parsed.domain?.axes?.x?.values;
+      const yValues = parsed.domain?.axes?.y?.values;
+      return xValues?.length === 1 && yValues?.length === 1;
+    }
+
+    return false;
+  }, [parsedJson]);
+
   // Check if we should show code/preview toggle
-  const shouldShowToggle = useCallback(() => {
-    return isIWXXM() || isCoverageJsonPointSeries();
+  const shouldShowToggle = useMemo(() => {
+    return isIWXXM() || isCoverageJsonPointSeries;
   }, [isIWXXM, isCoverageJsonPointSeries]);
   
   // Transform XML using XSLT
@@ -223,24 +218,12 @@ const DataModal: React.FC<DataModalProps> = ({
     return 'text';
   };
 
-  const formatData = () => {
-    if (!data) return '';
-    
-    try {
-      // Try to parse and pretty-print JSON
-      if (contentType?.includes('json')) {
-        const parsed = JSON.parse(data);
-        return JSON.stringify(parsed, null, 2);
-      }
-    } catch (e) {
-      // If parsing fails, return as-is
-    }
-    
-    return data;
-  };
-
   // Compute formatted data once for highlighting calculations
-  const formattedData = useMemo(() => formatData(), [data, contentType]); // eslint-disable-line react-hooks/exhaustive-deps
+  const formattedData = useMemo(() => {
+    if (!data) return '';
+    if (parsedJson !== null) return JSON.stringify(parsedJson, null, 2);
+    return data;
+  }, [data, parsedJson]);
 
   const shouldUseCodeView = () => {
     const language = getLanguage();
@@ -463,7 +446,7 @@ const DataModal: React.FC<DataModalProps> = ({
                   </Box>
                 )}
 
-                {shouldShowToggle() && (
+                {shouldShowToggle && (
                   <ToggleButtonGroup
                     value={viewMode}
                     exclusive
@@ -558,8 +541,8 @@ const DataModal: React.FC<DataModalProps> = ({
                   }}
                   title="IWXXM Preview"
                 />
-              ) : viewMode === 'preview' && isCoverageJsonPointSeries() ? (
-                <CoverageJsonChart data={data} />
+              ) : viewMode === 'preview' && isCoverageJsonPointSeries ? (
+                <CoverageJsonChart data={parsedJson} />
               ) : (
                 shouldUseCodeView() ? (
                   <VirtualizedCodeView
