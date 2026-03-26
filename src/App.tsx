@@ -10,6 +10,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 const OpenLayersMap = lazy(() => import('./Map'));
 const SettingsDrawer = lazy(() => import('./SettingsDrawer'));
 const DataModal = lazy(() => import('./DataModal'));
+import ErrorBoundary from './ErrorBoundary';
 import { GeoJsonLayerProvider, useGeoJsonLayers } from './contexts/GeoJsonLayerContext';
 import { LayerManagerProvider } from './contexts/LayerManagerContext';
 import { ValidationProvider } from './contexts/ValidationContext';
@@ -337,7 +338,33 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
       }
     } catch (error: any) {
       console.error('Error fetching data:', error);
-      setModalError(error.message || 'Failed to fetch data');
+
+      // Classify error for actionable feedback
+      let message = error.message || 'Failed to fetch data';
+
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        message = `Authentication failed (${error.response.status}). Check your credentials in Settings (S).`;
+      } else if (error.response?.status === 404) {
+        message = `Endpoint not found (404). Verify the query URL is correct.`;
+      } else if (error.response?.status === 429) {
+        message = `Rate limited (429). Wait a moment and try again.`;
+      } else if (error.response?.status >= 500) {
+        message = `Server error (${error.response.status}). The API returned an internal error.`;
+      } else if (
+        error.message?.includes('CORS') ||
+        error.message?.includes('Access-Control-Allow-Origin') ||
+        error.message?.includes('cross-origin')
+      ) {
+        message = 'CORS blocked. Your API must include the Access-Control-Allow-Origin header for this origin.';
+      } else if (
+        error.code === 'ERR_NETWORK' ||
+        error.message?.includes('Network Error') ||
+        error.message?.includes('Failed to fetch')
+      ) {
+        message = 'Network error. The API may be unreachable or blocking cross-origin requests (CORS).';
+      }
+
+      setModalError(message);
     } finally {
       setModalLoading(false);
     }
@@ -390,9 +417,11 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
           paddingBottom: '56px', // Height of the bottom bar
         }}
       >
-        <Sidebar
-          open={sidebarOpen}
-        />
+        <ErrorBoundary fallbackMessage="Sidebar crashed. Click Retry to recover.">
+          <Sidebar
+            open={sidebarOpen}
+          />
+        </ErrorBoundary>
         
         <Box 
           component="main" 
@@ -403,11 +432,13 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
             overflow: 'hidden',
           }}
         >
-          <Suspense fallback={<Box sx={{ width: '100%', height: '100%', bgcolor: 'background.default' }} />}>
-            <OpenLayersMap
-              zoomLevel={2}
-            />
-          </Suspense>
+          <ErrorBoundary fallbackMessage="Map crashed. Click Retry to recover.">
+            <Suspense fallback={<Box sx={{ width: '100%', height: '100%', bgcolor: 'background.default' }} />}>
+              <OpenLayersMap
+                zoomLevel={2}
+              />
+            </Suspense>
+          </ErrorBoundary>
         </Box>
       </Box>
       
@@ -481,20 +512,22 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
         />
       </Suspense>
 
-      <Suspense fallback={null}>
-        <DataModal
-          open={modalOpen}
-          onClose={handleCloseModal}
-          data={modalData}
-          contentType={modalContentType}
-          isLoading={modalLoading}
-          error={modalError}
-          url={modalUrl || collectionUrl}
-          validationErrors={modalValidationErrors}
-          validationSchemaName={modalValidationSchemaName}
-          scrollToPath={modalScrollToPath}
-        />
-      </Suspense>
+      <ErrorBoundary fallbackMessage="Data viewer crashed. Click Retry to recover.">
+        <Suspense fallback={null}>
+          <DataModal
+            open={modalOpen}
+            onClose={handleCloseModal}
+            data={modalData}
+            contentType={modalContentType}
+            isLoading={modalLoading}
+            error={modalError}
+            url={modalUrl || collectionUrl}
+            validationErrors={modalValidationErrors}
+            validationSchemaName={modalValidationSchemaName}
+            scrollToPath={modalScrollToPath}
+          />
+        </Suspense>
+      </ErrorBoundary>
     </Box>
     </ThemeProvider>
   );
