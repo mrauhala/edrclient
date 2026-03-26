@@ -116,77 +116,105 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
       };
     }
 
-    // Step 3: Fetch conformance classes to determine which schema to use
-    let conformsTo: string[] | undefined = undefined;
-    if (conformanceUrl) {
-      try {
-        console.log('Step 2: Fetching conformance to determine schema type:', sanitizeUrl(conformanceUrl));
-        const conformanceUrlWithFormat = new URL(conformanceUrl);
-        if (!conformanceUrlWithFormat.searchParams.has('f')) {
-          conformanceUrlWithFormat.searchParams.set('f', 'json');
-        }
+    // Step 3: Fetch conformance and collections in parallel
+    // Both are independent after extracting URLs from the landing page.
+    // Schema loading + validation happen after both complete.
 
-        // Add API key if provided
-        const finalConformanceUrl = addApiKeyToUrl(conformanceUrlWithFormat.toString(), auth);
-
-        const conformanceResponse = await axios.get<{ conformsTo: string[] }>(finalConformanceUrl, getAxiosConfig(auth));
-
-        if (conformanceResponse.data && conformanceResponse.data.conformsTo) {
-          conformsTo = conformanceResponse.data.conformsTo;
-          console.log(`Found ${conformsTo.length} conformance classes:`, conformsTo);
-        }
-      } catch (error) {
-        let errorTitle = 'Conformance Endpoint Error';
-        let errorMessage = 'Failed to fetch conformance information';
-        let errorType: 'cors' | 'network' | 'unknown' = 'unknown';
-
-        if (error instanceof Error) {
-          if (error.message.includes('CORS') ||
-              error.message.includes('Access-Control-Allow-Origin') ||
-              error.message.includes('cross-origin')) {
-            errorTitle = 'Conformance CORS Error';
-            errorType = 'cors';
-            errorMessage = `Conformance endpoint (${conformanceUrl}) does not allow cross-origin requests.`;
-          } else if (error.message.includes('Network Error') ||
-                     error.message.includes('ERR_NETWORK') ||
-                     error.message.includes('Failed to fetch')) {
-            errorTitle = 'Conformance Unreachable';
-            errorType = 'network';
-            errorMessage = `Unable to connect to conformance endpoint (${conformanceUrl}).`;
-          } else if (error.message.includes('404')) {
-            errorTitle = 'Conformance Not Found';
-            errorType = 'network';
-            errorMessage = `Conformance endpoint (${conformanceUrl}) returned 404.`;
-          } else {
-            errorMessage = `Failed to fetch conformance endpoint (${conformanceUrl}): ${error.message}`;
-          }
-        }
-
-        // Fallback for cases where error.message didn't match above (e.g. non-standard axios builds).
-        // ERR_NETWORK covers both CORS blocks and real network failures (DNS, unreachable host),
-        // so only use it as a fallback and don't assume CORS specifically.
-        if (error && typeof error === 'object' && 'code' in error) {
-          if (error.code === 'ERR_NETWORK' && !conformanceError) {
-            errorTitle = 'Conformance Unreachable';
-            errorType = 'network';
-            errorMessage = `Unable to connect to conformance endpoint (${conformanceUrl}). The service may be unreachable or blocking cross-origin requests.`;
-            conformanceError = { title: errorTitle, message: errorMessage, type: errorType, section: 'conformance' };
-          }
-        }
-
-        conformanceError = {
-          title: errorTitle,
-          message: errorMessage,
-          type: errorType,
-          section: 'conformance'
-        };
-
-        console.warn('Error fetching conformance, will use default schema:', errorMessage);
-        // Don't fail - we'll use the default schema and continue processing
+    // --- Conformance fetch promise ---
+    const conformancePromise = (async () => {
+      if (!conformanceUrl) return undefined;
+      console.log('Fetching conformance:', sanitizeUrl(conformanceUrl));
+      const conformanceUrlWithFormat = new URL(conformanceUrl);
+      if (!conformanceUrlWithFormat.searchParams.has('f')) {
+        conformanceUrlWithFormat.searchParams.set('f', 'json');
       }
+      const finalConformanceUrl = addApiKeyToUrl(conformanceUrlWithFormat.toString(), auth);
+      const conformanceResponse = await axios.get<{ conformsTo: string[] }>(finalConformanceUrl, getAxiosConfig(auth));
+      return conformanceResponse.data?.conformsTo;
+    })();
+
+    // --- Collections fetch promise ---
+    if (collectionsUrlCandidates.length === 0) {
+      console.error('ERROR: Collections URL could not be determined!');
+      throw new Error('Collections URL could not be determined');
     }
 
-    // If no conformance link was found in the landing page at all, report it as an error.
+    console.log('Fetching collections. Candidates:', collectionsUrlCandidates.map(sanitizeUrl));
+    const collectionsPromise = (async () => {
+      let result: Awaited<ReturnType<typeof axios.get<CollectionsResponse>>> | null = null;
+      let lastErr: unknown = null;
+      for (const candidate of collectionsUrlCandidates) {
+        try {
+          console.log('Trying collections URL:', sanitizeUrl(candidate));
+          const urlWithFormat = new URL(candidate);
+          if (!urlWithFormat.searchParams.has('f') && !isDMI) {
+            urlWithFormat.searchParams.set('f', 'json');
+          }
+          const finalUrl = addApiKeyToUrl(urlWithFormat.toString(), auth);
+          result = await axios.get<CollectionsResponse>(finalUrl, getAxiosConfig(auth));
+          collectionsUrl = candidate;
+          console.log('Collections fetch succeeded from:', sanitizeUrl(candidate), 'status:', result.status);
+          return result;
+        } catch (err) {
+          lastErr = err;
+          console.warn('Collections fetch failed for:', sanitizeUrl(candidate), err);
+        }
+      }
+      throw lastErr;
+    })();
+
+    // --- Await both in parallel ---
+    const [conformanceResult, collectionsResult] = await Promise.allSettled([
+      conformancePromise,
+      collectionsPromise,
+    ]);
+
+    // --- Process conformance result ---
+    let conformsTo: string[] | undefined = undefined;
+    if (conformanceResult.status === 'fulfilled' && conformanceResult.value) {
+      conformsTo = conformanceResult.value;
+      console.log(`Found ${conformsTo.length} conformance classes:`, conformsTo);
+    } else if (conformanceResult.status === 'rejected') {
+      const error = conformanceResult.reason;
+      let errorTitle = 'Conformance Endpoint Error';
+      let errorMessage = 'Failed to fetch conformance information';
+      let errorType: 'cors' | 'network' | 'unknown' = 'unknown';
+
+      if (error instanceof Error) {
+        if (error.message.includes('CORS') ||
+            error.message.includes('Access-Control-Allow-Origin') ||
+            error.message.includes('cross-origin')) {
+          errorTitle = 'Conformance CORS Error';
+          errorType = 'cors';
+          errorMessage = `Conformance endpoint (${conformanceUrl}) does not allow cross-origin requests.`;
+        } else if (error.message.includes('Network Error') ||
+                   error.message.includes('ERR_NETWORK') ||
+                   error.message.includes('Failed to fetch')) {
+          errorTitle = 'Conformance Unreachable';
+          errorType = 'network';
+          errorMessage = `Unable to connect to conformance endpoint (${conformanceUrl}).`;
+        } else if (error.message.includes('404')) {
+          errorTitle = 'Conformance Not Found';
+          errorType = 'network';
+          errorMessage = `Conformance endpoint (${conformanceUrl}) returned 404.`;
+        } else {
+          errorMessage = `Failed to fetch conformance endpoint (${conformanceUrl}): ${error.message}`;
+        }
+      }
+
+      // Fallback for ERR_NETWORK code
+      if (error && typeof error === 'object' && 'code' in error) {
+        if (error.code === 'ERR_NETWORK' && errorType === 'unknown') {
+          errorTitle = 'Conformance Unreachable';
+          errorType = 'network';
+          errorMessage = `Unable to connect to conformance endpoint (${conformanceUrl}). The service may be unreachable or blocking cross-origin requests.`;
+        }
+      }
+
+      conformanceError = { title: errorTitle, message: errorMessage, type: errorType, section: 'conformance' };
+      console.warn('Error fetching conformance, will use default schema:', errorMessage);
+    }
+
     if (!conformanceUrl && !conformanceError) {
       conformanceError = {
         title: 'Conformance Link Missing',
@@ -196,16 +224,20 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
       };
     }
 
-    // Step 4: Load the appropriate schema based on conformance classes
-    // Always call this to ensure we have the right schema type
+    // --- Process collections result ---
+    if (collectionsResult.status === 'rejected') {
+      // All candidates failed — re-throw for the outer catch to handle
+      throw collectionsResult.reason;
+    }
+    const response = collectionsResult.value;
+
+    // --- Schema loading + validation (depends on conformance result) ---
     try {
       await validator.loadSchemaBasedOnConformance(conformsTo);
     } catch (error) {
       console.warn('Error loading schema, continuing with default:', error);
-      // Continue even if schema loading fails
     }
 
-    // Step 5: Validate landing page with the loaded schema
     let landingPageValidation: {
       valid: boolean;
       errors: any[] | null;
@@ -216,41 +248,6 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials): Pr
       console.log(`Landing page validation result: ${landingPageValidation.valid ? 'Valid' : 'Invalid'}`);
     } catch (error) {
       console.warn('Error validating landing page, continuing:', error);
-      // Continue even if validation fails
-    }
-
-    // Step 6: Fetch collections — try each candidate URL in order until one succeeds
-    if (collectionsUrlCandidates.length === 0) {
-      console.error('ERROR: Collections URL could not be determined!');
-      throw new Error('Collections URL could not be determined');
-    }
-
-    console.log('Step 6: Fetching collections. Candidates:', collectionsUrlCandidates.map(sanitizeUrl));
-    let response: Awaited<ReturnType<typeof axios.get<CollectionsResponse>>> | null = null;
-    let lastFetchError: unknown = null;
-
-    for (const candidate of collectionsUrlCandidates) {
-      try {
-        console.log('Trying collections URL:', sanitizeUrl(candidate));
-        const urlWithFormat = new URL(candidate);
-        if (!urlWithFormat.searchParams.has('f') && !isDMI) {
-          urlWithFormat.searchParams.set('f', 'json');
-        }
-        const finalUrl = addApiKeyToUrl(urlWithFormat.toString(), auth);
-        response = await axios.get<CollectionsResponse>(finalUrl, getAxiosConfig(auth));
-        collectionsUrl = candidate; // record which URL actually worked
-        lastFetchError = null;
-        console.log('Collections fetch succeeded from:', sanitizeUrl(candidate), 'status:', response.status);
-        break;
-      } catch (err) {
-        lastFetchError = err;
-        console.warn('Collections fetch failed for:', sanitizeUrl(candidate), err);
-      }
-    }
-
-    if (!response) {
-      // All candidates failed — re-throw the last error for the outer catch to handle
-      throw lastFetchError;
     }
 
     const data = response.data;

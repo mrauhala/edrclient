@@ -23,8 +23,7 @@ export function useGeoJsonOverlays(map: Map | null): UseGeoJsonOverlaysReturn {
   useEffect(() => {
     if (!map) return;
 
-    const layersChanged = JSON.stringify(geoJsonLayers) !== JSON.stringify(geoJsonLayersRef.current);
-    if (!layersChanged) return;
+    if (geoJsonLayers === geoJsonLayersRef.current) return;
 
     geoJsonLayersRef.current = geoJsonLayers;
 
