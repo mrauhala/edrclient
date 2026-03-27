@@ -208,7 +208,7 @@ export function SearchContent({
 
         <Tabs
           value={activeTab}
-          onChange={(_, v) => setActiveTab(v)}
+          onChange={(_, v) => { setActiveTab(v); inputRef.current?.focus(); }}
           variant="fullWidth"
           sx={{ minHeight: 36, borderBottom: 1, borderColor: 'divider', '& .MuiTab-root': { minHeight: 36, py: 0.5, textTransform: 'none', fontSize: '0.8rem' } }}
         >
