@@ -12,6 +12,7 @@ import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import InputAdornment from '@mui/material/InputAdornment';
 import CircularProgress from '@mui/material/CircularProgress';
+import Link from '@mui/material/Link';
 import DnsIcon from '@mui/icons-material/Dns';
 import FolderIcon from '@mui/icons-material/Folder';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
@@ -97,6 +98,7 @@ export function SearchContent({
   highlightedIndex,
   onSelect,
   selectedCollectionId,
+  selectedCollectionName,
   onKeyDown,
   onClose,
   isDesktop,
@@ -135,6 +137,7 @@ export function SearchContent({
   highlightedIndex: number;
   onSelect: (index: number) => void;
   selectedCollectionId: string | null;
+  selectedCollectionName: string | null;
   onKeyDown: (e: React.KeyboardEvent) => void;
   onClose: () => void;
   isDesktop: boolean;
@@ -225,6 +228,7 @@ export function SearchContent({
           />
           <Tab
             value="locations"
+            title={!locationsEnabled ? 'Select a collection with location queries' : undefined}
             icon={<LocationOnIcon sx={{ fontSize: 16 }} />}
             iconPosition="start"
             label={
@@ -237,6 +241,7 @@ export function SearchContent({
           />
           <Tab
             value="items"
+            title={!itemsEnabled ? 'Select a collection to browse items' : undefined}
             icon={<ArticleIcon sx={{ fontSize: 16 }} />}
             iconPosition="start"
             label={
@@ -264,6 +269,15 @@ export function SearchContent({
                 sx={{ height: 22, fontSize: '0.7rem' }}
               />
             ))}
+          </Box>
+        )}
+        {/* Context bar: show active collection on Locations/Items tabs */}
+        {(activeTab === 'locations' || activeTab === 'items') && selectedCollectionName && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, px: 1.5, py: 0.5, borderBottom: 1, borderColor: 'divider', bgcolor: 'action.hover' }}>
+            <FolderIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+            <Typography variant="caption" color="text.secondary" noWrap sx={{ fontSize: '0.7rem' }}>
+              {selectedCollectionName}
+            </Typography>
           </Box>
         )}
       </Box>
@@ -327,12 +341,27 @@ export function SearchContent({
                   ? 'Type to search services'
                   : activeTab === 'collections'
                     ? 'Type to search collections'
-                    : activeTab === 'locations'
-                      ? 'No locations in this collection'
-                      : isRecordCollection
-                        ? 'Type to search records'
-                        : 'No items in this collection'}
+                    : !selectedCollectionId
+                      ? ''
+                      : activeTab === 'locations'
+                        ? 'No locations in this collection'
+                        : isRecordCollection
+                          ? 'Type to search records'
+                          : 'No items in this collection'}
             </Typography>
+            {!query && (activeTab === 'locations' || activeTab === 'items') && !selectedCollectionId && (
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                <Link
+                  component="button"
+                  variant="caption"
+                  onClick={() => setActiveTab('collections')}
+                  sx={{ verticalAlign: 'baseline' }}
+                >
+                  Select a collection
+                </Link>
+                {' '}to browse {activeTab}
+              </Typography>
+            )}
             {query && (
               <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
                 Try a different tab or search term
