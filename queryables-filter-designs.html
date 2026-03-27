@@ -1,0 +1,1290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Queryables Filter UI – Phase 4b Mockup</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Roboto', sans-serif; background: #f0f0f0; color: #212121; padding: 32px; }
+  h1 { font-size: 1.5rem; font-weight: 500; margin-bottom: 4px; }
+  h2 { font-size: 1.15rem; font-weight: 500; margin-bottom: 12px; color: #1976d2; }
+  .subtitle { font-size: 0.875rem; color: #666; margin-bottom: 32px; }
+  .section { margin-bottom: 56px; }
+  .section-label {
+    display: inline-block; padding: 3px 10px; border-radius: 4px;
+    font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; margin-bottom: 12px;
+  }
+  .label-state { background: #e3f2fd; color: #1565c0; }
+  .label-mobile { background: #fce4ec; color: #c62828; }
+  .label-interaction { background: #e8f5e9; color: #2e7d32; }
+  .label-detail { background: #f3e5f5; color: #7b1fa2; }
+  .note {
+    font-size: 0.8rem; color: #666; line-height: 1.6; margin-top: 10px; max-width: 800px;
+  }
+  .note strong { color: #333; }
+  .note ul { padding-left: 18px; margin: 4px 0 8px; }
+  .note kbd {
+    display: inline-block; padding: 1px 6px; border-radius: 3px;
+    background: #f5f5f5; border: 1px solid #ddd; font-size: 0.7rem;
+    font-family: 'Roboto', sans-serif; color: #555; vertical-align: middle;
+  }
+
+  /* ── App frame ───────────────────────────────────────────────────────── */
+  .app-frame {
+    border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    background: #fff; position: relative;
+  }
+  .app-frame > .topbar { border-radius: 10px 10px 0 0; }
+
+  /* ── Top bar ─────────────────────────────────────────────────────────── */
+  .topbar {
+    background: #1976d2; color: #fff; display: flex; align-items: center;
+    padding: 0 12px; height: 48px; gap: 10px; position: relative; z-index: 10;
+  }
+  .topbar .material-icons.menu { font-size: 22px; cursor: pointer; flex-shrink: 0; }
+  .topbar .app-title { font-size: 1rem; font-weight: 500; white-space: nowrap; flex-shrink: 0; }
+  .topbar .breadcrumb-sep { font-size: 16px; color: rgba(255,255,255,0.4); flex-shrink: 0; }
+  .topbar .breadcrumb { font-size: 0.8rem; color: rgba(255,255,255,0.85); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 1; min-width: 0; }
+
+  /* ── Search input in top bar ─────────────────────────────────────────── */
+  .topbar-search {
+    flex: 1; max-width: 320px; margin-left: auto; position: relative;
+  }
+  .topbar-search input {
+    width: 100%; border: 1px solid rgba(255,255,255,0.3); border-radius: 6px;
+    padding: 6px 60px 6px 32px; font-size: 0.8rem; font-family: 'Roboto', sans-serif;
+    color: #fff; background: rgba(255,255,255,0.22); outline: none;
+  }
+  .topbar-search input::placeholder { color: rgba(255,255,255,0.5); }
+  .topbar-search .search-icon {
+    position: absolute; left: 8px; top: 50%; transform: translateY(-50%);
+    font-size: 18px; color: rgba(255,255,255,0.5); pointer-events: none;
+  }
+  .topbar-search .filter-icon {
+    position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    font-size: 18px; cursor: pointer;
+  }
+  .topbar-search .filter-icon.active { color: rgba(255,255,255,0.9); }
+  .topbar-search .filter-icon.inactive { color: rgba(255,255,255,0.5); }
+
+  /* ── Dropdown panel ──────────────────────────────────────────────────── */
+  .search-dropdown {
+    position: relative;
+    background: #fff; border-radius: 0 0 10px 10px; color: #212121;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2); border-top: 1px solid #e0e0e0;
+    overflow: hidden; display: flex; flex-direction: column;
+  }
+
+  /* Category tabs */
+  .category-tabs {
+    display: flex; border-bottom: 1px solid #e0e0e0; padding: 0 14px; background: #fafafa;
+  }
+  .cat-tab {
+    padding: 8px 14px; font-size: 0.78rem; font-weight: 500; color: #666;
+    cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s;
+    display: flex; align-items: center; gap: 5px; white-space: nowrap;
+  }
+  .cat-tab:hover { color: #333; }
+  .cat-tab.active { color: #1976d2; border-bottom-color: #1976d2; }
+  .cat-tab.disabled { color: #ccc; cursor: default; }
+  .cat-tab .count-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
+    background: #e0e0e0; font-size: 0.65rem; font-weight: 700; color: #666;
+  }
+  .cat-tab.active .count-badge { background: #e3f2fd; color: #1565c0; }
+
+  /* Context bar */
+  .context-bar {
+    display: flex; align-items: center; gap: 6px; padding: 5px 14px;
+    background: #f5f5f5; border-bottom: 1px solid #eee;
+    font-size: 0.72rem; color: #888;
+  }
+  .context-bar .material-icons { font-size: 14px; }
+  .context-bar strong { color: #555; font-weight: 500; }
+
+  /* Results list */
+  .results-list { overflow-y: auto; flex: 1; }
+  .result-item {
+    display: flex; align-items: center; padding: 7px 14px; gap: 10px;
+    cursor: pointer; transition: background 0.1s;
+  }
+  .result-item:hover, .result-item.focused { background: #f5f5f5; }
+  .result-item.focused { background: #e3f2fd; }
+  .result-item .result-icon { font-size: 18px; color: #9e9e9e; flex-shrink: 0; }
+  .result-item .result-body { flex: 1; min-width: 0; }
+  .result-item .result-title {
+    font-size: 0.82rem; font-weight: 500; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .result-item .result-meta {
+    font-size: 0.7rem; color: #9e9e9e; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; margin-top: 1px;
+  }
+
+  /* Geometry type chip */
+  .geo-chip {
+    display: inline-block; height: 16px; line-height: 16px; padding: 0 5px;
+    border-radius: 8px; font-size: 0.6rem; font-weight: 500;
+    background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9;
+  }
+  .geo-chip.polygon { background: #fff3e0; color: #e65100; border-color: #ffe0b2; }
+  .geo-chip.line { background: #e3f2fd; color: #1565c0; border-color: #bbdefb; }
+
+  /* ── Queryables filter panel ─────────────────────────────────────────── */
+  .filter-panel {
+    border-bottom: 1px solid #eee; background: #fafafa;
+  }
+  .filter-panel-header {
+    display: flex; align-items: center; gap: 6px; padding: 8px 14px;
+    font-size: 0.72rem; color: #888;
+  }
+  .filter-panel-header .material-icons { font-size: 16px; color: #9e9e9e; }
+  .filter-panel-header .filter-count {
+    margin-left: auto; font-size: 0.65rem; color: #1976d2; font-weight: 500;
+  }
+
+  /* Queryable property chips (field selector) */
+  .queryable-chips {
+    display: flex; gap: 5px; padding: 0 14px 8px; flex-wrap: wrap;
+  }
+  .queryable-chip {
+    display: inline-flex; align-items: center; gap: 3px;
+    height: 24px; padding: 0 10px; border-radius: 12px;
+    font-size: 0.72rem; font-weight: 500; cursor: pointer;
+    transition: all 0.15s; border: 1px solid; user-select: none;
+  }
+  .queryable-chip.available { background: #fff; color: #555; border-color: #ddd; }
+  .queryable-chip.available:hover { background: #f5f5f5; border-color: #bbb; }
+  .queryable-chip.selected { background: #1976d2; color: #fff; border-color: #1976d2; }
+  .queryable-chip .chip-type {
+    font-size: 0.58rem; font-weight: 400; opacity: 0.7;
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .queryable-chip .material-icons { font-size: 14px; }
+
+  /* Inline filter form (appears when a queryable chip is selected) */
+  .filter-form {
+    display: flex; align-items: center; gap: 6px; padding: 6px 14px 10px;
+    background: #f0f7ff; border-top: 1px solid #e3f2fd;
+  }
+  .filter-form-field {
+    font-size: 0.75rem; font-weight: 500; color: #1976d2; flex-shrink: 0;
+  }
+  .filter-form select {
+    height: 28px; border: 1px solid #ccc; border-radius: 4px;
+    font-size: 0.75rem; font-family: 'Roboto', sans-serif;
+    padding: 0 6px; background: #fff; color: #333; cursor: pointer;
+  }
+  .filter-form input[type="text"] {
+    height: 28px; border: 1px solid #ccc; border-radius: 4px;
+    font-size: 0.75rem; font-family: 'Roboto', sans-serif;
+    padding: 0 8px; flex: 1; min-width: 80px; outline: none;
+    background: #fff; color: #333;
+  }
+  .filter-form input[type="text"]:focus { border-color: #1976d2; }
+  .filter-form .apply-btn {
+    height: 28px; padding: 0 12px; border-radius: 4px;
+    background: #1976d2; color: #fff; border: none;
+    font-size: 0.72rem; font-weight: 500; cursor: pointer;
+    font-family: 'Roboto', sans-serif;
+  }
+  .filter-form .apply-btn:hover { background: #1565c0; }
+  .filter-form .cancel-btn {
+    height: 28px; padding: 0 8px; border-radius: 4px;
+    background: transparent; color: #999; border: 1px solid #ddd;
+    font-size: 0.72rem; cursor: pointer;
+    font-family: 'Roboto', sans-serif;
+  }
+
+  /* Active filter chips (below filter panel) */
+  .active-filters {
+    display: flex; align-items: center; gap: 5px; padding: 6px 14px;
+    border-bottom: 1px solid #eee; flex-wrap: wrap;
+  }
+  .active-filter-label { font-size: 0.65rem; color: #999; flex-shrink: 0; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+  .active-filter {
+    display: inline-flex; align-items: center; gap: 4px;
+    height: 22px; padding: 0 4px 0 8px; border-radius: 11px;
+    font-size: 0.7rem; font-weight: 500;
+    background: #e3f2fd; color: #1565c0; border: 1px solid #bbdefb;
+  }
+  .active-filter .remove-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 16px; height: 16px; border-radius: 50%; cursor: pointer;
+    background: transparent; transition: background 0.15s;
+  }
+  .active-filter .remove-btn:hover { background: rgba(21,101,192,0.15); }
+  .active-filter .remove-btn .material-icons { font-size: 12px; }
+  .clear-all-btn {
+    font-size: 0.65rem; color: #999; cursor: pointer; margin-left: auto;
+    text-decoration: underline;
+  }
+  .clear-all-btn:hover { color: #666; }
+
+  /* Pagination footer */
+  .pagination-footer {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 6px 14px; border-top: 1px solid #eee; background: #fafafa;
+    font-size: 0.72rem; color: #888;
+  }
+  .pagination-footer .material-icons {
+    font-size: 18px; cursor: pointer; color: #666; border-radius: 50%;
+    padding: 2px;
+  }
+  .pagination-footer .material-icons:hover { background: #eee; }
+  .pagination-footer .material-icons.disabled { color: #ddd; cursor: default; }
+
+  /* Side by side */
+  .side-by-side { display: flex; gap: 40px; flex-wrap: wrap; align-items: flex-start; }
+  .side-by-side > div { flex: 1; min-width: 340px; }
+
+  /* ── Mobile frame ────────────────────────────────────────────────────── */
+  .mobile-frame {
+    width: 360px; border-radius: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    overflow: hidden; background: #fff; border: 8px solid #222; position: relative;
+  }
+  .mobile-topbar {
+    background: #1976d2; color: #fff; display: flex; align-items: center;
+    padding: 0 8px; height: 48px; gap: 8px;
+  }
+  .mobile-topbar .app-title { font-size: 0.9rem; font-weight: 500; flex: 1; }
+  .mobile-topbar .material-icons { font-size: 22px; cursor: pointer; }
+  .mobile-body { background: #fff; position: relative; }
+
+  .mobile-search-header {
+    display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+    border-bottom: 1px solid #eee; background: #fafafa;
+  }
+  .mobile-search-header input {
+    flex: 1; border: none; outline: none; font-size: 0.9rem;
+    font-family: 'Roboto', sans-serif; background: transparent;
+  }
+  .mobile-search-header .material-icons { font-size: 22px; color: #999; cursor: pointer; }
+
+  /* Enum select dropdown (for properties with fixed values) */
+  .filter-form select.enum-select {
+    flex: 1; min-width: 80px;
+  }
+
+  /* Annotations */
+  .anno {
+    position: absolute; font-size: 0.7rem; font-weight: 500; color: #1976d2;
+    display: flex; align-items: center; gap: 3px; pointer-events: none;
+  }
+  .anno .material-icons { font-size: 14px; }
+
+  /* Boolean toggle */
+  .bool-toggle {
+    display: inline-flex; border-radius: 4px; overflow: hidden; border: 1px solid #ccc;
+  }
+  .bool-toggle span {
+    padding: 4px 10px; font-size: 0.72rem; cursor: pointer; background: #fff; color: #666;
+  }
+  .bool-toggle span.active { background: #1976d2; color: #fff; border-color: #1976d2; }
+
+  /* Skeleton loading */
+  .skeleton-chip {
+    display: inline-block; height: 24px; width: 70px; border-radius: 12px;
+    background: linear-gradient(90deg, #eee 25%, #f5f5f5 50%, #eee 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Queryables Filter UI – Phase 4b Mockup</h1>
+<p class="subtitle">Server-side property filters for OGC API Features Items tab. Builds on Phase 4a queryables API.</p>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- STATE 1: ITEMS TAB – NO FILTERS (queryables available but not opened) -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <span class="section-label label-state">State 1 – Items tab with filter icon</span>
+  <h2>FilterList icon appears when queryables are available</h2>
+
+  <div class="app-frame" style="max-width: 500px;">
+    <div class="topbar">
+      <span class="material-icons menu">menu</span>
+      <span class="app-title">OGC API Browser</span>
+
+      <div class="topbar-search">
+        <span class="material-icons search-icon">search</span>
+        <input type="text" placeholder="Search items...">
+        <span class="material-icons filter-icon inactive" title="Show property filters">filter_list</span>
+      </div>
+    </div>
+
+    <div class="search-dropdown">
+      <div class="category-tabs">
+        <div class="cat-tab">
+          <span class="material-icons" style="font-size:16px">dns</span>
+          Services <span class="count-badge">3</span>
+        </div>
+        <div class="cat-tab">
+          <span class="material-icons" style="font-size:16px">folder</span>
+          Collections <span class="count-badge">12</span>
+        </div>
+        <div class="cat-tab disabled">
+          <span class="material-icons" style="font-size:16px">place</span>
+          Locations
+        </div>
+        <div class="cat-tab active">
+          <span class="material-icons" style="font-size:16px">article</span>
+          Items <span class="count-badge">200</span>
+        </div>
+      </div>
+      <div class="context-bar">
+        <span class="material-icons">folder</span>
+        <strong>Dutch Windmills</strong> – OGC API Features
+      </div>
+      <div class="results-list" style="max-height: 240px;">
+        <div class="result-item focused">
+          <span class="material-icons result-icon">place</span>
+          <div class="result-body">
+            <div class="result-title">Molen De Adriaan</div>
+            <div class="result-meta"><span class="geo-chip">Point</span> &nbsp;status: active · year: 1778</div>
+          </div>
+        </div>
+        <div class="result-item">
+          <span class="material-icons result-icon">place</span>
+          <div class="result-body">
+            <div class="result-title">Kinderdijk Mill #3</div>
+            <div class="result-meta"><span class="geo-chip">Point</span> &nbsp;status: museum · year: 1738</div>
+          </div>
+        </div>
+        <div class="result-item">
+          <span class="material-icons result-icon">place</span>
+          <div class="result-body">
+            <div class="result-title">De Gooyer</div>
+            <div class="result-meta"><span class="geo-chip">Point</span> &nbsp;status: active · year: 1725</div>
+          </div>
+        </div>
+        <div class="result-item">
+          <span class="material-icons result-icon">pentagon</span>
+          <div class="result-body">
+            <div class="result-title">Zaanse Schans Complex</div>
+            <div class="result-meta"><span class="geo-chip polygon">Polygon</span> &nbsp;status: museum · year: 1574</div>
+          </div>
+        </div>
+      </div>
+      <div class="pagination-footer">
+        <span class="material-icons disabled">navigate_before</span>
+        1–200 of 1,847
+        <span class="material-icons">navigate_next</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="note" style="margin-top: 14px;">
+    <strong>Behavior:</strong>
+    <ul>
+      <li>FilterList icon appears in the search input endAdornment when <code>queryablesSupported === true</code> and the Items tab is active.</li>
+      <li>Icon uses same position and styling as the Collections tab filter icon (existing pattern).</li>
+      <li>When no queryables are available (404), the filter icon is hidden — search remains client-side only.</li>
+      <li>Client-side search box still works as before (unchanged).</li>
+    </ul>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- STATE 2: FILTER PANEL OPEN – SELECTING A PROPERTY -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <span class="section-label label-state">State 2 – Filter panel open (property selection)</span>
+  <h2>Queryable properties shown as selectable chips</h2>
+
+  <div class="app-frame" style="max-width: 500px;">
+    <div class="topbar">
+      <span class="material-icons menu">menu</span>
+      <span class="app-title">OGC API Browser</span>
+
+      <div class="topbar-search">
+        <span class="material-icons search-icon">search</span>
+        <input type="text" placeholder="Search items...">
+        <span class="material-icons filter-icon active">filter_list</span>
+      </div>
+    </div>
+
+    <div class="search-dropdown">
+      <div class="category-tabs">
+        <div class="cat-tab">
+          <span class="material-icons" style="font-size:16px">dns</span>
+          Services <span class="count-badge">3</span>
+        </div>
+        <div class="cat-tab">
+          <span class="material-icons" style="font-size:16px">folder</span>
+          Collections <span class="count-badge">12</span>
+        </div>
+        <div class="cat-tab disabled">
+          <span class="material-icons" style="font-size:16px">place</span>
+          Locations
+        </div>
+        <div class="cat-tab active">
+          <span class="material-icons" style="font-size:16px">article</span>
+          Items <span class="count-badge">200</span>
+        </div>
+      </div>
+      <div class="context-bar">
+        <span class="material-icons">folder</span>
+        <strong>Dutch Windmills</strong> – OGC API Features
+      </div>
+
+      <!-- Filter panel -->
+      <div class="filter-panel">
+        <div class="filter-panel-header">
+          <span class="material-icons">tune</span>
+          Filter by property
+        </div>
+        <div class="queryable-chips">
+          <div class="queryable-chip available">status <span class="chip-type">string</span></div>
+          <div class="queryable-chip available">year <span class="chip-type">integer</span></div>
+          <div class="queryable-chip available">province <span class="chip-type">string</span></div>
+          <div class="queryable-chip available">type <span class="chip-type">string</span></div>
+          <div class="queryable-chip available">operational <span class="chip-type">boolean</span></div>
+          <div class="queryable-chip available">height_m <span class="chip-type">number</span></div>
+          <div class="queryable-chip available">last_restored <span class="chip-type">date-time</span></div>
+        </div>
+      </div>
+
+      <div class="results-list" style="max-height: 180px;">
+        <div class="result-item focused">
+          <span class="material-icons result-icon">place</span>
+          <div class="result-body">
+            <div class="result-title">Molen De Adriaan</div>
+            <div class="result-meta"><span class="geo-chip">Point</span> &nbsp;status: active · year: 1778</div>
+          </div>
+        </div>
+        <div class="result-item">
+          <span class="material-icons result-icon">place</span>
+          <div class="result-body">
+            <div class="result-title">Kinderdijk Mill #3</div>
+            <div class="result-meta"><span class="geo-chip">Point</span> &nbsp;status: museum · year: 1738</div>
+          </div>
+        </div>
+        <div class="result-item">
+          <span class="material-icons result-icon">place</span>
+          <div class="result-body">
+            <div class="result-title">De Gooyer</div>
+            <div class="result-meta"><span class="geo-chip">Point</span> &nbsp;status: active · year: 1725</div>
+          </div>
+        </div>
+      </div>
+      <div class="pagination-footer">
+        <span class="material-icons disabled">navigate_before</span>
+        1–200 of 1,847
+        <span class="material-icons">navigate_next</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="note" style="margin-top: 14px;">
+    <strong>Behavior:</strong>
+    <ul>
+      <li>Clicking the FilterList icon toggles the filter panel open/closed.</li>
+      <li>Each chip shows the property <code>name</code> (or <code>title</code> if available) and the <code>type</code> in small text.</li>
+      <li>Properties with <code>format: "date-time"</code> show "date-time" instead of "string" as the type badge.</li>
+      <li>Chips are ordered as returned by the API (max 100 properties).</li>
+      <li>Clicking a chip opens the inline filter form (State 3).</li>
+    </ul>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- STATE 3: INLINE FILTER FORM – STRING PROPERTY -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <span class="section-label label-interaction">State 3a – Inline filter form (string with free text)</span>
+  <h2>Building a filter: property + value</h2>
+
+  <div class="app-frame" style="max-width: 500px;">
+    <div class="topbar">
+      <span class="material-icons menu">menu</span>
+      <span class="app-title">OGC API Browser</span>
+
+      <div class="topbar-search">
+        <span class="material-icons search-icon">search</span>
+        <input type="text" placeholder="Search items...">
+        <span class="material-icons filter-icon active">filter_list</span>
+      </div>
+    </div>
+
+    <div class="search-dropdown">
+      <div class="category-tabs">
+        <div class="cat-tab">
+          <span class="material-icons" style="font-size:16px">dns</span>
+          Services
+        </div>
+        <div class="cat-tab">
+          <span class="material-icons" style="font-size:16px">folder</span>
+          Collections
+        </div>
+        <div class="cat-tab disabled">
+          <span class="material-icons" style="font-size:16px">place</span>
+          Locations
+        </div>
+        <div class="cat-tab active">
+          <span class="material-icons" style="font-size:16px">article</span>
+          Items <span class="count-badge">200</span>
+        </div>
+      </div>
+      <div class="context-bar">
+        <span class="material-icons">folder</span>
+        <strong>Dutch Windmills</strong> – OGC API Features
+      </div>
+
+      <div class="filter-panel">
+        <div class="filter-panel-header">
+          <span class="material-icons">tune</span>
+          Filter by property
+        </div>
+        <div class="queryable-chips">
+          <div class="queryable-chip selected"><span class="material-icons">check</span> status</div>
+          <div class="queryable-chip available">year <span class="chip-type">integer</span></div>
+          <div class="queryable-chip available">province <span class="chip-type">string</span></div>
+          <div class="queryable-chip available">type <span class="chip-type">string</span></div>
+          <div class="queryable-chip available">operational <span class="chip-type">boolean</span></div>
+          <div class="queryable-chip available">height_m <span class="chip-type">number</span></div>
+        </div>
+        <!-- Inline filter form -->
+        <div class="filter-form">
+          <span class="filter-form-field">status</span>
+          <span style="color:#999; font-size: 0.72rem;">=</span>
+          <input type="text" placeholder="Enter value..." autofocus>
+          <button class="apply-btn">Apply</button>
+          <button class="cancel-btn">Cancel</button>
+        </div>
+      </div>
+
+      <div class="results-list" style="max-height: 160px;">
+        <div class="result-item">
+          <span class="material-icons result-icon">place</span>
+          <div class="result-body">
+            <div class="result-title">Molen De Adriaan</div>
+            <div class="result-meta"><span class="geo-chip">Point</span> &nbsp;status: active · year: 1778</div>
+          </div>
+        </div>
+        <div class="result-item">
+          <span class="material-icons result-icon">place</span>
+          <div class="result-body">
+            <div class="result-title">De Gooyer</div>
+            <div class="result-meta"><span class="geo-chip">Point</span> &nbsp;status: active · year: 1725</div>
+          </div>
+        </div>
+      </div>
+      <div class="pagination-footer">
+        <span class="material-icons disabled">navigate_before</span>
+        1–200 of 1,847
+        <span class="material-icons">navigate_next</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="note" style="margin-top: 14px;">
+    <strong>Behavior:</strong>
+    <ul>
+      <li>For <code>string</code> type: shows a free text input. The filter becomes <code>?status=active</code> (exact match, OGC API Features standard).</li>
+      <li>The selected chip gets highlighted with a checkmark; other chips remain clickable for adding more filters.</li>
+      <li><strong>Apply</strong> adds the filter, re-fetches items with the parameter, and closes the form.</li>
+      <li><strong>Cancel</strong> deselects the chip and closes the form without filtering.</li>
+      <li>Enter key in the text input = Apply.</li>
+    </ul>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- STATE 3b: INLINE FILTER FORM – ENUM PROPERTY -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <span class="section-label label-interaction">State 3b – Inline filter form (enum dropdown)</span>
+  <h2>Properties with enum values show a dropdown</h2>
+
+  <div class="app-frame" style="max-width: 500px;">
+    <div class="topbar">
+      <span class="material-icons menu">menu</span>
+      <span class="app-title">OGC API Browser</span>
+
+      <div class="topbar-search">
+        <span class="material-icons search-icon">search</span>
+        <input type="text" placeholder="Search items...">
+        <span class="material-icons filter-icon active">filter_list</span>
+      </div>
+    </div>
+
+    <div class="search-dropdown">
+      <div class="category-tabs">
+        <div class="cat-tab">
+          <span class="material-icons" style="font-size:16px">dns</span>
+          Services
+        </div>
+        <div class="cat-tab">
+          <span class="material-icons" style="font-size:16px">folder</span>
+          Collections
+        </div>
+        <div class="cat-tab disabled">
+          <span class="material-icons" style="font-size:16px">place</span>
+          Locations
+        </div>
+        <div class="cat-tab active">
+          <span class="material-icons" style="font-size:16px">article</span>
+          Items
+        </div>
+      </div>
+      <div class="context-bar">
+        <span class="material-icons">folder</span>
+        <strong>Dutch Windmills</strong> – OGC API Features
+      </div>
+
+      <div class="filter-panel">
+        <div class="filter-panel-header">
+          <span class="material-icons">tune</span>
+          Filter by property
+        </div>
+        <div class="queryable-chips">
+          <div class="queryable-chip available">status <span class="chip-type">string</span></div>
+          <div class="queryable-chip available">year <span class="chip-type">integer</span></div>
+          <div class="queryable-chip available">province <span class="chip-type">string</span></div>
+          <div class="queryable-chip selected"><span class="material-icons">check</span> type</div>
+          <div class="queryable-chip available">operational <span class="chip-type">boolean</span></div>
+          <div class="queryable-chip available">height_m <span class="chip-type">number</span></div>
+        </div>
+        <div class="filter-form">
+          <span class="filter-form-field">type</span>
+          <span style="color:#999; font-size: 0.72rem;">=</span>
+          <select class="enum-select">
+            <option value="" disabled selected>Select value...</option>
+            <option>tower_mill</option>
+            <option>smock_mill</option>
+            <option>post_mill</option>
+            <option>drainage_mill</option>
+            <option>industrial_mill</option>
+          </select>
+          <button class="apply-btn">Apply</button>
+          <button class="cancel-btn">Cancel</button>
+        </div>
+      </div>
+
+      <div class="results-list" style="max-height: 130px;">
+        <div class="result-item">
+          <span class="material-icons result-icon">place</span>
+          <div class="result-body">
+            <div class="result-title">Molen De Adriaan</div>
+            <div class="result-meta"><span class="geo-chip">Point</span> &nbsp;type: tower_mill · year: 1778</div>
+          </div>
+        </div>
+        <div class="result-item">
+          <span class="material-icons result-icon">place</span>
+          <div class="result-body">
+            <div class="result-title">Kinderdijk Mill #3</div>
+            <div class="result-meta"><span class="geo-chip">Point</span> &nbsp;type: drainage_mill · year: 1738</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note" style="margin-top: 14px;">
+    <strong>Behavior:</strong>
+    <ul>
+      <li>When a queryable has an <code>enum</code> array, the form shows a <code>&lt;select&gt;</code> dropdown instead of a free text input.</li>
+      <li>Selecting a value and clicking Apply generates <code>?type=tower_mill</code>.</li>
+    </ul>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- STATE 3c: INLINE FILTER FORM – BOOLEAN PROPERTY -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <span class="section-label label-interaction">State 3c – Inline filter form (boolean toggle)</span>
+  <h2>Boolean properties use a simple toggle</h2>
+
+  <div class="app-frame" style="max-width: 500px;">
+    <div class="topbar">
+      <span class="material-icons menu">menu</span>
+      <span class="app-title">OGC API Browser</span>
+
+      <div class="topbar-search">
+        <span class="material-icons search-icon">search</span>
+        <input type="text" placeholder="Search items...">
+        <span class="material-icons filter-icon active">filter_list</span>
+      </div>
+    </div>
+
+    <div class="search-dropdown">
+      <div class="category-tabs">
+        <div class="cat-tab active">
+          <span class="material-icons" style="font-size:16px">article</span>
+          Items <span class="count-badge">200</span>
+        </div>
+      </div>
+      <div class="context-bar">
+        <span class="material-icons">folder</span>
+        <strong>Dutch Windmills</strong> – OGC API Features
+      </div>
+
+      <div class="filter-panel">
+        <div class="filter-panel-header">
+          <span class="material-icons">tune</span>
+          Filter by property
+        </div>
+        <div class="queryable-chips">
+          <div class="queryable-chip available">status <span class="chip-type">string</span></div>
+          <div class="queryable-chip available">year <span class="chip-type">integer</span></div>
+          <div class="queryable-chip selected"><span class="material-icons">check</span> operational</div>
+          <div class="queryable-chip available">height_m <span class="chip-type">number</span></div>
+        </div>
+        <div class="filter-form">
+          <span class="filter-form-field">operational</span>
+          <span style="color:#999; font-size: 0.72rem;">=</span>
+          <div class="bool-toggle">
+            <span class="active">true</span>
+            <span>false</span>
+          </div>
+          <button class="apply-btn">Apply</button>
+          <button class="cancel-btn">Cancel</button>
+        </div>
+      </div>
+
+      <div class="results-list" style="max-height: 100px;">
+        <div class="result-item">
+          <span class="material-icons result-icon">place</span>
+          <div class="result-body">
+            <div class="result-title">Molen De Adriaan</div>
+            <div class="result-meta"><span class="geo-chip">Point</span> &nbsp;operational: true · year: 1778</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note" style="margin-top: 14px;">
+    <strong>Behavior:</strong>
+    <ul>
+      <li>Boolean properties show a true/false toggle instead of text input.</li>
+      <li>Generates <code>?operational=true</code>.</li>
+    </ul>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- STATE 4: ACTIVE FILTERS – RESULTS FILTERED SERVER-SIDE -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <span class="section-label label-state">State 4 – Active filters applied</span>
+  <h2>Active filters shown as removable chips, results filtered server-side</h2>
+
+  <div class="app-frame" style="max-width: 500px;">
+    <div class="topbar">
+      <span class="material-icons menu">menu</span>
+      <span class="app-title">OGC API Browser</span>
+
+      <div class="topbar-search">
+        <span class="material-icons search-icon">search</span>
+        <input type="text" placeholder="Search items...">
+        <span class="material-icons filter-icon active">filter_list</span>
+      </div>
+    </div>
+
+    <div class="search-dropdown">
+      <div class="category-tabs">
+        <div class="cat-tab">
+          <span class="material-icons" style="font-size:16px">dns</span>
+          Services
+        </div>
+        <div class="cat-tab">
+          <span class="material-icons" style="font-size:16px">folder</span>
+          Collections
+        </div>
+        <div class="cat-tab disabled">
+          <span class="material-icons" style="font-size:16px">place</span>
+          Locations
+        </div>
+        <div class="cat-tab active">
+          <span class="material-icons" style="font-size:16px">article</span>
+          Items <span class="count-badge">42</span>
+        </div>
+      </div>
+      <div class="context-bar">
+        <span class="material-icons">folder</span>
+        <strong>Dutch Windmills</strong> – OGC API Features
+      </div>
+
+      <!-- Active filters bar -->
+      <div class="active-filters">
+        <span class="active-filter-label">Filters</span>
+        <div class="active-filter">
+          status = active
+          <span class="remove-btn"><span class="material-icons">close</span></span>
+        </div>
+        <div class="active-filter">
+          type = tower_mill
+          <span class="remove-btn"><span class="material-icons">close</span></span>
+        </div>
+        <span class="clear-all-btn">Clear all</span>
+      </div>
+
+      <div class="results-list" style="max-height: 200px;">
+        <div class="result-item focused">
+          <span class="material-icons result-icon">place</span>
+          <div class="result-body">
+            <div class="result-title">Molen De Adriaan</div>
+            <div class="result-meta"><span class="geo-chip">Point</span> &nbsp;status: active · type: tower_mill · year: 1778</div>
+          </div>
+        </div>
+        <div class="result-item">
+          <span class="material-icons result-icon">place</span>
+          <div class="result-body">
+            <div class="result-title">De Gooyer</div>
+            <div class="result-meta"><span class="geo-chip">Point</span> &nbsp;status: active · type: tower_mill · year: 1725</div>
+          </div>
+        </div>
+        <div class="result-item">
+          <span class="material-icons result-icon">place</span>
+          <div class="result-body">
+            <div class="result-title">Molen de Valk</div>
+            <div class="result-meta"><span class="geo-chip">Point</span> &nbsp;status: active · type: tower_mill · year: 1743</div>
+          </div>
+        </div>
+      </div>
+      <div class="pagination-footer">
+        <span class="material-icons disabled">navigate_before</span>
+        1–42 of 42
+        <span class="material-icons disabled">navigate_next</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="note" style="margin-top: 14px;">
+    <strong>Behavior:</strong>
+    <ul>
+      <li>Active filters appear as blue chips between the filter panel toggle and the results.</li>
+      <li>Each filter chip has an (x) button to remove it individually.</li>
+      <li>"Clear all" removes all active filters and re-fetches without parameters.</li>
+      <li>Multiple filters combine with AND: <code>?status=active&amp;type=tower_mill</code>.</li>
+      <li>Results count updates to reflect server-side filtered total (42 instead of 1,847).</li>
+      <li>Pagination resets to page 1 when filters change.</li>
+      <li>Active filters bar is visible even when the filter panel (property chips) is collapsed.</li>
+      <li>Filter icon shows as "active" (brighter) when any filters are applied.</li>
+    </ul>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- STATE 5: FILTERS COLLAPSED – ACTIVE FILTER CHIPS STILL VISIBLE -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <span class="section-label label-state">State 5 – Filter panel collapsed, active filters visible</span>
+  <h2>Filter panel hidden but active filters remain as chips</h2>
+
+  <div class="app-frame" style="max-width: 500px;">
+    <div class="topbar">
+      <span class="material-icons menu">menu</span>
+      <span class="app-title">OGC API Browser</span>
+
+      <div class="topbar-search">
+        <span class="material-icons search-icon">search</span>
+        <input type="text" placeholder="Search items...">
+        <span class="material-icons filter-icon active">filter_list</span>
+      </div>
+    </div>
+
+    <div class="search-dropdown">
+      <div class="category-tabs">
+        <div class="cat-tab">
+          <span class="material-icons" style="font-size:16px">dns</span>
+          Services
+        </div>
+        <div class="cat-tab">
+          <span class="material-icons" style="font-size:16px">folder</span>
+          Collections
+        </div>
+        <div class="cat-tab disabled">
+          <span class="material-icons" style="font-size:16px">place</span>
+          Locations
+        </div>
+        <div class="cat-tab active">
+          <span class="material-icons" style="font-size:16px">article</span>
+          Items <span class="count-badge">42</span>
+        </div>
+      </div>
+      <div class="context-bar">
+        <span class="material-icons">folder</span>
+        <strong>Dutch Windmills</strong> – OGC API Features
+      </div>
+
+      <!-- Active filters bar (visible when panel collapsed) -->
+      <div class="active-filters">
+        <span class="active-filter-label">Filters</span>
+        <div class="active-filter">
+          status = active
+          <span class="remove-btn"><span class="material-icons">close</span></span>
+        </div>
+        <div class="active-filter">
+          type = tower_mill
+          <span class="remove-btn"><span class="material-icons">close</span></span>
+        </div>
+        <span class="clear-all-btn">Clear all</span>
+      </div>
+
+      <div class="results-list" style="max-height: 220px;">
+        <div class="result-item focused">
+          <span class="material-icons result-icon">place</span>
+          <div class="result-body">
+            <div class="result-title">Molen De Adriaan</div>
+            <div class="result-meta"><span class="geo-chip">Point</span> &nbsp;status: active · type: tower_mill · year: 1778</div>
+          </div>
+        </div>
+        <div class="result-item">
+          <span class="material-icons result-icon">place</span>
+          <div class="result-body">
+            <div class="result-title">De Gooyer</div>
+            <div class="result-meta"><span class="geo-chip">Point</span> &nbsp;status: active · type: tower_mill · year: 1725</div>
+          </div>
+        </div>
+        <div class="result-item">
+          <span class="material-icons result-icon">place</span>
+          <div class="result-body">
+            <div class="result-title">Molen de Valk</div>
+            <div class="result-meta"><span class="geo-chip">Point</span> &nbsp;status: active · type: tower_mill · year: 1743</div>
+          </div>
+        </div>
+      </div>
+      <div class="pagination-footer">
+        <span class="material-icons disabled">navigate_before</span>
+        1–42 of 42
+        <span class="material-icons disabled">navigate_next</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="note" style="margin-top: 14px;">
+    <strong>Behavior:</strong>
+    <ul>
+      <li>Clicking the FilterList icon again collapses the property chips panel, but active filter chips remain visible.</li>
+      <li>This maximizes results space while keeping filters accessible.</li>
+      <li>Clicking the filter icon re-opens the property chips to add more filters.</li>
+      <li>Individual filter removal and "Clear all" still work from the collapsed view.</li>
+    </ul>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- STATE 6: QUERYABLES LOADING -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <span class="section-label label-detail">Loading state</span>
+  <h2>Skeleton chips while queryables are being fetched</h2>
+
+  <div class="app-frame" style="max-width: 500px;">
+    <div class="topbar">
+      <span class="material-icons menu">menu</span>
+      <span class="app-title">OGC API Browser</span>
+
+      <div class="topbar-search">
+        <span class="material-icons search-icon">search</span>
+        <input type="text" placeholder="Search items...">
+        <span class="material-icons filter-icon inactive">filter_list</span>
+      </div>
+    </div>
+
+    <div class="search-dropdown">
+      <div class="category-tabs">
+        <div class="cat-tab active">
+          <span class="material-icons" style="font-size:16px">article</span>
+          Items
+        </div>
+      </div>
+      <div class="context-bar">
+        <span class="material-icons">folder</span>
+        <strong>Dutch Windmills</strong> – OGC API Features
+      </div>
+
+      <div class="filter-panel">
+        <div class="filter-panel-header">
+          <span class="material-icons">tune</span>
+          Filter by property
+        </div>
+        <div class="queryable-chips">
+          <div class="skeleton-chip"></div>
+          <div class="skeleton-chip" style="width: 85px;"></div>
+          <div class="skeleton-chip" style="width: 60px;"></div>
+          <div class="skeleton-chip" style="width: 90px;"></div>
+          <div class="skeleton-chip" style="width: 75px;"></div>
+        </div>
+      </div>
+
+      <div class="results-list" style="max-height: 120px;">
+        <div class="result-item">
+          <span class="material-icons result-icon">place</span>
+          <div class="result-body">
+            <div class="result-title">Molen De Adriaan</div>
+            <div class="result-meta"><span class="geo-chip">Point</span> &nbsp;status: active</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note" style="margin-top: 14px;">
+    <strong>Behavior:</strong>
+    <ul>
+      <li>When queryables are loading (first fetch, cache miss), show animated skeleton chips.</li>
+      <li>Once loaded, skeletons are replaced with real property chips.</li>
+      <li>If queryables fetch fails (404), the filter panel disappears and filter icon is hidden.</li>
+    </ul>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- MOBILE LAYOUT -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <span class="section-label label-mobile">Mobile layout</span>
+  <h2>Full-screen dialog with compact filter chips</h2>
+
+  <div class="side-by-side">
+    <!-- Mobile: Filters open -->
+    <div>
+      <p style="font-size: 0.75rem; color: #999; margin-bottom: 8px; font-weight: 500;">Filter panel open</p>
+      <div class="mobile-frame">
+        <div class="mobile-topbar">
+          <span class="material-icons">arrow_back</span>
+          <span class="app-title">Search</span>
+          <span class="material-icons">filter_list</span>
+        </div>
+        <div class="mobile-body">
+          <div class="mobile-search-header">
+            <span class="material-icons">search</span>
+            <input type="text" placeholder="Search items...">
+            <span class="material-icons">close</span>
+          </div>
+          <div class="category-tabs" style="padding: 0 8px;">
+            <div class="cat-tab" style="padding: 8px 10px; font-size: 0.72rem;">
+              <span class="material-icons" style="font-size:15px">dns</span>
+              <span class="count-badge">3</span>
+            </div>
+            <div class="cat-tab" style="padding: 8px 10px; font-size: 0.72rem;">
+              <span class="material-icons" style="font-size:15px">folder</span>
+              <span class="count-badge">12</span>
+            </div>
+            <div class="cat-tab disabled" style="padding: 8px 10px; font-size: 0.72rem;">
+              <span class="material-icons" style="font-size:15px">place</span>
+            </div>
+            <div class="cat-tab active" style="padding: 8px 10px; font-size: 0.72rem;">
+              <span class="material-icons" style="font-size:15px">article</span>
+              <span class="count-badge">42</span>
+            </div>
+          </div>
+          <div class="context-bar" style="padding: 4px 12px;">
+            <span class="material-icons">folder</span>
+            <strong>Dutch Windmills</strong>
+          </div>
+          <div class="filter-panel">
+            <div class="filter-panel-header" style="padding: 6px 12px;">
+              <span class="material-icons">tune</span>
+              Filter by property
+            </div>
+            <div class="queryable-chips" style="padding: 0 12px 6px;">
+              <div class="queryable-chip available" style="height: 22px; font-size: 0.68rem; padding: 0 8px;">status</div>
+              <div class="queryable-chip available" style="height: 22px; font-size: 0.68rem; padding: 0 8px;">year</div>
+              <div class="queryable-chip available" style="height: 22px; font-size: 0.68rem; padding: 0 8px;">province</div>
+              <div class="queryable-chip available" style="height: 22px; font-size: 0.68rem; padding: 0 8px;">type</div>
+              <div class="queryable-chip available" style="height: 22px; font-size: 0.68rem; padding: 0 8px;">operational</div>
+              <div class="queryable-chip available" style="height: 22px; font-size: 0.68rem; padding: 0 8px;">height_m</div>
+            </div>
+          </div>
+          <div class="active-filters" style="padding: 5px 12px;">
+            <span class="active-filter-label">Filters</span>
+            <div class="active-filter" style="height: 20px; font-size: 0.65rem;">
+              status = active
+              <span class="remove-btn"><span class="material-icons" style="font-size: 11px;">close</span></span>
+            </div>
+            <span class="clear-all-btn">Clear</span>
+          </div>
+          <div class="results-list">
+            <div class="result-item" style="padding: 6px 12px;">
+              <span class="material-icons result-icon" style="font-size: 16px;">place</span>
+              <div class="result-body">
+                <div class="result-title" style="font-size: 0.78rem;">Molen De Adriaan</div>
+                <div class="result-meta" style="font-size: 0.65rem;"><span class="geo-chip">Point</span> &nbsp;status: active</div>
+              </div>
+            </div>
+            <div class="result-item" style="padding: 6px 12px;">
+              <span class="material-icons result-icon" style="font-size: 16px;">place</span>
+              <div class="result-body">
+                <div class="result-title" style="font-size: 0.78rem;">De Gooyer</div>
+                <div class="result-meta" style="font-size: 0.65rem;"><span class="geo-chip">Point</span> &nbsp;status: active</div>
+              </div>
+            </div>
+            <div class="result-item" style="padding: 6px 12px;">
+              <span class="material-icons result-icon" style="font-size: 16px;">place</span>
+              <div class="result-body">
+                <div class="result-title" style="font-size: 0.78rem;">Molen de Valk</div>
+                <div class="result-meta" style="font-size: 0.65rem;"><span class="geo-chip">Point</span> &nbsp;status: active</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile: Filters collapsed with active chips -->
+    <div>
+      <p style="font-size: 0.75rem; color: #999; margin-bottom: 8px; font-weight: 500;">Filters collapsed, active chips visible</p>
+      <div class="mobile-frame">
+        <div class="mobile-topbar">
+          <span class="material-icons">arrow_back</span>
+          <span class="app-title">Search</span>
+          <span class="material-icons">filter_list</span>
+        </div>
+        <div class="mobile-body">
+          <div class="mobile-search-header">
+            <span class="material-icons">search</span>
+            <input type="text" placeholder="Search items...">
+            <span class="material-icons">close</span>
+          </div>
+          <div class="category-tabs" style="padding: 0 8px;">
+            <div class="cat-tab" style="padding: 8px 10px; font-size: 0.72rem;">
+              <span class="material-icons" style="font-size:15px">dns</span>
+              <span class="count-badge">3</span>
+            </div>
+            <div class="cat-tab" style="padding: 8px 10px; font-size: 0.72rem;">
+              <span class="material-icons" style="font-size:15px">folder</span>
+              <span class="count-badge">12</span>
+            </div>
+            <div class="cat-tab disabled" style="padding: 8px 10px; font-size: 0.72rem;">
+              <span class="material-icons" style="font-size:15px">place</span>
+            </div>
+            <div class="cat-tab active" style="padding: 8px 10px; font-size: 0.72rem;">
+              <span class="material-icons" style="font-size:15px">article</span>
+              <span class="count-badge">42</span>
+            </div>
+          </div>
+          <div class="context-bar" style="padding: 4px 12px;">
+            <span class="material-icons">folder</span>
+            <strong>Dutch Windmills</strong>
+          </div>
+          <div class="active-filters" style="padding: 5px 12px;">
+            <span class="active-filter-label">Filters</span>
+            <div class="active-filter" style="height: 20px; font-size: 0.65rem;">
+              status = active
+              <span class="remove-btn"><span class="material-icons" style="font-size: 11px;">close</span></span>
+            </div>
+            <div class="active-filter" style="height: 20px; font-size: 0.65rem;">
+              type = tower_mill
+              <span class="remove-btn"><span class="material-icons" style="font-size: 11px;">close</span></span>
+            </div>
+            <span class="clear-all-btn">Clear</span>
+          </div>
+          <div class="results-list">
+            <div class="result-item" style="padding: 6px 12px;">
+              <span class="material-icons result-icon" style="font-size: 16px;">place</span>
+              <div class="result-body">
+                <div class="result-title" style="font-size: 0.78rem;">Molen De Adriaan</div>
+                <div class="result-meta" style="font-size: 0.65rem;"><span class="geo-chip">Point</span> &nbsp;status: active · type: tower_mill</div>
+              </div>
+            </div>
+            <div class="result-item" style="padding: 6px 12px;">
+              <span class="material-icons result-icon" style="font-size: 16px;">place</span>
+              <div class="result-body">
+                <div class="result-title" style="font-size: 0.78rem;">De Gooyer</div>
+                <div class="result-meta" style="font-size: 0.65rem;"><span class="geo-chip">Point</span> &nbsp;status: active · type: tower_mill</div>
+              </div>
+            </div>
+            <div class="result-item" style="padding: 6px 12px;">
+              <span class="material-icons result-icon" style="font-size: 16px;">place</span>
+              <div class="result-body">
+                <div class="result-title" style="font-size: 0.78rem;">Molen de Valk</div>
+                <div class="result-meta" style="font-size: 0.65rem;"><span class="geo-chip">Point</span> &nbsp;status: active · type: tower_mill</div>
+              </div>
+            </div>
+            <div class="result-item" style="padding: 6px 12px;">
+              <span class="material-icons result-icon" style="font-size: 16px;">place</span>
+              <div class="result-body">
+                <div class="result-title" style="font-size: 0.78rem;">De Roos</div>
+                <div class="result-meta" style="font-size: 0.65rem;"><span class="geo-chip">Point</span> &nbsp;status: active · type: tower_mill</div>
+              </div>
+            </div>
+          </div>
+          <div class="pagination-footer" style="font-size: 0.68rem;">
+            <span class="material-icons disabled" style="font-size: 16px;">navigate_before</span>
+            1–42 of 42
+            <span class="material-icons disabled" style="font-size: 16px;">navigate_next</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note" style="margin-top: 14px;">
+    <strong>Mobile differences:</strong>
+    <ul>
+      <li>Filter icon moves to the top bar (next to back arrow) since there's no search endAdornment in mobile.</li>
+      <li>Tabs use icon-only mode (no text labels) to save horizontal space.</li>
+      <li>Property chips and active filter chips are slightly smaller (22px / 20px height).</li>
+      <li>Type badges are hidden on property chips in mobile to save space — just show the property name.</li>
+      <li>Filter form (not shown) renders full-width below the chips, same controls but larger touch targets.</li>
+    </ul>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- IMPLEMENTATION NOTES -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <span class="section-label label-detail">Implementation notes</span>
+  <h2>Phase 4c implementation guidance</h2>
+
+  <div class="note">
+    <strong>Component structure:</strong>
+    <ul>
+      <li><code>QueryablesFilterPanel</code> — container with property chips + inline form. Props: <code>queryables</code>, <code>activeFilters</code>, <code>onAddFilter</code>, <code>onRemoveFilter</code>.</li>
+      <li><code>ActiveFilterChips</code> — renders the blue active filter chips bar. Always visible when filters exist, regardless of panel open/closed state.</li>
+      <li>Filter state: <code>Map&lt;string, string&gt;</code> of <code>propertyName → value</code>. Serialized to URL params: <code>?status=active&amp;type=tower_mill</code>.</li>
+    </ul>
+    <strong>Input types by queryable type:</strong>
+    <ul>
+      <li><code>string</code> without enum → text input</li>
+      <li><code>string</code> with enum → select dropdown</li>
+      <li><code>number</code> / <code>integer</code> → text input (with <code>inputMode="numeric"</code>)</li>
+      <li><code>boolean</code> → true/false toggle</li>
+      <li><code>string</code> with <code>format: "date-time"</code> → text input (date picker is a future enhancement)</li>
+    </ul>
+    <strong>URL parameter construction:</strong>
+    <ul>
+      <li>OGC API Features standard: simple <code>property=value</code> query parameters.</li>
+      <li>Multiple filters: <code>?status=active&amp;type=tower_mill</code> (AND semantics).</li>
+      <li>Parameters are appended to the existing items URL before fetching.</li>
+      <li>Client-side search box text filtering still applies on top of server-side results.</li>
+    </ul>
+    <strong>State management:</strong>
+    <ul>
+      <li>Filter state lives in <code>useItemsFetch</code> hook (same as pagination state).</li>
+      <li>Filter changes reset pagination to page 1.</li>
+      <li>Filters are cleared when collection changes.</li>
+      <li><code>showFilters</code> toggle state lives in <code>SearchContent</code> (same as collections filter toggle).</li>
+    </ul>
+  </div>
+</div>
+
+</body>
+</html>

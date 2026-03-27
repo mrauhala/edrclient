@@ -29,9 +29,12 @@ import CloseIcon from '@mui/icons-material/Close';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import CheckIcon from '@mui/icons-material/Check';
 import { SERVICE_TYPE_CONFIG } from '../config/serviceTypeConfig';
-import type { ActiveTab, FilterField, ServiceItem, CollectionResult, ItemResult, LocationResult } from './types';
+import type { ActiveTab, FilterField, ServiceItem, CollectionResult, ItemResult, LocationResult, FeatureItem } from './types';
 import { GEOMETRY_CHIP_COLORS } from './types';
 import { highlightMatch, getPropertyPreview } from './matching';
+import type { QueryablesSchema } from '../api/queryables';
+import { QueryablesFilterPanel } from './QueryablesFilterPanel';
+import { ActiveFiltersBar } from './ActiveFiltersBar';
 
 function CountBadge({ count, active }: { count: number; active: boolean }) {
   return (
@@ -106,6 +109,14 @@ export function SearchContent({
   setIsKeyboardNav,
   showFilters,
   setShowFilters,
+  queryablesSupported,
+  queryables,
+  queryablesLoading,
+  itemFilters,
+  onSetItemFilter,
+  onRemoveItemFilter,
+  onClearItemFilters,
+  loadedItems,
   inputRef,
   listRef,
 }: {
@@ -145,6 +156,14 @@ export function SearchContent({
   setIsKeyboardNav: (v: boolean) => void;
   showFilters: boolean;
   setShowFilters: React.Dispatch<React.SetStateAction<boolean>>;
+  queryablesSupported: boolean;
+  queryables: QueryablesSchema | null;
+  queryablesLoading: boolean;
+  itemFilters: Record<string, string>;
+  onSetItemFilter: (property: string, value: string) => void;
+  onRemoveItemFilter: (property: string) => void;
+  onClearItemFilters: () => void;
+  loadedItems: FeatureItem[];
   inputRef: React.RefObject<HTMLInputElement | null>;
   listRef: React.RefObject<HTMLUListElement | null>;
 }) {
@@ -188,11 +207,11 @@ export function SearchContent({
                         <CloseIcon fontSize="small" />
                       </IconButton>
                     )}
-                    {activeTab === 'collections' && (
+                    {(activeTab === 'collections' || (activeTab === 'items' && queryablesSupported)) && (
                       <IconButton
                         size="small"
                         onClick={() => setShowFilters(prev => !prev)}
-                        color={showFilters ? 'primary' : 'default'}
+                        color={showFilters || Object.keys(itemFilters).length > 0 ? 'primary' : 'default'}
                         edge="end"
                       >
                         <FilterListIcon fontSize="small" />
@@ -279,6 +298,24 @@ export function SearchContent({
               {selectedCollectionName}
             </Typography>
           </Box>
+        )}
+        {/* Queryables filter panel (Items tab) */}
+        {activeTab === 'items' && showFilters && queryablesSupported && (
+          <QueryablesFilterPanel
+            queryables={queryables}
+            queryablesLoading={queryablesLoading}
+            activeFilters={itemFilters}
+            onApplyFilter={onSetItemFilter}
+            loadedItems={loadedItems}
+          />
+        )}
+        {/* Active filters bar (Items tab, visible even when panel collapsed) */}
+        {activeTab === 'items' && (
+          <ActiveFiltersBar
+            filters={itemFilters}
+            onRemove={onRemoveItemFilter}
+            onClearAll={onClearItemFilters}
+          />
         )}
       </Box>
 
