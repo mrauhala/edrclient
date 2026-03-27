@@ -2,7 +2,7 @@ import type { ServiceType } from '../types/ServiceType';
 import type { Collection } from '../types/api';
 
 export type FilterField = 'title' | 'description' | 'keywords' | 'id';
-export type ActiveTab = 'services' | 'collections' | 'items';
+export type ActiveTab = 'services' | 'collections' | 'items' | 'locations';
 
 export const DEFAULT_FILTERS = new Set<FilterField>(['title', 'description', 'keywords', 'id']);
 
@@ -30,6 +30,12 @@ export interface ItemResult {
   feature: FeatureItem;
   displayName: string;
   geometryType: string;
+}
+
+export interface LocationResult {
+  feature: FeatureItem;
+  displayName: string;
+  coordinates: string | null;
 }
 
 export const GEOMETRY_CHIP_COLORS: Record<string, { bgcolor: string; borderColor: string; color: string }> = {
