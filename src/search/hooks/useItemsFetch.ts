@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { useCollection } from '../../contexts/CollectionContext';
 import { useService } from '../../contexts/ServiceContext';
@@ -7,8 +7,20 @@ import { normalizeHref } from '../../DataRetrievalAPI';
 import type { ActiveTab, FeatureItem, ItemResult } from '../types';
 import { matchItem } from '../matching';
 import { useQueryables } from './useQueryables';
+import type { QueryablesSchema } from '../../api/queryables';
 
 const ITEMS_PAGE_SIZE = 200;
+
+/** Find the first property whose key contains "name" (case-insensitive). */
+function getNameProperty(properties: Record<string, unknown> | undefined): string | null {
+  if (!properties) return null;
+  for (const [key, val] of Object.entries(properties)) {
+    if (key.toLowerCase().includes('name') && val != null && val !== '') {
+      return String(val);
+    }
+  }
+  return null;
+}
 
 interface UseItemsFetchParams {
   query: string;
@@ -30,17 +42,27 @@ interface UseItemsFetchReturn {
   handleItemsNextPage: () => void;
   handleItemsPrevPage: () => void;
   queryablesSupported: boolean;
+  queryables: QueryablesSchema | null;
+  queryablesLoading: boolean;
+  itemFilters: Record<string, string>;
+  setItemFilter: (property: string, value: string) => void;
+  removeItemFilter: (property: string) => void;
+  clearItemFilters: () => void;
+  loadedItems: FeatureItem[];
 }
 
 export function useItemsFetch({ query, activeTab, setActiveTab }: UseItemsFetchParams): UseItemsFetchReturn {
   const { selectedCollection } = useCollection();
   const { getAuthCredentials } = useService();
 
-  // Queryables (Phase 4a: fetch schema for future structured filters)
-  const { queryablesSupported } = useQueryables(
+  // Queryables
+  const { queryablesSupported, queryables, queryablesLoading } = useQueryables(
     selectedCollection,
     activeTab === 'items'
   );
+
+  // Server-side property filters (queryables)
+  const [itemFilters, setItemFilters] = useState<Record<string, string>>({});
 
   // Items state
   const [items, setItems] = useState<FeatureItem[]>([]);
@@ -62,13 +84,41 @@ export function useItemsFetch({ query, activeTab, setActiveTab }: UseItemsFetchP
 
   const isRecordCollection = selectedCollection?.itemType === 'record';
 
-  // Debounced query for server-side search (Records only)
+  // Filter mutation callbacks
+  const setItemFilter = useCallback((property: string, value: string) => {
+    setItemFilters(prev => ({ ...prev, [property]: value }));
+  }, []);
+
+  const removeItemFilter = useCallback((property: string) => {
+    setItemFilters(prev => {
+      const next = { ...prev };
+      delete next[property];
+      return next;
+    });
+  }, []);
+
+  const clearItemFilters = useCallback(() => {
+    setItemFilters({});
+  }, []);
+
+  // Reset pagination when property filters change
+  useEffect(() => {
+    setItemsOffset(0);
+    setItemsTotal(null);
+  }, [itemFilters]);
+
+  // Track q= parameter support per collection (true = supported, false = 400 error)
+  const qSupportRef = useRef<Map<string, boolean>>(new Map());
+  // Records always support q=; for Features, assume supported until proven otherwise
+  const qSupported = isRecordCollection || (selectedCollection?.id != null && qSupportRef.current.get(selectedCollection.id) !== false);
+
+  // Debounced query for server-side search (q= parameter)
   const [debouncedItemsQuery, setDebouncedItemsQuery] = useState('');
   useEffect(() => {
-    if (!isRecordCollection) return;
+    if (!qSupported) return;
     const timer = setTimeout(() => setDebouncedItemsQuery(query), 300);
     return () => clearTimeout(timer);
-  }, [query, isRecordCollection]);
+  }, [query, qSupported]);
 
   // Auto-switch away from items tab when it becomes unavailable
   useEffect(() => {
@@ -77,13 +127,13 @@ export function useItemsFetch({ query, activeTab, setActiveTab }: UseItemsFetchP
     }
   }, [itemsUrl, activeTab, setActiveTab]);
 
-  // Reset offset when server-side query changes (Records)
+  // Reset offset when server-side query changes
   useEffect(() => {
-    if (isRecordCollection) {
+    if (qSupported) {
       setItemsOffset(0);
       setItemsTotal(null);
     }
-  }, [debouncedItemsQuery, isRecordCollection]);
+  }, [debouncedItemsQuery, qSupported]);
 
   // Fetch items when items tab is activated, page changes, or server-side query changes
   useEffect(() => {
@@ -111,9 +161,13 @@ export function useItemsFetch({ query, activeTab, setActiveTab }: UseItemsFetchP
         if (currentOffset > 0) {
           urlObj.searchParams.set('offset', String(currentOffset));
         }
-        // OGC API Records: use q parameter for server-side text search
-        if (isRecordCollection && debouncedItemsQuery) {
+        // Server-side text search via q= parameter (works on many OGC API implementations)
+        if (qSupported && debouncedItemsQuery) {
           urlObj.searchParams.set('q', debouncedItemsQuery);
+        }
+        // OGC API Features: apply queryable property filters as URL params
+        for (const [key, value] of Object.entries(itemFilters)) {
+          urlObj.searchParams.set(key, value);
         }
         const fetchUrl = addApiKeyToUrl(urlObj.toString(), auth);
         const response = await axios.get(fetchUrl, getAxiosConfig(auth));
@@ -135,6 +189,15 @@ export function useItemsFetch({ query, activeTab, setActiveTab }: UseItemsFetchP
         }
       } catch (err: unknown) {
         if (cancelled) return;
+        // If q= caused a 400 error, mark this collection as not supporting q= and retry without it
+        if (qSupported && debouncedItemsQuery && !isRecordCollection &&
+            axios.isAxiosError(err) && err.response?.status === 400 &&
+            selectedCollection) {
+          qSupportRef.current.set(selectedCollection.id, false);
+          // Retry without q= by re-triggering the effect (qSupported will now be false)
+          setDebouncedItemsQuery('');
+          return;
+        }
         setItemsError(err instanceof Error ? err.message : 'Failed to fetch items');
       } finally {
         if (!cancelled) setItemsLoading(false);
@@ -143,7 +206,7 @@ export function useItemsFetch({ query, activeTab, setActiveTab }: UseItemsFetchP
 
     fetchItems();
     return () => { cancelled = true; };
-  }, [activeTab, itemsUrl, selectedCollection, itemsCollectionId, itemsOffset, isRecordCollection, debouncedItemsQuery, getAuthCredentials]);
+  }, [activeTab, itemsUrl, selectedCollection, itemsCollectionId, itemsOffset, isRecordCollection, debouncedItemsQuery, itemFilters, qSupported, getAuthCredentials]);
 
   // Reset items when selected collection changes while not on items tab
   useEffect(() => {
@@ -153,6 +216,7 @@ export function useItemsFetch({ query, activeTab, setActiveTab }: UseItemsFetchP
       setItemsError(null);
       setItemsOffset(0);
       setItemsTotal(null);
+      setItemFilters({});
     }
   }, [selectedCollection?.id, itemsCollectionId]);
 
@@ -165,18 +229,18 @@ export function useItemsFetch({ query, activeTab, setActiveTab }: UseItemsFetchP
     setItemsOffset(prev => Math.max(0, prev - ITEMS_PAGE_SIZE));
   }, []);
 
-  // Filter items — server-side for Records (via q param), client-side for Features
+  // Filter items — server-side via q= when supported, client-side otherwise
   const filteredItems = useMemo(() => {
     const all: ItemResult[] = items.map(f => ({
       feature: f,
-      displayName: String(f.properties?.name || f.properties?.title || f.id || 'Unnamed'),
+      displayName: String(f.properties?.name || f.properties?.title || f.properties?.label || f.properties?.nimi || getNameProperty(f.properties) || f.id || 'Unnamed'),
       geometryType: f.geometry?.type || 'No geometry',
     }));
-    // Records use server-side q parameter, so results are already filtered
-    if (isRecordCollection) return all;
+    // Server-side search: results are already filtered
+    if (qSupported) return all;
     if (!query) return all;
     return all.filter(item => matchItem(item, query));
-  }, [items, query, isRecordCollection]);
+  }, [items, query, qSupported]);
 
   return {
     filteredItems,
@@ -192,5 +256,12 @@ export function useItemsFetch({ query, activeTab, setActiveTab }: UseItemsFetchP
     handleItemsNextPage,
     handleItemsPrevPage,
     queryablesSupported,
+    queryables,
+    queryablesLoading,
+    itemFilters,
+    setItemFilter,
+    removeItemFilter,
+    clearItemFilters,
+    loadedItems: items,
   };
 }

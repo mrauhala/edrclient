@@ -27,35 +27,31 @@ interface CacheEntry {
 
 const cache = new Map<string, CacheEntry>();
 
+const QUERYABLES_RELS = [
+  'http://www.opengis.net/def/rel/ogc/0.0/queryables',
+  'http://www.opengis.net/def/rel/ogc/1.0/queryables',
+  'queryables',
+];
+
 /**
- * Derive the queryables URL from a collection's links.
- * 1. Look for a link with rel containing "queryables"
- * 2. Fall back: derive from items link (replace /items with /queryables)
+ * Check whether a collection advertises a queryables link.
+ */
+export function hasQueryablesLink(collection: Collection): boolean {
+  return getQueryablesUrl(collection) !== null;
+}
+
+/**
+ * Get the queryables URL from a collection's links.
+ * Only returns a URL if the collection has an explicit queryables rel link.
  */
 export function getQueryablesUrl(collection: Collection): string | null {
   if (!collection.links) return null;
 
-  // 1. Look for explicit queryables link
   const queryablesLink = collection.links.find(
-    (l) => l.rel?.includes('queryables')
+    (l) => l.rel != null && QUERYABLES_RELS.includes(l.rel)
   );
-  if (queryablesLink) {
-    return normalizeHref(queryablesLink.href);
-  }
 
-  // 2. Fall back: derive from items link
-  const itemsLink = collection.links.find(
-    (l) => l.rel === 'items' || l.rel === 'http://www.opengis.net/def/rel/ogc/1.0/items'
-  );
-  if (itemsLink) {
-    const itemsHref = normalizeHref(itemsLink.href);
-    if (itemsHref) {
-      // Replace trailing /items with /queryables
-      return itemsHref.replace(/\/items\/?$/, '/queryables');
-    }
-  }
-
-  return null;
+  return queryablesLink ? normalizeHref(queryablesLink.href) : null;
 }
 
 /**
@@ -131,3 +127,4 @@ export async function fetchQueryables(
 export function clearQueryablesCache(): void {
   cache.clear();
 }
+

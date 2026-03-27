@@ -59,6 +59,14 @@ const CommandPalette: React.FC = () => {
     itemsPageCount,
     handleItemsNextPage,
     handleItemsPrevPage,
+    queryablesSupported,
+    queryables,
+    queryablesLoading,
+    itemFilters,
+    setItemFilter,
+    removeItemFilter,
+    clearItemFilters,
+    loadedItems,
   } = useItemsFetch({ query, activeTab, setActiveTab });
 
   // Build combined service list
@@ -294,6 +302,14 @@ const CommandPalette: React.FC = () => {
       setIsKeyboardNav={setIsKeyboardNav}
       showFilters={showFilters}
       setShowFilters={setShowFilters}
+      queryablesSupported={queryablesSupported}
+      queryables={queryables}
+      queryablesLoading={queryablesLoading}
+      itemFilters={itemFilters}
+      onSetItemFilter={setItemFilter}
+      onRemoveItemFilter={removeItemFilter}
+      onClearItemFilters={clearItemFilters}
+      loadedItems={loadedItems}
       inputRef={inputRef}
       listRef={listRef}
     />
@@ -348,11 +364,11 @@ const CommandPalette: React.FC = () => {
                           <CloseIcon fontSize="small" />
                         </IconButton>
                       )}
-                      {activeTab === 'collections' && (
+                      {(activeTab === 'collections' || (activeTab === 'items' && queryablesSupported)) && (
                         <IconButton
                           size="small"
                           onClick={() => setShowFilters(prev => !prev)}
-                          sx={{ color: showFilters ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.5)' }}
+                          sx={{ color: showFilters || Object.keys(itemFilters).length > 0 ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.5)' }}
                         >
                           <FilterListIcon fontSize="small" />
                         </IconButton>
