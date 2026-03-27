@@ -185,6 +185,10 @@ const CommandPalette: React.FC = () => {
       if (!svc) return;
       setSelectedServiceUrl(svc.url);
       setTimeout(() => setSelectedServiceUrl(null), 100);
+      setActiveTab('collections');
+      setQuery('');
+      inputRef.current?.focus();
+      return; // skip handleClose() below
     } else if (activeTab === 'collections') {
       const result = filteredCollections[index];
       if (!result) return;
@@ -192,6 +196,16 @@ const CommandPalette: React.FC = () => {
       if (result.collection.id !== selectedCollection?.id) {
         selectCollectionByIndexRef.current?.(result.originalIndex);
       }
+      // Don't close — auto-switch to best available tab
+      const col = result.collection;
+      if (hasLocationQuery(col)) {
+        setActiveTab('locations');
+      } else {
+        setActiveTab('items');
+      }
+      setQuery('');
+      inputRef.current?.focus();
+      return; // skip handleClose() below
     } else if (activeTab === 'items') {
       const item = filteredItems[index];
       if (!item) return;
@@ -270,6 +284,7 @@ const CommandPalette: React.FC = () => {
       onItemsNextPage={handleItemsNextPage}
       onItemsPrevPage={handleItemsPrevPage}
       selectedCollectionId={selectedCollection?.id ?? null}
+      selectedCollectionName={selectedCollection?.title || selectedCollection?.id || null}
       highlightedIndex={highlightedIndex}
       onSelect={handleSelect}
       onKeyDown={handleKeyDown}
