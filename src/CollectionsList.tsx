@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, memo } from 'react';
+import { useEffect, useState, useCallback, useRef, memo } from 'react';
 import List from '@mui/material/List';
 import ListItemText from '@mui/material/ListItemText';
 import ListItemButton from '@mui/material/ListItemButton';
@@ -157,6 +157,8 @@ const CollectionsList = ({
   } = queryState;
 
   const [openCollectionIndex, setOpenCollectionIndex] = useState<number | null>(null);
+  const openCollectionIndexRef = useRef(openCollectionIndex);
+  openCollectionIndexRef.current = openCollectionIndex;
   const [currentLocationCollection, setCurrentLocationCollection] = useState<string | null>(null);
   const [showCollectionValidation, setShowCollectionValidation] = useState<{[key: string]: boolean}>({});
 
@@ -194,7 +196,7 @@ const CollectionsList = ({
   }, [selectedDatetime, datetimeMode, startDatetime, endDatetime]);
 
   const handleItemClick = useCallback(async (index: number, key: string) => {
-    const newIndex = openCollectionIndex === index ? null : index;
+    const newIndex = openCollectionIndexRef.current === index ? null : index;
     setOpenCollectionIndex(newIndex);
 
     const collection = collections[index];
