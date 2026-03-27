@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
@@ -67,7 +67,16 @@ const DataModal: React.FC<DataModalProps> = ({
     contentTypeLabel, language, shouldUseCodeView, formattedData,
   } = useContentTypeDetection(data, contentType);
 
-  const { transformedHtml, transformError } = useXSLTTransform(data, viewMode, isIWXXM, setViewMode);
+  const { transformedHtml, transformError, isTransforming } = useXSLTTransform(data, viewMode, isIWXXM, setViewMode);
+
+  // Reset local state when modal opens with new data
+  useEffect(() => {
+    if (open) {
+      setViewMode('code');
+      setCopiedUrl(false);
+      setCopiedData(false);
+    }
+  }, [open, data]);
 
   const {
     errorLineList, errorLines, gutterRanges,
@@ -213,25 +222,33 @@ const DataModal: React.FC<DataModalProps> = ({
                       size="small"
                       variant="outlined"
                     />
-                    <IconButton
-                      size="small"
-                      onClick={handlePrevError}
-                      disabled={currentErrorIdx <= 0}
-                      aria-label="Previous error"
-                    >
-                      <KeyboardArrowUpIcon fontSize="small" />
-                    </IconButton>
+                    <Tooltip title={`Previous error (${navigator.platform?.includes('Mac') ? '⌘' : 'Ctrl'}+↑)`}>
+                      <span>
+                        <IconButton
+                          size="small"
+                          onClick={handlePrevError}
+                          disabled={currentErrorIdx <= 0}
+                          aria-label="Previous error"
+                        >
+                          <KeyboardArrowUpIcon fontSize="small" />
+                        </IconButton>
+                      </span>
+                    </Tooltip>
                     <Typography variant="caption" sx={{ minWidth: 32, textAlign: 'center', userSelect: 'none' }}>
                       {currentErrorIdx + 1}/{errorLineList.length}
                     </Typography>
-                    <IconButton
-                      size="small"
-                      onClick={handleNextError}
-                      disabled={currentErrorIdx >= errorLineList.length - 1}
-                      aria-label="Next error"
-                    >
-                      <KeyboardArrowDownIcon fontSize="small" />
-                    </IconButton>
+                    <Tooltip title={`Next error (${navigator.platform?.includes('Mac') ? '⌘' : 'Ctrl'}+↓)`}>
+                      <span>
+                        <IconButton
+                          size="small"
+                          onClick={handleNextError}
+                          disabled={currentErrorIdx >= errorLineList.length - 1}
+                          aria-label="Next error"
+                        >
+                          <KeyboardArrowDownIcon fontSize="small" />
+                        </IconButton>
+                      </span>
+                    </Tooltip>
                   </Box>
                 )}
 
@@ -318,7 +335,14 @@ const DataModal: React.FC<DataModalProps> = ({
                 backgroundColor: 'background.paper',
               }}
             >
-              {viewMode === 'preview' && isIWXXM() && transformedHtml ? (
+              {viewMode === 'preview' && isIWXXM() && isTransforming ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                  <CircularProgress size={32} />
+                  <Typography variant="body2" color="text.secondary" sx={{ ml: 1.5 }}>
+                    Transforming XSLT...
+                  </Typography>
+                </Box>
+              ) : viewMode === 'preview' && isIWXXM() && transformedHtml ? (
                 <iframe
                   srcDoc={transformedHtml}
                   sandbox="allow-same-origin"

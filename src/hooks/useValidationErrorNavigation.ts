@@ -85,15 +85,14 @@ export function useValidationErrorNavigation(
 
   const currentError = errorLineList[currentErrorIdx];
 
+  // Stabilized callbacks using functional setState — no deps on currentErrorIdx
   const handlePrevError = useCallback(() => {
-    if (currentErrorIdx <= 0) return;
-    setCurrentErrorIdx(currentErrorIdx - 1);
-  }, [currentErrorIdx]);
+    setCurrentErrorIdx(prev => (prev <= 0 ? prev : prev - 1));
+  }, []);
 
   const handleNextError = useCallback(() => {
-    if (currentErrorIdx >= errorLineList.length - 1) return;
-    setCurrentErrorIdx(currentErrorIdx + 1);
-  }, [currentErrorIdx, errorLineList.length]);
+    setCurrentErrorIdx(prev => (prev >= errorLineList.length - 1 ? prev : prev + 1));
+  }, [errorLineList.length]);
 
   // Keyboard navigation: Ctrl/Cmd + ArrowUp/Down for prev/next error
   useEffect(() => {
