@@ -19,9 +19,10 @@ import { useGeoJsonLayers } from './contexts/GeoJsonLayerContext';
 import systemServices from './config/services.json';
 import { ServiceDefinition } from './types/ServiceType';
 import { SERVICE_TYPE_ORDER } from './config/serviceTypeConfig';
-import type { ActiveTab, FilterField, ServiceItem, CollectionResult } from './search/types';
+import type { ActiveTab, FilterField, ServiceItem, CollectionResult, LocationResult, FeatureItem } from './search/types';
 import { DEFAULT_FILTERS } from './search/types';
-import { matchService, matchCollection } from './search/matching';
+import { matchService, matchCollection, matchLocation, formatCoordinates } from './search/matching';
+import { hasLocationQuery } from './api/queries';
 import { SearchContent } from './search/SearchContent';
 import { useItemsFetch } from './search/hooks/useItemsFetch';
 import { useSearchNavigation } from './search/hooks/useSearchNavigation';
@@ -31,7 +32,7 @@ const typedSystemServices: ServiceDefinition[] = systemServices as ServiceDefini
 const CommandPalette: React.FC = () => {
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
-  const { collections, selectedCollection, selectCollectionByIndexRef } = useCollection();
+  const { collections, selectedCollection, selectCollectionByIndexRef, locationFeatures, setSelectedFeature } = useCollection();
   const { activeServiceUrl, customServices, setSelectedServiceUrl } = useService();
   const { geoJsonLayers, setGeoJsonLayers } = useGeoJsonLayers();
 
@@ -106,6 +107,30 @@ const CommandPalette: React.FC = () => {
     return results;
   }, [collections, query, filters]);
 
+  // Locations
+  const locationsEnabled = !!selectedCollection && hasLocationQuery(selectedCollection);
+
+  const allLocations: LocationResult[] = useMemo(() => {
+    if (!locationFeatures) return [];
+    return locationFeatures.map((f: FeatureItem) => ({
+      feature: f,
+      displayName: String(f.properties?.name ?? f.properties?.title ?? f.id ?? 'Unnamed'),
+      coordinates: formatCoordinates(f.geometry),
+    }));
+  }, [locationFeatures]);
+
+  const filteredLocations = useMemo(() => {
+    if (!query) return allLocations;
+    return allLocations.filter(loc => matchLocation(loc, query));
+  }, [allLocations, query]);
+
+  // Auto-switch away from locations tab when it becomes unavailable
+  useEffect(() => {
+    if (activeTab === 'locations' && !locationsEnabled) {
+      setActiveTab('collections');
+    }
+  }, [locationsEnabled, activeTab]);
+
   // Cross-popover coordination
   useEffect(() => {
     const handleClose = () => setOpen(false);
@@ -178,9 +203,21 @@ const CommandPalette: React.FC = () => {
       };
       const nonSelected = geoJsonLayers.filter(l => !l.title.startsWith('Selected: '));
       setGeoJsonLayers([...nonSelected, featureLayer]);
+    } else if (activeTab === 'locations') {
+      const loc = filteredLocations[index];
+      if (!loc) return;
+      setSelectedFeature(loc.feature);
+      const featureLayer = {
+        url: `selected-location-${Date.now()}`,
+        title: `Selected: ${loc.displayName}`,
+        visible: true,
+        data: { type: 'FeatureCollection' as const, features: [loc.feature] },
+      };
+      const nonSelected = geoJsonLayers.filter(l => !l.title.startsWith('Selected: '));
+      setGeoJsonLayers([...nonSelected, featureLayer]);
     }
     handleClose();
-  }, [activeTab, filteredServices, filteredCollections, filteredItems, selectedCollection?.id, setSelectedServiceUrl, selectCollectionByIndexRef, geoJsonLayers, setGeoJsonLayers, handleClose]);
+  }, [activeTab, filteredServices, filteredCollections, filteredItems, filteredLocations, selectedCollection?.id, setSelectedServiceUrl, selectCollectionByIndexRef, geoJsonLayers, setGeoJsonLayers, setSelectedFeature, handleClose]);
 
   // Keyboard navigation
   const {
@@ -197,8 +234,10 @@ const CommandPalette: React.FC = () => {
       services: filteredServices.length,
       collections: filteredCollections.length,
       items: filteredItems.length,
+      locations: filteredLocations.length,
     },
     itemsEnabled,
+    locationsEnabled,
     onSelect: handleSelect,
     onClose: handleClose,
   });
@@ -214,12 +253,15 @@ const CommandPalette: React.FC = () => {
       filteredServices={filteredServices}
       filteredCollections={filteredCollections}
       filteredItems={filteredItems}
+      filteredLocations={filteredLocations}
       serviceCount={filteredServices.length}
       collectionCount={filteredCollections.length}
       itemCount={filteredItems.length}
+      locationCount={filteredLocations.length}
       itemsLoading={itemsLoading}
       itemsError={itemsError}
       itemsEnabled={itemsEnabled}
+      locationsEnabled={locationsEnabled}
       isRecordCollection={isRecordCollection}
       itemsOffset={itemsOffset}
       itemsTotal={itemsTotal}

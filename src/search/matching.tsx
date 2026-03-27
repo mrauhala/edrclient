@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import Box from '@mui/material/Box';
 import type { Collection } from '../types/api';
-import type { FilterField, ItemResult } from './types';
+import type { FilterField, ItemResult, LocationResult } from './types';
 
 export function highlightMatch(text: string, query: string): ReactNode {
   if (!query) return text;
@@ -61,6 +61,29 @@ export function matchItem(item: ItemResult, query: string): boolean {
     }
   }
   if (item.feature.id != null && String(item.feature.id).toLowerCase().includes(lq)) return true;
+  return false;
+}
+
+export function formatCoordinates(geometry: { type: string; coordinates: unknown } | undefined): string | null {
+  if (!geometry || geometry.type !== 'Point') return null;
+  const coords = geometry.coordinates as number[];
+  if (!Array.isArray(coords) || coords.length < 2) return null;
+  const [lon, lat] = coords;
+  const latDir = lat >= 0 ? 'N' : 'S';
+  const lonDir = lon >= 0 ? 'E' : 'W';
+  return `${Math.abs(lat).toFixed(2)}\u00b0${latDir}, ${Math.abs(lon).toFixed(2)}\u00b0${lonDir}`;
+}
+
+export function matchLocation(loc: LocationResult, query: string): boolean {
+  const lq = query.toLowerCase();
+  if (loc.displayName.toLowerCase().includes(lq)) return true;
+  if (loc.coordinates && loc.coordinates.toLowerCase().includes(lq)) return true;
+  if (loc.feature.properties) {
+    for (const val of Object.values(loc.feature.properties)) {
+      if (typeof val === 'string' && val.toLowerCase().includes(lq)) return true;
+    }
+  }
+  if (loc.feature.id != null && String(loc.feature.id).toLowerCase().includes(lq)) return true;
   return false;
 }
 

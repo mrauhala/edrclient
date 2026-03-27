@@ -14,6 +14,12 @@ import InputAdornment from '@mui/material/InputAdornment';
 import CircularProgress from '@mui/material/CircularProgress';
 import DnsIcon from '@mui/icons-material/Dns';
 import FolderIcon from '@mui/icons-material/Folder';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
+import PlaceIcon from '@mui/icons-material/Place';
+import TimelineIcon from '@mui/icons-material/Timeline';
+import PentagonIcon from '@mui/icons-material/Pentagon';
+import ScatterPlotIcon from '@mui/icons-material/ScatterPlot';
+import HexagonIcon from '@mui/icons-material/Hexagon';
 import ArticleIcon from '@mui/icons-material/Article';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import NavigateBeforeIcon from '@mui/icons-material/NavigateBefore';
@@ -22,7 +28,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import CheckIcon from '@mui/icons-material/Check';
 import { SERVICE_TYPE_CONFIG } from '../config/serviceTypeConfig';
-import type { ActiveTab, FilterField, ServiceItem, CollectionResult, ItemResult } from './types';
+import type { ActiveTab, FilterField, ServiceItem, CollectionResult, ItemResult, LocationResult } from './types';
 import { GEOMETRY_CHIP_COLORS } from './types';
 import { highlightMatch, getPropertyPreview } from './matching';
 
@@ -49,6 +55,19 @@ function CountBadge({ count, active }: { count: number; active: boolean }) {
   );
 }
 
+function GeometryIcon({ type, color }: { type: string; color?: string }) {
+  const sx = { fontSize: 20, color: color ?? GEOMETRY_CHIP_COLORS[type]?.color ?? 'text.secondary' };
+  switch (type) {
+    case 'Point': return <PlaceIcon sx={sx} />;
+    case 'MultiPoint': return <ScatterPlotIcon sx={sx} />;
+    case 'LineString':
+    case 'MultiLineString': return <TimelineIcon sx={sx} />;
+    case 'Polygon': return <PentagonIcon sx={sx} />;
+    case 'MultiPolygon': return <HexagonIcon sx={sx} />;
+    default: return <ArticleIcon sx={sx} />;
+  }
+}
+
 export function SearchContent({
   query,
   setQuery,
@@ -59,12 +78,15 @@ export function SearchContent({
   filteredServices,
   filteredCollections,
   filteredItems,
+  filteredLocations,
   serviceCount,
   collectionCount,
   itemCount,
+  locationCount,
   itemsLoading,
   itemsError,
   itemsEnabled,
+  locationsEnabled,
   isRecordCollection,
   itemsOffset,
   itemsTotal,
@@ -94,12 +116,15 @@ export function SearchContent({
   filteredServices: ServiceItem[];
   filteredCollections: CollectionResult[];
   filteredItems: ItemResult[];
+  filteredLocations: LocationResult[];
   serviceCount: number;
   collectionCount: number;
   itemCount: number;
+  locationCount: number;
   itemsLoading: boolean;
   itemsError: string | null;
   itemsEnabled: boolean;
+  locationsEnabled: boolean;
   isRecordCollection: boolean;
   itemsOffset: number;
   itemsTotal: number | null;
@@ -128,7 +153,7 @@ export function SearchContent({
     items[highlightedIndex]?.scrollIntoView({ block: 'nearest' });
   }, [highlightedIndex, listRef]);
 
-  const results = activeTab === 'services' ? filteredServices : activeTab === 'collections' ? filteredCollections : filteredItems;
+  const results = activeTab === 'services' ? filteredServices : activeTab === 'collections' ? filteredCollections : activeTab === 'locations' ? filteredLocations : filteredItems;
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
@@ -196,6 +221,18 @@ export function SearchContent({
             icon={<FolderIcon sx={{ fontSize: 16 }} />}
             iconPosition="start"
             label={<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>Collections <CountBadge count={collectionCount} active={activeTab === 'collections'} /></Box>}
+            sx={{ gap: 0.5 }}
+          />
+          <Tab
+            value="locations"
+            icon={<LocationOnIcon sx={{ fontSize: 16 }} />}
+            iconPosition="start"
+            label={
+              locationsEnabled
+                ? <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>Locations <CountBadge count={locationCount} active={activeTab === 'locations'} /></Box>
+                : 'Locations'
+            }
+            disabled={!locationsEnabled}
             sx={{ gap: 0.5 }}
           />
           <Tab
@@ -272,9 +309,13 @@ export function SearchContent({
               ? `Matching services (${filteredServices.length})`
               : activeTab === 'collections'
                 ? `Matching collections (${filteredCollections.length})`
-                : query
-                  ? `${isRecordCollection ? 'Search results' : 'Matching items'} (${filteredItems.length})`
-                  : `Items (${filteredItems.length})`}
+                : activeTab === 'locations'
+                  ? query
+                    ? `Matching locations (${filteredLocations.length})`
+                    : `Locations (${filteredLocations.length})`
+                  : query
+                    ? `${isRecordCollection ? 'Search results' : 'Matching items'} (${filteredItems.length})`
+                    : `Items (${filteredItems.length})`}
           </Typography>
         )}
         {!(activeTab === 'items' && (itemsLoading || itemsError)) && results.length === 0 ? (
@@ -286,9 +327,11 @@ export function SearchContent({
                   ? 'Type to search services'
                   : activeTab === 'collections'
                     ? 'Type to search collections'
-                    : isRecordCollection
-                      ? 'Type to search records'
-                      : 'No items in this collection'}
+                    : activeTab === 'locations'
+                      ? 'No locations in this collection'
+                      : isRecordCollection
+                        ? 'Type to search records'
+                        : 'No items in this collection'}
             </Typography>
             {query && (
               <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
@@ -387,6 +430,42 @@ export function SearchContent({
               )}
             </ListItemButton>
           ))
+        ) : activeTab === 'locations' ? (
+          filteredLocations.map((loc, idx) => {
+            const preview = getPropertyPreview(loc.feature.properties);
+            return (
+              <ListItemButton
+                key={loc.feature.id != null ? String(loc.feature.id) : `loc-${idx}`}
+                role="option"
+                selected={idx === highlightedIndex}
+                onClick={() => onSelect(idx)}
+                sx={{ py: isDesktop ? 0.75 : 1.25, alignItems: 'flex-start' }}
+              >
+                <ListItemIcon sx={{ minWidth: 36, mt: 0.5 }}>
+                  <GeometryIcon type={loc.feature.geometry?.type ?? ''} />
+                </ListItemIcon>
+                <ListItemText
+                  primary={highlightMatch(loc.displayName, query)}
+                  secondary={
+                    <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.25, flexWrap: 'wrap' }}>
+                      {loc.coordinates && (
+                        <Typography component="span" variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace', fontSize: '0.65rem' }}>
+                          {highlightMatch(loc.coordinates, query)}
+                        </Typography>
+                      )}
+                      {preview && (
+                        <Typography component="span" variant="caption" color="text.secondary" noWrap sx={{ maxWidth: 280 }}>
+                          {highlightMatch(preview, query)}
+                        </Typography>
+                      )}
+                    </Box>
+                  }
+                  primaryTypographyProps={{ variant: 'body2', fontWeight: 500, noWrap: true }}
+                  secondaryTypographyProps={{ component: 'div' }}
+                />
+              </ListItemButton>
+            );
+          })
         ) : !(itemsLoading || itemsError) ? (
           filteredItems.map((item, idx) => {
             const chipColors = GEOMETRY_CHIP_COLORS[item.geometryType];
@@ -400,7 +479,7 @@ export function SearchContent({
                 sx={{ py: isDesktop ? 0.75 : 1.25, alignItems: 'flex-start' }}
               >
                 <ListItemIcon sx={{ minWidth: 36, mt: 0.5 }}>
-                  <ArticleIcon sx={{ fontSize: 20, color: 'text.secondary' }} />
+                  <GeometryIcon type={item.geometryType} />
                 </ListItemIcon>
                 <ListItemText
                   primary={highlightMatch(item.displayName, query)}

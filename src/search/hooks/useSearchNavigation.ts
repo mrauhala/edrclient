@@ -6,8 +6,9 @@ interface UseSearchNavigationParams {
   setActiveTab: (tab: ActiveTab) => void;
   query: string;
   filters: Set<FilterField>;
-  resultCounts: { services: number; collections: number; items: number };
+  resultCounts: { services: number; collections: number; items: number; locations: number };
   itemsEnabled: boolean;
+  locationsEnabled: boolean;
   onSelect: (index: number) => void;
   onClose: () => void;
 }
@@ -26,6 +27,7 @@ export function useSearchNavigation({
   filters,
   resultCounts,
   itemsEnabled,
+  locationsEnabled,
   onSelect,
   onClose,
 }: UseSearchNavigationParams): UseSearchNavigationReturn {
@@ -38,7 +40,11 @@ export function useSearchNavigation({
   }, [query, activeTab, filters]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    const tabOrder: ActiveTab[] = itemsEnabled ? ['services', 'collections', 'items'] : ['services', 'collections'];
+    const tabOrder: ActiveTab[] = [
+      'services', 'collections',
+      ...(locationsEnabled ? ['locations' as const] : []),
+      ...(itemsEnabled ? ['items' as const] : []),
+    ];
     const resultCount = resultCounts[activeTab];
 
     switch (e.key) {
@@ -77,7 +83,7 @@ export function useSearchNavigation({
         }
         break;
     }
-  }, [activeTab, resultCounts, itemsEnabled, highlightedIndex, onClose, onSelect, setActiveTab]);
+  }, [activeTab, resultCounts, itemsEnabled, locationsEnabled, highlightedIndex, onClose, onSelect, setActiveTab]);
 
   return {
     highlightedIndex,
