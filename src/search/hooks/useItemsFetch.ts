@@ -6,6 +6,7 @@ import { getAxiosConfig, addApiKeyToUrl } from '../../api/auth';
 import { normalizeHref } from '../../DataRetrievalAPI';
 import type { ActiveTab, FeatureItem, ItemResult } from '../types';
 import { matchItem } from '../matching';
+import { useQueryables } from './useQueryables';
 
 const ITEMS_PAGE_SIZE = 200;
 
@@ -28,11 +29,18 @@ interface UseItemsFetchReturn {
   itemsPageCount: number;
   handleItemsNextPage: () => void;
   handleItemsPrevPage: () => void;
+  queryablesSupported: boolean;
 }
 
 export function useItemsFetch({ query, activeTab, setActiveTab }: UseItemsFetchParams): UseItemsFetchReturn {
   const { selectedCollection } = useCollection();
   const { getAuthCredentials } = useService();
+
+  // Queryables (Phase 4a: fetch schema for future structured filters)
+  const { queryablesSupported } = useQueryables(
+    selectedCollection,
+    activeTab === 'items'
+  );
 
   // Items state
   const [items, setItems] = useState<FeatureItem[]>([]);
@@ -183,5 +191,6 @@ export function useItemsFetch({ query, activeTab, setActiveTab }: UseItemsFetchP
     itemsPageCount: items.length,
     handleItemsNextPage,
     handleItemsPrevPage,
+    queryablesSupported,
   };
 }
