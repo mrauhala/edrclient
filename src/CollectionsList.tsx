@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, memo } from 'react';
 import List from '@mui/material/List';
 import ListItemText from '@mui/material/ListItemText';
 import ListItemButton from '@mui/material/ListItemButton';
@@ -25,6 +25,55 @@ import { useService } from './contexts/ServiceContext';
 import { useValidation } from './contexts/ValidationContext';
 import { detectEdrVersion, validateLocationsResponse } from './validation/locationsValidator';
 import { UseQueryUrlReturn } from './hooks/useQueryUrl';
+
+interface CollectionListItemHeaderProps {
+  collection: Collection;
+  index: number;
+  isOpen: boolean;
+  onToggle: (index: number, id: string) => void;
+  validationErrors?: import('./DataRetrievalAPI').ValidationError[];
+  hasErrors: boolean;
+  fallbackLicense: LicenseInfo | null;
+}
+
+const CollectionListItemHeader = memo(function CollectionListItemHeader({
+  collection,
+  index,
+  isOpen,
+  onToggle,
+  validationErrors,
+  hasErrors,
+  fallbackLicense,
+}: CollectionListItemHeaderProps) {
+  return (
+    <ListItemButton
+      onClick={() => onToggle(index, collection.id)}
+      sx={{
+        borderLeft: '3px solid',
+        borderColor: validationErrors === undefined
+          ? 'transparent'
+          : hasErrors
+            ? 'warning.main'
+            : 'success.main',
+        pl: '10px',
+        py: 0.5,
+      }}
+    >
+      <ListItemText
+        primary={
+          <CollectionInfo
+            collection={collection}
+            fallbackLicense={fallbackLicense}
+            clampDescription={!isOpen}
+            validationErrors={validationErrors}
+          />
+        }
+        primaryTypographyProps={{ component: 'div' }}
+      />
+      {isOpen ? <ExpandLess /> : <ExpandMore />}
+    </ListItemButton>
+  );
+});
 
 interface CollectionsListProps {
   collections: Collection[];
@@ -144,7 +193,7 @@ const CollectionsList = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDatetime, datetimeMode, startDatetime, endDatetime]);
 
-  const handleItemClick = async (index: number, key: string) => {
+  const handleItemClick = useCallback(async (index: number, key: string) => {
     const newIndex = openCollectionIndex === index ? null : index;
     setOpenCollectionIndex(newIndex);
 
@@ -294,7 +343,8 @@ const CollectionsList = ({
       setEndpointUrls(prev => ({ ...prev, locations: undefined }));
       setRawResponses(prev => ({ ...prev, locations: undefined }));
     }
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [collections, currentApiUrl, selectedDatetime, datetimeMode, startDatetime, endDatetime]);
 
   // Register selection callback for keyboard navigation
   useEffect(() => {
@@ -370,36 +420,19 @@ const CollectionsList = ({
             overflow: 'hidden',
           }}
         >
-          <ListItemButton
-            onClick={() => handleItemClick(index, collection.id)}
-            sx={{
-              borderLeft: '3px solid',
-              borderColor: !validationResult.collectionErrors
-                ? 'transparent'
-                : validationResult.collectionErrors[collection.id]
-                  ? 'warning.main'
-                  : 'success.main',
-              pl: '10px',
-              py: 0.5,
-            }}
-          >
-            <ListItemText
-              primary={
-                <CollectionInfo
-                  collection={collection}
-                  fallbackLicense={topLevelLicense}
-                  clampDescription={openCollectionIndex !== index}
-                  validationErrors={
-                    validationResult.collectionErrors
-                      ? (validationResult.collectionErrors[collection.id] ?? [])
-                      : undefined
-                  }
-                />
-              }
-              primaryTypographyProps={{ component: 'div' }}
-            />
-            {openCollectionIndex === index ? <ExpandLess /> : <ExpandMore />}
-          </ListItemButton>
+          <CollectionListItemHeader
+            collection={collection}
+            index={index}
+            isOpen={openCollectionIndex === index}
+            onToggle={handleItemClick}
+            validationErrors={
+              validationResult.collectionErrors
+                ? (validationResult.collectionErrors[collection.id] ?? [])
+                : undefined
+            }
+            hasErrors={!!(validationResult.collectionErrors && validationResult.collectionErrors[collection.id])}
+            fallbackLicense={topLevelLicense}
+          />
 
           <Collapse in={openCollectionIndex === index} timeout="auto" unmountOnExit>
             {/* Dropdowns Section - Always Visible */}

@@ -2,6 +2,7 @@ import Sidebar from './Sidebar';
 import TopMenu from './TopMenu';
 import { CustomService } from './types/CustomService';
 import React, { lazy, Suspense, useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import KeyboardShortcutsHelp from './KeyboardShortcutsHelp';
 import Box from '@mui/material/Box';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -85,6 +86,7 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
 
   const [settingsDrawerOpen, setSettingsDrawerOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false);
 
   const { setGeoJsonLayers } = useGeoJsonLayers();
   const { collectionUrl } = useCollection();
@@ -158,6 +160,9 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
           document.dispatchEvent(new Event('close-validation-popover'));
           document.dispatchEvent(new Event('close-layers-popover'));
           document.dispatchEvent(new Event('toggle-search-popover'));
+          break;
+        case '?':
+          setShortcutsHelpOpen(prev => !prev);
           break;
         default:
           return;
@@ -523,6 +528,8 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
           onServiceSelect={handleServiceSelect}
         />
       </Suspense>
+
+      <KeyboardShortcutsHelp open={shortcutsHelpOpen} onClose={() => setShortcutsHelpOpen(false)} />
 
       <ErrorBoundary fallbackMessage="Data viewer crashed. Click Retry to recover.">
         <Suspense fallback={null}>
