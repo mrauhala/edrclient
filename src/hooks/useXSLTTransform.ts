@@ -1,9 +1,13 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 
 export interface UseXSLTTransformReturn {
   transformedHtml: string | null;
   transformError: string | null;
+  isTransforming: boolean;
 }
+
+// Module-level cache for the XSLT stylesheet text
+let cachedXsltText: string | null = null;
 
 export function useXSLTTransform(
   data: string | null,
@@ -13,17 +17,24 @@ export function useXSLTTransform(
 ): UseXSLTTransformReturn {
   const [transformedHtml, setTransformedHtml] = useState<string | null>(null);
   const [transformError, setTransformError] = useState<string | null>(null);
+  const [isTransforming, setIsTransforming] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  const performXSLTransform = useCallback(async () => {
+  const performXSLTransform = useCallback(async (signal: AbortSignal) => {
     try {
       setTransformError(null);
+      setIsTransforming(true);
 
-      // Load XSLT stylesheet
-      const xsltResponse = await fetch('/iwxxm-transform.xsl');
-      if (!xsltResponse.ok) {
-        throw new Error('Failed to load XSLT stylesheet');
+      // Load XSLT stylesheet (cached after first fetch)
+      if (!cachedXsltText) {
+        const xsltResponse = await fetch('/iwxxm-transform.xsl', { signal });
+        if (!xsltResponse.ok) {
+          throw new Error('Failed to load XSLT stylesheet');
+        }
+        cachedXsltText = await xsltResponse.text();
       }
-      const xsltText = await xsltResponse.text();
+
+      if (signal.aborted) return;
 
       // Parse XML and XSLT
       const parser = new DOMParser();
@@ -35,7 +46,7 @@ export function useXSLTTransform(
         throw new Error('XML parsing error: ' + xmlParseError[0].textContent);
       }
 
-      const xsltDoc = parser.parseFromString(xsltText, 'text/xml');
+      const xsltDoc = parser.parseFromString(cachedXsltText, 'text/xml');
 
       // Check for XSLT parsing errors
       const xsltParseError = xsltDoc.getElementsByTagName('parsererror');
@@ -67,21 +78,35 @@ export function useXSLTTransform(
 
       const htmlString = styles + bodyContent;
 
-      setTransformedHtml(htmlString);
+      if (!signal.aborted) {
+        setTransformedHtml(htmlString);
+      }
     } catch (err) {
+      if (signal.aborted) return;
       console.error('XSLT transformation error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setTransformError(`Failed to transform XML: ${errorMessage}`);
       setViewMode('code');
+    } finally {
+      if (!signal.aborted) {
+        setIsTransforming(false);
+      }
     }
   }, [data, setViewMode]);
 
   // Trigger transformation when switching to preview mode
   useEffect(() => {
     if (viewMode === 'preview' && isIWXXM() && data) {
-      performXSLTransform();
+      // Abort previous transform if still in-flight
+      abortControllerRef.current?.abort();
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+      performXSLTransform(controller.signal);
     }
+    return () => {
+      abortControllerRef.current?.abort();
+    };
   }, [viewMode, data, isIWXXM, performXSLTransform]);
 
-  return { transformedHtml, transformError };
+  return { transformedHtml, transformError, isTransforming };
 }
