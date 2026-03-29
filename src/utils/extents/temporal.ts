@@ -155,7 +155,7 @@ export function getOverallTemporalExtent(intervals: [string | null, string | nul
 }
 
 // Helper function to parse ISO 8601 duration strings (e.g., PT1M, PT1H, P1D)
-function parseDuration(durationStr: string): number | null {
+export function parseDuration(durationStr: string): number | null {
   try {
     // ISO 8601 duration format: P[n]Y[n]M[n]DT[n]H[n]M[n]S
     // Examples: PT1M (1 minute), PT1H (1 hour), P1D (1 day), PT30S (30 seconds)
@@ -185,14 +185,31 @@ function parseDuration(durationStr: string): number | null {
   }
 }
 
+// Utility function to compute an appropriate step size in ms based on temporal span
+export function computeStepMs(spanMs: number): number {
+  if (spanMs <= 24 * 60 * 60 * 1000) return 60 * 60 * 1000;           // <1d: hourly
+  if (spanMs <= 7 * 24 * 60 * 60 * 1000) return 3 * 60 * 60 * 1000;   // <1w: 3h
+  if (spanMs <= 31 * 24 * 60 * 60 * 1000) return 6 * 60 * 60 * 1000;  // <1m: 6h
+  if (spanMs <= 365 * 24 * 60 * 60 * 1000) return 24 * 60 * 60 * 1000; // <1y: daily
+  return 7 * 24 * 60 * 60 * 1000;                                       // >1y: weekly
+}
+
 // Utility function to expand temporal extent into individual datetime values for selection
 // Prioritizes temporal.values if available, falls back to temporal.interval
 export function expandTemporalValues(temporal: Temporal | null | undefined, maxValues: number = 1000): string[] {
   const values: string[] = [];
+  const seen = new Set<string>();
 
   if (!temporal) {
     return values;
   }
+
+  const addValue = (v: string) => {
+    if (!seen.has(v)) {
+      seen.add(v);
+      values.push(v);
+    }
+  };
 
   // Helper function to expand an interval string (e.g., "2024-01-01T00:00Z/2024-01-02T00:00Z")
   const expandIntervalString = (intervalStr: string): string[] => {
@@ -314,16 +331,10 @@ export function expandTemporalValues(temporal: Temporal | null | undefined, maxV
           // Check if value is an interval format (e.g., "2024-01-01T00:00Z/2024-01-02T00:00Z")
           if (value.includes('/')) {
             const expandedValues = expandIntervalString(value);
-            expandedValues.forEach(v => {
-              if (!values.includes(v)) {
-                values.push(v);
-              }
-            });
+            expandedValues.forEach(v => addValue(v));
           } else {
             // Single datetime value
-            if (!values.includes(value)) {
-              values.push(value);
-            }
+            addValue(value);
           }
         }
       });
@@ -380,9 +391,7 @@ export function expandTemporalValues(temporal: Temporal | null | undefined, maxV
 
           while (currentTime <= endDate.getTime() && count < maxValues) {
             const isoString = new Date(currentTime).toISOString().replace(/\.\d{3}Z$/, 'Z');
-            if (!values.includes(isoString)) {
-              values.push(isoString);
-            }
+            addValue(isoString);
             currentTime += stepMs;
             count++;
           }
@@ -390,9 +399,7 @@ export function expandTemporalValues(temporal: Temporal | null | undefined, maxV
           // Always include the end time if we haven't reached the limit
           if (count < maxValues) {
             const endIsoString = endDate.toISOString().replace(/\.\d{3}Z$/, 'Z');
-            if (!values.includes(endIsoString)) {
-              values.push(endIsoString);
-            }
+            addValue(endIsoString);
           }
         } catch (error) {
           console.warn('Error processing temporal interval:', interval, error);
