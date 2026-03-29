@@ -80,7 +80,7 @@ const TemporalExtent: React.FC<TemporalExtentProps> = ({ temporal, collectionId,
         )}
 
         {/* Temporal Reference System */}
-        {trs && trs !== 'Gregorian' && (
+        {trs && !trs.includes('Gregorian') && (
           <Box sx={{ mb: 1 }}>
             <Chip 
               label={`TRS: ${trs}`} 
