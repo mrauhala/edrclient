@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import type { ListImperativeAPI } from 'react-window';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
@@ -45,6 +46,7 @@ const CommandPalette: React.FC = () => {
   const [anchorEl, setAnchorEl] = useState<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
+  const virtualListRef = useRef<ListImperativeAPI>(null);
 
   // Items fetching and pagination
   const {
@@ -124,7 +126,7 @@ const CommandPalette: React.FC = () => {
       feature: f,
       displayName: String(f.properties?.name ?? f.properties?.title ?? f.id ?? 'Unnamed'),
       coordinates: formatCoordinates(f.geometry),
-    }));
+    })).sort((a, b) => a.displayName < b.displayName ? -1 : a.displayName > b.displayName ? 1 : 0);
   }, [locationFeatures]);
 
   const filteredLocations = useMemo(() => {
@@ -312,6 +314,7 @@ const CommandPalette: React.FC = () => {
       loadedItems={loadedItems}
       inputRef={inputRef}
       listRef={listRef}
+      virtualListRef={virtualListRef}
     />
   );
 
@@ -424,7 +427,7 @@ const CommandPalette: React.FC = () => {
           >
             <Paper
               elevation={8}
-              sx={{ width: 500, maxHeight: 480, display: 'flex', flexDirection: 'column', overflow: 'hidden', mt: 0.5 }}
+              sx={{ width: 500, height: 480, display: 'flex', flexDirection: 'column', overflow: 'hidden', mt: 0.5 }}
             >
               {searchContent}
             </Paper>

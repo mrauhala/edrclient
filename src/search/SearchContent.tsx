@@ -1,4 +1,6 @@
-import React, { useEffect } from 'react';
+import React, { useLayoutEffect, useMemo, useRef as useReactRef, useCallback } from 'react';
+import { List as VirtualList } from 'react-window';
+import type { ListImperativeAPI } from 'react-window';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
@@ -119,6 +121,7 @@ export function SearchContent({
   loadedItems,
   inputRef,
   listRef,
+  virtualListRef,
 }: {
   query: string;
   setQuery: (q: string) => void;
@@ -166,16 +169,150 @@ export function SearchContent({
   loadedItems: FeatureItem[];
   inputRef: React.RefObject<HTMLInputElement | null>;
   listRef: React.RefObject<HTMLUListElement | null>;
+  virtualListRef: React.RefObject<ListImperativeAPI | null>;
 }) {
 
-  // Scroll highlighted item into view
-  useEffect(() => {
-    if (highlightedIndex < 0 || !listRef.current) return;
-    const items = listRef.current.querySelectorAll('[role="option"]');
-    items[highlightedIndex]?.scrollIntoView({ block: 'nearest' });
-  }, [highlightedIndex, listRef]);
+  // Track last mouse position to ignore phantom mousemove events from DOM reflow
+  const lastMousePos = useReactRef({ x: 0, y: 0 });
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isKeyboardNav) return;
+    const { clientX, clientY } = e;
+    if (clientX === lastMousePos.current.x && clientY === lastMousePos.current.y) return;
+    lastMousePos.current = { x: clientX, y: clientY };
+    setIsKeyboardNav(false);
+  }, [isKeyboardNav, setIsKeyboardNav, lastMousePos]);
+
+  // Scroll highlighted item into view (useLayoutEffect to scroll before paint, avoiding flash)
+  // Manual "nearest" scroll for virtual list — react-window's align:'auto' is unreliable
+  const ROW_HEIGHT = 56;
+  useLayoutEffect(() => {
+    if (highlightedIndex < 0) return;
+    if (activeTab === 'items' || activeTab === 'locations') {
+      const el = virtualListRef.current?.element;
+      if (!el) return;
+      const rowTop = highlightedIndex * ROW_HEIGHT;
+      const rowBottom = rowTop + ROW_HEIGHT;
+      const { scrollTop, clientHeight } = el;
+      if (rowTop < scrollTop) {
+        el.scrollTo({ top: rowTop });
+      } else if (rowBottom > scrollTop + clientHeight) {
+        el.scrollTo({ top: rowBottom - clientHeight });
+      }
+    } else if (listRef.current) {
+      const items = listRef.current.querySelectorAll('[role="option"]');
+      items[highlightedIndex]?.scrollIntoView({ block: 'nearest' });
+    }
+  }, [highlightedIndex, activeTab, listRef, virtualListRef]);
 
   const results = activeTab === 'services' ? filteredServices : activeTab === 'collections' ? filteredCollections : activeTab === 'locations' ? filteredLocations : filteredItems;
+
+  const useVirtualList = activeTab === 'items' || activeTab === 'locations';
+
+  // Virtualized row component for Items tab — highlightedIndex via rowProps, not closure
+  const ItemRow = useMemo(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return function ItemRow({ index, style, highlightedIndex: hi }: any) {
+      const item = filteredItems[index];
+      if (!item) return null;
+      const chipColors = GEOMETRY_CHIP_COLORS[item.geometryType];
+      const preview = getPropertyPreview(item.feature.properties);
+      return (
+        <ListItemButton
+          style={style}
+          role="option"
+          aria-selected={index === hi}
+          onClick={() => onSelect(index)}
+          sx={{
+            py: isDesktop ? 0.75 : 1.25,
+            alignItems: 'flex-start',
+            boxSizing: 'border-box',
+            ...(index === hi && { bgcolor: 'action.selected' }),
+          }}
+        >
+          <ListItemIcon sx={{ minWidth: 36, mt: 0.5 }}>
+            <GeometryIcon type={item.geometryType} />
+          </ListItemIcon>
+          <ListItemText
+            primary={highlightMatch(item.displayName, query)}
+            secondary={
+              <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.25, flexWrap: 'wrap' }}>
+                <Chip
+                  label={item.geometryType}
+                  size="small"
+                  variant="outlined"
+                  sx={{
+                    height: 18,
+                    fontSize: '0.6rem',
+                    fontWeight: 500,
+                    '& .MuiChip-label': { px: 0.75 },
+                    ...(chipColors ? {
+                      bgcolor: chipColors.bgcolor,
+                      borderColor: chipColors.borderColor,
+                      color: chipColors.color,
+                    } : {}),
+                  }}
+                />
+                {preview && (
+                  <Typography component="span" variant="caption" color="text.secondary" noWrap sx={{ maxWidth: 280 }}>
+                    {highlightMatch(preview, query)}
+                  </Typography>
+                )}
+              </Box>
+            }
+            primaryTypographyProps={{ variant: 'body2', fontWeight: 500, noWrap: true }}
+            secondaryTypographyProps={{ component: 'div' }}
+          />
+        </ListItemButton>
+      );
+    };
+  }, [filteredItems, onSelect, query, isDesktop]);
+
+  // Virtualized row component for Locations tab — highlightedIndex via rowProps, not closure
+  const LocationRow = useMemo(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return function LocationRow({ index, style, highlightedIndex: hi }: any) {
+      const loc = filteredLocations[index];
+      if (!loc) return null;
+      const preview = getPropertyPreview(loc.feature.properties);
+      return (
+        <ListItemButton
+          style={style}
+          role="option"
+          aria-selected={index === hi}
+          onClick={() => onSelect(index)}
+          sx={{
+            py: isDesktop ? 0.75 : 1.25,
+            alignItems: 'flex-start',
+            boxSizing: 'border-box',
+            ...(index === hi && { bgcolor: 'action.selected' }),
+          }}
+        >
+          <ListItemIcon sx={{ minWidth: 36, mt: 0.5 }}>
+            <GeometryIcon type={loc.feature.geometry?.type ?? ''} />
+          </ListItemIcon>
+          <ListItemText
+            primary={highlightMatch(loc.displayName, query)}
+            secondary={
+              <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.25, flexWrap: 'wrap' }}>
+                {loc.coordinates && (
+                  <Typography component="span" variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace', fontSize: '0.65rem' }}>
+                    {highlightMatch(loc.coordinates, query)}
+                  </Typography>
+                )}
+                {preview && (
+                  <Typography component="span" variant="caption" color="text.secondary" noWrap sx={{ maxWidth: 280 }}>
+                    {highlightMatch(preview, query)}
+                  </Typography>
+                )}
+              </Box>
+            }
+            primaryTypographyProps={{ variant: 'body2', fontWeight: 500, noWrap: true }}
+            secondaryTypographyProps={{ component: 'div' }}
+          />
+        </ListItemButton>
+      );
+    };
+  }, [filteredLocations, onSelect, query, isDesktop]);
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
@@ -319,269 +456,214 @@ export function SearchContent({
         )}
       </Box>
 
-      {/* Results list */}
-      <List
-        ref={listRef as React.Ref<HTMLUListElement>}
-        dense
-        sx={{
-          flex: 1, overflow: 'auto', py: 0,
-          ...(isKeyboardNav && { '& .MuiListItemButton-root:hover': { bgcolor: 'transparent' } }),
-        }}
-        role="listbox"
-        onMouseMove={() => { if (isKeyboardNav) setIsKeyboardNav(false); }}
-      >
-        {activeTab === 'items' && itemsLoading && (
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 5, gap: 1.5 }}>
-            <CircularProgress size={24} />
-            <Typography variant="caption" color="text.secondary">Loading items...</Typography>
-          </Box>
-        )}
-        {activeTab === 'items' && itemsError && (
-          <Box sx={{ p: 3, textAlign: 'center' }}>
-            <Typography variant="body2" color="error">{itemsError}</Typography>
-          </Box>
-        )}
-        {!(activeTab === 'items' && (itemsLoading || itemsError)) && results.length > 0 && (
-          <Typography
-            variant="caption"
-            sx={{
-              display: 'block',
-              px: 1.5,
-              pt: 1.25,
-              pb: 0.5,
-              fontSize: '0.65rem',
-              fontWeight: 700,
-              letterSpacing: '0.09em',
-              textTransform: 'uppercase',
-              color: 'text.disabled',
-            }}
-          >
-            {activeTab === 'services'
-              ? `Matching services (${filteredServices.length})`
-              : activeTab === 'collections'
-                ? `Matching collections (${filteredCollections.length})`
-                : activeTab === 'locations'
-                  ? query
-                    ? `Matching locations (${filteredLocations.length})`
-                    : `Locations (${filteredLocations.length})`
-                  : query
-                    ? `${isRecordCollection ? 'Search results' : 'Matching items'} (${filteredItems.length})`
-                    : `Items (${filteredItems.length})`}
+      {/* Loading / error states (items tab) */}
+      {activeTab === 'items' && itemsLoading && (
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 5, gap: 1.5 }}>
+          <CircularProgress size={24} />
+          <Typography variant="caption" color="text.secondary">Loading items...</Typography>
+        </Box>
+      )}
+      {activeTab === 'items' && itemsError && (
+        <Box sx={{ p: 3, textAlign: 'center' }}>
+          <Typography variant="body2" color="error">{itemsError}</Typography>
+        </Box>
+      )}
+
+      {/* Results header (outside scrollable area) */}
+      {!(activeTab === 'items' && (itemsLoading || itemsError)) && results.length > 0 && (
+        <Typography
+          variant="caption"
+          sx={{
+            display: 'block',
+            px: 1.5,
+            pt: 1.25,
+            pb: 0.5,
+            fontSize: '0.65rem',
+            fontWeight: 700,
+            letterSpacing: '0.09em',
+            textTransform: 'uppercase',
+            color: 'text.disabled',
+            flexShrink: 0,
+          }}
+        >
+          {activeTab === 'services'
+            ? `Matching services (${filteredServices.length})`
+            : activeTab === 'collections'
+              ? `Matching collections (${filteredCollections.length})`
+              : activeTab === 'locations'
+                ? query
+                  ? `Matching locations (${filteredLocations.length})`
+                  : `Locations (${filteredLocations.length})`
+                : query
+                  ? `${isRecordCollection ? 'Search results' : 'Matching items'} (${filteredItems.length})`
+                  : `Items (${filteredItems.length})`}
+        </Typography>
+      )}
+
+      {/* Empty state */}
+      {!(activeTab === 'items' && (itemsLoading || itemsError)) && results.length === 0 ? (
+        <Box sx={{ p: 3, textAlign: 'center' }}>
+          <Typography variant="body2" color="text.secondary">
+            {query
+              ? `No results for "${query}"`
+              : activeTab === 'services'
+                ? 'Type to search services'
+                : activeTab === 'collections'
+                  ? 'Type to search collections'
+                  : !selectedCollectionId
+                    ? ''
+                    : activeTab === 'locations'
+                      ? 'No locations in this collection'
+                      : isRecordCollection
+                        ? 'Type to search records'
+                        : 'No items in this collection'}
           </Typography>
-        )}
-        {!(activeTab === 'items' && (itemsLoading || itemsError)) && results.length === 0 ? (
-          <Box sx={{ p: 3, textAlign: 'center' }}>
-            <Typography variant="body2" color="text.secondary">
-              {query
-                ? `No results for "${query}"`
-                : activeTab === 'services'
-                  ? 'Type to search services'
-                  : activeTab === 'collections'
-                    ? 'Type to search collections'
-                    : !selectedCollectionId
-                      ? ''
-                      : activeTab === 'locations'
-                        ? 'No locations in this collection'
-                        : isRecordCollection
-                          ? 'Type to search records'
-                          : 'No items in this collection'}
+          {!query && (activeTab === 'locations' || activeTab === 'items') && !selectedCollectionId && (
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+              <Link
+                component="button"
+                variant="caption"
+                onClick={() => setActiveTab('collections')}
+                sx={{ verticalAlign: 'baseline' }}
+              >
+                Select a collection
+              </Link>
+              {' '}to browse {activeTab}
             </Typography>
-            {!query && (activeTab === 'locations' || activeTab === 'items') && !selectedCollectionId && (
-              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-                <Link
-                  component="button"
-                  variant="caption"
-                  onClick={() => setActiveTab('collections')}
-                  sx={{ verticalAlign: 'baseline' }}
-                >
-                  Select a collection
-                </Link>
-                {' '}to browse {activeTab}
-              </Typography>
-            )}
-            {query && (
-              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-                Try a different tab or search term
-              </Typography>
-            )}
-          </Box>
-        ) : activeTab === 'services' ? (
-          filteredServices.map((svc, idx) => (
-            <ListItemButton
-              key={svc.url}
-              role="option"
-              selected={idx === highlightedIndex}
-              onClick={() => onSelect(idx)}
-              sx={{ py: isDesktop ? 0.75 : 1.25 }}
-            >
-              <ListItemIcon sx={{ minWidth: 42 }}>
-                {svc.type && SERVICE_TYPE_CONFIG[svc.type] ? (
-                  <Chip
-                    label={SERVICE_TYPE_CONFIG[svc.type].abbreviation}
-                    size="small"
-                    sx={{
-                      bgcolor: SERVICE_TYPE_CONFIG[svc.type].color,
-                      color: '#fff',
-                      fontWeight: 600,
-                      fontSize: '0.65rem',
-                      height: 20,
-                      '& .MuiChip-label': { px: 0.75 },
-                    }}
-                  />
-                ) : (
-                  <DnsIcon sx={{ fontSize: 20, color: 'text.secondary' }} />
+          )}
+          {query && (
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+              Try a different tab or search term
+            </Typography>
+          )}
+        </Box>
+      ) : useVirtualList && !(itemsLoading || itemsError) ? (
+        /* Virtualized list for Items / Locations tabs */
+        <Box
+          sx={{
+            flex: 1,
+            minHeight: 0,
+            overflow: 'hidden',
+            ...(isKeyboardNav && { '& .MuiListItemButton-root:hover': { bgcolor: 'transparent' } }),
+          }}
+          onMouseMove={handleMouseMove}
+        >
+          <VirtualList<{ highlightedIndex: number }>
+            listRef={virtualListRef as React.RefObject<ListImperativeAPI>}
+            rowComponent={activeTab === 'locations' ? LocationRow : ItemRow}
+            rowProps={{ highlightedIndex }}
+            rowCount={activeTab === 'locations' ? filteredLocations.length : filteredItems.length}
+            rowHeight={56}
+            overscanCount={10}
+            style={{ width: '100%', height: '100%' }}
+          />
+        </Box>
+      ) : !useVirtualList && results.length > 0 ? (
+        /* DOM list for Services / Collections tabs */
+        <List
+          ref={listRef as React.Ref<HTMLUListElement>}
+          dense
+          sx={{
+            flex: 1, overflow: 'auto', py: 0,
+            ...(isKeyboardNav && { '& .MuiListItemButton-root:hover': { bgcolor: 'transparent' } }),
+          }}
+          role="listbox"
+          onMouseMove={handleMouseMove}
+        >
+          {activeTab === 'services' ? (
+            filteredServices.map((svc, idx) => (
+              <ListItemButton
+                key={svc.url}
+                role="option"
+                selected={idx === highlightedIndex}
+                onClick={() => onSelect(idx)}
+                sx={{ py: isDesktop ? 0.75 : 1.25 }}
+              >
+                <ListItemIcon sx={{ minWidth: 42 }}>
+                  {svc.type && SERVICE_TYPE_CONFIG[svc.type] ? (
+                    <Chip
+                      label={SERVICE_TYPE_CONFIG[svc.type].abbreviation}
+                      size="small"
+                      sx={{
+                        bgcolor: SERVICE_TYPE_CONFIG[svc.type].color,
+                        color: '#fff',
+                        fontWeight: 600,
+                        fontSize: '0.65rem',
+                        height: 20,
+                        '& .MuiChip-label': { px: 0.75 },
+                      }}
+                    />
+                  ) : (
+                    <DnsIcon sx={{ fontSize: 20, color: 'text.secondary' }} />
+                  )}
+                </ListItemIcon>
+                <ListItemText
+                  primary={highlightMatch(svc.label, query)}
+                  secondary={highlightMatch(svc.url, query)}
+                  primaryTypographyProps={{ variant: 'body2', fontWeight: 500, noWrap: true }}
+                  secondaryTypographyProps={{ variant: 'caption', noWrap: true }}
+                />
+                {svc.isActive && (
+                  <Typography variant="caption" color="success.main" sx={{ fontWeight: 600, flexShrink: 0, ml: 1 }}>
+                    active
+                  </Typography>
                 )}
-              </ListItemIcon>
-              <ListItemText
-                primary={highlightMatch(svc.label, query)}
-                secondary={highlightMatch(svc.url, query)}
-                primaryTypographyProps={{ variant: 'body2', fontWeight: 500, noWrap: true }}
-                secondaryTypographyProps={{ variant: 'caption', noWrap: true }}
-              />
-              {svc.isActive && (
-                <Typography variant="caption" color="success.main" sx={{ fontWeight: 600, flexShrink: 0, ml: 1 }}>
-                  active
-                </Typography>
-              )}
-            </ListItemButton>
-          ))
-        ) : activeTab === 'collections' ? (
-          filteredCollections.map((result, idx) => (
-            <ListItemButton
-              key={result.collection.id}
-              role="option"
-              selected={idx === highlightedIndex}
-              onClick={() => onSelect(idx)}
-              sx={{ py: isDesktop ? 0.75 : 1.25, alignItems: 'flex-start' }}
-            >
-              <ListItemIcon sx={{ minWidth: 36, mt: 0.5 }}>
-                <FolderIcon sx={{ fontSize: 20, color: result.collection.id === selectedCollectionId ? 'success.main' : 'text.secondary' }} />
-              </ListItemIcon>
-              <ListItemText
-                primary={highlightMatch(result.collection.title || result.collection.id, query)}
-                secondary={
-                  <Box component="span">
-                    <Typography component="span" variant="caption" color="text.secondary" sx={{ display: 'block' }} noWrap>
-                      {result.collection.description
-                        ? highlightMatch(
-                            result.collection.description.length > 80
-                              ? result.collection.description.slice(0, 80) + '...'
-                              : result.collection.description,
-                            query
-                          )
-                        : result.collection.id}
-                    </Typography>
-                    {result.matchedKeywords.length > 0 && (
-                      <Box component="span" sx={{ display: 'flex', gap: 0.5, mt: 0.5, flexWrap: 'wrap' }}>
-                        {result.matchedKeywords.slice(0, 5).map((kw) => (
-                          <Chip
-                            key={kw}
-                            label={kw}
-                            size="small"
-                            variant="filled"
-                            sx={{ height: 18, fontSize: '0.6rem', '& .MuiChip-label': { px: 0.75 } }}
-                          />
-                        ))}
-                      </Box>
-                    )}
-                  </Box>
-                }
-                primaryTypographyProps={{ variant: 'body2', fontWeight: 500, noWrap: true }}
-                secondaryTypographyProps={{ component: 'div' }}
-              />
-              {result.collection.id === selectedCollectionId && (
-                <Typography variant="caption" color="success.main" sx={{ fontWeight: 600, flexShrink: 0, ml: 1, alignSelf: 'center' }}>
-                  active
-                </Typography>
-              )}
-            </ListItemButton>
-          ))
-        ) : activeTab === 'locations' ? (
-          filteredLocations.map((loc, idx) => {
-            const preview = getPropertyPreview(loc.feature.properties);
-            return (
+              </ListItemButton>
+            ))
+          ) : (
+            filteredCollections.map((result, idx) => (
               <ListItemButton
-                key={loc.feature.id != null ? String(loc.feature.id) : `loc-${idx}`}
+                key={result.collection.id}
                 role="option"
                 selected={idx === highlightedIndex}
                 onClick={() => onSelect(idx)}
                 sx={{ py: isDesktop ? 0.75 : 1.25, alignItems: 'flex-start' }}
               >
                 <ListItemIcon sx={{ minWidth: 36, mt: 0.5 }}>
-                  <GeometryIcon type={loc.feature.geometry?.type ?? ''} />
+                  <FolderIcon sx={{ fontSize: 20, color: result.collection.id === selectedCollectionId ? 'success.main' : 'text.secondary' }} />
                 </ListItemIcon>
                 <ListItemText
-                  primary={highlightMatch(loc.displayName, query)}
+                  primary={highlightMatch(result.collection.title || result.collection.id, query)}
                   secondary={
-                    <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.25, flexWrap: 'wrap' }}>
-                      {loc.coordinates && (
-                        <Typography component="span" variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace', fontSize: '0.65rem' }}>
-                          {highlightMatch(loc.coordinates, query)}
-                        </Typography>
-                      )}
-                      {preview && (
-                        <Typography component="span" variant="caption" color="text.secondary" noWrap sx={{ maxWidth: 280 }}>
-                          {highlightMatch(preview, query)}
-                        </Typography>
+                    <Box component="span">
+                      <Typography component="span" variant="caption" color="text.secondary" sx={{ display: 'block' }} noWrap>
+                        {result.collection.description
+                          ? highlightMatch(
+                              result.collection.description.length > 80
+                                ? result.collection.description.slice(0, 80) + '...'
+                                : result.collection.description,
+                              query
+                            )
+                          : result.collection.id}
+                      </Typography>
+                      {result.matchedKeywords.length > 0 && (
+                        <Box component="span" sx={{ display: 'flex', gap: 0.5, mt: 0.5, flexWrap: 'wrap' }}>
+                          {result.matchedKeywords.slice(0, 5).map((kw) => (
+                            <Chip
+                              key={kw}
+                              label={kw}
+                              size="small"
+                              variant="filled"
+                              sx={{ height: 18, fontSize: '0.6rem', '& .MuiChip-label': { px: 0.75 } }}
+                            />
+                          ))}
+                        </Box>
                       )}
                     </Box>
                   }
                   primaryTypographyProps={{ variant: 'body2', fontWeight: 500, noWrap: true }}
                   secondaryTypographyProps={{ component: 'div' }}
                 />
+                {result.collection.id === selectedCollectionId && (
+                  <Typography variant="caption" color="success.main" sx={{ fontWeight: 600, flexShrink: 0, ml: 1, alignSelf: 'center' }}>
+                    active
+                  </Typography>
+                )}
               </ListItemButton>
-            );
-          })
-        ) : !(itemsLoading || itemsError) ? (
-          filteredItems.map((item, idx) => {
-            const chipColors = GEOMETRY_CHIP_COLORS[item.geometryType];
-            const preview = getPropertyPreview(item.feature.properties);
-            return (
-              <ListItemButton
-                key={item.feature.id != null ? String(item.feature.id) : `item-${idx}`}
-                role="option"
-                selected={idx === highlightedIndex}
-                onClick={() => onSelect(idx)}
-                sx={{ py: isDesktop ? 0.75 : 1.25, alignItems: 'flex-start' }}
-              >
-                <ListItemIcon sx={{ minWidth: 36, mt: 0.5 }}>
-                  <GeometryIcon type={item.geometryType} />
-                </ListItemIcon>
-                <ListItemText
-                  primary={highlightMatch(item.displayName, query)}
-                  secondary={
-                    <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.25, flexWrap: 'wrap' }}>
-                      <Chip
-                        label={item.geometryType}
-                        size="small"
-                        variant="outlined"
-                        sx={{
-                          height: 18,
-                          fontSize: '0.6rem',
-                          fontWeight: 500,
-                          '& .MuiChip-label': { px: 0.75 },
-                          ...(chipColors ? {
-                            bgcolor: chipColors.bgcolor,
-                            borderColor: chipColors.borderColor,
-                            color: chipColors.color,
-                          } : {}),
-                        }}
-                      />
-                      {preview && (
-                        <Typography component="span" variant="caption" color="text.secondary" noWrap sx={{ maxWidth: 280 }}>
-                          {highlightMatch(preview, query)}
-                        </Typography>
-                      )}
-                    </Box>
-                  }
-                  primaryTypographyProps={{ variant: 'body2', fontWeight: 500, noWrap: true }}
-                  secondaryTypographyProps={{ component: 'div' }}
-                />
-              </ListItemButton>
-            );
-          })
-        ) : null}
-      </List>
+            ))
+          )}
+        </List>
+      ) : null}
 
       {/* Items pagination controls */}
       {activeTab === 'items' && !itemsLoading && !itemsError && itemsPageCount > 0 && (
