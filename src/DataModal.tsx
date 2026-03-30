@@ -221,34 +221,47 @@ const DataModal: React.FC<DataModalProps> = ({
                       color="error"
                       size="small"
                       variant="outlined"
+                      onClick={viewMode === 'preview' ? () => setViewMode('code') : undefined}
+                      sx={viewMode === 'preview' ? { cursor: 'pointer' } : undefined}
                     />
-                    <Tooltip title={`Previous error (${navigator.platform?.includes('Mac') ? '⌘' : 'Ctrl'}+↑)`}>
-                      <span>
-                        <IconButton
-                          size="small"
-                          onClick={handlePrevError}
-                          disabled={currentErrorIdx <= 0}
-                          aria-label="Previous error"
-                        >
-                          <KeyboardArrowUpIcon fontSize="small" />
-                        </IconButton>
-                      </span>
-                    </Tooltip>
-                    <Typography variant="caption" sx={{ minWidth: 32, textAlign: 'center', userSelect: 'none' }}>
-                      {currentErrorIdx + 1}/{errorLineList.length}
-                    </Typography>
-                    <Tooltip title={`Next error (${navigator.platform?.includes('Mac') ? '⌘' : 'Ctrl'}+↓)`}>
-                      <span>
-                        <IconButton
-                          size="small"
-                          onClick={handleNextError}
-                          disabled={currentErrorIdx >= errorLineList.length - 1}
-                          aria-label="Next error"
-                        >
-                          <KeyboardArrowDownIcon fontSize="small" />
-                        </IconButton>
-                      </span>
-                    </Tooltip>
+                    {viewMode === 'code' && (
+                      <>
+                        <Tooltip title={`Previous error (${navigator.platform?.includes('Mac') ? '⌘' : 'Ctrl'}+↑)`}>
+                          <span>
+                            <IconButton
+                              size="small"
+                              onClick={handlePrevError}
+                              disabled={currentErrorIdx <= 0}
+                              aria-label="Previous error"
+                            >
+                              <KeyboardArrowUpIcon fontSize="small" />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                        <Typography variant="caption" sx={{ minWidth: 32, textAlign: 'center', userSelect: 'none' }}>
+                          {currentErrorIdx + 1}/{errorLineList.length}
+                        </Typography>
+                        <Tooltip title={`Next error (${navigator.platform?.includes('Mac') ? '⌘' : 'Ctrl'}+↓)`}>
+                          <span>
+                            <IconButton
+                              size="small"
+                              onClick={handleNextError}
+                              disabled={currentErrorIdx >= errorLineList.length - 1}
+                              aria-label="Next error"
+                            >
+                              <KeyboardArrowDownIcon fontSize="small" />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                      </>
+                    )}
+                    {viewMode === 'preview' && (
+                      <Tooltip title="Switch to Code view to navigate errors">
+                        <Typography variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
+                          Click to view in code
+                        </Typography>
+                      </Tooltip>
+                    )}
                   </Box>
                 )}
 
@@ -303,9 +316,11 @@ const DataModal: React.FC<DataModalProps> = ({
                 flexWrap: 'wrap',
                 minHeight: 32,
               }}>
-                <Typography variant="caption" sx={{ fontFamily: 'monospace', fontSize: '0.7rem', color: 'text.secondary', flexShrink: 0 }}>
-                  L{currentError.line}
-                </Typography>
+                {viewMode === 'code' && (
+                  <Typography variant="caption" sx={{ fontFamily: 'monospace', fontSize: '0.7rem', color: 'text.secondary', flexShrink: 0 }}>
+                    L{currentError.line}
+                  </Typography>
+                )}
                 {currentError.errors.map((err, i) => {
                   const msg = err.path && err.message.startsWith(err.path)
                     ? err.message.slice(err.path.length).replace(/^:\s*/, '')
