@@ -9,7 +9,7 @@ import { matchItem } from '../matching';
 import { useQueryables } from './useQueryables';
 import type { QueryablesSchema } from '../../api/queryables';
 
-const ITEMS_PAGE_SIZE = 200;
+const ITEMS_PAGE_SIZE = 100;
 
 /** Find the first property whose key contains "name" (case-insensitive). */
 function getNameProperty(properties: Record<string, unknown> | undefined): string | null {
@@ -235,7 +235,7 @@ export function useItemsFetch({ query, activeTab, setActiveTab }: UseItemsFetchP
       feature: f,
       displayName: String(f.properties?.name || f.properties?.title || f.properties?.label || f.properties?.nimi || getNameProperty(f.properties) || f.id || 'Unnamed'),
       geometryType: f.geometry?.type || 'No geometry',
-    }));
+    })).sort((a, b) => a.displayName < b.displayName ? -1 : a.displayName > b.displayName ? 1 : 0);
     // Server-side search: results are already filtered
     if (qSupported) return all;
     if (!query) return all;
