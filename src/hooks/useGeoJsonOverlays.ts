@@ -99,6 +99,14 @@ export function useGeoJsonOverlays(map: Map | null): UseGeoJsonOverlaysReturn {
                 featureProjection: 'EPSG:3857'
               });
 
+              // Preserve top-level feature properties that OL drops (e.g., OGC API links)
+              const rawFeatures = layerConfig.data.features || [];
+              features.forEach((olFeature, i) => {
+                if (rawFeatures[i]?.links) {
+                  olFeature.set('links', rawFeatures[i].links);
+                }
+              });
+
               vectorSource.addFeatures(features);
             } catch (error) {
               console.error('Error parsing pre-fetched GeoJSON:', error);
@@ -135,6 +143,14 @@ export function useGeoJsonOverlays(map: Map | null): UseGeoJsonOverlaysReturn {
 
                   const features = geojsonFormat.readFeatures(data, {
                     featureProjection: projection
+                  });
+
+                  // Preserve top-level feature properties that OL drops (e.g., OGC API links)
+                  const rawFeatures = data.features || [];
+                  features.forEach((olFeature: any, i: number) => {
+                    if (rawFeatures[i]?.links) {
+                      olFeature.set('links', rawFeatures[i].links);
+                    }
                   });
 
                   vectorSource.addFeatures(features);

@@ -1,8 +1,7 @@
 // ...existing imports...
 import React from 'react';
 import 'ol/ol.css';
-import FeatureInfo from './FeatureInfo';
-import GeoJsonFeatureViewer from './GeoJsonFeatureViewer';
+import { FeatureViewer, normalizeGeoJsonFeature, normalizeOLFeature } from './FeatureViewer';
 import DraggableMapPanel from './DraggableMapPanel';
 import { useGeoJsonLayers } from './contexts/GeoJsonLayerContext';
 import { useMapInteraction } from './contexts/MapInteractionContext';
@@ -461,13 +460,15 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
         </div>
       )}
 
-      <FeatureInfo
-        feature={selectedFeature}
+      <FeatureViewer
+        feature={selectedFeature ? normalizeGeoJsonFeature(selectedFeature) : null}
+        variant="location"
         onClose={() => setSelectedFeature(null)}
       />
 
-      <GeoJsonFeatureViewer
-        feature={selectedGeoJsonFeature}
+      <FeatureViewer
+        feature={selectedGeoJsonFeature ? normalizeOLFeature(selectedGeoJsonFeature) : null}
+        variant="geojson"
         onClose={() => setSelectedGeoJsonFeature(null)}
         metadata={selectedGeoJsonFeature?.get ? geoJsonMetadata[selectedGeoJsonFeature.get('layerUrl')] : undefined}
         selectedLabelProperty={selectedGeoJsonFeature?.get ?
