@@ -382,32 +382,24 @@ export function SearchContent({
             label={<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>Collections <CountBadge count={collectionCount} active={activeTab === 'collections'} /></Box>}
             sx={{ gap: 0.5 }}
           />
-          <Tab
-            value="locations"
-            title={!locationsEnabled ? 'Select a collection with location queries' : undefined}
-            icon={<LocationOnIcon sx={{ fontSize: 16 }} />}
-            iconPosition="start"
-            label={
-              locationsEnabled
-                ? <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>Locations <CountBadge count={locationCount} active={activeTab === 'locations'} /></Box>
-                : 'Locations'
-            }
-            disabled={!locationsEnabled}
-            sx={{ gap: 0.5 }}
-          />
-          <Tab
-            value="items"
-            title={!itemsEnabled ? 'Select a collection to browse items' : undefined}
-            icon={<ArticleIcon sx={{ fontSize: 16 }} />}
-            iconPosition="start"
-            label={
-              itemsEnabled
-                ? <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>Items <CountBadge count={itemCount} active={activeTab === 'items'} /></Box>
-                : 'Items'
-            }
-            disabled={!itemsEnabled}
-            sx={{ gap: 0.5 }}
-          />
+          {locationsEnabled && (
+            <Tab
+              value="locations"
+              icon={<LocationOnIcon sx={{ fontSize: 16 }} />}
+              iconPosition="start"
+              label={<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>Locations <CountBadge count={locationCount} active={activeTab === 'locations'} /></Box>}
+              sx={{ gap: 0.5 }}
+            />
+          )}
+          {itemsEnabled && (
+            <Tab
+              value="items"
+              icon={<ArticleIcon sx={{ fontSize: 16 }} />}
+              iconPosition="start"
+              label={<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>Items <CountBadge count={itemCount} active={activeTab === 'items'} /></Box>}
+              sx={{ gap: 0.5 }}
+            />
+          )}
         </Tabs>
 
         {activeTab === 'collections' && showFilters && (
