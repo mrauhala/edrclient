@@ -1,7 +1,7 @@
 import axios from 'axios';
 import SchemaValidator from '../SchemaValidator';
 import type { AuthCredentials, Collection, CollectionsResponse, GetCollectionsResult, LandingPage, Link, ValidationError, ValidationResult } from '../types/api';
-import { normalizeHref } from '../utils/href';
+import { normalizeHref, resolveHref } from '../utils/href';
 import { sanitizeUrl } from '../utils/sanitizeUrl';
 import { getAxiosConfig, addApiKeyToUrl } from './auth';
 
@@ -61,7 +61,7 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials, sig
         collectionsUrlCandidates = [collectionsUrl];
       } else {
         collectionsUrlCandidates = dataLinks
-          .map((l: Link) => normalizeHref(l.href))
+          .map((l: Link) => normalizeHref(l.href, apiUrl))
           .filter(Boolean) as string[];
 
         if (dataLinks.length > 1) {
@@ -90,7 +90,7 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials, sig
       );
 
       if (serviceDescLink) {
-        const normalizedHref = normalizeHref(serviceDescLink.href);
+        const normalizedHref = normalizeHref(serviceDescLink.href, apiUrl);
         if (normalizedHref) {
           serviceDescUrl = normalizedHref;
           console.log('Found service description URL from landing page:', sanitizeUrl(serviceDescUrl));
@@ -98,7 +98,7 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials, sig
       }
 
       if (conformanceLink) {
-        const normalizedHref = normalizeHref(conformanceLink.href);
+        const normalizedHref = normalizeHref(conformanceLink.href, apiUrl);
         if (normalizedHref) {
           conformanceUrl = normalizedHref;
           console.log('Found conformance URL from landing page:', sanitizeUrl(conformanceUrl));
@@ -270,6 +270,39 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials, sig
       // Capture top-level links from the /collections response (may include license, etc.)
       if (!Array.isArray(data) && Array.isArray(data.links)) {
         collectionsLinks = data.links;
+      }
+    }
+
+    // Resolve any relative hrefs in collections and their links against the API base URL
+    for (const collection of collections) {
+      if (collection.links && Array.isArray(collection.links)) {
+        for (const link of collection.links) {
+          if (typeof link.href === 'string') {
+            link.href = resolveHref(link.href, apiUrl);
+          }
+        }
+      }
+      if (collection.data_queries && typeof collection.data_queries === 'object') {
+        for (const key of Object.keys(collection.data_queries)) {
+          const query = collection.data_queries[key];
+          if (query?.link?.href && typeof query.link.href === 'string') {
+            query.link.href = resolveHref(query.link.href, apiUrl);
+          }
+        }
+      }
+    }
+    if (collectionsLinks) {
+      for (const link of collectionsLinks) {
+        if (typeof link.href === 'string') {
+          link.href = resolveHref(link.href, apiUrl);
+        }
+      }
+    }
+    if (landingPageData?.links && Array.isArray(landingPageData.links)) {
+      for (const link of landingPageData.links) {
+        if (typeof link.href === 'string') {
+          link.href = resolveHref(link.href, apiUrl);
+        }
       }
     }
 
