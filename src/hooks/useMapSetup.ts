@@ -10,6 +10,7 @@ import { Style, Stroke, Fill, Circle } from 'ol/style';
 import { defaults as defaultControls } from 'ol/control';
 import { useGeoJsonLayers } from '../contexts/GeoJsonLayerContext';
 import { useCollection } from '../contexts/CollectionContext';
+import { useMapInteraction } from '../contexts/MapInteractionContext';
 
 export interface UseMapSetupReturn {
   map: Map | null;
@@ -24,6 +25,7 @@ export interface UseMapSetupReturn {
 export function useMapSetup(zoomLevel: number): UseMapSetupReturn {
   const { setSelectedGeoJsonFeature } = useGeoJsonLayers();
   const { locationFeatures, selectedFeature, setSelectedFeature } = useCollection();
+  const { setViewExtent, setViewSize } = useMapInteraction();
 
   const [map, setMap] = useState<Map | null>(null);
   const [vectorLayer, setVectorLayer] = useState<VectorLayer<VectorSource> | null>(null);
@@ -211,6 +213,18 @@ export function useMapSetup(zoomLevel: number): UseMapSetupReturn {
     });
     openLayersMap.addOverlay(tooltip);
 
+    // Publish current view extent + viewport size so the sidebar can build "copyable" map URLs.
+    const publishView = () => {
+      const size = openLayersMap.getSize();
+      if (size) setViewSize([size[0], size[1]]);
+      const extent = openLayersMap.getView().calculateExtent(size ?? undefined);
+      if (extent && extent.every(Number.isFinite)) {
+        setViewExtent([extent[0], extent[1], extent[2], extent[3]]);
+      }
+    };
+    openLayersMap.on('moveend', publishView);
+    openLayersMap.once('postrender', publishView);
+
     // Add click interaction for location features and GeoJSON features
     openLayersMap.on('click', (event) => {
       const features = openLayersMap.getFeaturesAtPixel(event.pixel);
@@ -305,9 +319,10 @@ export function useMapSetup(zoomLevel: number): UseMapSetupReturn {
     });
 
     return () => {
+      openLayersMap.un('moveend', publishView);
       openLayersMap.setTarget(undefined);
     };
-  }, [zoomLevel, setSelectedGeoJsonFeature]);
+  }, [zoomLevel, setSelectedGeoJsonFeature, setViewExtent, setViewSize]);
 
   return { map, vectorLayer, locationLayer, markerLayer, areaLayer, radiusLayer, tooltipRef };
 }

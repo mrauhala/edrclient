@@ -13,6 +13,7 @@ const SettingsDrawer = lazy(() => import('./SettingsDrawer'));
 const DataModal = lazy(() => import('./DataModal'));
 import ErrorBoundary from './ErrorBoundary';
 import { GeoJsonLayerProvider, useGeoJsonLayers } from './contexts/GeoJsonLayerContext';
+import { MapsLayerProvider } from './contexts/MapsLayerContext';
 import { LayerManagerProvider } from './contexts/LayerManagerContext';
 import { ValidationProvider } from './contexts/ValidationContext';
 import { MapInteractionProvider } from './contexts/MapInteractionContext';
@@ -55,14 +56,16 @@ function App() {
       <CollectionProvider>
         <MapInteractionProvider>
           <GeoJsonLayerProvider>
-            <LayerManagerProvider>
-              <ValidationProvider>
-                <AppContent
-                  customServices={customServices}
-                  setCustomServices={setCustomServices}
-                />
-              </ValidationProvider>
-            </LayerManagerProvider>
+            <MapsLayerProvider>
+              <LayerManagerProvider>
+                <ValidationProvider>
+                  <AppContent
+                    customServices={customServices}
+                    setCustomServices={setCustomServices}
+                  />
+                </ValidationProvider>
+              </LayerManagerProvider>
+            </MapsLayerProvider>
           </GeoJsonLayerProvider>
         </MapInteractionProvider>
       </CollectionProvider>
@@ -99,6 +102,8 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [modalData, setModalData] = useState<string | null>(null);
+  const [modalImageUrl, setModalImageUrl] = useState<string | null>(null);
+  const modalImageUrlRef = useRef<string | null>(null);
   const [modalContentType, setModalContentType] = useState<string | null>(null);
   const [modalLoading, setModalLoading] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
@@ -252,6 +257,12 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
     setModalError(null);
     setModalData(null);
     setModalContentType(null);
+    // Release any image blob URL from a previous fetch before starting a new one.
+    if (modalImageUrlRef.current) {
+      URL.revokeObjectURL(modalImageUrlRef.current);
+      modalImageUrlRef.current = null;
+    }
+    setModalImageUrl(null);
 
     try {
       const auth = getAuthCredentials(collectionUrl);
@@ -266,7 +277,9 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
       }
 
       const config: any = {
-        responseType: 'text',
+        // Use arraybuffer so binary responses (image/png from OGC API Maps, etc.) survive intact;
+        // we decode to text manually for non-binary content types below.
+        responseType: 'arraybuffer',
         signal: controller.signal,
         headers: {
           'Accept': '*/*'
@@ -289,12 +302,20 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
 
       const contentType = response.headers['content-type'] || '';
       setModalContentType(contentType);
-      
-      // Convert response to string if needed
-      const responseData = typeof response.data === 'string' 
-        ? response.data 
-        : JSON.stringify(response.data, null, 2);
-      
+
+      // Binary image response (image/png, image/jpeg, image/webp, image/svg+xml, etc.):
+      // wrap the arraybuffer in a blob URL so the modal can render it via <img>.
+      if (contentType.startsWith('image/')) {
+        const blob = new Blob([response.data], { type: contentType });
+        const objectUrl = URL.createObjectURL(blob);
+        modalImageUrlRef.current = objectUrl;
+        setModalImageUrl(objectUrl);
+        return;
+      }
+
+      // Text-ish response: decode the arraybuffer and continue with the existing pipeline.
+      const decoded = new TextDecoder('utf-8').decode(response.data as ArrayBuffer);
+      const responseData = decoded;
       setModalData(responseData);
 
       // Validate query result against registered schemas (e.g. CoverageJSON)
@@ -315,12 +336,10 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
         collectionUrl.toLowerCase().includes('f=application/geo%2bjson') ||
         collectionUrl.toLowerCase().includes('f=application/geo+json')
       );
-      
+
       if (isGeoJson) {
         try {
-          const geoJsonData = typeof response.data === 'string' 
-            ? JSON.parse(response.data) 
-            : response.data;
+          const geoJsonData = JSON.parse(responseData);
           
           if (geoJsonData.type === 'FeatureCollection' || geoJsonData.type === 'Feature') {
             // Generate a title from the URL or use a default
@@ -405,6 +424,11 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
     setModalValidationErrors([]);
     setModalValidationSchemaName(null);
     setModalScrollToPath(undefined);
+    if (modalImageUrlRef.current) {
+      URL.revokeObjectURL(modalImageUrlRef.current);
+      modalImageUrlRef.current = null;
+    }
+    setModalImageUrl(null);
   };
 
   // Update document data-theme attribute when theme changes
@@ -537,6 +561,7 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
             open={modalOpen}
             onClose={handleCloseModal}
             data={modalData}
+            imageUrl={modalImageUrl}
             contentType={modalContentType}
             isLoading={modalLoading}
             error={modalError}

@@ -18,6 +18,8 @@ import VerticalExtent from './VerticalExtent';
 import CollectionValidationErrors from './CollectionValidationErrors';
 import ItemsTable from './ItemsTable';
 import CollectionQueryBuilder from './CollectionQueryBuilder';
+import MapsPanel from './MapsPanel';
+import { hasMapsSupport } from './api/maps';
 import { useGeoJsonLayers } from './contexts/GeoJsonLayerContext';
 import { useMapInteraction } from './contexts/MapInteractionContext';
 import { useCollection } from './contexts/CollectionContext';
@@ -441,6 +443,10 @@ const CollectionsList = ({
             <Box sx={{ p: 2 }}>
               <CollectionQueryBuilder collection={collection} queryState={queryState} />
 
+              {hasMapsSupport(collection) && (
+                <MapsPanel collection={collection} apiUrl={currentApiUrl} queryState={queryState} />
+              )}
+
               {/* Items Table for collections with items links */}
               {collection.links && collection.links.some(link => link.rel === 'items' && link.type?.includes('geo+json')) && (
                 <Box sx={{ mb: 2 }}>
@@ -550,7 +556,9 @@ const CollectionsList = ({
             }
 
             { typeof collection.data_queries == "undefined"
-              ? <Alert severity="error"><AlertTitle>F: DATA_QUERIES</AlertTitle>Every collection within a collections array MUST have a data_queries parameter.</Alert>
+              ? (hasMapsSupport(collection)
+                  ? <Alert severity="info"><AlertTitle>F: DATA_QUERIES</AlertTitle>Not applicable — this collection is served via OGC API Maps, which uses link relations instead of data_queries.</Alert>
+                  : <Alert severity="error"><AlertTitle>F: DATA_QUERIES</AlertTitle>Every collection within a collections array MUST have a data_queries parameter.</Alert>)
               : (
                 <Alert severity="success">
                   <AlertTitle>F: DATA_QUERIES</AlertTitle>
@@ -646,7 +654,9 @@ const CollectionsList = ({
             }
 
             { (!collection.output_formats || !Array.isArray(collection.output_formats))
-              ? <Alert severity="error"><AlertTitle>I: OUTPUT_FORMATS</AlertTitle>Every collection within a collections array MUST have an output_formats parameter.</Alert>
+              ? (hasMapsSupport(collection)
+                  ? <Alert severity="info"><AlertTitle>I: OUTPUT_FORMATS</AlertTitle>Not applicable — OGC API Maps collections advertise image formats via conformance classes rather than output_formats.</Alert>
+                  : <Alert severity="error"><AlertTitle>I: OUTPUT_FORMATS</AlertTitle>Every collection within a collections array MUST have an output_formats parameter.</Alert>)
               : (
                 <Alert severity="success">
                   <AlertTitle>I: OUTPUT_FORMATS</AlertTitle>
@@ -656,7 +666,9 @@ const CollectionsList = ({
             }
 
             { typeof collection.parameter_names == "undefined"
-              ? <Alert severity="error"><AlertTitle>J: PARAMETER_NAMES</AlertTitle>Every collection within a collections array MUST have a parameter_names parameter.</Alert>
+              ? (hasMapsSupport(collection)
+                  ? <Alert severity="info"><AlertTitle>J: PARAMETER_NAMES</AlertTitle>Not applicable — OGC API Maps collections do not declare parameter_names.</Alert>
+                  : <Alert severity="error"><AlertTitle>J: PARAMETER_NAMES</AlertTitle>Every collection within a collections array MUST have a parameter_names parameter.</Alert>)
               : (
                 <Alert severity="success">
                   <AlertTitle>J: PARAMETER_NAMES</AlertTitle>

@@ -37,7 +37,8 @@ const schemas = [
   {
     name: 'EDR Part 1 v1.0 - Collections',
     url: 'https://schemas.opengis.net/ogcapi/edr/1.0/openapi/schemas/collections.yaml',
-    output: 'public/schemas/individual/edr-p1-v1.0/collections.json'
+    output: 'public/schemas/individual/edr-p1-v1.0/collections.json',
+    skip: true,  // Manual fixes on top of upstream — see git history. Do not regenerate.
   },
   {
     name: 'EDR Part 1 v1.0 - Conformance',
@@ -54,7 +55,8 @@ const schemas = [
   {
     name: 'EDR Part 1 v1.1 - Collections',
     url: 'https://schemas.opengis.net/ogcapi/edr/1.1/openapi/schemas/collections/collections.yaml',
-    output: 'public/schemas/individual/edr-p1-v1.1/collections.json'
+    output: 'public/schemas/individual/edr-p1-v1.1/collections.json',
+    skip: true,  // Manual fixes on top of upstream — see git history. Do not regenerate.
   },
   {
     name: 'EDR Part 1 v1.1 - Conformance',
@@ -115,6 +117,23 @@ const schemas = [
     name: 'Records Part 1 v1.0 - Catalogs',
     url: 'https://schemas.opengis.net/ogcapi/records/part1/1.0/openapi/schemas/catalogs.yaml',
     output: 'public/schemas/individual/records-p1-v1.0/catalogs.json'
+  },
+
+  // OGC API Maps Part 1 v1.0 - reuses common-core/common-geodata shapes; only adds conformance + link rels.
+  {
+    name: 'Maps Part 1 v1.0 - Landing Page',
+    url: 'https://schemas.opengis.net/ogcapi/maps/part1/1.0/openapi/schemas/common-core/landingPage.yaml',
+    output: 'public/schemas/individual/maps-p1-v1.0/landingPage.json'
+  },
+  {
+    name: 'Maps Part 1 v1.0 - Collections',
+    url: 'https://schemas.opengis.net/ogcapi/maps/part1/1.0/openapi/schemas/common-geodata/collections.yaml',
+    output: 'public/schemas/individual/maps-p1-v1.0/collections.json'
+  },
+  {
+    name: 'Maps Part 1 v1.0 - Conformance',
+    url: 'https://schemas.opengis.net/ogcapi/maps/part1/1.0/openapi/schemas/common-core/confClasses.yaml',
+    output: 'public/schemas/individual/maps-p1-v1.0/confClasses.json'
   }
 ];
 
@@ -161,7 +180,13 @@ async function main() {
   let failed = 0;
   const errors = [];
   
+  let skipped = 0;
   for (const schema of schemas) {
+    if (schema.skip) {
+      console.log(`\n⏭️  ${schema.name} — skipped (manual fixes in tree)`);
+      skipped++;
+      continue;
+    }
     try {
       await downloadAndDereference(schema);
       successful++;
@@ -174,6 +199,7 @@ async function main() {
   
   console.log('\n=== Summary ===');
   console.log(`✅ Successful: ${successful}`);
+  console.log(`⏭️  Skipped:    ${skipped}`);
   console.log(`❌ Failed: ${failed}`);
   
   if (errors.length > 0) {

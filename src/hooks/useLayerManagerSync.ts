@@ -3,6 +3,7 @@ import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
 import { normalizeHref } from '../DataRetrievalAPI';
 import { useGeoJsonLayers, type GeoJsonLayer } from '../contexts/GeoJsonLayerContext';
+import { useMapsLayers } from '../contexts/MapsLayerContext';
 import { useMapInteraction } from '../contexts/MapInteractionContext';
 import { useCollection } from '../contexts/CollectionContext';
 import { useLayerManager } from '../contexts/LayerManagerContext';
@@ -10,6 +11,7 @@ import { useLayerManager } from '../contexts/LayerManagerContext';
 // Unique key for each layer (used for order tracking)
 function layerKey(layer: GeoJsonLayer): string {
   if (layer.data?.type === 'internal') return `internal:${layer.data.layerType}`;
+  if (layer.data?.type === 'maps') return `maps:${layer.data.mapsLayerId}`;
   return layer.url;
 }
 
@@ -21,6 +23,7 @@ export function useLayerManagerSync(
   radiusLayer: VectorLayer<VectorSource> | null,
 ): void {
   const { geoJsonLayers, setGeoJsonLayers } = useGeoJsonLayers();
+  const { mapsLayers, setMapsLayers } = useMapsLayers();
   const { clickedCoords, selectedArea, radiusKm, setClickedCoords, setSelectedArea } = useMapInteraction();
   const { selectedCollection, selectedCollectionExtents, locationFeatures } = useCollection();
   const { setAllMapLayers, setHandleLayerManagerChange } = useLayerManager();
@@ -37,6 +40,21 @@ export function useLayerManagerSync(
       const key = layerKey(l);
       const existingZ = zIndexMapRef.current.get(key);
       layers.push({ ...l, opacity: l.opacity ?? 1, zIndex: l.zIndex ?? existingZ });
+    });
+
+    // Add OGC API Maps layers (carried into the GeoJsonLayer shape so the LayerManager UI
+    // can render them; identified by data.type === 'maps').
+    mapsLayers.forEach(ml => {
+      const key = `maps:${ml.id}`;
+      const existingZ = zIndexMapRef.current.get(key);
+      layers.push({
+        url: ml.id,
+        title: ml.title,
+        visible: ml.visible,
+        opacity: ml.opacity,
+        zIndex: ml.zIndex ?? existingZ,
+        data: { type: 'maps', mapsLayerId: ml.id, sourceType: ml.sourceType },
+      });
     });
 
     // Add collection bbox layer
@@ -158,7 +176,7 @@ export function useLayerManagerSync(
     });
 
     setAllMapLayers(layers);
-  }, [geoJsonLayers, vectorLayer, locationLayer, markerLayer, areaLayer, radiusLayer, selectedCollectionExtents, locationFeatures, clickedCoords, selectedArea, radiusKm, selectedCollection, setAllMapLayers]);
+  }, [geoJsonLayers, mapsLayers, vectorLayer, locationLayer, markerLayer, areaLayer, radiusLayer, selectedCollectionExtents, locationFeatures, clickedCoords, selectedArea, radiusKm, selectedCollection, setAllMapLayers]);
 
   const handleLayerManagerChange = useCallback((updatedLayers: GeoJsonLayer[]) => {
     // Update zIndex ref from the new order
@@ -166,9 +184,29 @@ export function useLayerManagerSync(
     updatedLayers.forEach(l => newZMap.set(layerKey(l), l.zIndex ?? 0));
     zIndexMapRef.current = newZMap;
 
-    // Filter out internal layers and update GeoJSON layers in context
-    const geoJsonUpdates = updatedLayers.filter(l => !l.data || l.data.type !== 'internal');
+    // Filter out internal + maps layers; remaining are GeoJSON layers
+    const geoJsonUpdates = updatedLayers.filter(l => !l.data || (l.data.type !== 'internal' && l.data.type !== 'maps'));
     setGeoJsonLayers(geoJsonUpdates);
+
+    // Route Maps layer updates back to the MapsLayerContext (handles visibility, opacity, zIndex, deletion)
+    const mapsUpdatesById = new Map<string, GeoJsonLayer>();
+    updatedLayers.forEach(l => {
+      if (l.data?.type === 'maps') mapsUpdatesById.set(l.data.mapsLayerId, l);
+    });
+    setMapsLayers(prev => {
+      const next = [] as typeof prev;
+      for (const ml of prev) {
+        const update = mapsUpdatesById.get(ml.id);
+        if (!update) continue; // removed in the manager UI
+        next.push({
+          ...ml,
+          visible: update.visible,
+          opacity: update.opacity ?? ml.opacity,
+          zIndex: update.zIndex ?? ml.zIndex,
+        });
+      }
+      return next;
+    });
 
     // Update internal layer visibility, opacity, and zIndex
     updatedLayers.forEach(layer => {
@@ -230,7 +268,7 @@ export function useLayerManagerSync(
       if (source) source.clear();
       setSelectedArea([]);
     }
-  }, [vectorLayer, locationLayer, markerLayer, areaLayer, radiusLayer, setGeoJsonLayers, setClickedCoords, setSelectedArea]);
+  }, [vectorLayer, locationLayer, markerLayer, areaLayer, radiusLayer, setGeoJsonLayers, setMapsLayers, setClickedCoords, setSelectedArea]);
 
   // Register the handler in context
   useEffect(() => {

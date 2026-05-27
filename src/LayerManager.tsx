@@ -45,11 +45,15 @@ function getLayerTypeLabel(layer: { url: string; data?: any }): string {
       default: return 'Map Layer';
     }
   }
+  if (layer.data?.type === 'maps') {
+    return layer.data.sourceType === 'tiles' ? 'Map (tiles)' : 'Map';
+  }
   return 'GeoJSON';
 }
 
 function layerId(layer: GeoJsonLayer, index: number): string {
   if (layer.data?.type === 'internal') return `internal:${layer.data.layerType}`;
+  if (layer.data?.type === 'maps') return `maps:${layer.data.mapsLayerId}`;
   return `${layer.url}:${index}`;
 }
 
