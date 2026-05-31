@@ -34,6 +34,8 @@ interface DataModalProps {
   open: boolean;
   onClose: () => void;
   data: string | null;
+  // For image/* responses: a blob: URL the modal renders via <img>. data stays null in that case.
+  imageUrl?: string | null;
   contentType: string | null;
   isLoading: boolean;
   error: string | null;
@@ -47,6 +49,7 @@ const DataModal: React.FC<DataModalProps> = ({
   open,
   onClose,
   data,
+  imageUrl = null,
   contentType,
   isLoading,
   error,
@@ -181,6 +184,56 @@ const DataModal: React.FC<DataModalProps> = ({
               <Typography variant="subtitle2">Error fetching data:</Typography>
               <Typography variant="body2">{error}</Typography>
             </Alert>
+          </Box>
+        )}
+
+        {!isLoading && !error && imageUrl && (
+          <Box sx={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            backgroundColor: 'background.default',
+          }}>
+            <Box sx={{
+              p: 1,
+              backgroundColor: 'background.default',
+              borderBottom: '1px solid',
+              borderColor: 'divider',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+            }}>
+              <Typography variant="body2" color="text.secondary">
+                Image preview ({contentType})
+              </Typography>
+            </Box>
+            <Box sx={{
+              flex: 1,
+              minHeight: 0,
+              overflow: 'auto',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundImage:
+                'linear-gradient(45deg, rgba(127,127,127,0.15) 25%, transparent 25%),' +
+                'linear-gradient(-45deg, rgba(127,127,127,0.15) 25%, transparent 25%),' +
+                'linear-gradient(45deg, transparent 75%, rgba(127,127,127,0.15) 75%),' +
+                'linear-gradient(-45deg, transparent 75%, rgba(127,127,127,0.15) 75%)',
+              backgroundSize: '16px 16px',
+              backgroundPosition: '0 0, 0 8px, 8px -8px, -8px 0',
+              p: 2,
+            }}>
+              <img
+                src={imageUrl}
+                alt="API response"
+                style={{
+                  maxWidth: '100%',
+                  maxHeight: '100%',
+                  objectFit: 'contain',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+                }}
+              />
+            </Box>
           </Box>
         )}
 

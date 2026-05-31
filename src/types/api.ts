@@ -1,3 +1,11 @@
+// OGC API link relation values. A server can use the full URI, the CURIE form, or — in practice
+// for OGC API Maps/Tiles/Styles servers like pygeoapi and MeteoCore — the unqualified short name.
+export const OGC_REL = {
+    map: ['http://www.opengis.net/def/rel/ogc/1.0/map', '[ogc-rel:map]', 'map'],
+    tilesetsMap: ['http://www.opengis.net/def/rel/ogc/1.0/tilesets-map', '[ogc-rel:tilesets-map]', 'tilesets-map'],
+    styles: ['http://www.opengis.net/def/rel/ogc/1.0/styles', '[ogc-rel:styles]', 'styles'],
+} as const;
+
 export interface AuthCredentials {
     username?: string;
     password?: string;
