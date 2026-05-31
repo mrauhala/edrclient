@@ -394,6 +394,10 @@
               },
               {
                 "type": "object",
+                "properties": {
+                  "spatial": true,
+                  "temporal": true
+                },
                 "additionalProperties": {
                   "description": "The domain intervals for any additional dimensions of the extent (envelope) beyond those described in temporal and spatial.",
                   "type": "object",
