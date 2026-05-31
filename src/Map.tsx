@@ -179,7 +179,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
             <div style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '16px', color: '#FF4444' }}>
               Draw Trajectory on Map
             </div>
-            <div>Click and drag to draw a trajectory (double-click to finish)</div>
+            <div>Click to add points along the path; double-click to finish</div>
           </div>
         )}
 
