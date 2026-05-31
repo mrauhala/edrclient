@@ -153,7 +153,11 @@ export function useMapInteractions(
         }
       }
 
-      if (dataQuery && (dataQuery.toLowerCase() === 'position' || dataQuery.toLowerCase() === 'radius' || dataQuery.toLowerCase() === 'trajectory')) {
+      // Trajectory is intentionally excluded: in trajectory mode the Draw('LineString')
+      // interaction below is the sole capturer of clickedCoords (mirroring how area's
+      // polygon Draw owns selectedArea). Letting this handler also append here caused a
+      // ghost line and premature queries from unfinished lines.
+      if (dataQuery && (dataQuery.toLowerCase() === 'position' || dataQuery.toLowerCase() === 'radius')) {
         const coords = map.getCoordinateFromPixel(event.pixel);
         const [x, y] = toLonLat(coords);
         const bbox = selectedCollection?.extent?.spatial?.bbox;
