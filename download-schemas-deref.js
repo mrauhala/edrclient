@@ -128,7 +128,11 @@ const schemas = [
   {
     name: 'Maps Part 1 v1.0 - Collections',
     url: 'https://schemas.opengis.net/ogcapi/maps/part1/1.0/openapi/schemas/common-geodata/collections.yaml',
-    output: 'public/schemas/individual/maps-p1-v1.0/collections.json'
+    output: 'public/schemas/individual/maps-p1-v1.0/collections.json',
+    // Manual fix on top of upstream: the UAD extent's allOf[1] omits spatial/temporal from
+    // its `properties`, causing additionalProperties to misclassify them. We declare them
+    // as known properties (value `true`) so they're excluded from the dimension oneOf.
+    skip: true,
   },
   {
     name: 'Maps Part 1 v1.0 - Conformance',
