@@ -10,6 +10,9 @@ export interface MapsLayer {
   opacity: number;
   zIndex?: number;
   sourceType: 'tiles' | 'dynamic';
+  // Style id to send as a `styles=` query param — set only as a fallback when the server exposes
+  // no style-specific /map link (otherwise the style is applied via path routing, not a param).
+  styleQuery?: string;
   // For sourceType === 'tiles': tile URL template with {z}/{y}/{x} placeholders.
   tileUrl?: string;
   // For sourceType === 'dynamic': base GET /map endpoint to which bbox/width/height get appended.
@@ -19,6 +22,10 @@ export interface MapsLayer {
   // Frozen onto the layer at "Add" time so the layer doesn't drift when the user moves the
   // sidebar TimeControl elsewhere afterwards.
   datetime?: string;
+  // Vertical dimension (OGC API Maps `elevation`) and additional (UAD) dimensions — frozen at
+  // Add time alongside datetime, for the same reason.
+  elevation?: string;
+  dimensions?: Record<string, string>;
   attribution?: string;
   apiKey?: string;
   apiKeyParam?: string;

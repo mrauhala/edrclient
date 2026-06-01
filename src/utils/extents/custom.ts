@@ -1,4 +1,33 @@
-import type { CustomDimension } from '../../types/api';
+import type { CustomDimension, Extent } from '../../types/api';
+
+// OGC API – Maps models additional dimensions (the "UAD" extent) as top-level keys on `extent`
+// (e.g. `extent.pressure = { crs, interval, grid: { coordinates: [...] } }`), unlike EDR which
+// uses an `extent.custom[]` array. This normalizes those top-level dimension keys into the same
+// CustomDimension shape so the existing selectors + query serialization work unchanged.
+// EDR collections (no such top-level keys) are unaffected — the result is just `extent.custom`.
+const RESERVED_EXTENT_KEYS = new Set(['spatial', 'temporal', 'vertical', 'custom']);
+
+export function getEffectiveCustomDimensions(extent: Extent | undefined | null): CustomDimension[] {
+  if (!extent) return [];
+  const out: CustomDimension[] = [...(extent.custom ?? [])];
+  const seen = new Set(out.map(d => d.id));
+
+  const raw = extent as Record<string, unknown>;
+  for (const key of Object.keys(raw)) {
+    if (RESERVED_EXTENT_KEYS.has(key) || seen.has(key)) continue;
+    const dim = raw[key];
+    if (!dim || typeof dim !== 'object') continue;
+    const d = dim as { interval?: unknown; values?: unknown; grid?: { coordinates?: unknown }; crs?: string; uom?: string };
+    const gridCoords = Array.isArray(d.grid?.coordinates) ? (d.grid!.coordinates as (number | string)[]) : undefined;
+    const values = Array.isArray(d.values) ? (d.values as (number | string)[]) : gridCoords;
+    const interval = Array.isArray(d.interval) ? (d.interval as (number | string | null)[]) : undefined;
+    // Only treat it as a dimension if it actually carries selectable values or an interval.
+    if (!values && !interval) continue;
+    out.push({ id: key, values, interval, reference: d.crs ?? d.uom });
+    seen.add(key);
+  }
+  return out;
+}
 
 // Utility function to expand custom dimension values for selection
 export function expandCustomDimensionValues(dimension: CustomDimension | null | undefined, maxValues: number = 500): string[] {

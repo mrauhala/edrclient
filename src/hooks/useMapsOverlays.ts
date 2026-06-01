@@ -12,14 +12,23 @@ import { useMapsLayers, type MapsLayer } from '../contexts/MapsLayerContext';
 
 type AnyImageOrTileLayer = TileLayer<XYZ> | ImageLayer<ImageSource>;
 
-function applyDatetimeToTileUrl(template: string, datetime?: string): string {
-  if (!datetime) return template;
+// Append the layer's frozen dimensions (datetime + elevation + UAD dims) to a tile URL template.
+function applyDimensionsToTileUrl(template: string, config: MapsLayer): string {
+  const params: [string, string][] = [];
+  if (config.datetime) params.push(['datetime', config.datetime]);
+  if (config.elevation) params.push(['elevation', config.elevation]);
+  if (config.dimensions) {
+    for (const [name, value] of Object.entries(config.dimensions)) {
+      if (value) params.push([name, value]);
+    }
+  }
+  if (!params.length) return template;
   const sep = template.includes('?') ? '&' : '?';
-  return `${template}${sep}datetime=${encodeURIComponent(datetime)}`;
+  return template + sep + params.map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&');
 }
 
 function createTileLayer(config: MapsLayer): TileLayer<XYZ> {
-  const datetimed = applyDatetimeToTileUrl(config.tileUrl!, config.datetime);
+  const datetimed = applyDimensionsToTileUrl(config.tileUrl!, config);
   const urlWithKey = config.apiKey
     ? addApiKeyToUrl(datetimed, { apiKey: config.apiKey, apiKeyParam: config.apiKeyParam })
     : datetimed;
@@ -65,6 +74,9 @@ function createImageLayer(config: MapsLayer): ImageLayer<ImageSource> {
         height,
         format: config.format,
         datetime: config.datetime,
+        elevation: config.elevation,
+        dimensions: config.dimensions,
+        styleId: config.styleQuery,
         transparent: true,
       });
       const finalUrl = config.apiKey
@@ -106,6 +118,8 @@ function fingerprint(config: MapsLayer): string {
     config.dynamicEndpoint ?? '',
     config.format,
     config.datetime ?? '',
+    config.elevation ?? '',
+    config.dimensions ? JSON.stringify(config.dimensions) : '',
     config.apiKey ?? '',
     config.apiKeyParam ?? '',
   ].join('|');

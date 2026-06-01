@@ -182,6 +182,10 @@ export interface DynamicMapParams {
   styleId?: string;
   format?: string;
   datetime?: string;
+  // Vertical dimension (OGC API Maps `elevation`) — instant ("500") or interval ("500/850").
+  elevation?: string;
+  // Additional (UAD) dimensions, each serialized as its own query param named by dimension id.
+  dimensions?: Record<string, string>;
   transparent?: boolean;
   bgcolor?: string;
 }
@@ -195,6 +199,15 @@ export function buildDynamicMapUrl(endpoint: string, params: DynamicMapParams): 
   if (params.height !== undefined) url.searchParams.set('height', String(params.height));
   if (params.crs) url.searchParams.set('crs', params.crs);
   if (params.datetime) url.searchParams.set('datetime', params.datetime);
+  if (params.elevation) url.searchParams.set('elevation', params.elevation);
+  if (params.dimensions) {
+    for (const [name, value] of Object.entries(params.dimensions)) {
+      if (value) url.searchParams.set(name, value);
+    }
+  }
+  // Fallback only: style is normally applied via path routing (a style's own /map link). This is
+  // used when a style is selected but the server exposes only a generic /map endpoint.
+  if (params.styleId) url.searchParams.set('styles', params.styleId);
   if (params.transparent !== undefined) url.searchParams.set('transparent', String(params.transparent));
   if (params.bgcolor) url.searchParams.set('bgcolor', params.bgcolor);
   if (params.format) url.searchParams.set('f', params.format);

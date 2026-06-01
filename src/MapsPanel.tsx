@@ -37,11 +37,26 @@ interface MapsPanelProps {
   queryState: UseQueryUrlReturn;
 }
 
-function layerIdFor(collectionId: string, styleId: string | undefined, sourceType: 'tiles' | 'dynamic', datetime?: string): string {
-  return `${collectionId}::${styleId ?? 'default'}::${sourceType}::${datetime ?? 'now'}`;
+// A stable string for the non-time dimension selection, so layers differing only by
+// elevation/UAD-dimension get distinct ids.
+function dimsKey(elevation?: string, dimensions?: Record<string, string>): string {
+  const dims = dimensions
+    ? Object.entries(dimensions).filter(([, v]) => v).map(([k, v]) => `${k}=${v}`).sort().join(',')
+    : '';
+  return [elevation ?? '', dims].filter(Boolean).join('|');
 }
 
-// Build the OGC API Maps `datetime` parameter value from the query state, or null if no time selected.
+function layerIdFor(
+  collectionId: string,
+  styleId: string | undefined,
+  sourceType: 'tiles' | 'dynamic',
+  datetime?: string,
+  extras?: string,
+): string {
+  return `${collectionId}::${styleId ?? 'default'}::${sourceType}::${datetime ?? 'now'}::${extras ?? ''}`;
+}
+
+// Build the OGC API Maps `datetime` parameter value from the query state, or undefined if none.
 function currentDatetime(q: UseQueryUrlReturn): string | undefined {
   if (q.datetimeMode === 'range' && q.startDatetime && q.endDatetime) {
     return `${q.startDatetime}/${q.endDatetime}`;
@@ -50,6 +65,31 @@ function currentDatetime(q: UseQueryUrlReturn): string | undefined {
     return q.selectedDatetime;
   }
   return undefined;
+}
+
+// Vertical dimension → OGC API Maps `elevation` (instant or "start/end" interval).
+function currentElevation(q: UseQueryUrlReturn): string | undefined {
+  if (q.verticalMode === 'range' && q.startVertical && q.endVertical) {
+    return `${q.startVertical}/${q.endVertical}`;
+  }
+  if (q.verticalMode !== 'range' && q.selectedVertical) {
+    return q.selectedVertical;
+  }
+  return undefined;
+}
+
+// Additional (UAD) dimensions the user selected → { dimensionId: value | "start/end" }.
+function currentDimensions(q: UseQueryUrlReturn): Record<string, string> | undefined {
+  const out: Record<string, string> = {};
+  for (const id of Object.keys(q.selectedCustomDimensions || {})) {
+    const mode = q.customDimensionModes[id] || 'individual';
+    if (mode === 'range' && q.customDimensionStarts[id] && q.customDimensionEnds[id]) {
+      out[id] = `${q.customDimensionStarts[id]}/${q.customDimensionEnds[id]}`;
+    } else if (mode !== 'range' && q.selectedCustomDimensions[id]) {
+      out[id] = q.selectedCustomDimensions[id];
+    }
+  }
+  return Object.keys(out).length ? out : undefined;
 }
 
 export default function MapsPanel({ collection, apiUrl, queryState }: MapsPanelProps) {
@@ -111,7 +151,13 @@ export default function MapsPanel({ collection, apiUrl, queryState }: MapsPanelP
       const auth = getAuthCredentials(apiUrl);
       const styleId = selectedStyle?.id;
       const datetime = currentDatetime(queryState);
-      const title = `${collection.title || collection.id}${styleId ? ` · ${styleId}` : ''}${datetime ? ` @ ${datetime}` : ''}`;
+      const elevation = currentElevation(queryState);
+      const dimensions = currentDimensions(queryState);
+      const extras = dimsKey(elevation, dimensions);
+      // Fallback only: send the style as a `styles=` param when no style-specific /map link exists.
+      const styleQuery = (selectedStyle && !styleLinks.mapLink && !styleLinks.tilesetsLink) ? selectedStyle.id : undefined;
+      const dimLabel = dimensions ? ` · ${Object.entries(dimensions).map(([k, v]) => `${k}=${v}`).join(' ')}` : '';
+      const title = `${collection.title || collection.id}${styleId ? ` · ${styleId}` : ''}${datetime ? ` @ ${datetime}` : ''}${elevation ? ` · z=${elevation}` : ''}${dimLabel}`;
 
       let layer: MapsLayer | null = null;
 
@@ -121,7 +167,7 @@ export default function MapsPanel({ collection, apiUrl, queryState }: MapsPanelP
         const tileUrl = await resolveWebMercatorTileTemplate(tilesetsHref, selectedFormat, auth);
         if (tileUrl) {
           layer = {
-            id: layerIdFor(collection.id, styleId, 'tiles', datetime),
+            id: layerIdFor(collection.id, styleId, 'tiles', datetime, extras),
             collectionId: collection.id,
             styleId,
             title,
@@ -132,6 +178,8 @@ export default function MapsPanel({ collection, apiUrl, queryState }: MapsPanelP
             tileUrl,
             format: selectedFormat,
             datetime,
+            elevation,
+            dimensions,
             apiKey: auth?.apiKey,
             apiKeyParam: auth?.apiKeyParam,
           };
@@ -146,7 +194,7 @@ export default function MapsPanel({ collection, apiUrl, queryState }: MapsPanelP
           return;
         }
         layer = {
-          id: layerIdFor(collection.id, styleId, 'dynamic', datetime),
+          id: layerIdFor(collection.id, styleId, 'dynamic', datetime, extras),
           collectionId: collection.id,
           styleId,
           title,
@@ -155,8 +203,11 @@ export default function MapsPanel({ collection, apiUrl, queryState }: MapsPanelP
           zIndex: 50,
           sourceType: 'dynamic',
           dynamicEndpoint: mapHref,
+          styleQuery,
           format: selectedFormat,
           datetime,
+          elevation,
+          dimensions,
           apiKey: auth?.apiKey,
           apiKeyParam: auth?.apiKeyParam,
         };
@@ -179,6 +230,15 @@ export default function MapsPanel({ collection, apiUrl, queryState }: MapsPanelP
     }
   };
 
+  // Serialized custom-dimension selection, so the preview effect re-runs when any dim changes
+  // (kept as one variable to avoid complex expressions in the dependency array).
+  const customDimSelectionKey = JSON.stringify([
+    queryState.selectedCustomDimensions,
+    queryState.customDimensionModes,
+    queryState.customDimensionStarts,
+    queryState.customDimensionEnds,
+  ]);
+
   // Publish a copy-pasteable /map URL into the bottom URL bar reflecting style + datetime + current
   // map view. Only runs when no EDR data_query is active (which would otherwise own the URL).
   useEffect(() => {
@@ -194,6 +254,9 @@ export default function MapsPanel({ collection, apiUrl, queryState }: MapsPanelP
       height: viewSize[1],
       format: selectedFormat,
       datetime: currentDatetime(queryState),
+      elevation: currentElevation(queryState),
+      dimensions: currentDimensions(queryState),
+      styleId: (selectedStyle && !styleLinks.mapLink && !styleLinks.tilesetsLink) ? selectedStyle.id : undefined,
       transparent: true,
     });
     setCollectionUrl(url);
@@ -204,6 +267,8 @@ export default function MapsPanel({ collection, apiUrl, queryState }: MapsPanelP
     effectiveMapLink?.href, selectedFormat, viewExtent, viewSize,
     queryState.selectedDataQuery,
     queryState.selectedDatetime, queryState.startDatetime, queryState.endDatetime, queryState.datetimeMode,
+    queryState.selectedVertical, queryState.startVertical, queryState.endVertical, queryState.verticalMode,
+    customDimSelectionKey,
   ]);
 
   if (!supported) return null;
