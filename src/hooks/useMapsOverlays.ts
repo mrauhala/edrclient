@@ -126,7 +126,7 @@ function fingerprint(config: MapsLayer): string {
 }
 
 export function useMapsOverlays(map: OLMap | null): void {
-  const { mapsLayers } = useMapsLayers();
+  const { mapsLayers, mapsBundles } = useMapsLayers();
   const olLayersRef = useRef<globalThis.Map<string, AnyImageOrTileLayer>>(new globalThis.Map());
   const fingerprintsRef = useRef<globalThis.Map<string, string>>(new globalThis.Map());
 
@@ -140,11 +140,14 @@ export function useMapsOverlays(map: OLMap | null): void {
 
     for (const config of mapsLayers) {
       wantedIds.add(config.id);
-      const existing = tracked.get(config.id);
+      let existing = tracked.get(config.id);
       const fp = fingerprint(config);
       const prevFp = fingerprints.get(config.id);
 
-      if (!config.visible) {
+      // Non-bundle layers honor the `visible` flag (remove when hidden). Bundle frames stay built
+      // and are toggled via OpenLayers visibility by the bundle's currentIndex — so all frames
+      // load once and stepping/animating doesn't refetch.
+      if (!config.bundleId && !config.visible) {
         if (existing) {
           olMap.removeLayer(existing as unknown as BaseLayer);
           tracked.delete(config.id);
@@ -158,20 +161,23 @@ export function useMapsOverlays(map: OLMap | null): void {
         olMap.removeLayer(existing as unknown as BaseLayer);
         tracked.delete(config.id);
         fingerprints.delete(config.id);
+        existing = undefined;
       }
 
-      if (tracked.has(config.id)) {
-        const layer = tracked.get(config.id)!;
-        layer.setOpacity(config.opacity);
-        if (config.zIndex !== undefined) layer.setZIndex(config.zIndex);
-        continue;
+      if (!existing) {
+        const layer = buildLayer(config);
+        if (!layer) continue;
+        olMap.addLayer(layer as unknown as BaseLayer);
+        tracked.set(config.id, layer);
+        fingerprints.set(config.id, fp);
+        existing = layer;
       }
 
-      const layer = buildLayer(config);
-      if (!layer) continue;
-      olMap.addLayer(layer as unknown as BaseLayer);
-      tracked.set(config.id, layer);
-      fingerprints.set(config.id, fp);
+      existing.setOpacity(config.opacity);
+      if (config.zIndex !== undefined) existing.setZIndex(config.zIndex);
+      // A bundle frame is visible only when it's the current frame; standalone layers are visible.
+      const bundle = config.bundleId ? mapsBundles[config.bundleId] : undefined;
+      existing.setVisible(bundle ? config.frameIndex === bundle.currentIndex : true);
     }
 
     // Remove layers that disappeared from state entirely
@@ -182,7 +188,7 @@ export function useMapsOverlays(map: OLMap | null): void {
         fingerprints.delete(id);
       }
     }
-  }, [map, mapsLayers]);
+  }, [map, mapsLayers, mapsBundles]);
 
   useEffect(() => {
     const tracked = olLayersRef.current;

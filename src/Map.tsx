@@ -3,6 +3,7 @@ import React from 'react';
 import 'ol/ol.css';
 import { FeatureViewer, normalizeGeoJsonFeature, normalizeOLFeature } from './FeatureViewer';
 import DraggableMapPanel from './DraggableMapPanel';
+import MapsAnimationBar from './MapsAnimationBar';
 import { useGeoJsonLayers } from './contexts/GeoJsonLayerContext';
 import { useMapInteraction } from './contexts/MapInteractionContext';
 import { useCollection } from './contexts/CollectionContext';
@@ -487,6 +488,8 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
           }
         }}
       />
+
+      <MapsAnimationBar />
     </div>
   );
 };
