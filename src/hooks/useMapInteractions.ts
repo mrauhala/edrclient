@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Map from 'ol/Map';
 import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
@@ -16,10 +16,14 @@ export function useMapInteractions(
   markerLayer: VectorLayer<VectorSource> | null,
   areaLayer: VectorLayer<VectorSource> | null,
   radiusLayer: VectorLayer<VectorSource> | null,
-): void {
+): { abortDrawing: () => void; isDrawing: boolean } {
   const { clickedCoords, setClickedCoords, selectedArea, setSelectedArea, radiusKm, dataQuery } = useMapInteraction();
   const { selectedCollection, selectedFeature } = useCollection();
   const [drawInteraction, setDrawInteraction] = useState<Draw | null>(null);
+  // True while an area/trajectory sketch is in progress (between drawstart and drawend/abort).
+  const [isDrawing, setIsDrawing] = useState(false);
+  // Imperative handle to the active Draw so the Clear buttons can abort an in-progress sketch.
+  const drawInteractionRef = useRef<Draw | null>(null);
   const selectedAreaRef = useRef(selectedArea);
   const clickedCoordsRef = useRef(clickedCoords);
 
@@ -225,11 +229,18 @@ export function useMapInteractions(
         setSelectedArea(newAreas);
       });
 
+      draw.on('drawstart', () => setIsDrawing(true));
+      draw.on('drawend', () => setIsDrawing(false));
+      draw.on('drawabort', () => setIsDrawing(false));
+
       map.addInteraction(draw);
       setDrawInteraction(draw);
+      drawInteractionRef.current = draw;
 
       return () => {
         map.removeInteraction(draw);
+        drawInteractionRef.current = null;
+        setIsDrawing(false);
       };
     }
 
@@ -263,11 +274,18 @@ export function useMapInteractions(
         setClickedCoords(lonLatCoords);
       });
 
+      draw.on('drawstart', () => setIsDrawing(true));
+      draw.on('drawend', () => setIsDrawing(false));
+      draw.on('drawabort', () => setIsDrawing(false));
+
       map.addInteraction(draw);
       setDrawInteraction(draw);
+      drawInteractionRef.current = draw;
 
       return () => {
         map.removeInteraction(draw);
+        drawInteractionRef.current = null;
+        setIsDrawing(false);
       };
     }
 
@@ -303,4 +321,21 @@ export function useMapInteractions(
       }
     }
   }, [selectedArea, areaLayer]);
+
+  // Abort an in-progress sketch (the half-drawn line/polygon lives on the Draw
+  // interaction's own overlay, not in our vector layers, so clearing the layer
+  // source alone leaves it on screen). Used by the Clear buttons.
+  const abortDrawing = useCallback(() => {
+    const draw = drawInteractionRef.current;
+    if (draw) {
+      try {
+        draw.abortDrawing();
+      } catch {
+        /* no active sketch to abort */
+      }
+    }
+    setIsDrawing(false);
+  }, []);
+
+  return { abortDrawing, isDrawing };
 }

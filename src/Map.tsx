@@ -35,7 +35,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
   const { geoJsonMetadata } = useGeoJsonOverlays(map);
   useMapsOverlays(map);
 
-  useMapInteractions(map, markerLayer, areaLayer, radiusLayer);
+  const { abortDrawing, isDrawing } = useMapInteractions(map, markerLayer, areaLayer, radiusLayer);
 
   useLayerManagerSync(
     vectorLayer, locationLayer, markerLayer, areaLayer, radiusLayer,
@@ -221,7 +221,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
       )}
 
         {/* Reset Button for Trajectory Mode */}
-        {dataQuery && dataQuery.toLowerCase() === 'trajectory' && clickedCoords && clickedCoords.length > 0 && (
+        {dataQuery && dataQuery.toLowerCase() === 'trajectory' && ((clickedCoords && clickedCoords.length > 0) || isDrawing) && (
           <div
             style={{
               position: 'absolute',
@@ -232,6 +232,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
           >
             <button
               onClick={() => {
+                abortDrawing();
                 setClickedCoords([]);
                 if (markerLayer) {
                   const source = markerLayer.getSource();
@@ -289,7 +290,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
       )}
 
       {/* Reset Button for Area Mode */}
-      {dataQuery && dataQuery.toLowerCase() === 'area' && selectedArea && selectedArea.length > 0 && (
+      {dataQuery && dataQuery.toLowerCase() === 'area' && ((selectedArea && selectedArea.length > 0) || isDrawing) && (
         <div
           style={{
             position: 'absolute',
@@ -300,6 +301,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
         >
           <button
             onClick={() => {
+              abortDrawing();
               setSelectedArea([]);
               if (areaLayer) {
                 const source = areaLayer.getSource();
