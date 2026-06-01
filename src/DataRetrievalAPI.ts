@@ -5,6 +5,6 @@ export { formatConformanceClass } from './utils/conformance';
 export { normalizeBbox, getOverallExtent } from './utils/extents/bbox';
 export { normalizeTemporal, formatTemporalInterval, formatDateString, getOverallTemporalExtent, expandTemporalValues, parseDuration, computeStepMs } from './utils/extents/temporal';
 export { normalizeVertical, expandVerticalValues, formatVerticalInterval, formatVerticalValue, getOverallVerticalExtent, getVerticalUnit } from './utils/extents/vertical';
-export { expandCustomDimensionValues } from './utils/extents/custom';
+export { expandCustomDimensionValues, getEffectiveCustomDimensions } from './utils/extents/custom';
 export { getSupportedDataQueries, hasLocationQuery, getLocationQueryUrl, executeLocationQuery } from './api/queries';
 export { getCollections } from './api/client';

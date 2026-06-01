@@ -13,7 +13,7 @@ import Select from '@mui/material/Select';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import ListItemText from '@mui/material/ListItemText';
-import { Collection, expandVerticalValues, expandCustomDimensionValues } from './DataRetrievalAPI';
+import { Collection, expandVerticalValues, expandCustomDimensionValues, getEffectiveCustomDimensions } from './DataRetrievalAPI';
 import { UseQueryUrlReturn } from './hooks/useQueryUrl';
 import { useMapInteraction } from './contexts/MapInteractionContext';
 import TimeControl from './TimeControl';
@@ -375,8 +375,8 @@ const CollectionQueryBuilder: React.FC<CollectionQueryBuilderProps> = ({ collect
         ) : null;
       })()}
 
-      {/* Custom Dimension Selectors */}
-      {collection.extent?.custom && collection.extent.custom.length > 0 && collection.extent.custom.map((dimension) => {
+      {/* Custom Dimension Selectors — includes OGC API Maps UAD dimensions (top-level extent keys) */}
+      {getEffectiveCustomDimensions(collection.extent).map((dimension) => {
         const dimensionId = dimension.id;
         const dimensionValues = expandCustomDimensionValues(dimension, 500);
         const hasValues = dimension.values && dimension.values.length > 0;
