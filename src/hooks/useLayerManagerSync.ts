@@ -45,6 +45,9 @@ export function useLayerManagerSync(
     // Add OGC API Maps layers (carried into the GeoJsonLayer shape so the LayerManager UI
     // can render them; identified by data.type === 'maps').
     mapsLayers.forEach(ml => {
+      // Animation-bundle frames are managed via the on-map playback bar, not as individual
+      // LayerManager rows (a bundle would otherwise explode into dozens of entries).
+      if (ml.bundleId) return;
       const key = `maps:${ml.id}`;
       const existingZ = zIndexMapRef.current.get(key);
       layers.push({

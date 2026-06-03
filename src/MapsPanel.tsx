@@ -9,10 +9,11 @@ import Select from '@mui/material/Select';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import AddIcon from '@mui/icons-material/Add';
+import SlideshowIcon from '@mui/icons-material/Slideshow';
 import { transformExtent } from 'ol/proj';
 
 import type { Collection } from './DataRetrievalAPI';
-import { normalizeHref } from './DataRetrievalAPI';
+import { normalizeHref, expandTemporalValues } from './DataRetrievalAPI';
 import {
   buildDynamicMapUrl,
   fetchStyles,
@@ -30,6 +31,8 @@ import type { UseQueryUrlReturn } from './hooks/useQueryUrl';
 
 const DEFAULT_STYLE_ID = '__default__';
 const FORMAT_OPTIONS = ['image/png', 'image/jpeg'];
+// Cap frames per animated series so a wide range doesn't fire hundreds of /map requests.
+const MAX_FRAMES = 48;
 
 interface MapsPanelProps {
   collection: Collection;
@@ -93,7 +96,7 @@ function currentDimensions(q: UseQueryUrlReturn): Record<string, string> | undef
 }
 
 export default function MapsPanel({ collection, apiUrl, queryState }: MapsPanelProps) {
-  const { setMapsLayers } = useMapsLayers();
+  const { setMapsLayers, setMapsBundles } = useMapsLayers();
   const { getAuthCredentials } = useService();
   const { viewExtent, viewSize } = useMapInteraction();
   const { setCollectionUrl } = useCollection();
@@ -104,6 +107,7 @@ export default function MapsPanel({ collection, apiUrl, queryState }: MapsPanelP
   const [selectedFormat, setSelectedFormat] = useState<string>(FORMAT_OPTIONS[0]);
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const collectionLinks = useMemo(() => getMapsLinks(collection), [collection]);
   const supported = hasMapsSupport(collection);
@@ -144,87 +148,160 @@ export default function MapsPanel({ collection, apiUrl, queryState }: MapsPanelP
   const effectiveMapLink = styleLinks.mapLink ?? collectionLinks.mapLink;
   const effectiveTilesetsLink = styleLinks.tilesetsLink ?? collectionLinks.tilesetsLink;
 
+  // Resolve the layer source once: prefer WebMercatorQuad tiles, else the dynamic /map endpoint.
+  const resolveSource = async (
+    auth: ReturnType<typeof getAuthCredentials>,
+  ): Promise<{ sourceType: 'tiles' | 'dynamic'; tileUrl?: string; dynamicEndpoint?: string } | null> => {
+    const tilesetsHref = normalizeHref(effectiveTilesetsLink?.href);
+    if (tilesetsHref) {
+      const tileUrl = await resolveWebMercatorTileTemplate(tilesetsHref, selectedFormat, auth);
+      if (tileUrl) return { sourceType: 'tiles', tileUrl };
+    }
+    const mapHref = normalizeHref(effectiveMapLink?.href);
+    if (mapHref) return { sourceType: 'dynamic', dynamicEndpoint: mapHref };
+    return null;
+  };
+
+  // Style as a `styles=` param — fallback only, when no style-specific /map link exists.
+  const styleQueryFallback = (): string | undefined =>
+    (selectedStyle && !styleLinks.mapLink && !styleLinks.tilesetsLink) ? selectedStyle.id : undefined;
+
   const handleAdd = async () => {
     setAdding(true);
     setAddError(null);
+    setNotice(null);
     try {
       const auth = getAuthCredentials(apiUrl);
+      const src = await resolveSource(auth);
+      if (!src) {
+        setAddError('Collection advertises Maps but exposes no usable map or tileset link.');
+        return;
+      }
       const styleId = selectedStyle?.id;
       const datetime = currentDatetime(queryState);
       const elevation = currentElevation(queryState);
       const dimensions = currentDimensions(queryState);
       const extras = dimsKey(elevation, dimensions);
-      // Fallback only: send the style as a `styles=` param when no style-specific /map link exists.
-      const styleQuery = (selectedStyle && !styleLinks.mapLink && !styleLinks.tilesetsLink) ? selectedStyle.id : undefined;
       const dimLabel = dimensions ? ` · ${Object.entries(dimensions).map(([k, v]) => `${k}=${v}`).join(' ')}` : '';
       const title = `${collection.title || collection.id}${styleId ? ` · ${styleId}` : ''}${datetime ? ` @ ${datetime}` : ''}${elevation ? ` · z=${elevation}` : ''}${dimLabel}`;
 
-      let layer: MapsLayer | null = null;
-
-      // Prefer tiles when available and WebMercatorQuad can be resolved.
-      const tilesetsHref = normalizeHref(effectiveTilesetsLink?.href);
-      if (tilesetsHref) {
-        const tileUrl = await resolveWebMercatorTileTemplate(tilesetsHref, selectedFormat, auth);
-        if (tileUrl) {
-          layer = {
-            id: layerIdFor(collection.id, styleId, 'tiles', datetime, extras),
-            collectionId: collection.id,
-            styleId,
-            title,
-            visible: true,
-            opacity: 1,
-            zIndex: 50,
-            sourceType: 'tiles',
-            tileUrl,
-            format: selectedFormat,
-            datetime,
-            elevation,
-            dimensions,
-            apiKey: auth?.apiKey,
-            apiKeyParam: auth?.apiKeyParam,
-          };
-        }
-      }
-
-      // Fall back to dynamic /map.
-      if (!layer) {
-        const mapHref = normalizeHref(effectiveMapLink?.href);
-        if (!mapHref) {
-          setAddError('Collection advertises Maps but exposes no usable map or tileset link.');
-          return;
-        }
-        layer = {
-          id: layerIdFor(collection.id, styleId, 'dynamic', datetime, extras),
-          collectionId: collection.id,
-          styleId,
-          title,
-          visible: true,
-          opacity: 1,
-          zIndex: 50,
-          sourceType: 'dynamic',
-          dynamicEndpoint: mapHref,
-          styleQuery,
-          format: selectedFormat,
-          datetime,
-          elevation,
-          dimensions,
-          apiKey: auth?.apiKey,
-          apiKeyParam: auth?.apiKeyParam,
-        };
-      }
+      const layer: MapsLayer = {
+        id: layerIdFor(collection.id, styleId, src.sourceType, datetime, extras),
+        collectionId: collection.id,
+        styleId,
+        title,
+        visible: true,
+        opacity: 1,
+        zIndex: 50,
+        sourceType: src.sourceType,
+        tileUrl: src.tileUrl,
+        dynamicEndpoint: src.dynamicEndpoint,
+        styleQuery: src.sourceType === 'dynamic' ? styleQueryFallback() : undefined,
+        format: selectedFormat,
+        datetime,
+        elevation,
+        dimensions,
+        apiKey: auth?.apiKey,
+        apiKeyParam: auth?.apiKeyParam,
+      };
 
       setMapsLayers(prev => {
-        const idx = prev.findIndex(l => l.id === layer!.id);
+        const idx = prev.findIndex(l => l.id === layer.id);
         if (idx >= 0) {
           const next = [...prev];
           next[idx] = { ...next[idx], visible: true };
           return next;
         }
-        return [...prev, layer!];
+        return [...prev, layer];
       });
     } catch (err) {
       console.error('Add map layer failed:', err);
       setAddError(err instanceof Error ? err.message : 'Failed to add map layer.');
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  // Add a time range as an animated bundle: one frame-layer per discrete instant in the window,
+  // each issued as its own /map request (OGC API Maps returns one image per request). The
+  // playback bar steps/animates by toggling which frame is visible.
+  const handleAddSeries = async () => {
+    setAdding(true);
+    setAddError(null);
+    setNotice(null);
+    try {
+      const temporal = collection.extent?.temporal;
+      if (!temporal) { setAddError('Collection has no temporal extent to animate.'); return; }
+
+      // Window: the selected range if set, else the full temporal extent.
+      const useRange = queryState.datetimeMode === 'range' && queryState.startDatetime && queryState.endDatetime;
+      const windowTemporal = useRange
+        ? { interval: [[queryState.startDatetime, queryState.endDatetime]] as (string | null)[][] }
+        : temporal;
+      let instants = expandTemporalValues(windowTemporal, 500);
+      if (instants.length < 2) {
+        setAddError('Select a time range with at least two steps to animate.');
+        return;
+      }
+
+      let truncated = false;
+      if (instants.length > MAX_FRAMES) {
+        const stride = instants.length / MAX_FRAMES;
+        const sampled: string[] = [];
+        for (let i = 0; i < MAX_FRAMES; i++) sampled.push(instants[Math.floor(i * stride)]);
+        sampled[sampled.length - 1] = instants[instants.length - 1];
+        instants = sampled;
+        truncated = true;
+      }
+
+      const auth = getAuthCredentials(apiUrl);
+      const src = await resolveSource(auth);
+      if (!src) {
+        setAddError('Collection advertises Maps but exposes no usable map or tileset link.');
+        return;
+      }
+      const styleId = selectedStyle?.id;
+      const elevation = currentElevation(queryState);
+      const dimensions = currentDimensions(queryState);
+      const extras = dimsKey(elevation, dimensions);
+      const styleQuery = src.sourceType === 'dynamic' ? styleQueryFallback() : undefined;
+      const bundleId = `bundle::${collection.id}::${styleId ?? 'default'}::${src.sourceType}::${extras}::${instants[0]}_${instants[instants.length - 1]}_${instants.length}`;
+      const collectionTitle = `${collection.title || collection.id}${styleId ? ` · ${styleId}` : ''}${elevation ? ` · z=${elevation}` : ''}`;
+
+      const frames: MapsLayer[] = instants.map((t, i) => ({
+        id: layerIdFor(collection.id, styleId, src.sourceType, t, `${extras}::${bundleId}#${i}`),
+        collectionId: collection.id,
+        styleId,
+        title: `${collectionTitle} @ ${t}`,
+        visible: true,
+        opacity: 1,
+        zIndex: 50,
+        sourceType: src.sourceType,
+        tileUrl: src.tileUrl,
+        dynamicEndpoint: src.dynamicEndpoint,
+        styleQuery,
+        format: selectedFormat,
+        datetime: t,
+        elevation,
+        dimensions,
+        apiKey: auth?.apiKey,
+        apiKeyParam: auth?.apiKeyParam,
+        bundleId,
+        frameIndex: i,
+        frameTime: t,
+      }));
+
+      setMapsLayers(prev => [...prev.filter(l => l.bundleId !== bundleId), ...frames]);
+      setMapsBundles(prev => ({
+        ...prev,
+        [bundleId]: { bundleId, collectionTitle, frameCount: frames.length, currentIndex: 0, isPlaying: false, fps: 2 },
+      }));
+      setNotice(
+        `Added ${frames.length} frames${truncated ? ` (capped at ${MAX_FRAMES})` : ''}. Use the playback bar on the map.`,
+      );
+    } catch (err) {
+      console.error('Add animated series failed:', err);
+      setAddError(err instanceof Error ? err.message : 'Failed to add animated series.');
     } finally {
       setAdding(false);
     }
@@ -323,8 +400,22 @@ export default function MapsPanel({ collection, apiUrl, queryState }: MapsPanelP
         </Button>
       </Stack>
 
+      {collection.extent?.temporal && (
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<SlideshowIcon />}
+          onClick={handleAddSeries}
+          disabled={adding}
+          sx={{ mb: 1 }}
+        >
+          Add animated series
+        </Button>
+      )}
+
       {stylesError && <Alert severity="warning" sx={{ mb: 1 }}>{stylesError}</Alert>}
       {addError && <Alert severity="error" sx={{ mb: 1 }}>{addError}</Alert>}
+      {notice && <Alert severity="info" sx={{ mb: 1 }}>{notice}</Alert>}
     </Box>
   );
 }

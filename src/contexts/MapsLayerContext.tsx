@@ -29,22 +29,43 @@ export interface MapsLayer {
   attribution?: string;
   apiKey?: string;
   apiKeyParam?: string;
+  // Animation bundle membership: frames sharing a bundleId differ only by datetime/frameTime.
+  // Exactly one frame is shown at a time (driven by the bundle's currentIndex); per-frame
+  // requests are issued separately (OGC API Maps returns one image per request).
+  bundleId?: string;
+  frameIndex?: number;
+  frameTime?: string;
+}
+
+// Playback state for one animation bundle. currentIndex selects the visible frame.
+export interface MapsBundleState {
+  bundleId: string;
+  collectionTitle: string;
+  frameCount: number;
+  currentIndex: number;
+  isPlaying: boolean;
+  fps: number;
 }
 
 interface MapsLayerContextValue {
   mapsLayers: MapsLayer[];
   setMapsLayers: Dispatch<SetStateAction<MapsLayer[]>>;
+  mapsBundles: Record<string, MapsBundleState>;
+  setMapsBundles: Dispatch<SetStateAction<Record<string, MapsBundleState>>>;
 }
 
 const MapsLayerContext = createContext<MapsLayerContextValue | null>(null);
 
 export function MapsLayerProvider({ children }: { children: ReactNode }) {
   const [mapsLayers, setMapsLayers] = useState<MapsLayer[]>([]);
+  const [mapsBundles, setMapsBundles] = useState<Record<string, MapsBundleState>>({});
 
   const value = useMemo(() => ({
     mapsLayers,
     setMapsLayers,
-  }), [mapsLayers]);
+    mapsBundles,
+    setMapsBundles,
+  }), [mapsLayers, mapsBundles]);
 
   return (
     <MapsLayerContext.Provider value={value}>
