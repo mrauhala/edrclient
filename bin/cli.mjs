@@ -21,9 +21,32 @@ const mimeTypes = {
 };
 
 const port = parseInt(process.argv.find((_, i, a) => a[i - 1] === '--port') ?? '3000', 10);
+const cartoApiKey =
+  process.argv.find((_, i, a) => a[i - 1] === '--carto-api-key') ??
+  process.env.CARTO_API_KEY;
+
+async function serveIndex(res) {
+  const html = await readFile(join(buildDir, 'index.html'), 'utf-8');
+  const runtimeConfig = `<script>window.__RUNTIME_CONFIG__ = ${JSON.stringify({ VITE_CARTO_API_KEY: cartoApiKey })};</script>`;
+  const injected = html.includes('</head>')
+    ? html.replace('</head>', `${runtimeConfig}</head>`)
+    : runtimeConfig + html;
+  res.writeHead(200, { 'Content-Type': 'text/html' });
+  res.end(injected);
+}
 
 const server = createServer(async (req, res) => {
-  let filePath = join(buildDir, req.url === '/' ? 'index.html' : req.url);
+  if (req.url === '/' || req.url === '/index.html') {
+    try {
+      await serveIndex(res);
+    } catch {
+      res.writeHead(404);
+      res.end('Not found. Did you run "npm run build" first?');
+    }
+    return;
+  }
+
+  const filePath = join(buildDir, req.url);
 
   try {
     const data = await readFile(filePath);
@@ -33,9 +56,7 @@ const server = createServer(async (req, res) => {
   } catch {
     // SPA fallback — serve index.html for any path without a file extension
     try {
-      const index = await readFile(join(buildDir, 'index.html'));
-      res.writeHead(200, { 'Content-Type': 'text/html' });
-      res.end(index);
+      await serveIndex(res);
     } catch {
       res.writeHead(404);
       res.end('Not found. Did you run "npm run build" first?');

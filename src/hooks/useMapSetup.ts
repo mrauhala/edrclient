@@ -12,8 +12,12 @@ import { useGeoJsonLayers } from '../contexts/GeoJsonLayerContext';
 import { useCollection } from '../contexts/CollectionContext';
 import { useMapInteraction } from '../contexts/MapInteractionContext';
 
+function getCartoApiKey(): string | undefined {
+  return window.__RUNTIME_CONFIG__?.VITE_CARTO_API_KEY || import.meta.env.VITE_CARTO_API_KEY;
+}
+
 function getCartoBasemapUrl(style: string): string {
-  const apiKey = import.meta.env.VITE_CARTO_API_KEY as string | undefined;
+  const apiKey = getCartoApiKey();
   const base = `https://{a-c}.basemaps.cartocdn.com/${style}/{z}/{x}/{y}.png`;
   return apiKey ? `${base}?key=${apiKey}` : base;
 }

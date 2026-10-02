@@ -59,6 +59,18 @@ VITE_CARTO_API_KEY=your-carto-api-key
 
 Restart the Vite dev server after adding or changing the key. `.env.local` is git-ignored. Carto does not allow adding localhost to the website restrictions of an API key that is already restricted for published websites; use a separate API key for local development instead. Vite exposes `VITE_` variables to the browser, so the key is public in the client and must not be treated as a secret.
 
+### Carto API key when running via `npx edrclient`
+
+The published npm package ships a prebuilt `build/` directory, so the `VITE_CARTO_API_KEY` baked or not baked in at `npm publish` time is fixed for everyone. Setting the env var yourself has no effect on a prebuilt bundle. To let each installation use its own key, `bin/cli.mjs` injects one at serve time instead, via a `--carto-api-key` flag or a `CARTO_API_KEY` environment variable:
+
+```bash
+npx edrclient --carto-api-key your-carto-api-key
+# or
+CARTO_API_KEY=your-carto-api-key npx edrclient
+```
+
+This takes precedence over the key baked in at build time. If neither is set, the app falls back to the key the published bundle was built with (if any), then to the unauthenticated Carto endpoint.
+
 ## Publishing to npm
 
 The package is configured for npm distribution with `bin`, `files`, and `prepublishOnly` fields.
