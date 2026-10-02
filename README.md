@@ -49,6 +49,16 @@ npm run preview   # Preview the production build
 npm run lint      # Run ESLint
 ```
 
+### Local Carto API key
+
+To use your own Carto API key during local development, create a `.env.local` file in the project root and add:
+
+```dotenv
+VITE_CARTO_API_KEY=your-carto-api-key
+```
+
+Restart the Vite dev server after adding or changing the key. `.env.local` is git-ignored. Carto does not allow adding localhost to the website restrictions of an API key that is already restricted for published websites; use a separate API key for local development instead. Vite exposes `VITE_` variables to the browser, so the key is public in the client and must not be treated as a secret.
+
 ## Publishing to npm
 
 The package is configured for npm distribution with `bin`, `files`, and `prepublishOnly` fields.

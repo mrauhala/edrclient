@@ -35,7 +35,8 @@ jobs:
         run: npm run build
         env:
           CI: true
-      
+          VITE_CARTO_API_KEY: ${{ secrets.CARTO_API_KEY }}
+
       - name: Deploy preview to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0.10.0
         with:

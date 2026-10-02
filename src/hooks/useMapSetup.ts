@@ -12,6 +12,12 @@ import { useGeoJsonLayers } from '../contexts/GeoJsonLayerContext';
 import { useCollection } from '../contexts/CollectionContext';
 import { useMapInteraction } from '../contexts/MapInteractionContext';
 
+function getCartoBasemapUrl(style: string): string {
+  const apiKey = import.meta.env.VITE_CARTO_API_KEY as string | undefined;
+  const base = `https://{a-c}.basemaps.cartocdn.com/${style}/{z}/{x}/{y}.png`;
+  return apiKey ? `${base}?key=${apiKey}` : base;
+}
+
 export interface UseMapSetupReturn {
   map: Map | null;
   vectorLayer: VectorLayer<VectorSource> | null;
@@ -182,7 +188,7 @@ export function useMapSetup(zoomLevel: number): UseMapSetupReturn {
       layers: [
         new TileLayer({
           source: new XYZ({
-            url: 'https://{a-c}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+            url: getCartoBasemapUrl('dark_all'),
             attributions: '© <a href="https://carto.com/attributions">CARTO</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
           }),
         }),
