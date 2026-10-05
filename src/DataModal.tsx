@@ -66,7 +66,7 @@ const DataModal: React.FC<DataModalProps> = ({
   const copyDataTimer = useRef<ReturnType<typeof setTimeout>>();
 
   const {
-    parsedJson, isIWXXM, isCoverageJsonPointSeries, shouldShowToggle,
+    parsedJson, isIWXXM, isCoverageJsonTimeSeries, shouldShowToggle,
     contentTypeLabel, language, shouldUseCodeView, formattedData,
   } = useContentTypeDetection(data, contentType);
 
@@ -422,7 +422,7 @@ const DataModal: React.FC<DataModalProps> = ({
                   }}
                   title="IWXXM Preview"
                 />
-              ) : viewMode === 'preview' && isCoverageJsonPointSeries ? (
+              ) : viewMode === 'preview' && isCoverageJsonTimeSeries ? (
                 <CoverageJsonChart data={parsedJson} />
               ) : (
                 shouldUseCodeView ? (
