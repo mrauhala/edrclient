@@ -39,6 +39,7 @@ const CollectionQueryBuilder: React.FC<CollectionQueryBuilderProps> = ({ collect
     customDimensionStarts, setCustomDimensionStarts,
     customDimensionEnds, setCustomDimensionEnds,
     getEffectiveOutputFormats,
+    queryParams, setQueryParam,
   } = queryState;
 
   const { issues } = useQueryValidation();
@@ -71,7 +72,9 @@ const CollectionQueryBuilder: React.FC<CollectionQueryBuilderProps> = ({ collect
       )}
 
       {selectedDataQuery && <QueryIssuesPanel />}
-      {selectedDataQuery && <QueryTypeInputs collection={collection} queryKey={selectedDataQuery} />}
+      {selectedDataQuery && (
+        <QueryTypeInputs collection={collection} queryKey={selectedDataQuery} queryParams={queryParams} setQueryParam={setQueryParam} />
+      )}
 
       {/* Format Selector */}
       {(() => {

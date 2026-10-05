@@ -79,8 +79,15 @@ function ValueWithUnit({ children, issues }: { children: React.ReactNode; issues
   );
 }
 
-// Inputs a query type needs besides the map geometry: the radius for radius queries
-const QueryTypeInputs: React.FC<{ collection: Collection; queryKey: string }> = ({ collection, queryKey }) => {
+interface QueryTypeInputsProps {
+  collection: Collection;
+  queryKey: string;
+  queryParams: Record<string, string>;
+  setQueryParam: (name: string, value: string) => void;
+}
+
+// Inputs a query type needs besides the map geometry: the radius, or a corridor's width and height
+const QueryTypeInputs: React.FC<QueryTypeInputsProps> = ({ collection, queryKey, queryParams, setQueryParam }) => {
   const { radius, setRadius, radiusUnits, setRadiusUnits } = useMapInteraction();
   const { issues } = useQueryValidation();
   const fieldIssue = (field: string) => issues.find(issue => issue.field === field && issue.severity !== 'info');
@@ -94,6 +101,27 @@ const QueryTypeInputs: React.FC<{ collection: Collection; queryKey: string }> = 
         <UnitField id="query-field-within-units" label="Unit" value={radiusUnits} options={unitsFor(variables, 'within')}
           onChange={setRadiusUnits} issue={fieldIssue('within-units')} />
       </ValueWithUnit>
+    );
+  }
+  if (queryType === 'corridor') {
+    const sizes = [
+      { field: 'corridor-width', unitField: 'width-units', label: 'Corridor width', kind: 'width' as const },
+      { field: 'corridor-height', unitField: 'height-units', label: 'Corridor height', kind: 'height' as const },
+    ];
+    return (
+      <>
+        {sizes.map(({ field, unitField, label, kind }) => {
+          const value = queryParams[field]?.trim() ?? '';
+          return (
+            <ValueWithUnit key={field} issues={[fieldIssue(field), fieldIssue(unitField)]}>
+              <NumberField id={`query-field-${field}`} label={label} value={value === '' || !isFinite(Number(value)) ? null : Number(value)}
+                onChange={number => setQueryParam(field, number === null ? '' : String(number))} issue={fieldIssue(field)} />
+              <UnitField id={`query-field-${unitField}`} label="Unit" value={queryParams[unitField] ?? ''} options={unitsFor(variables, kind)}
+                onChange={unit => setQueryParam(unitField, unit)} issue={fieldIssue(unitField)} />
+            </ValueWithUnit>
+          );
+        })}
+      </>
     );
   }
   return null;

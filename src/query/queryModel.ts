@@ -23,6 +23,7 @@ export interface QueryModelInput {
   points: [number, number][]; // map clicks: position/radius points, trajectory vertices
   polygons: [number, number][][]; // drawn areas
   radius: { value: number; units: string };
+  queryParams: Record<string, string>; // parameters of the query type, e.g. corridor-width; empty ones aren't sent
   locationFeature: LocationFeature | null; // selected location feature, for locations queries
 }
 

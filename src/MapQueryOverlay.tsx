@@ -14,6 +14,9 @@ const PROMPTS: Record<string, QueryPrompt> = {
   trajectory: {
     title: 'Draw Trajectory on Map', text: 'Click to add points along the path; double-click to finish', clear: 'Clear Trajectory', accent: 'red',
   },
+  corridor: {
+    title: 'Draw the Corridor on Map', text: 'Click to add points along the centre line; double-click to finish', clear: 'Clear Corridor', accent: 'red',
+  },
   area: { title: 'Draw Areas on Map', text: 'Click to add vertices, double-click to complete each polygon', clear: 'Clear Polygons', accent: 'red' },
 };
 

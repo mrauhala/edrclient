@@ -1,7 +1,12 @@
 import type { QueryModel } from './queryModel';
 import type { DimSelection } from './types';
 
-const QUERY_PARAMS = ['f', 'parameter-name', 'datetime', 'z', 'coords', 'within', 'within-units'];
+// Parameters a query type takes from the builder's fields (queryParams)
+export const TYPE_PARAMS: Readonly<Record<string, string[]>> = {
+  corridor: ['corridor-width', 'width-units', 'corridor-height', 'height-units'],
+};
+
+const QUERY_PARAMS = ['f', 'parameter-name', 'datetime', 'z', 'coords', 'within', 'within-units', ...TYPE_PARAMS.corridor];
 
 const lonLat = ([lon, lat]: [number, number]) => `${lon.toFixed(3)} ${lat.toFixed(3)}`;
 const ring = (polygon: [number, number][]) => polygon.map(([lon, lat]) => `${lon.toFixed(2)} ${lat.toFixed(2)}`).join(',');
@@ -52,7 +57,7 @@ export function buildQueryUrl(model: QueryModel): string | null {
     const { points, polygons } = model;
     if (queryType === 'position' && points.length > 0) {
       params.set('coords', pointsWkt(points));
-    } else if (queryType === 'trajectory' && points.length > 1) {
+    } else if ((queryType === 'trajectory' || queryType === 'corridor') && points.length > 1) {
       params.set('coords', `LINESTRING(${points.map(lonLat).join(', ')})`);
     } else if (queryType === 'radius' && points.length > 0) {
       params.set('coords', pointsWkt(points));
@@ -66,6 +71,11 @@ export function buildQueryUrl(model: QueryModel): string | null {
       params.delete('coords');
       params.delete('within');
       params.delete('within-units');
+    }
+    for (const name of TYPE_PARAMS[queryType] ?? []) {
+      const value = model.queryParams[name]?.trim();
+      if (value) params.set(name, value);
+      else params.delete(name);
     }
 
     return url.toString();

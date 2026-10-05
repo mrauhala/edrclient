@@ -44,6 +44,9 @@ export interface UseQueryUrlReturn {
   setCustomDimensionStarts: React.Dispatch<React.SetStateAction<{[dimensionId: string]: string}>>;
   customDimensionEnds: {[dimensionId: string]: string};
   setCustomDimensionEnds: React.Dispatch<React.SetStateAction<{[dimensionId: string]: string}>>;
+  // Parameters of the query type set in their own fields (corridor width and height)
+  queryParams: Record<string, string>;
+  setQueryParam: (name: string, value: string) => void;
   // Utilities
   resetQueryState: () => void;
   getEffectiveOutputFormats: (collection: Collection, queryType: string) => string[];
@@ -71,6 +74,8 @@ export function useQueryUrl(): UseQueryUrlReturn {
   const [customDimensionModes, setCustomDimensionModes] = useState<{[dimensionId: string]: 'individual' | 'range'}>({});
   const [customDimensionStarts, setCustomDimensionStarts] = useState<{[dimensionId: string]: string}>({});
   const [customDimensionEnds, setCustomDimensionEnds] = useState<{[dimensionId: string]: string}>({});
+  const [queryParams, setQueryParams] = useState<Record<string, string>>({});
+  const setQueryParam = useCallback((name: string, value: string) => setQueryParams(params => ({ ...params, [name]: value })), []);
 
   const resetQueryState = useCallback(() => {
     setSelectedDataQuery('');
@@ -88,6 +93,7 @@ export function useQueryUrl(): UseQueryUrlReturn {
     setCustomDimensionModes({});
     setCustomDimensionStarts({});
     setCustomDimensionEnds({});
+    setQueryParams({});
   }, []);
 
   const getEffectiveOutputFormats = effectiveOutputFormats;
@@ -103,8 +109,18 @@ export function useQueryUrl(): UseQueryUrlReturn {
       return defaultFormat && formats.includes(defaultFormat) ? defaultFormat : '';
     });
     const queryType = queryKey ? queryTypeOf(collection, queryKey) : '';
+    const variables = queryVariables(collection, queryKey);
     if (queryType === 'radius') {
-      setRadiusUnits(pickUnit(unitsFor(queryVariables(collection, queryKey), 'within'), radiusUnits));
+      setRadiusUnits(pickUnit(unitsFor(variables, 'within'), radiusUnits));
+    }
+    // A corridor starts 10 wide in the preferred width unit; the height unit is the first offered
+    if (queryType === 'corridor') {
+      setQueryParams(params => ({
+        ...params,
+        'corridor-width': params['corridor-width'] || '10',
+        'width-units': pickUnit(unitsFor(variables, 'width'), params['width-units'] || 'km'),
+        'height-units': pickUnit(unitsFor(variables, 'height'), params['height-units'] || ''),
+      }));
     }
     setDataQuery(queryType);
   }, [getEffectiveOutputFormats, setDataQuery, setRadiusUnits, radiusUnits]);
@@ -150,13 +166,14 @@ export function useQueryUrl(): UseQueryUrlReturn {
       points: clickedCoords,
       polygons: selectedArea,
       radius: { value: radius, units: radiusUnits },
+      queryParams,
       locationFeature: queryTypeOf(selectedCollection, selectedDataQuery) === 'locations' ? selectedFeature : null,
     });
   }, [
     selectedCollection, selectedDataQuery, selectedFormat, selectedParameters,
     datetimeMode, selectedDatetime, startDatetime, endDatetime,
     verticalMode, selectedVertical, startVertical, endVertical,
-    customDims, clickedCoords, selectedArea, radius, radiusUnits, selectedFeature,
+    customDims, clickedCoords, selectedArea, radius, radiusUnits, queryParams, selectedFeature,
   ]);
 
   // Publish the request URL and what the query is still missing, adding the API docs' view once
@@ -173,7 +190,7 @@ export function useQueryUrl(): UseQueryUrlReturn {
     const operation = apiDocs?.operation?.entry;
     setQueryValidation({
       url,
-      issues: apiDocs ? addApiDocsIssues(queryModel, issues, apiDocs.issues) : issues,
+      issues: apiDocs ? addApiDocsIssues(queryModel, issues, apiDocs) : issues,
       apiOperation: operation ? { template: operation.template, pointer: operation.pointer } : null,
     });
   }, [queryModel, apiIndex, setCollectionUrl, setQueryValidation]);
@@ -194,6 +211,7 @@ export function useQueryUrl(): UseQueryUrlReturn {
     customDimensionModes, setCustomDimensionModes,
     customDimensionStarts, setCustomDimensionStarts,
     customDimensionEnds, setCustomDimensionEnds,
+    queryParams, setQueryParam,
     resetQueryState,
     getEffectiveOutputFormats,
     selectDataQuery,

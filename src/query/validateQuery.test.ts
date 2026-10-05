@@ -19,7 +19,7 @@ const BERLIN: [number, number] = [13.4, 52.5];
 function issuesFor(collection: Collection, queryKey: string, overrides: Partial<QueryModelInput> = {}) {
   const model = buildQueryModel({
     collection, queryKey, format: 'CoverageJSON', parameters: [], datetime: emptyDim(), vertical: emptyDim(),
-    customDims: {}, points: [], polygons: [], radius: { value: 10, units: 'km' }, locationFeature: null, ...overrides,
+    customDims: {}, points: [], polygons: [], radius: { value: 10, units: 'km' }, queryParams: {}, locationFeature: null, ...overrides,
   });
   return validateQuery(model!);
 }
@@ -64,9 +64,22 @@ describe('EDR geometry rules', () => {
 
   it('flags query types the builder cannot fill yet', () => {
     expect(problems(issuesFor(FMI_LEVELS, 'cube'))).toEqual(['warning bbox']);
-    expect(problems(issuesFor(FMI, 'corridor'))).toEqual(['warning coords']);
     expect(ids(issuesFor(METEOCORE, 'items', { format: 'GeoJSON' }))).toContain('edr:query:list');
     expect(ids(issuesFor(FMI, 'instances'))).toContain('edr:query:list');
+  });
+
+  it('corridor needs a centre line, and a width and height with their units', () => {
+    const line: [number, number][] = [HELSINKI, [25.5, 61.2]];
+    const corridor = (queryParams: Record<string, string>, points = line) => problems(issuesFor(FMI, 'corridor', { points, queryParams }));
+    const complete = { 'corridor-width': '10', 'width-units': 'km', 'corridor-height': '100', 'height-units': 'm' };
+    expect(corridor(complete)).toEqual([]);
+    expect(corridor(complete, [HELSINKI])).toEqual(['missing coords']);
+    expect(corridor({})).toEqual(['missing corridor-width', 'missing width-units', 'missing corridor-height', 'missing height-units']);
+    expect(corridor({ ...complete, 'corridor-width': '0', 'corridor-height': 'tall' })).toEqual(['error corridor-width', 'error corridor-height']);
+    // FMI lists width-units km and mi; ecmwf lists no height units, so any is accepted
+    expect(corridor({ ...complete, 'width-units': 'm' })).toEqual(['error width-units']);
+    expect(issuesFor(FMI, 'corridor', { points: line, queryParams: {} }).find(issue => issue.field === 'corridor-width'))
+      .toMatchObject({ input: 'form', message: 'Set the corridor width' });
   });
 
   it('notes that a locations request without a location lists them all', () => {
@@ -137,7 +150,7 @@ describe('ordering and summary', () => {
 describe('addApiDocsIssues', () => {
   const model = (overrides: Partial<QueryModelInput> = {}) => buildQueryModel({
     collection: FMI, queryKey: 'position', format: 'CoverageJSON', parameters: [], datetime: emptyDim(), vertical: emptyDim(),
-    customDims: {}, points: [HELSINKI], polygons: [], radius: { value: 10, units: 'km' }, locationFeature: null, ...overrides,
+    customDims: {}, points: [HELSINKI], polygons: [], radius: { value: 10, units: 'km' }, queryParams: {}, locationFeature: null, ...overrides,
   })!;
   const apiIssue = (field: string, severity: QueryIssue['severity'] = 'warning'): QueryIssue => ({
     id: `openapi:${field}:rule`, severity, source: 'openapi', field, message: `about ${field}`, pointer: '/paths',
@@ -146,7 +159,7 @@ describe('addApiDocsIssues', () => {
   it('places API docs issues on the builder fields they concern', () => {
     const issues = addApiDocsIssues(
       model({ customDims: { member: { mode: 'individual', value: '1', start: '', end: '' } } }),
-      [], [apiIssue('member'), apiIssue('f'), apiIssue('coords'), apiIssue('query', 'info')],
+      [], { operation: null, issues: [apiIssue('member'), apiIssue('f'), apiIssue('coords'), apiIssue('query', 'info')] },
     );
     expect(issues.map(issue => [issue.id, issue.field, issue.input])).toEqual([
       ['openapi:dim:member:rule', 'dim:member', 'form'],
@@ -158,14 +171,33 @@ describe('addApiDocsIssues', () => {
 
   it("leaves a field to EDR and the metadata when they already flag it, but not when they only note it", () => {
     const own = issuesFor(FMI, 'position', { format: 'NetCDF4' }); // missing coords, f not offered
-    const merged = addApiDocsIssues(model({ format: 'NetCDF4', points: [] }), own, [apiIssue('coords'), apiIssue('f'), apiIssue('parameter-name')]);
+    const merged = addApiDocsIssues(model({ format: 'NetCDF4', points: [] }), own,
+      { operation: null, issues: [apiIssue('coords'), apiIssue('f'), apiIssue('parameter-name')] });
     expect(merged.filter(issue => issue.source === 'openapi').map(issue => issue.field)).toEqual(['parameter-name']);
     expect(own.some(issue => issue.field === 'parameter-name' && issue.severity === 'info')).toBe(true);
   });
 
+  it("notes a missing parameter the API docs mark optional", () => {
+    const corridor = buildQueryModel({
+      collection: FMI, queryKey: 'corridor', format: 'CoverageJSON', parameters: [], datetime: emptyDim(), vertical: emptyDim(),
+      customDims: {}, points: [HELSINKI, [25.5, 61.2]], polygons: [], radius: { value: 10, units: 'km' },
+      queryParams: { 'corridor-width': '10', 'width-units': 'km' }, locationFeature: null,
+    })!;
+    const param = (name: string, required: boolean) => ({ name, in: 'query', required, enumValues: null, isArray: false, pointer: '' });
+    const operation = {
+      entry: { template: '', segments: [], literalCount: 0, pointer: '', params: [param('corridor-height', false), param('height-units', true)] },
+      pathParams: {}, via: 'server' as const,
+    };
+    const merged = addApiDocsIssues(corridor, validateQuery(corridor), { operation, issues: [] });
+    expect(merged.filter(issue => issue.severity === 'missing').map(issue => issue.message)).toEqual([
+      "Set the corridor height (the server's API docs mark it optional)",
+      'Pick the unit of the corridor height',
+    ]);
+  });
+
   it('keeps the severity order, with the query\'s own issues first', () => {
     const own = issuesFor(FMI, 'position', { points: [HELSINKI], datetime: { mode: 'range', value: '', start: '2026-10-05T12:00:00Z', end: '' } });
-    const merged = addApiDocsIssues(model(), own, [apiIssue('query', 'info'), apiIssue('parameter-name')]);
+    const merged = addApiDocsIssues(model(), own, { operation: null, issues: [apiIssue('query', 'info'), apiIssue('parameter-name')] });
     expect(merged.map(issue => `${issue.severity} ${issue.source}`)).toEqual([
       'missing metadata', 'warning openapi', ...own.filter(issue => issue.severity === 'info').map(issue => `info ${issue.source}`), 'info openapi',
     ]);
