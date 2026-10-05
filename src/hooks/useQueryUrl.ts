@@ -2,9 +2,11 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Collection } from '../DataRetrievalAPI';
 import { useMapInteraction } from '../contexts/MapInteractionContext';
 import { useCollection } from '../contexts/CollectionContext';
+import { useQueryValidationContext } from '../contexts/QueryValidationContext';
 import { buildQueryModel } from '../query/queryModel';
 import { buildQueryUrl } from '../query/buildQueryUrl';
 import { effectiveOutputFormats, queryTypeOf } from '../query/queryTypes';
+import { validateQuery } from '../query/validateQuery';
 import type { DimSelection } from '../query/types';
 
 export interface UseQueryUrlReturn {
@@ -48,6 +50,7 @@ export interface UseQueryUrlReturn {
 export function useQueryUrl(): UseQueryUrlReturn {
   const { clickedCoords, setClickedCoords, selectedArea, radiusKm, setDataQuery } = useMapInteraction();
   const { selectedCollection, selectedFeature, setCollectionUrl } = useCollection();
+  const { setQueryValidation } = useQueryValidationContext();
 
   const [selectedDataQuery, setSelectedDataQuery] = useState<string>('');
   const [selectedFormat, setSelectedFormat] = useState<string>('');
@@ -151,11 +154,16 @@ export function useQueryUrl(): UseQueryUrlReturn {
     customDims, clickedCoords, selectedArea, radiusKm, selectedFeature,
   ]);
 
-  // Publish the request URL
+  // Publish the request URL and what the query is still missing
   useEffect(() => {
     const url = queryModel ? buildQueryUrl(queryModel) : null;
-    if (url) setCollectionUrl(url);
-  }, [queryModel, setCollectionUrl]);
+    if (!queryModel || !url) {
+      setQueryValidation(null);
+      return;
+    }
+    setCollectionUrl(url);
+    setQueryValidation({ url, issues: validateQuery(queryModel) });
+  }, [queryModel, setCollectionUrl, setQueryValidation]);
 
   return {
     selectedDataQuery, setSelectedDataQuery,
