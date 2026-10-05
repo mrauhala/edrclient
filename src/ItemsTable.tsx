@@ -278,6 +278,11 @@ const ItemsTable: React.FC<ItemsTableProps> = ({ url, title, onFeatureClick }) =
                       '& .MuiDataGrid-row:hover': {
                         backgroundColor: 'action.hover',
                       },
+                      // The last header's hidden menu button and resize handle stick out past the grid's
+                      // right edge and would add a horizontal scrollbar
+                      '& .MuiDataGrid-columnHeaders': {
+                        overflow: 'hidden',
+                      },
                     }}
                     density="compact"
                   />
