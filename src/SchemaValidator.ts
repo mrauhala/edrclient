@@ -2,7 +2,7 @@ import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 
 // Schema type definitions
-type SchemaType = 'edr-p1-v1.0' | 'edr-p1-v1.1' | 'features-p1-v1.0' | 'features-p2-v1.0' | 'common-p1-v1.0' | 'common-p2-v1.0' | 'records-p1-v1.0' | 'maps-p1-v1.0';
+type SchemaType = 'edr-p1-v1.0' | 'edr-p1-v1.1' | 'edr-p1-v1.2' | 'features-p1-v1.0' | 'features-p2-v1.0' | 'common-p1-v1.0' | 'common-p2-v1.0' | 'records-p1-v1.0' | 'maps-p1-v1.0';
 
 interface SchemaConfig {
   type: SchemaType;
@@ -34,6 +34,16 @@ const SCHEMA_CONFIGS: SchemaConfig[] = [
     schemas: {
       // Features Part 2 only defines CRS extensions for collections, no landing page or conformance
       collections: '/schemas/individual/features-p2-v1.0/collections.json'
+    }
+  },
+  {
+    type: 'edr-p1-v1.2',
+    conformancePattern: '/spec/ogcapi-edr-1/1.2/conf/core',
+    displayName: 'OGC API EDR Part 1 v1.2',
+    schemas: {
+      landingPage: '/schemas/individual/edr-p1-v1.2/landingPage.json',
+      collections: '/schemas/individual/edr-p1-v1.2/collections.json',
+      conformance: '/schemas/individual/edr-p1-v1.2/confClasses.json'
     }
   },
   {

@@ -32,6 +32,16 @@ Created `download-schemas-deref.js` script that:
 - Collections: `https://schemas.opengis.net/ogcapi/edr/1.1/openapi/schemas/collections/collections.yaml`
 - Conformance: `https://schemas.opengis.net/ogcapi/edr/1.1/openapi/schemas/core/confClasses.yaml`
 
+### OGC API EDR 1.2 (OpenAPI 3.1 bundle)
+Not yet published on schemas.opengis.net. Extracted from `components.schemas` of the upstream bundle
+`https://raw.githubusercontent.com/opengeospatial/ogcapi-environmental-data-retrieval/refs/heads/master/ogcapi-environmental-data-retrieval-1-oas31.bundled.json`:
+- Landing Page: `landingPage`
+- Collections: `collections`
+- Conformance: `confClasses`
+- Locations FeatureCollection: `edrFeatureCollectionGeoJSON`
+
+Regenerate only these with `node download-schemas-deref.js "EDR Part 1 v1.2"`.
+
 ### OGC API Common 1.0
 - Landing Page: `https://schemas.opengis.net/ogcapi/common/part1/1.0/openapi/schemas/landingPage.yaml`
 - Conformance: `https://schemas.opengis.net/ogcapi/common/part1/1.0/openapi/schemas/confClasses.yaml`
