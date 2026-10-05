@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { LineChart } from '@mui/x-charts/LineChart';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -165,19 +165,6 @@ const SingleCoverageChart: React.FC<{ coverage: CoverageJson; index?: number }> 
     }
   }, [coverage]);
 
-  // State to track which series are visible - must be before any conditional returns
-  const [visibleSeries, setVisibleSeries] = useState<Set<string>>(() => {
-    if ('error' in chartData && chartData.error) {
-      return new Set<string>();
-    }
-    const { series } = chartData as {
-      timestamps: number[];
-      series: Array<{ data: (number | null)[]; label: string; valueFormatter?: (value: number | null) => string; yAxisKey?: string }>;
-      unitMap: Map<string, string>;
-    };
-    return new Set(series.map(s => s.label));
-  });
-
   if ('error' in chartData && chartData.error) {
     return (
       <Box sx={{ p: 2 }}>
@@ -192,27 +179,18 @@ const SingleCoverageChart: React.FC<{ coverage: CoverageJson; index?: number }> 
     unitMap: Map<string, string>;
   };
   
-  // Toggle series visibility
-  const toggleSeries = (label: string) => {
-    setVisibleSeries(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(label)) {
-        newSet.delete(label);
-      } else {
-        newSet.add(label);
-      }
-      return newSet;
-    });
-  };
-  
-  // Build y-axis configuration from unitMap
-  const yAxisConfig: Array<{ id: string; label: string; scaleType?: 'linear'; position?: 'left' | 'right' }> = [];
+  // Build y-axis configuration from unitMap. Axes size themselves to their tick labels (a fixed
+  // width truncates large values such as pressure in Pa to "102,…") and rescale to the series
+  // left visible by legend toggling.
+  const yAxisConfig: Array<{ id: string; label: string; scaleType?: 'linear'; position?: 'left' | 'right'; width: 'auto'; domainSeries: 'visible' }> = [];
   unitMap.forEach((yAxisKey, unit) => {
     yAxisConfig.push({
       id: yAxisKey,
       label: unit || 'Value',
       scaleType: 'linear' as const,
-      position: yAxisKey === 'left' ? 'left' : 'right'
+      position: yAxisKey === 'left' ? 'left' : 'right',
+      width: 'auto',
+      domainSeries: 'visible'
     });
   });
   
@@ -222,33 +200,21 @@ const SingleCoverageChart: React.FC<{ coverage: CoverageJson; index?: number }> 
       id: 'left',
       label: 'Value',
       scaleType: 'linear' as const,
-      position: 'left'
+      position: 'left',
+      width: 'auto',
+      domainSeries: 'visible'
     });
   }
   
-  // Map all series - hidden ones have empty data arrays (no line, no tooltip, but still in legend)
-  const mappedSeries = series
-    .map((s) => {
-      const isHidden = !visibleSeries.has(s.label);
-      return {
-        data: isHidden ? [] : s.data,
-        label: s.label,
-        valueFormatter: s.valueFormatter,
-        yAxisId: s.yAxisKey || 'left',
-        // v9 hides marks and varies their shape per series by default; keep circles at each value
-        showMark: true,
-        shape: 'circle' as const,
-      };
-    });
-  
-  // Adjust right margin if we have a secondary y-axis
-  const rightMargin = yAxisConfig.length > 1 ? 80 : 20;
-  
-  // Handle legend item click
-  const handleLegendClick = (_event: React.MouseEvent, _legendItem: any, itemIndex: number) => {
-    const seriesLabel = series[itemIndex].label;
-    toggleSeries(seriesLabel);
-  };
+  const mappedSeries = series.map((s) => ({
+    data: s.data,
+    label: s.label,
+    valueFormatter: s.valueFormatter,
+    yAxisId: s.yAxisKey || 'left',
+    // v9 hides marks and varies their shape per series by default; keep circles at each value
+    showMark: true,
+    shape: 'circle' as const,
+  }));
 
   return (
     <Box sx={{ p: 2, height: '100%', width: '100%' }}>
@@ -268,12 +234,12 @@ const SingleCoverageChart: React.FC<{ coverage: CoverageJson; index?: number }> 
           yAxis={yAxisConfig}
           series={mappedSeries}
           height={500}
-          margin={{ left: 80, right: rightMargin, top: 20, bottom: 80 }}
+          margin={{ left: 20, right: 20, top: 20, bottom: 80 }}
           grid={{ vertical: true, horizontal: true }}
           slotProps={{
             legend: {
               position: { vertical: 'top', horizontal: 'center' },
-              onItemClick: handleLegendClick,
+              toggleVisibilityOnClick: true,
             }
           }}
         />
