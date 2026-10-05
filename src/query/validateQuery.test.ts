@@ -68,18 +68,32 @@ describe('EDR geometry rules', () => {
     expect(ids(issuesFor(FMI, 'instances'))).toContain('edr:query:list');
   });
 
-  it('corridor needs a centre line, and a width and height with their units', () => {
+  it('corridor needs a centre line and a width with its unit', () => {
     const line: [number, number][] = [HELSINKI, [25.5, 61.2]];
     const corridor = (queryParams: Record<string, string>, points = line) => problems(issuesFor(FMI, 'corridor', { points, queryParams }));
-    const complete = { 'corridor-width': '10', 'width-units': 'km', 'corridor-height': '100', 'height-units': 'm' };
+    const complete = { 'corridor-width': '10', 'width-units': 'km' };
     expect(corridor(complete)).toEqual([]);
     expect(corridor(complete, [HELSINKI])).toEqual(['missing coords']);
-    expect(corridor({})).toEqual(['missing corridor-width', 'missing width-units', 'missing corridor-height', 'missing height-units']);
-    expect(corridor({ ...complete, 'corridor-width': '0', 'corridor-height': 'tall' })).toEqual(['error corridor-width', 'error corridor-height']);
-    // FMI lists width-units km and mi; ecmwf lists no height units, so any is accepted
-    expect(corridor({ ...complete, 'width-units': 'm' })).toEqual(['error width-units']);
+    expect(corridor({})).toEqual(['missing corridor-width', 'missing width-units']);
+    expect(corridor({ ...complete, 'corridor-width': '0' })).toEqual(['error corridor-width']);
+    expect(corridor({ ...complete, 'width-units': 'm' })).toEqual(['error width-units']); // FMI lists km and mi
     expect(issuesFor(FMI, 'corridor', { points: line, queryParams: {} }).find(issue => issue.field === 'corridor-width'))
       .toMatchObject({ input: 'form', message: 'Set the corridor width' });
+  });
+
+  it('corridor height: only with vertical levels, and then measured from a chosen level', () => {
+    const line: [number, number][] = [HELSINKI, [25.5, 61.2]];
+    const width = { 'corridor-width': '10', 'width-units': 'km' };
+    // ecmwf has no levels: no height is asked for (FMI rejects one without z)
+    expect(ids(issuesFor(FMI, 'corridor', { points: line, queryParams: width }))).toContain('edr:corridor-height:no-levels');
+
+    const corridor = (queryParams: Record<string, string>, vertical = emptyDim()) =>
+      problems(issuesFor(FMI_LEVELS, 'corridor', { points: line, queryParams: { ...width, ...queryParams }, vertical }));
+    const at850 = { mode: 'individual' as const, value: '850', start: '', end: '' };
+    expect(corridor({ 'corridor-height': '100', 'height-units': 'hPa' }, at850)).toEqual([]);
+    expect(corridor({})).toEqual(['missing corridor-height', 'missing height-units']);
+    expect(corridor({ 'corridor-height': '100', 'height-units': 'hPa' })).toEqual(['missing z']);
+    expect(corridor({ 'corridor-height': 'tall', 'height-units': 'km' }, at850)).toEqual(['error corridor-height', 'error height-units']);
   });
 
   it('notes that a locations request without a location lists them all', () => {
@@ -179,7 +193,7 @@ describe('addApiDocsIssues', () => {
 
   it("notes a missing parameter the API docs mark optional", () => {
     const corridor = buildQueryModel({
-      collection: FMI, queryKey: 'corridor', format: 'CoverageJSON', parameters: [], datetime: emptyDim(), vertical: emptyDim(),
+      collection: FMI_LEVELS, queryKey: 'corridor', format: 'CoverageJSON', parameters: [], datetime: emptyDim(), vertical: emptyDim(),
       customDims: {}, points: [HELSINKI, [25.5, 61.2]], polygons: [], radius: { value: 10, units: 'km' },
       queryParams: { 'corridor-width': '10', 'width-units': 'km' }, locationFeature: null,
     })!;

@@ -120,7 +120,7 @@ function checkGeometry(model: QueryModel, add: Add) {
     case 'corridor':
       if (points.length < 2) add('missing', 'edr', 'coords', 'required', "Draw the corridor's centre line on the map (at least 2 points)", 'map');
       checkLength(model, 'corridor-width', 'width-units', 'width', 'corridor width', add);
-      checkLength(model, 'corridor-height', 'height-units', 'height', 'corridor height', add);
+      checkCorridorHeight(model, add);
       break;
     case 'items':
       add('info', 'edr', 'query', 'list', "Lists the collection's items. The query builder can't set a bounding box or limit for items yet.");
@@ -142,6 +142,23 @@ function checkGeometry(model: QueryModel, add: Add) {
       add('error', 'metadata', 'within-units', 'offered',
         `Radius unit "${model.radius.units}" isn't offered by this collection (${units.join(', ')})`, 'form');
     }
+  }
+}
+
+const isChosen = ({ mode, value, start, end }: DimSelection) => (mode === 'range' ? !!start && !!end : !!value);
+
+// EDR requires a corridor height, measured from the centre line's level: z, since the map draws a 2D
+// line. Without vertical levels there is no such level, and servers reject a height (FMI: "requires
+// 3D coords or an explicit z"), so the corridor goes without one.
+function checkCorridorHeight(model: QueryModel, add: Add) {
+  if (!extentsOf(model.collection).levels) {
+    add('info', 'edr', 'corridor-height', 'no-levels',
+      'EDR asks for a corridor height, but this collection has no vertical levels, so the corridor is sent without one');
+    return;
+  }
+  checkLength(model, 'corridor-height', 'height-units', 'height', 'corridor height', add);
+  if (model.queryParams['corridor-height']?.trim() && !isChosen(model.vertical)) {
+    add('missing', 'edr', 'z', 'corridor-centre', "Pick the level of the corridor's centre: its height is measured from there", 'form');
   }
 }
 

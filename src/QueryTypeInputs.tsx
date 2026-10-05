@@ -104,9 +104,10 @@ const QueryTypeInputs: React.FC<QueryTypeInputsProps> = ({ collection, queryKey,
     );
   }
   if (queryType === 'corridor') {
+    // A height needs a level to be measured from, so only collections with levels get one
     const sizes = [
       { field: 'corridor-width', unitField: 'width-units', label: 'Corridor width', kind: 'width' as const },
-      { field: 'corridor-height', unitField: 'height-units', label: 'Corridor height', kind: 'height' as const },
+      ...(collection.extent?.vertical ? [{ field: 'corridor-height', unitField: 'height-units', label: 'Corridor height', kind: 'height' as const }] : []),
     ];
     return (
       <>

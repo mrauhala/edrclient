@@ -113,13 +113,16 @@ export function useQueryUrl(): UseQueryUrlReturn {
     if (queryType === 'radius') {
       setRadiusUnits(pickUnit(unitsFor(variables, 'within'), radiusUnits));
     }
-    // A corridor starts 10 wide in the preferred width unit; the height unit is the first offered
+    // A corridor starts 10 wide in the preferred width unit; the height unit is the first offered.
+    // Without vertical levels a corridor has no height.
     if (queryType === 'corridor') {
+      const hasLevels = !!collection.extent?.vertical;
       setQueryParams(params => ({
         ...params,
         'corridor-width': params['corridor-width'] || '10',
         'width-units': pickUnit(unitsFor(variables, 'width'), params['width-units'] || 'km'),
-        'height-units': pickUnit(unitsFor(variables, 'height'), params['height-units'] || ''),
+        'corridor-height': hasLevels ? params['corridor-height'] ?? '' : '',
+        'height-units': hasLevels ? pickUnit(unitsFor(variables, 'height'), params['height-units'] || '') : '',
       }));
     }
     setDataQuery(queryType);
