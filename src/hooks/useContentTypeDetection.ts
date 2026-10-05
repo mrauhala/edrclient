@@ -1,9 +1,10 @@
 import { useCallback, useMemo } from 'react';
+import { isTimeSeriesCoverage } from '../utils/coverageTimeSeries';
 
 export interface UseContentTypeDetectionReturn {
   parsedJson: unknown;
   isIWXXM: () => boolean;
-  isCoverageJsonPointSeries: boolean;
+  isCoverageJsonTimeSeries: boolean;
   shouldShowToggle: boolean;
   contentTypeLabel: string;
   language: 'json' | 'xml' | 'text';
@@ -33,42 +34,21 @@ export function useContentTypeDetection(
             data.includes('METAR') || data.includes('TAF') || data.includes('SIGMET'));
   }, [data, contentType]);
 
-  // Check if data is CoverageJSON PointSeries or Grid with single point
-  const isCoverageJsonPointSeries = useMemo(() => {
+  // Check if data is CoverageJSON that can be charted as a time series
+  const isCoverageJsonTimeSeries = useMemo(() => {
     if (!parsedJson || typeof parsedJson !== 'object') return false;
-    const parsed = parsedJson as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+    const parsed = parsedJson as { type?: unknown; coverages?: unknown };
 
-    // Check if it's a CoverageCollection
-    if (parsed.type === 'CoverageCollection' && parsed.coverages && Array.isArray(parsed.coverages)) {
-      return parsed.coverages.some((coverage: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
-        const domainType = coverage.domain?.domainType;
-        if (domainType === 'PointSeries') return true;
-        if (domainType === 'Grid') {
-          const xValues = coverage.domain?.axes?.x?.values;
-          const yValues = coverage.domain?.axes?.y?.values;
-          return xValues?.length === 1 && yValues?.length === 1;
-        }
-        return false;
-      });
+    if (parsed.type === 'CoverageCollection' && Array.isArray(parsed.coverages)) {
+      return parsed.coverages.some(isTimeSeriesCoverage);
     }
 
-    // Check if it's a single Coverage
-    if (parsed.type !== 'Coverage') return false;
-
-    const domainType = parsed.domain?.domainType;
-    if (domainType === 'PointSeries') return true;
-    if (domainType === 'Grid') {
-      const xValues = parsed.domain?.axes?.x?.values;
-      const yValues = parsed.domain?.axes?.y?.values;
-      return xValues?.length === 1 && yValues?.length === 1;
-    }
-
-    return false;
+    return parsed.type === 'Coverage' && isTimeSeriesCoverage(parsed);
   }, [parsedJson]);
 
   const shouldShowToggle = useMemo(() => {
-    return isIWXXM() || isCoverageJsonPointSeries;
-  }, [isIWXXM, isCoverageJsonPointSeries]);
+    return isIWXXM() || isCoverageJsonTimeSeries;
+  }, [isIWXXM, isCoverageJsonTimeSeries]);
 
   const contentTypeLabel = useMemo(() => {
     if (!contentType) return 'Unknown';
@@ -99,7 +79,7 @@ export function useContentTypeDetection(
   return {
     parsedJson,
     isIWXXM,
-    isCoverageJsonPointSeries,
+    isCoverageJsonTimeSeries,
     shouldShowToggle,
     contentTypeLabel,
     language,

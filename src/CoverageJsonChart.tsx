@@ -4,6 +4,7 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Alert from '@mui/material/Alert';
 import Divider from '@mui/material/Divider';
+import { getTimeSeriesError } from './utils/coverageTimeSeries';
 
 interface CoverageJsonChartProps {
   data: unknown;
@@ -17,12 +18,6 @@ interface CoverageJson {
     axes?: {
       t?: {
         values: string[];
-      };
-      x?: {
-        values: number[];
-      };
-      y?: {
-        values: number[];
       };
     };
   };
@@ -63,28 +58,11 @@ interface CoverageJson {
 const SingleCoverageChart: React.FC<{ coverage: CoverageJson; index?: number }> = ({ coverage, index }) => {
   const chartData = useMemo(() => {
     try {
-      const domainType = coverage.domain?.domainType;
-      
-      // Check if it's a PointSeries or Grid with single x,y point
-      if (domainType === 'PointSeries') {
-        // PointSeries - proceed normally
-      } else if (domainType === 'Grid') {
-        // Grid - check if it has single x and y values
-        const xValues = coverage.domain?.axes?.x?.values;
-        const yValues = coverage.domain?.axes?.y?.values;
-        
-        if (!xValues || !yValues || xValues.length !== 1 || yValues.length !== 1) {
-          return { error: 'Grid domain type is only supported with single x and y values (time series at a point)' };
-        }
-      } else {
-        return { error: 'Only PointSeries domain type or Grid with single point is supported for charting' };
+      const timeSeriesError = getTimeSeriesError(coverage);
+      if (timeSeriesError) {
+        return { error: timeSeriesError };
       }
-
-      // Extract time values
-      const timeValues = coverage.domain?.axes?.t?.values;
-      if (!timeValues || timeValues.length === 0) {
-        return { error: 'No time axis found in the coverage data' };
-      }
+      const timeValues = coverage.domain?.axes?.t?.values ?? [];
 
       // Convert time strings to Date objects and then to timestamps
       const timestamps = timeValues.map(t => new Date(t).getTime());
