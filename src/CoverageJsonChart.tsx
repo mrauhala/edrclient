@@ -1,9 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { LineChart } from '@mui/x-charts/LineChart';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Alert from '@mui/material/Alert';
 import Divider from '@mui/material/Divider';
+import { ChartsText, type ChartsTextProps } from '@mui/x-charts/ChartsText';
+import type { AxisValueFormatterContext } from '@mui/x-charts/models';
 import { getTimeSeriesError } from './utils/coverageTimeSeries';
 
 interface CoverageJsonChartProps {
@@ -53,6 +55,25 @@ interface CoverageJson {
     };
   };
 }
+
+// Time axis ticks show the time, with the date added on the first tick and wherever the day
+// changes from the previous tick. Tooltips show the full date and time.
+const formatTime = (value: Date | number, context: AxisValueFormatterContext<'time'>): string => {
+  const date = new Date(value);
+  if (context.location !== 'tick') {
+    return date.toLocaleString();
+  }
+  const time = date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  const ticks = context.scale.ticks(context.tickNumber);
+  const index = ticks.findIndex(tick => tick.getTime() === date.getTime());
+  const isNewDay = index <= 0 || ticks[index - 1].toDateString() !== date.toDateString();
+  return isNewDay ? `${time}\n${date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}` : time;
+};
+
+// Bold the time axis labels that carry a date line, i.e. the first tick and each day change
+const TimeTickLabel: React.FC<ChartsTextProps> = (props) => (
+  <ChartsText {...props} style={{ ...props.style, fontWeight: props.text.includes('\n') ? 'bold' : undefined }} />
+);
 
 // Component to render a single coverage chart
 const SingleCoverageChart: React.FC<{ coverage: CoverageJson; index?: number }> = ({ coverage, index }) => {
@@ -165,19 +186,6 @@ const SingleCoverageChart: React.FC<{ coverage: CoverageJson; index?: number }> 
     }
   }, [coverage]);
 
-  // State to track which series are visible - must be before any conditional returns
-  const [visibleSeries, setVisibleSeries] = useState<Set<string>>(() => {
-    if ('error' in chartData && chartData.error) {
-      return new Set<string>();
-    }
-    const { series } = chartData as {
-      timestamps: number[];
-      series: Array<{ data: (number | null)[]; label: string; valueFormatter?: (value: number | null) => string; yAxisKey?: string }>;
-      unitMap: Map<string, string>;
-    };
-    return new Set(series.map(s => s.label));
-  });
-
   if ('error' in chartData && chartData.error) {
     return (
       <Box sx={{ p: 2 }}>
@@ -192,27 +200,18 @@ const SingleCoverageChart: React.FC<{ coverage: CoverageJson; index?: number }> 
     unitMap: Map<string, string>;
   };
   
-  // Toggle series visibility
-  const toggleSeries = (label: string) => {
-    setVisibleSeries(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(label)) {
-        newSet.delete(label);
-      } else {
-        newSet.add(label);
-      }
-      return newSet;
-    });
-  };
-  
-  // Build y-axis configuration from unitMap
-  const yAxisConfig: Array<{ id: string; label: string; scaleType?: 'linear'; position?: 'left' | 'right' }> = [];
+  // Build y-axis configuration from unitMap. Axes size themselves to their tick labels (a fixed
+  // width truncates large values such as pressure in Pa to "102,…") and rescale to the series
+  // left visible by legend toggling.
+  const yAxisConfig: Array<{ id: string; label: string; scaleType?: 'linear'; position?: 'left' | 'right'; width: 'auto'; domainSeries: 'visible' }> = [];
   unitMap.forEach((yAxisKey, unit) => {
     yAxisConfig.push({
       id: yAxisKey,
       label: unit || 'Value',
       scaleType: 'linear' as const,
-      position: yAxisKey === 'left' ? 'left' : 'right'
+      position: yAxisKey === 'left' ? 'left' : 'right',
+      width: 'auto',
+      domainSeries: 'visible'
     });
   });
   
@@ -222,30 +221,20 @@ const SingleCoverageChart: React.FC<{ coverage: CoverageJson; index?: number }> 
       id: 'left',
       label: 'Value',
       scaleType: 'linear' as const,
-      position: 'left'
+      position: 'left',
+      width: 'auto',
+      domainSeries: 'visible'
     });
   }
   
-  // Map all series - hidden ones have empty data arrays (no line, no tooltip, but still in legend)
-  const mappedSeries = series
-    .map((s) => {
-      const isHidden = !visibleSeries.has(s.label);
-      return {
-        data: isHidden ? [] : s.data,
-        label: s.label,
-        valueFormatter: s.valueFormatter,
-        yAxisId: s.yAxisKey || 'left',
-      };
-    });
-  
-  // Adjust right margin if we have a secondary y-axis
-  const rightMargin = yAxisConfig.length > 1 ? 80 : 20;
-  
-  // Handle legend item click
-  const handleLegendClick = (_event: React.MouseEvent, _legendItem: any, itemIndex: number) => {
-    const seriesLabel = series[itemIndex].label;
-    toggleSeries(seriesLabel);
-  };
+  const mappedSeries = series.map((s) => ({
+    data: s.data,
+    label: s.label,
+    valueFormatter: s.valueFormatter,
+    yAxisId: s.yAxisKey || 'left',
+    // Mark every returned value so gaps and the server's time steps are visible
+    showMark: true,
+  }));
 
   return (
     <Box sx={{ p: 2, height: '100%', width: '100%' }}>
@@ -259,18 +248,21 @@ const SingleCoverageChart: React.FC<{ coverage: CoverageJson; index?: number }> 
               data: timestamps,
               scaleType: 'time',
               label: 'Time',
-              valueFormatter: (value) => new Date(value).toLocaleString()
+              valueFormatter: formatTime,
+              height: 'auto'
             }
           ]}
           yAxis={yAxisConfig}
           series={mappedSeries}
+          // Set on the chart: LineChart overrides per-axis slots. Only time labels contain a date line.
+          slots={{ axisTickLabel: TimeTickLabel }}
           height={500}
-          margin={{ left: 80, right: rightMargin, top: 20, bottom: 80 }}
+          margin={{ left: 20, right: 20, top: 20, bottom: 20 }}
           grid={{ vertical: true, horizontal: true }}
           slotProps={{
             legend: {
               position: { vertical: 'top', horizontal: 'center' },
-              onItemClick: handleLegendClick,
+              toggleVisibilityOnClick: true,
             }
           }}
         />
