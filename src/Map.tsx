@@ -16,6 +16,7 @@ import { useMapInteractions } from './hooks/useMapInteractions';
 import { useLayerManagerSync } from './hooks/useLayerManagerSync';
 import MapQueryOverlay from './MapQueryOverlay';
 import { geometryKindOf } from './query/queryTypes';
+import { rangeFor } from './query/units';
 
 
 interface MapProps {
@@ -25,7 +26,8 @@ interface MapProps {
 const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
   // Context values for JSX rendering
   const { geoJsonLayers, setGeoJsonLayers, selectedGeoJsonFeature, setSelectedGeoJsonFeature } = useGeoJsonLayers();
-  const { clickedCoords, setClickedCoords, selectedArea, setSelectedArea, radiusKm, setRadiusKm, dataQuery } = useMapInteraction();
+  const { clickedCoords, setClickedCoords, selectedArea, setSelectedArea, radius, setRadius, radiusUnits, dataQuery } = useMapInteraction();
+  const radiusRange = rangeFor(radiusUnits);
   const { selectedCollection, selectedFeature, setSelectedFeature, landingPageLicense } = useCollection();
 
   // Hook composition
@@ -160,7 +162,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
             </div>
           ))}
           <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.2)', fontWeight: 'bold' }}>
-            Radius: {radiusKm} km
+            Radius: {radius} {radiusUnits}
           </div>
         </div>
       )}
@@ -175,7 +177,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
           setClickedCoords([]);
           setSelectedArea([]);
         }}
-        radiusLabel={`${radiusKm} km`}
+        radiusLabel={`${radius} ${radiusUnits}`}
       >
         {dataQuery === 'radius' && (
           <div
@@ -189,14 +191,15 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
               boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
             }}
           >
-            <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>Radius: {radiusKm} km</div>
+            <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>Radius: {radius} {radiusUnits}</div>
             <input
               type="range"
-              min="1"
-              max="500"
-              value={radiusKm}
+              min={radiusRange.min}
+              max={radiusRange.max}
+              step={radiusRange.step}
+              value={radius}
               onChange={(e) => {
-                setRadiusKm(Number(e.target.value));
+                setRadius(Number(e.target.value));
               }}
               style={{
                 width: '150px',
@@ -204,7 +207,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
               }}
             />
             <div style={{ marginTop: '4px', fontSize: '10px', opacity: 0.7 }}>
-              1 - 500 km
+              {radiusRange.min} - {radiusRange.max} {radiusUnits}
             </div>
           </div>
         )}

@@ -6,7 +6,8 @@ import { useQueryValidationContext } from '../contexts/QueryValidationContext';
 import { useOpenApi } from '../contexts/OpenApiContext';
 import { buildQueryModel } from '../query/queryModel';
 import { buildQueryUrl } from '../query/buildQueryUrl';
-import { effectiveOutputFormats, queryTypeOf } from '../query/queryTypes';
+import { effectiveOutputFormats, queryTypeOf, queryVariables, unitsFor } from '../query/queryTypes';
+import { pickUnit } from '../query/units';
 import { addApiDocsIssues, validateQuery } from '../query/validateQuery';
 import { checkQueryUrlAgainstOpenApi } from '../validation/openapi/checkQueryUrl';
 import type { DimSelection } from '../query/types';
@@ -50,7 +51,7 @@ export interface UseQueryUrlReturn {
 }
 
 export function useQueryUrl(): UseQueryUrlReturn {
-  const { clickedCoords, selectedArea, radiusKm, setDataQuery } = useMapInteraction();
+  const { clickedCoords, selectedArea, radius, radiusUnits, setRadiusUnits, setDataQuery } = useMapInteraction();
   const { selectedCollection, selectedFeature, setCollectionUrl } = useCollection();
   const { setQueryValidation } = useQueryValidationContext();
   const { index: apiIndex } = useOpenApi();
@@ -101,8 +102,12 @@ export function useQueryUrl(): UseQueryUrlReturn {
       const defaultFormat = collection.data_queries[queryKey]?.link?.variables?.default_output_format;
       return defaultFormat && formats.includes(defaultFormat) ? defaultFormat : '';
     });
-    setDataQuery(queryKey ? queryTypeOf(collection, queryKey) : '');
-  }, [getEffectiveOutputFormats, setDataQuery]);
+    const queryType = queryKey ? queryTypeOf(collection, queryKey) : '';
+    if (queryType === 'radius') {
+      setRadiusUnits(pickUnit(unitsFor(queryVariables(collection, queryKey), 'within'), radiusUnits));
+    }
+    setDataQuery(queryType);
+  }, [getEffectiveOutputFormats, setDataQuery, setRadiusUnits, radiusUnits]);
 
   // Selecting a location (on the map, in the Location Features list or via search) switches the
   // query to `locations`, so the request targets that location
@@ -144,14 +149,14 @@ export function useQueryUrl(): UseQueryUrlReturn {
       customDims,
       points: clickedCoords,
       polygons: selectedArea,
-      radius: { value: radiusKm, units: 'km' },
+      radius: { value: radius, units: radiusUnits },
       locationFeature: queryTypeOf(selectedCollection, selectedDataQuery) === 'locations' ? selectedFeature : null,
     });
   }, [
     selectedCollection, selectedDataQuery, selectedFormat, selectedParameters,
     datetimeMode, selectedDatetime, startDatetime, endDatetime,
     verticalMode, selectedVertical, startVertical, endVertical,
-    customDims, clickedCoords, selectedArea, radiusKm, selectedFeature,
+    customDims, clickedCoords, selectedArea, radius, radiusUnits, selectedFeature,
   ]);
 
   // Publish the request URL and what the query is still missing, adding the API docs' view once

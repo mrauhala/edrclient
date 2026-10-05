@@ -1,13 +1,17 @@
 import { createContext, useCallback, useContext, useState, useMemo, useRef, type ReactNode } from 'react';
 import { geometryKindOf } from '../query/queryTypes';
+import { convertLength } from '../query/units';
 
 interface MapInteractionContextValue {
   clickedCoords: [number, number][];
   setClickedCoords: (coords: [number, number][]) => void;
   selectedArea: [number, number][][];
   setSelectedArea: (area: [number, number][][]) => void;
-  radiusKm: number;
-  setRadiusKm: (radius: number) => void;
+  // Radius queries: the radius in radiusUnits. Changing the unit converts the radius.
+  radius: number;
+  setRadius: (radius: number) => void;
+  radiusUnits: string;
+  setRadiusUnits: (units: string) => void;
   // The selected data query's EDR type (position, area, ...), '' for none. Switching to a type that
   // takes another kind of geometry clears the drawn geometry.
   dataQuery: string;
@@ -24,7 +28,9 @@ const MapInteractionContext = createContext<MapInteractionContextValue | null>(n
 export function MapInteractionProvider({ children }: { children: ReactNode }) {
   const [clickedCoords, setClickedCoords] = useState<[number, number][]>([]);
   const [selectedArea, setSelectedArea] = useState<[number, number][][]>([]);
-  const [radiusKm, setRadiusKm] = useState<number>(10);
+  const [radius, setRadius] = useState<number>(10);
+  const [radiusUnits, setRadiusUnitsState] = useState<string>('km');
+  const radiusUnitsRef = useRef('km');
   const [dataQuery, setDataQueryState] = useState<string>('');
   const dataQueryRef = useRef('');
   const [viewExtent, setViewExtent] = useState<[number, number, number, number] | null>(null);
@@ -40,20 +46,30 @@ export function MapInteractionProvider({ children }: { children: ReactNode }) {
     setDataQueryState(queryType);
   }, []);
 
+  const setRadiusUnits = useCallback((units: string) => {
+    const from = radiusUnitsRef.current;
+    if (units === from) return;
+    setRadius(value => convertLength(value, from, units));
+    radiusUnitsRef.current = units;
+    setRadiusUnitsState(units);
+  }, []);
+
   const value = useMemo(() => ({
     clickedCoords,
     setClickedCoords,
     selectedArea,
     setSelectedArea,
-    radiusKm,
-    setRadiusKm,
+    radius,
+    setRadius,
+    radiusUnits,
+    setRadiusUnits,
     dataQuery,
     setDataQuery,
     viewExtent,
     setViewExtent,
     viewSize,
     setViewSize,
-  }), [clickedCoords, selectedArea, radiusKm, dataQuery, setDataQuery, viewExtent, viewSize]);
+  }), [clickedCoords, selectedArea, radius, radiusUnits, setRadiusUnits, dataQuery, setDataQuery, viewExtent, viewSize]);
 
   return (
     <MapInteractionContext.Provider value={value}>

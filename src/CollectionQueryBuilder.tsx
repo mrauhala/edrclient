@@ -17,6 +17,7 @@ import { Collection, expandVerticalValues, expandCustomDimensionValues, getEffec
 import { UseQueryUrlReturn } from './hooks/useQueryUrl';
 import TimeControl from './TimeControl';
 import QueryIssuesPanel, { FieldIssueText } from './QueryIssuesPanel';
+import QueryTypeInputs from './QueryTypeInputs';
 import { useQueryValidation } from './hooks/useQueryValidation';
 
 interface CollectionQueryBuilderProps {
@@ -70,6 +71,7 @@ const CollectionQueryBuilder: React.FC<CollectionQueryBuilderProps> = ({ collect
       )}
 
       {selectedDataQuery && <QueryIssuesPanel />}
+      {selectedDataQuery && <QueryTypeInputs collection={collection} queryKey={selectedDataQuery} />}
 
       {/* Format Selector */}
       {(() => {

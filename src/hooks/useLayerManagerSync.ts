@@ -24,7 +24,7 @@ export function useLayerManagerSync(
 ): void {
   const { geoJsonLayers, setGeoJsonLayers } = useGeoJsonLayers();
   const { mapsLayers, setMapsLayers } = useMapsLayers();
-  const { clickedCoords, selectedArea, radiusKm, setClickedCoords, setSelectedArea } = useMapInteraction();
+  const { clickedCoords, selectedArea, radius, radiusUnits, setClickedCoords, setSelectedArea } = useMapInteraction();
   const { selectedCollection, selectedCollectionExtents, locationFeatures } = useCollection();
   const { setAllMapLayers, setHandleLayerManagerChange } = useLayerManager();
 
@@ -136,7 +136,7 @@ export function useLayerManagerSync(
         const key = 'internal:radius';
         layers.push({
           url: 'radius-circle',
-          title: `Radius Circle (${radiusKm} km)`,
+          title: `Radius Circle (${radius} ${radiusUnits})`,
           visible: radiusLayer.getVisible(),
           opacity: radiusLayer.getOpacity(),
           zIndex: zIndexMapRef.current.get(key),
@@ -179,7 +179,7 @@ export function useLayerManagerSync(
     });
 
     setAllMapLayers(layers);
-  }, [geoJsonLayers, mapsLayers, vectorLayer, locationLayer, markerLayer, areaLayer, radiusLayer, selectedCollectionExtents, locationFeatures, clickedCoords, selectedArea, radiusKm, selectedCollection, setAllMapLayers]);
+  }, [geoJsonLayers, mapsLayers, vectorLayer, locationLayer, markerLayer, areaLayer, radiusLayer, selectedCollectionExtents, locationFeatures, clickedCoords, selectedArea, radius, radiusUnits, selectedCollection, setAllMapLayers]);
 
   const handleLayerManagerChange = useCallback((updatedLayers: GeoJsonLayer[]) => {
     // Update zIndex ref from the new order

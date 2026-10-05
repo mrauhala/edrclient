@@ -134,11 +134,11 @@ function checkGeometry(model: QueryModel, add: Add) {
   }
 
   if (queryType === 'radius') {
-    if (!(model.radius.value > 0)) add('error', 'edr', 'within', 'positive', 'The radius must be greater than 0', 'map');
+    if (!(model.radius.value > 0)) add('error', 'edr', 'within', 'positive', 'The radius must be greater than 0', 'form');
     const units = unitsFor(model.variables, 'within');
     if (units.length > 0 && !units.includes(model.radius.units)) {
       add('error', 'metadata', 'within-units', 'offered',
-        `Radius unit "${model.radius.units}" isn't offered by this collection (${units.join(', ')})`);
+        `Radius unit "${model.radius.units}" isn't offered by this collection (${units.join(', ')})`, 'form');
     }
   }
 }

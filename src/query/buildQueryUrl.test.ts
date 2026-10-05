@@ -142,11 +142,12 @@ describe('buildQueryUrl serializes exactly like the previous URL builder', () =>
 });
 
 describe('buildQueryUrl', () => {
-  const position = (overrides: Partial<QueryModelInput>) => buildQueryUrl(buildQueryModel({
-    collection: COLLECTIONS.fmiEcmwf, queryKey: 'position', format: 'CoverageJSON', parameters: [],
+  const request = (queryKey: string, overrides: Partial<QueryModelInput>) => buildQueryUrl(buildQueryModel({
+    collection: COLLECTIONS.fmiEcmwf, queryKey, format: 'CoverageJSON', parameters: [],
     datetime: emptyDim(), vertical: emptyDim(), customDims: {}, points: [[24.9384, 60.1699]], polygons: [],
     radius: { value: 10, units: 'km' }, locationFeature: null, ...overrides,
   })!)!;
+  const position = (overrides: Partial<QueryModelInput>) => request('position', overrides);
 
   it('sends custom dimensions chosen as a range (dropped before the query model)', () => {
     const url = new URL(position({ customDims: { member: { mode: 'range', value: '', start: '1', end: '5' } } }));
@@ -155,6 +156,11 @@ describe('buildQueryUrl', () => {
 
   it('builds a position request', () => {
     expect(position({})).toBe('https://opendata.fmi.fi/edr/collections/ecmwf/position?f=CoverageJSON&coords=POINT%2824.938+60.170%29');
+  });
+
+  it('sends the radius in its unit', () => {
+    const url = new URL(request('radius', { radius: { value: 500, units: 'm' } }));
+    expect([url.searchParams.get('within'), url.searchParams.get('within-units')]).toEqual(['500', 'm']);
   });
 
   it('returns null for a query the collection does not offer', () => {

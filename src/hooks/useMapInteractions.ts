@@ -11,6 +11,7 @@ import { DrawEvent } from 'ol/interaction/Draw';
 import { useMapInteraction } from '../contexts/MapInteractionContext';
 import { useCollection } from '../contexts/CollectionContext';
 import { geometryKindOf } from '../query/queryTypes';
+import { unitToMeters } from '../query/units';
 
 export function useMapInteractions(
   map: Map | null,
@@ -18,7 +19,7 @@ export function useMapInteractions(
   areaLayer: VectorLayer<VectorSource> | null,
   radiusLayer: VectorLayer<VectorSource> | null,
 ): { abortDrawing: () => void; isDrawing: boolean } {
-  const { clickedCoords, setClickedCoords, selectedArea, setSelectedArea, radiusKm, dataQuery } = useMapInteraction();
+  const { clickedCoords, setClickedCoords, selectedArea, setSelectedArea, radius, radiusUnits, dataQuery } = useMapInteraction();
   // dataQuery is the query type; the geometry kind decides what the map collects
   const geometryKind = geometryKindOf(dataQuery);
   const { selectedCollection, selectedFeature } = useCollection();
@@ -95,7 +96,9 @@ export function useMapInteractions(
       if (source) {
         source.clear();
 
-        if (clickedCoords && clickedCoords.length > 0 && radiusKm) {
+        // A unit the map doesn't know leaves only the centre points
+        const radiusMeters = radius * (unitToMeters(radiusUnits) ?? 0);
+        if (clickedCoords && clickedCoords.length > 0 && radiusMeters > 0) {
           clickedCoords.forEach(coords => {
             const [lon, lat] = coords;
             const center = fromLonLat([lon, lat]);
@@ -105,8 +108,8 @@ export function useMapInteractions(
 
             for (let i = 0; i < pointsOnCircle; i++) {
               const angle = (i / pointsOnCircle) * 2 * Math.PI;
-              const lonOffset = (radiusKm * 1000) / (111320 * Math.cos(lat * Math.PI / 180)) * Math.cos(angle);
-              const latOffset = (radiusKm * 1000) / 110540 * Math.sin(angle);
+              const lonOffset = radiusMeters / (111320 * Math.cos(lat * Math.PI / 180)) * Math.cos(angle);
+              const latOffset = radiusMeters / 110540 * Math.sin(angle);
 
               const pointLon = lon + lonOffset;
               const pointLat = lat + latOffset;
@@ -135,7 +138,7 @@ export function useMapInteractions(
         source.clear();
       }
     }
-  }, [clickedCoords, radiusLayer, radiusKm, dataQuery]);
+  }, [clickedCoords, radiusLayer, radius, radiusUnits, dataQuery]);
 
   // Handle map clicks for point queries (position, radius)
   useEffect(() => {
