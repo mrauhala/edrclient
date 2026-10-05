@@ -10,8 +10,8 @@ interface FeatureViewerGeometryProps {
 
 const FeatureViewerGeometry: React.FC<FeatureViewerGeometryProps> = ({ geometry }) => {
   return (
-    <Box mb={2}>
-      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+    <Box sx={{ mb: 2 }}>
+      <Typography variant="subtitle2" gutterBottom sx={{ color: 'text.secondary' }}>
         Geometry
       </Typography>
       <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 1 }}>

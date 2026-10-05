@@ -78,7 +78,7 @@ export default function ContactCards({ contacts }: ContactCardsProps) {
             {contact.name && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
                 <PersonIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                <Typography variant="body2" fontWeight="medium">
+                <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
                   {contact.name}
                 </Typography>
               </Box>
@@ -92,7 +92,7 @@ export default function ContactCards({ contacts }: ContactCardsProps) {
               </Box>
             )}
             {contact.position && (
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5, ml: 2.5 }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5, ml: 2.5 }}>
                 {contact.position}
               </Typography>
             )}
@@ -162,7 +162,7 @@ export default function ContactCards({ contacts }: ContactCardsProps) {
 
             {/* Hours / Instructions */}
             {contact.hoursOfService && (
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, ml: 2.5 }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5, ml: 2.5 }}>
                 {contact.hoursOfService}
               </Typography>
             )}

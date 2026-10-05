@@ -36,10 +36,12 @@ const ConformanceViewer: React.FC<ConformanceViewerProps> = ({ conformanceUrl, o
       onClose={handleClose}
       maxWidth="lg"
       fullWidth
-      PaperProps={{
-        sx: {
-          height: '90vh',
-          maxHeight: '90vh'
+      slotProps={{
+        paper: {
+          sx: {
+            height: '90vh',
+            maxHeight: '90vh'
+          }
         }
       }}
     >

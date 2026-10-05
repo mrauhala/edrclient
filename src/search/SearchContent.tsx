@@ -253,15 +253,16 @@ export function SearchContent({
                   }}
                 />
                 {preview && (
-                  <Typography component="span" variant="caption" color="text.secondary" noWrap sx={{ maxWidth: 280 }}>
+                  <Typography component="span" variant="caption" noWrap sx={{ color: 'text.secondary', maxWidth: 280 }}>
                     {highlightMatch(preview, query)}
                   </Typography>
                 )}
               </Box>
             }
-            primaryTypographyProps={{ variant: 'body2', fontWeight: 500, noWrap: true }}
-            secondaryTypographyProps={{ component: 'div' }}
-          />
+            slotProps={{
+              primary: { variant: 'body2', fontWeight: 500, noWrap: true },
+              secondary: { component: 'div' }
+            }} />
         </ListItemButton>
       );
     };
@@ -295,20 +296,24 @@ export function SearchContent({
             secondary={
               <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.25, flexWrap: 'wrap' }}>
                 {loc.coordinates && (
-                  <Typography component="span" variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace', fontSize: '0.65rem' }}>
+                  <Typography
+                    component="span"
+                    variant="caption"
+                    sx={{ color: 'text.secondary', fontFamily: 'monospace', fontSize: '0.65rem' }}>
                     {highlightMatch(loc.coordinates, query)}
                   </Typography>
                 )}
                 {preview && (
-                  <Typography component="span" variant="caption" color="text.secondary" noWrap sx={{ maxWidth: 280 }}>
+                  <Typography component="span" variant="caption" noWrap sx={{ color: 'text.secondary', maxWidth: 280 }}>
                     {highlightMatch(preview, query)}
                   </Typography>
                 )}
               </Box>
             }
-            primaryTypographyProps={{ variant: 'body2', fontWeight: 500, noWrap: true }}
-            secondaryTypographyProps={{ component: 'div' }}
-          />
+            slotProps={{
+              primary: { variant: 'body2', fontWeight: 500, noWrap: true },
+              secondary: { component: 'div' }
+            }} />
         </ListItemButton>
       );
     };
@@ -404,7 +409,7 @@ export function SearchContent({
 
         {activeTab === 'collections' && showFilters && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, px: 1.5, py: 0.75, borderBottom: 1, borderColor: 'divider', flexWrap: 'wrap' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>Search in:</Typography>
+            <Typography variant="caption" sx={{ color: 'text.secondary', mr: 0.5 }}>Search in:</Typography>
             {(['title', 'description', 'keywords', 'id'] as FilterField[]).map((field) => (
               <Chip
                 key={field}
@@ -423,7 +428,7 @@ export function SearchContent({
         {(activeTab === 'locations' || activeTab === 'items') && selectedCollectionName && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, px: 1.5, py: 0.5, borderBottom: 1, borderColor: 'divider', bgcolor: 'action.hover' }}>
             <FolderIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
-            <Typography variant="caption" color="text.secondary" noWrap sx={{ fontSize: '0.7rem' }}>
+            <Typography variant="caption" noWrap sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
               {selectedCollectionName}
             </Typography>
           </Box>
@@ -452,7 +457,7 @@ export function SearchContent({
       {activeTab === 'items' && itemsLoading && (
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 5, gap: 1.5 }}>
           <CircularProgress size={24} />
-          <Typography variant="caption" color="text.secondary">Loading items...</Typography>
+          <Typography variant="caption" sx={{ color: 'text.secondary' }}>Loading items...</Typography>
         </Box>
       )}
       {activeTab === 'items' && itemsError && (
@@ -495,7 +500,7 @@ export function SearchContent({
       {/* Empty state */}
       {!(activeTab === 'items' && (itemsLoading || itemsError)) && results.length === 0 ? (
         <Box sx={{ p: 3, textAlign: 'center' }}>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             {query
               ? `No results for "${query}"`
               : activeTab === 'services'
@@ -511,7 +516,7 @@ export function SearchContent({
                         : 'No items in this collection'}
           </Typography>
           {!query && (activeTab === 'locations' || activeTab === 'items') && !selectedCollectionId && (
-            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', mt: 0.5, display: 'block' }}>
               <Link
                 component="button"
                 variant="caption"
@@ -524,7 +529,7 @@ export function SearchContent({
             </Typography>
           )}
           {query && (
-            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', mt: 0.5, display: 'block' }}>
               Try a different tab or search term
             </Typography>
           )}
@@ -592,11 +597,12 @@ export function SearchContent({
                 <ListItemText
                   primary={highlightMatch(svc.label, query)}
                   secondary={highlightMatch(svc.url, query)}
-                  primaryTypographyProps={{ variant: 'body2', fontWeight: 500, noWrap: true }}
-                  secondaryTypographyProps={{ variant: 'caption', noWrap: true }}
-                />
+                  slotProps={{
+                    primary: { variant: 'body2', fontWeight: 500, noWrap: true },
+                    secondary: { variant: 'caption', noWrap: true }
+                  }} />
                 {svc.isActive && (
-                  <Typography variant="caption" color="success.main" sx={{ fontWeight: 600, flexShrink: 0, ml: 1 }}>
+                  <Typography variant="caption" sx={{ color: 'success.main', fontWeight: 600, flexShrink: 0, ml: 1 }}>
                     active
                   </Typography>
                 )}
@@ -618,7 +624,7 @@ export function SearchContent({
                   primary={highlightMatch(result.collection.title || result.collection.id, query)}
                   secondary={
                     <Box component="span">
-                      <Typography component="span" variant="caption" color="text.secondary" sx={{ display: 'block' }} noWrap>
+                      <Typography component="span" variant="caption" noWrap sx={{ color: 'text.secondary', display: 'block' }}>
                         {result.collection.description
                           ? highlightMatch(
                               result.collection.description.length > 80
@@ -643,11 +649,14 @@ export function SearchContent({
                       )}
                     </Box>
                   }
-                  primaryTypographyProps={{ variant: 'body2', fontWeight: 500, noWrap: true }}
-                  secondaryTypographyProps={{ component: 'div' }}
-                />
+                  slotProps={{
+                    primary: { variant: 'body2', fontWeight: 500, noWrap: true },
+                    secondary: { component: 'div' }
+                  }} />
                 {result.collection.id === selectedCollectionId && (
-                  <Typography variant="caption" color="success.main" sx={{ fontWeight: 600, flexShrink: 0, ml: 1, alignSelf: 'center' }}>
+                  <Typography
+                    variant="caption"
+                    sx={{ color: 'success.main', fontWeight: 600, flexShrink: 0, ml: 1, alignSelf: 'center' }}>
                     active
                   </Typography>
                 )}
@@ -667,7 +676,7 @@ export function SearchContent({
           >
             <NavigateBeforeIcon fontSize="small" />
           </IconButton>
-          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
             {itemsOffset + 1}–{itemsOffset + itemsPageCount}
             {itemsTotal != null && ` of ${itemsTotal}`}
           </Typography>
@@ -690,7 +699,10 @@ export function SearchContent({
             { keys: 'Tab', label: 'switch tab' },
             { keys: 'Esc', label: 'close' },
           ].map(({ keys, label }) => (
-            <Typography key={keys} variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Typography
+              key={keys}
+              variant="caption"
+              sx={{ color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 0.5 }}>
               <Box component="kbd" sx={{ px: 0.5, py: '1px', borderRadius: 0.5, bgcolor: 'background.paper', border: 1, borderColor: 'divider', fontSize: '0.6rem', fontFamily: 'inherit' }}>
                 {keys}
               </Box>

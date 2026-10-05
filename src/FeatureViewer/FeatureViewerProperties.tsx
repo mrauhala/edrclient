@@ -38,9 +38,8 @@ const FeatureViewerProperties: React.FC<FeatureViewerPropertiesProps> = ({
 
   if (entries.length === 0) {
     return (
-      <Typography variant="body2" color="text.secondary" fontStyle="italic">
-        No properties available
-      </Typography>
+      <Typography variant="body2" sx={{ color: 'text.secondary', fontStyle: 'italic' }}>No properties available
+              </Typography>
     );
   }
 
@@ -50,11 +49,11 @@ const FeatureViewerProperties: React.FC<FeatureViewerPropertiesProps> = ({
 
   return (
     <Box>
-      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+      <Typography variant="subtitle2" gutterBottom sx={{ color: 'text.secondary' }}>
         Properties
       </Typography>
       {onSelectLabelProperty && (
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, fontStyle: 'italic' }}>
+        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1, fontStyle: 'italic' }}>
           Click a property to use it as a map label
         </Typography>
       )}
@@ -160,9 +159,8 @@ const PropertyValue: React.FC<{ propKey: string; value: unknown }> = ({ propKey,
 
   if (value === null || value === undefined) {
     return (
-      <Typography variant="body2" color="text.secondary" fontStyle="italic">
-        null
-      </Typography>
+      <Typography variant="body2" sx={{ color: 'text.secondary', fontStyle: 'italic' }}>null
+              </Typography>
     );
   }
 

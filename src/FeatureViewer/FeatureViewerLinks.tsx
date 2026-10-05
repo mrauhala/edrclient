@@ -22,14 +22,14 @@ const FeatureViewerLinks: React.FC<FeatureViewerLinksProps> = ({ links }) => {
   }
 
   return (
-    <Box mb={2}>
-      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+    <Box sx={{ mb: 2 }}>
+      <Typography variant="subtitle2" gutterBottom sx={{ color: 'text.secondary' }}>
         Links
       </Typography>
       {Array.from(grouped.entries()).map(([rel, items]) => (
         <Box key={rel} sx={{ mb: 1 }}>
           {items.length > 1 && (
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
               {rel}
             </Typography>
           )}

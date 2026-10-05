@@ -65,32 +65,31 @@ const CollectionValidationErrors: React.FC<CollectionValidationErrorsProps> = ({
           <AlertTitle sx={{ fontSize: '0.875rem' }}>
             Schema Validation {section ? `(${section})` : ''}
           </AlertTitle>
-          <Typography variant="caption" display="block">
+          <Typography variant="caption" sx={{ display: 'block' }}>
             {formatErrorMessage(error)}
           </Typography>
           
           <Collapse in={expanded}>
             <Box sx={{ mt: 1, pl: 1, borderLeft: '2px solid', borderColor: 'divider' }}>
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                 <strong>Path:</strong> {error.path || 'root'}
               </Typography>
               {error.keyword && (
-                <Typography variant="caption" color="text.secondary" display="block">
+                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
                   <strong>Rule:</strong> {error.keyword}
                 </Typography>
               )}
               {error.data !== undefined && (
-                <Typography 
-                  variant="caption" 
-                  color="text.secondary" 
-                  display="block"
-                  sx={{ 
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: 'text.secondary',
+                    display: 'block',
                     wordBreak: 'break-word',
                     maxWidth: '300px',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis'
-                  }}
-                >
+                  }}>
                   <strong>Actual:</strong> {JSON.stringify(error.data)}
                 </Typography>
               )}

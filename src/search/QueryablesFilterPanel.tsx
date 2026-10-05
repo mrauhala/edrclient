@@ -105,7 +105,7 @@ export function QueryablesFilterPanel({
       {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, px: 1.5, pt: 1, pb: 0.5 }}>
         <TuneIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.72rem' }}>
+        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.72rem' }}>
           Filter by property
         </Typography>
       </Box>
@@ -151,7 +151,7 @@ export function QueryablesFilterPanel({
           <Typography variant="caption" sx={{ fontWeight: 500, color: 'primary.main', flexShrink: 0, fontSize: '0.75rem' }}>
             {selectedQP.title || selectedQP.name}
           </Typography>
-          <Typography variant="caption" color="text.secondary">=</Typography>
+          <Typography variant="caption" sx={{ color: 'text.secondary' }}>=</Typography>
 
           {inputType === 'enum' ? (
             <Autocomplete
@@ -197,10 +197,12 @@ export function QueryablesFilterPanel({
                   onKeyDown={handleKeyDown}
                   autoFocus
                   slotProps={{
+                    ...params.slotProps,
+
                     htmlInput: {
-                      ...params.inputProps,
+                      ...params.slotProps.htmlInput,
                       inputMode: (selectedQP.type === 'number' || selectedQP.type === 'integer') ? 'numeric' : 'text',
-                    },
+                    }
                   }}
                 />
               )}

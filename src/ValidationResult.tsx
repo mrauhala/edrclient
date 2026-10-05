@@ -105,7 +105,7 @@ const ValidationResults: React.FC<ValidationResultsProps> = ({ validation, expan
           size="small"
           sx={{ mr: 1, mb: 1 }}
         />
-        <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1 }}>
           No schemas were loaded — validation was not performed
         </Typography>
 
@@ -132,11 +132,11 @@ const ValidationResults: React.FC<ValidationResultsProps> = ({ validation, expan
           sx={{ mr: 1, mb: 1 }}
         />
         {validation.errors && validation.errors.length > 0 ? (
-          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1 }}>
             (Minor schema warnings ignored)
           </Typography>
         ) : (
-          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1 }}>
             Response structure looks good
           </Typography>
         )}
@@ -176,7 +176,7 @@ const ValidationResults: React.FC<ValidationResultsProps> = ({ validation, expan
       <Alert severity="warning" sx={{ mb: 1 }}>
         <AlertTitle>Schema Validation Notice</AlertTitle>
         The API response has some schema differences 
-        <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1 }}>
           Data is still being displayed
         </Typography>
         
@@ -188,14 +188,14 @@ const ValidationResults: React.FC<ValidationResultsProps> = ({ validation, expan
           {renderSchemaSection('Conformance', validation.conformanceValidation)}
         </Box>
       </Alert>
-      
+
       <Collapse in={expanded}>
         <Box sx={{ mt: 1, ml: 2, maxHeight: '200px', overflow: 'auto' }}>
           <Typography variant="subtitle2">Schema differences:</Typography>
           <List dense>
             {validation.errors && validation.errors.map((error, index) => (
               <ListItem key={index} sx={{ py: 0 }}>
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                   {error.schema && (
                     <strong>[{error.schema}] </strong>
                   )}
@@ -206,7 +206,7 @@ const ValidationResults: React.FC<ValidationResultsProps> = ({ validation, expan
             
             {validation.errors && validation.errors.length > 10 && (
               <ListItem>
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                   ...and {validation.errors.length - 10} more errors
                 </Typography>
               </ListItem>

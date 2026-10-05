@@ -244,7 +244,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({ url, title, onFeatureClick }) =
           {data && data.features && (
             <Box>
               {data.numberMatched !== undefined && (
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1 }}>
                   Showing {data.numberReturned || data.features.length} of {data.numberMatched} items
                 </Typography>
               )}

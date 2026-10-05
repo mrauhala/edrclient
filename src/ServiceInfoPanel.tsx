@@ -55,7 +55,7 @@ const ServiceInfoPanel = ({
               </Typography>
             )}
             {landingPageDescription && (
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>
                 {landingPageDescription}
               </Typography>
             )}
@@ -178,11 +178,13 @@ const ServiceInfoPanel = ({
                         }
                         secondary={
                           <>
-                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem', display: 'block' }}>
+                            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem', display: 'block' }}>
                               {link.rel && `rel: ${link.rel}`}
                               {link.type && ` • type: ${link.type}`}
                             </Typography>
-                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem', display: 'block', wordBreak: 'break-all' }}>
+                            <Typography
+                              variant="caption"
+                              sx={{ color: 'text.secondary', fontSize: '0.75rem', display: 'block', wordBreak: 'break-all' }}>
                               {normalizedHref}
                             </Typography>
                           </>

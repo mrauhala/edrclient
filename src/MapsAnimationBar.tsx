@@ -40,7 +40,7 @@ export default function MapsAnimationBar() {
           const time = b.frameTimes[b.currentIndex] ?? '';
           return (
             <Paper key={b.bundleId} elevation={6} sx={{ px: 1.5, py: 1, opacity: 0.97 }}>
-              <Stack direction="row" alignItems="center" spacing={0.5}>
+              <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
                 <Tooltip title="Jump to start">
                   <IconButton size="small" aria-label="Jump to start" onClick={() => anim.jumpToStart(b.bundleId)}>
                     <SkipPreviousIcon fontSize="small" />

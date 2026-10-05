@@ -13,8 +13,8 @@ const FeatureViewerMetadata: React.FC<FeatureViewerMetadataProps> = ({ metadata 
   }
 
   return (
-    <Box mb={2}>
-      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+    <Box sx={{ mb: 2 }}>
+      <Typography variant="subtitle2" gutterBottom sx={{ color: 'text.secondary' }}>
         Collection Info
       </Typography>
       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>

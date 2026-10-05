@@ -70,13 +70,13 @@ const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
           </ListItemIcon>
           <ListItemText
             primary={
-              <Box display="flex" alignItems="center" gap={1}>
-                <Typography variant="body2" fontWeight="medium">{title}</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="body2" sx={{ fontWeight: 'medium' }}>{title}</Typography>
                 {chip}
               </Box>
             }
             secondary={subtitle ? (
-              <Typography variant="caption" color="text.secondary">{subtitle}</Typography>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>{subtitle}</Typography>
             ) : undefined}
           />
           {expandIcon}
@@ -92,7 +92,7 @@ const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             {icon}
-            <Typography variant="body2" fontWeight="medium">{title}</Typography>
+            <Typography variant="body2" sx={{ fontWeight: 'medium' }}>{title}</Typography>
             {chip}
           </Box>
         </Button>

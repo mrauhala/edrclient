@@ -242,8 +242,10 @@ const CollectionQueryBuilder: React.FC<CollectionQueryBuilderProps> = ({ collect
                       <MenuItem key={level} value={level}>
                         <ListItemText
                           primary={level}
-                          primaryTypographyProps={{
-                            style: { fontSize: '0.85rem', fontFamily: 'monospace' }
+                          slotProps={{
+                            primary: {
+                              style: { fontSize: '0.85rem', fontFamily: 'monospace' }
+                            }
                           }}
                         />
                       </MenuItem>
@@ -297,8 +299,10 @@ const CollectionQueryBuilder: React.FC<CollectionQueryBuilderProps> = ({ collect
                           <MenuItem key={level} value={level}>
                             <ListItemText
                               primary={level}
-                              primaryTypographyProps={{
-                                style: { fontSize: '0.85rem', fontFamily: 'monospace' }
+                              slotProps={{
+                                primary: {
+                                  style: { fontSize: '0.85rem', fontFamily: 'monospace' }
+                                }
                               }}
                             />
                           </MenuItem>
@@ -331,8 +335,10 @@ const CollectionQueryBuilder: React.FC<CollectionQueryBuilderProps> = ({ collect
                           <MenuItem key={level} value={level}>
                             <ListItemText
                               primary={level}
-                              primaryTypographyProps={{
-                                style: { fontSize: '0.85rem', fontFamily: 'monospace' }
+                              slotProps={{
+                                primary: {
+                                  style: { fontSize: '0.85rem', fontFamily: 'monospace' }
+                                }
                               }}
                             />
                           </MenuItem>
@@ -471,8 +477,10 @@ const CollectionQueryBuilder: React.FC<CollectionQueryBuilderProps> = ({ collect
                       <MenuItem key={val} value={val}>
                         <ListItemText
                           primary={val}
-                          primaryTypographyProps={{
-                            style: { fontSize: '0.85rem', fontFamily: 'monospace' }
+                          slotProps={{
+                            primary: {
+                              style: { fontSize: '0.85rem', fontFamily: 'monospace' }
+                            }
                           }}
                         />
                       </MenuItem>
@@ -525,8 +533,10 @@ const CollectionQueryBuilder: React.FC<CollectionQueryBuilderProps> = ({ collect
                           <MenuItem key={val} value={val}>
                             <ListItemText
                               primary={val}
-                              primaryTypographyProps={{
-                                style: { fontSize: '0.85rem', fontFamily: 'monospace' }
+                              slotProps={{
+                                primary: {
+                                  style: { fontSize: '0.85rem', fontFamily: 'monospace' }
+                                }
                               }}
                             />
                           </MenuItem>
@@ -559,8 +569,10 @@ const CollectionQueryBuilder: React.FC<CollectionQueryBuilderProps> = ({ collect
                           <MenuItem key={val} value={val}>
                             <ListItemText
                               primary={val}
-                              primaryTypographyProps={{
-                                style: { fontSize: '0.85rem', fontFamily: 'monospace' }
+                              slotProps={{
+                                primary: {
+                                  style: { fontSize: '0.85rem', fontFamily: 'monospace' }
+                                }
                               }}
                             />
                           </MenuItem>

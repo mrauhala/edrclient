@@ -33,7 +33,7 @@ const FeatureViewer: React.FC<FeatureViewerProps> = ({
 
       {/* Feature ID */}
       {feature.id != null && (
-        <Box mb={2}>
+        <Box sx={{ mb: 2 }}>
           <Chip
             label={String(feature.id)}
             variant="outlined"
