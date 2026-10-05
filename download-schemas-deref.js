@@ -2,6 +2,10 @@ const fs = require('fs');
 const path = require('path');
 const $RefParser = require('@apidevtools/json-schema-ref-parser');
 
+// EDR 1.2 is not on schemas.opengis.net yet; its schemas are extracted from the
+// upstream OpenAPI 3.1 bundle (entries with `component` pick components.schemas[component]).
+const EDR_1_2_BUNDLE = 'https://raw.githubusercontent.com/opengeospatial/ogcapi-environmental-data-retrieval/refs/heads/master/ogcapi-environmental-data-retrieval-1-oas31.bundled.json';
+
 // Schema definitions with correct paths and Part/Version naming
 const schemas = [
   // OGC API Features Part 1 v1.0
@@ -63,7 +67,27 @@ const schemas = [
     url: 'https://schemas.opengis.net/ogcapi/edr/1.1/openapi/schemas/core/confClasses.yaml',
     output: 'public/schemas/individual/edr-p1-v1.1/confClasses.json'
   },
-  
+
+  // OGC API EDR Part 1 v1.2 - extracted from the OpenAPI 3.1 bundle
+  {
+    name: 'EDR Part 1 v1.2 - Landing Page',
+    url: EDR_1_2_BUNDLE,
+    component: 'landingPage',
+    output: 'public/schemas/individual/edr-p1-v1.2/landingPage.json'
+  },
+  {
+    name: 'EDR Part 1 v1.2 - Collections',
+    url: EDR_1_2_BUNDLE,
+    component: 'collections',
+    output: 'public/schemas/individual/edr-p1-v1.2/collections.json'
+  },
+  {
+    name: 'EDR Part 1 v1.2 - Conformance',
+    url: EDR_1_2_BUNDLE,
+    component: 'confClasses',
+    output: 'public/schemas/individual/edr-p1-v1.2/confClasses.json'
+  },
+
   // OGC API Common Part 1 v1.0
   {
     name: 'Common Part 1 v1.0 - Landing Page',
@@ -107,6 +131,14 @@ const schemas = [
     output: 'public/schemas/edr/1.1/edrFeatureCollectionGeoJSON.json'
   },
 
+  // OGC API EDR Part 1 v1.2 - Locations FeatureCollection
+  {
+    name: 'EDR Part 1 v1.2 - Locations FeatureCollection',
+    url: EDR_1_2_BUNDLE,
+    component: 'edrFeatureCollectionGeoJSON',
+    output: 'public/schemas/edr/1.2/edrFeatureCollectionGeoJSON.json'
+  },
+
   // OGC API Records Part 1 v1.0 - top level structure (no conformance schema available)
   {
     name: 'Records Part 1 v1.0 - Landing Page',
@@ -141,15 +173,61 @@ const schemas = [
   }
 ];
 
+// Bundles are downloaded once and shared by all entries that extract from them
+const parsedBundles = new Map();
+
+function parseBundle(url) {
+  if (!parsedBundles.has(url)) {
+    parsedBundles.set(url, $RefParser.parse(url));
+  }
+  return parsedBundles.get(url);
+}
+
+const COMPONENT_REF_PREFIX = '#/components/schemas/';
+
+// Build a standalone document for one bundle component: the component plus only the
+// component schemas it references (transitively). Leaving the rest of the bundle out
+// keeps unrelated broken refs (e.g. the embedded CoverageJSON schema's unresolvable
+// #/definitions/* refs in the EDR 1.2 bundle) from failing the dereference.
+function componentDocument(bundle, name) {
+  const all = bundle.components?.schemas ?? {};
+  if (!all[name]) {
+    throw new Error(`Component schema "${name}" not found in bundle`);
+  }
+  const needed = {};
+  const visit = node => {
+    if (Array.isArray(node)) return node.forEach(visit);
+    if (!node || typeof node !== 'object') return;
+    if (typeof node.$ref === 'string' && node.$ref.startsWith(COMPONENT_REF_PREFIX)) {
+      const dep = node.$ref.slice(COMPONENT_REF_PREFIX.length);
+      if (!(dep in needed)) {
+        needed[dep] = all[dep];
+        visit(all[dep]);
+      }
+    }
+    Object.values(node).forEach(visit);
+  };
+  visit(all[name]);
+  // Clone: $RefParser mutates its input and the parsed bundle is shared between entries
+  return structuredClone({ ...all[name], components: { schemas: needed } });
+}
+
 // Download, convert, and dereference a single schema
 async function downloadAndDereference(schema) {
   console.log(`\n📥 ${schema.name}`);
-  console.log(`   URL: ${schema.url}`);
-  
+  console.log(`   URL: ${schema.url}${schema.component ? ` (#/components/schemas/${schema.component})` : ''}`);
+
   try {
     // Download and parse the YAML with all references resolved
-    const dereferencedSchema = await $RefParser.dereference(schema.url);
-    
+    let dereferencedSchema;
+    if (schema.component) {
+      const bundle = await parseBundle(schema.url);
+      dereferencedSchema = await $RefParser.dereference(componentDocument(bundle, schema.component));
+      delete dereferencedSchema.components;
+    } else {
+      dereferencedSchema = await $RefParser.dereference(schema.url);
+    }
+
     console.log(`   ✅ Downloaded and dereferenced`);
     
     // Ensure output directory exists
@@ -179,13 +257,20 @@ async function main() {
   console.log('1. Download YAML schemas from schemas.opengis.net');
   console.log('2. Resolve all $ref references');
   console.log('3. Save as standalone JSON files\n');
-  
+
+  // Optional name filter, e.g. `node download-schemas-deref.js "EDR Part 1 v1.2"`
+  const filter = process.argv[2];
+  const selected = filter ? schemas.filter(s => s.name.includes(filter)) : schemas;
+  if (filter) {
+    console.log(`Filter "${filter}": ${selected.length} of ${schemas.length} schemas selected`);
+  }
+
   let successful = 0;
   let failed = 0;
   const errors = [];
-  
+
   let skipped = 0;
-  for (const schema of schemas) {
+  for (const schema of selected) {
     if (schema.skip) {
       console.log(`\n⏭️  ${schema.name} — skipped (manual fixes in tree)`);
       skipped++;
