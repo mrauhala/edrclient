@@ -20,8 +20,8 @@ const FeatureViewerHeader: React.FC<FeatureViewerHeaderProps> = ({ variant, onCl
   const title = variant === 'location' ? 'Location Feature' : 'GeoJSON Feature';
 
   return (
-    <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-      <Box display="flex" alignItems="center" gap={1}>
+    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         {icon}
         <Typography variant="h6" component="h3">
           {title}

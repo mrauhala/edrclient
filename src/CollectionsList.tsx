@@ -70,7 +70,9 @@ const CollectionListItemHeader = memo(function CollectionListItemHeader({
             validationErrors={validationErrors}
           />
         }
-        primaryTypographyProps={{ component: 'div' }}
+        slotProps={{
+          primary: { component: 'div' }
+        }}
       />
       {isOpen ? <ExpandLess /> : <ExpandMore />}
     </ListItemButton>

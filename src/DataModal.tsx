@@ -12,8 +12,8 @@ import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import CodeIcon from '@mui/icons-material/Code';
 import PreviewIcon from '@mui/icons-material/Preview';
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutlined';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutlined';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import Box from '@mui/material/Box';
@@ -120,14 +120,16 @@ const DataModal: React.FC<DataModalProps> = ({
       onClose={onClose}
       maxWidth="xl"
       fullWidth
-      PaperProps={{
-        sx: {
-          height: { xs: '100vh', sm: '90vh' },
-          maxHeight: { xs: '100vh', sm: '90vh' },
-          m: { xs: 0, sm: 4 },
-          width: { xs: '100%', sm: undefined },
-          maxWidth: { xs: '100%', sm: undefined },
-          borderRadius: { xs: 0, sm: 1 },
+      slotProps={{
+        paper: {
+          sx: {
+            height: { xs: '100vh', sm: '90vh' },
+            maxHeight: { xs: '100vh', sm: '90vh' },
+            m: { xs: 0, sm: 4 },
+            width: { xs: '100%', sm: undefined },
+            maxWidth: { xs: '100%', sm: undefined },
+            borderRadius: { xs: 0, sm: 1 },
+          }
         }
       }}
     >
@@ -137,11 +139,19 @@ const DataModal: React.FC<DataModalProps> = ({
         </Typography>
         <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
           <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <Typography
+              variant="caption"
+              sx={{
+                color: 'text.secondary',
+                display: 'block',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
+              }}>
               {url}
             </Typography>
             {contentType && (
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
                 Content-Type: {contentType}
               </Typography>
             )}
@@ -203,7 +213,7 @@ const DataModal: React.FC<DataModalProps> = ({
               alignItems: 'center',
               gap: 1,
             }}>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                 Image preview ({contentType})
               </Typography>
             </Box>
@@ -251,7 +261,7 @@ const DataModal: React.FC<DataModalProps> = ({
               gap: 0.5,
             }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                   Content Type: {contentTypeLabel}
                 </Typography>
 
@@ -310,7 +320,7 @@ const DataModal: React.FC<DataModalProps> = ({
                     )}
                     {viewMode === 'preview' && (
                       <Tooltip title="Switch to Code view to navigate errors">
-                        <Typography variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', ml: 0.5 }}>
                           Click to view in code
                         </Typography>
                       </Tooltip>
@@ -406,7 +416,7 @@ const DataModal: React.FC<DataModalProps> = ({
               {viewMode === 'preview' && isIWXXM() && isTransforming ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
                   <CircularProgress size={32} />
-                  <Typography variant="body2" color="text.secondary" sx={{ ml: 1.5 }}>
+                  <Typography variant="body2" sx={{ color: 'text.secondary', ml: 1.5 }}>
                     Transforming XSLT...
                   </Typography>
                 </Box>

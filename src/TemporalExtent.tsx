@@ -73,7 +73,7 @@ const TemporalExtent: React.FC<TemporalExtentProps> = ({ temporal, collectionId,
         {/* Overall coverage summary */}
         {overallExtent && (
           <Box sx={{ mb: 1 }}>
-            <Typography variant="body2" fontWeight="medium">
+            <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
               Overall Coverage: {formatTemporalInterval(overallExtent[0], overallExtent[1])}
             </Typography>
           </Box>
@@ -136,12 +136,12 @@ const TemporalExtent: React.FC<TemporalExtentProps> = ({ temporal, collectionId,
                     <ListItem key={index} divider={index < intervals.length - 1}>
                       <ListItemText
                         primary={
-                          <Typography variant="body2" fontFamily="monospace">
+                          <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
                             {formatTemporalInterval(interval[0], interval[1])}
                           </Typography>
                         }
                         secondary={
-                          <Typography variant="caption" color="text.secondary">
+                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                             Interval {index + 1}
                             {interval[0] === null && ' (open start)'}
                             {interval[1] === null && ' (open end)'}
@@ -165,12 +165,12 @@ const TemporalExtent: React.FC<TemporalExtentProps> = ({ temporal, collectionId,
                     <ListItem key={index} divider={index < Math.min(values.length, 50) - 1}>
                       <ListItemText
                         primary={
-                          <Typography variant="body2" fontFamily="monospace">
+                          <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
                             {value}
                           </Typography>
                         }
                         secondary={
-                          <Typography variant="caption" color="text.secondary">
+                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                             Value {index + 1}
                           </Typography>
                         }
@@ -181,7 +181,7 @@ const TemporalExtent: React.FC<TemporalExtentProps> = ({ temporal, collectionId,
                     <ListItem>
                       <ListItemText
                         secondary={
-                          <Typography variant="caption" color="text.secondary" fontStyle="italic">
+                          <Typography variant="caption" sx={{ color: 'text.secondary', fontStyle: 'italic' }}>
                             ... and {values.length - 50} more values
                           </Typography>
                         }
@@ -194,7 +194,7 @@ const TemporalExtent: React.FC<TemporalExtentProps> = ({ temporal, collectionId,
 
             {/* Raw temporal object for debugging */}
             <Box sx={{ mt: 2 }}>
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                 Raw temporal object available in browser console for collection: {collectionId}
               </Typography>
             </Box>

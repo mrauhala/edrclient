@@ -74,7 +74,7 @@ const VerticalExtent: React.FC<VerticalExtentProps> = ({ vertical, collectionId,
         {/* Overall coverage summary */}
         {overallExtent && (
           <Box sx={{ mb: 1 }}>
-            <Typography variant="body2" fontWeight="medium">
+            <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
               Overall Coverage: {formatVerticalInterval(overallExtent[0], overallExtent[1], unit)}
             </Typography>
           </Box>
@@ -138,12 +138,12 @@ const VerticalExtent: React.FC<VerticalExtentProps> = ({ vertical, collectionId,
                     <ListItem key={index} divider={index < intervals.length - 1}>
                       <ListItemText
                         primary={
-                          <Typography variant="body2" fontFamily="monospace">
+                          <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
                             {formatVerticalInterval(interval[0], interval[1], unit)}
                           </Typography>
                         }
                         secondary={
-                          <Typography variant="caption" color="text.secondary">
+                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                             Interval {index + 1}
                             {interval[0] === null && ' (open minimum)'}
                             {interval[1] === null && ' (open maximum)'}
@@ -167,12 +167,12 @@ const VerticalExtent: React.FC<VerticalExtentProps> = ({ vertical, collectionId,
                     <ListItem key={index} divider={index < Math.min(values.length, 50) - 1}>
                       <ListItemText
                         primary={
-                          <Typography variant="body2" fontFamily="monospace">
+                          <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
                             {formatVerticalValue(value)}{unit && ` ${unit}`}
                           </Typography>
                         }
                         secondary={
-                          <Typography variant="caption" color="text.secondary">
+                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                             Value {index + 1}
                           </Typography>
                         }
@@ -183,7 +183,7 @@ const VerticalExtent: React.FC<VerticalExtentProps> = ({ vertical, collectionId,
                     <ListItem>
                       <ListItemText
                         secondary={
-                          <Typography variant="caption" color="text.secondary" fontStyle="italic">
+                          <Typography variant="caption" sx={{ color: 'text.secondary', fontStyle: 'italic' }}>
                             ... and {values.length - 50} more values
                           </Typography>
                         }
@@ -196,7 +196,7 @@ const VerticalExtent: React.FC<VerticalExtentProps> = ({ vertical, collectionId,
 
             {/* Raw vertical object for debugging */}
             <Box sx={{ mt: 2 }}>
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                 Raw vertical object available in browser console for collection: {collectionId}
               </Typography>
             </Box>

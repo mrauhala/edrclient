@@ -163,7 +163,7 @@ const SortableLayerItem: React.FC<SortableLayerItemProps> = ({
           </Tooltip>
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5, pl: 3.5 }}>
-          <Typography variant="caption" color="text.secondary" sx={{ minWidth: 48 }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary', minWidth: 48 }}>
             Opacity
           </Typography>
           <Slider
@@ -175,7 +175,7 @@ const SortableLayerItem: React.FC<SortableLayerItemProps> = ({
             onChange={(_e, value) => onOpacityChange(index, value as number)}
             sx={{ flex: 1 }}
           />
-          <Typography variant="caption" color="text.secondary" sx={{ minWidth: 28, textAlign: 'right' }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary', minWidth: 28, textAlign: 'right' }}>
             {Math.round(opacity * 100)}%
           </Typography>
         </Box>
@@ -323,7 +323,7 @@ const LayerManager: React.FC = () => {
         </Box>
         {layerCount === 0 ? (
           <Box sx={{ p: 2 }}>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
               No layers on the map
             </Typography>
           </Box>

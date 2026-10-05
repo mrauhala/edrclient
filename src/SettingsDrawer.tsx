@@ -296,21 +296,23 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                   <ListItemText
                     primary={service.name}
                     secondary={service.url}
-                    primaryTypographyProps={{ variant: 'body2' }}
-                    secondaryTypographyProps={{ 
-                      variant: 'caption',
-                      sx: { 
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
+                    slotProps={{
+                      primary: { variant: 'body2' },
+
+                      secondary: { 
+                        variant: 'caption',
+                        sx: { 
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
+                        }
                       }
-                    }}
-                  />
+                    }} />
                 </ListItem>
               ))}
             </List>
           ) : (
-            <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary', fontStyle: 'italic' }}>
               No custom services added
             </Typography>
           )}

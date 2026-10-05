@@ -104,7 +104,7 @@ const SchemaInspector: React.FC = () => {
           Schema Inspector
         </Button>
       )}
-      
+
       <Dialog open={open} onClose={handleClose} maxWidth="lg" fullWidth>
         <DialogTitle>Schema Inspector</DialogTitle>
         <DialogContent>
@@ -149,7 +149,7 @@ const SchemaInspector: React.FC = () => {
                   </Button>
                 ))}
                 {findAllReferences(schemaData).length === 0 && (
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                     No references found in this schema.
                   </Typography>
                 )}

@@ -504,11 +504,13 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
                 fullWidth
                 size="small"
                 value={collectionUrl}
-                InputProps={{
-                  readOnly: true,
-                  sx: { fontFamily: 'monospace', fontSize: '0.875rem' }
-                }}
                 variant="outlined"
+                slotProps={{
+                  input: {
+                    readOnly: true,
+                    sx: { fontFamily: 'monospace', fontSize: '0.875rem' }
+                  }
+                }}
               />
               <Tooltip title="Copy URL">
                 <IconButton 
@@ -532,7 +534,7 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
               </Tooltip>
             </>
           ) : (
-            <Typography variant="body2" color="text.secondary" sx={{ pl: 1 }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary', pl: 1 }}>
               Select a collection and query to generate URL
             </Typography>
           )}

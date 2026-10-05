@@ -29,7 +29,7 @@ export default function ThemeChips({ themes, size = 'small' }: ThemeChipsProps) 
       {themes.map((theme, themeIndex) => (
         <Box key={themeIndex}>
           {theme.scheme && (
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
               {theme.scheme}
             </Typography>
           )}

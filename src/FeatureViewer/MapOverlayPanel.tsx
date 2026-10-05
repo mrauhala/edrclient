@@ -46,14 +46,16 @@ const MapOverlayPanel: React.FC<MapOverlayPanelProps> = ({ open, onClose, childr
       onClose={onClose}
       onOpen={() => {}}
       disableSwipeToOpen
-      PaperProps={{
-        sx: {
-          maxHeight: '60vh',
-          borderTopLeftRadius: 12,
-          borderTopRightRadius: 12,
-          p: 2,
-          pt: 1,
-        },
+      slotProps={{
+        paper: {
+          sx: {
+            maxHeight: '60vh',
+            borderTopLeftRadius: 12,
+            borderTopRightRadius: 12,
+            p: 2,
+            pt: 1,
+          },
+        }
       }}
     >
       {/* Drag handle */}

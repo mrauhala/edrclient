@@ -12,7 +12,7 @@ import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
 import GppBadIcon from '@mui/icons-material/GppBad';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
-import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
+import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutlined';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { useValidation } from './contexts/ValidationContext';
 import type { EndpointUrls, RawResponses } from './contexts/ValidationContext';
@@ -26,7 +26,7 @@ function SectionStatus({ label, validation }: {
     return (
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         <RemoveCircleOutlineIcon sx={{ fontSize: 18, color: 'text.disabled' }} />
-        <Typography variant="body2" color="text.secondary">{label}</Typography>
+        <Typography variant="body2" sx={{ color: 'text.secondary' }}>{label}</Typography>
       </Box>
     );
   }
@@ -42,7 +42,7 @@ function SectionStatus({ label, validation }: {
       )}
       <Typography variant="body2" sx={{ flex: 1 }}>{label}</Typography>
       {errorCount > 0 && (
-        <Typography variant="caption" color="text.secondary">
+        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
           {errorCount} {errorCount === 1 ? 'error' : 'errors'}
         </Typography>
       )}
@@ -188,7 +188,7 @@ const ValidationPopover: React.FC = () => {
         {errorCount === 0 ? (
           <Box sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
             <CheckCircleIcon color="success" />
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
               No validation errors
             </Typography>
           </Box>
@@ -244,6 +244,7 @@ const ValidationPopover: React.FC = () => {
                           <ButtonBase
                             key={idx}
                             component="div"
+                            nativeButton={false}
                             disabled={!hasUrl}
                             onClick={() => handleErrorClick(error)}
                             sx={{
@@ -259,7 +260,9 @@ const ValidationPopover: React.FC = () => {
                           >
                             {error.path && (
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>
+                                <Typography
+                                  variant="caption"
+                                  sx={{ color: 'text.secondary', fontFamily: 'monospace', fontSize: '0.7rem' }}>
                                   {error.path}
                                 </Typography>
                                 {hasUrl && <OpenInNewIcon sx={{ fontSize: 10, color: 'text.disabled' }} />}
@@ -271,17 +274,23 @@ const ValidationPopover: React.FC = () => {
                               )}
                               <Typography variant="caption">{msg}</Typography>
                               {error.params?.missingProperty && (
-                                <Typography variant="caption" color="error.main" sx={{ fontFamily: 'monospace', fontSize: '0.65rem' }}>
+                                <Typography
+                                  variant="caption"
+                                  sx={{ color: 'error.main', fontFamily: 'monospace', fontSize: '0.65rem' }}>
                                   missing: {error.params.missingProperty}
                                 </Typography>
                               )}
                               {error.params?.allowedValues && (
-                                <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace', fontSize: '0.65rem' }}>
+                                <Typography
+                                  variant="caption"
+                                  sx={{ color: 'text.secondary', fontFamily: 'monospace', fontSize: '0.65rem' }}>
                                   allowed: {error.params.allowedValues.slice(0, 5).join(', ')}{error.params.allowedValues.length > 5 ? '...' : ''}
                                 </Typography>
                               )}
                               {error.data !== undefined && error.keyword !== 'required' && (
-                                <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace', fontSize: '0.65rem' }}>
+                                <Typography
+                                  variant="caption"
+                                  sx={{ color: 'text.secondary', fontFamily: 'monospace', fontSize: '0.65rem' }}>
                                   got: {typeof error.data === 'object' ? JSON.stringify(error.data).slice(0, 60) : String(error.data).slice(0, 60)}
                                 </Typography>
                               )}

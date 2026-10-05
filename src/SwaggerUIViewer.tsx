@@ -46,10 +46,12 @@ const SwaggerUIViewer: React.FC<SwaggerUIViewerProps> = ({ serviceDescUrl, servi
         onClose={handleClose}
         maxWidth="lg"
         fullWidth
-        PaperProps={{
-          sx: {
-            height: '90vh',
-            maxHeight: '90vh'
+        slotProps={{
+          paper: {
+            sx: {
+              height: '90vh',
+              maxHeight: '90vh'
+            }
           }
         }}
       >
