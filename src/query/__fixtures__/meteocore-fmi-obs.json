@@ -1,0 +1,282 @@
+{
+ "id": "fmi-obs",
+ "title": "Global Surface Weather Observations",
+ "links": [
+  {
+   "href": "https://meteocore.app.meteo.fi/edr/collections/fmi-obs",
+   "rel": "self",
+   "type": "application/json",
+   "title": "Global Surface Weather Observations"
+  }
+ ],
+ "extent": {
+  "spatial": {
+   "bbox": [
+    [
+     -71.48978333,
+     -82.45,
+     130.89863,
+     80.1035
+    ]
+   ],
+   "crs": "http://www.opengis.net/def/crs/OGC/1.3/CRS84"
+  },
+  "temporal": {
+   "interval": [
+    [
+     "2026-09-04T00:00:00+00:00",
+     "2026-10-30T21:00:00+00:00"
+    ]
+   ],
+   "trs": "http://www.opengis.net/def/uom/ISO-8601/0/Gregorian"
+  }
+ },
+ "data_queries": {
+  "locations": {
+   "link": {
+    "href": "https://meteocore.app.meteo.fi/edr/collections/fmi-obs/locations",
+    "rel": "data",
+    "variables": {
+     "title": "Locations query",
+     "description": "Lists the collection's named locations as GeoJSON; /locations/{locationId} returns the data at one of them, or at each of a comma-delimited list of them.",
+     "query_type": "locations",
+     "output_formats": [
+      "CoverageJSON",
+      "GeoJSON",
+      "PNG"
+     ],
+     "default_output_format": "CoverageJSON",
+     "crs_details": [
+      {
+       "crs": "CRS84",
+       "wkt": "GEOGCRS[\"WGS 84 (CRS84)\",DATUM[\"World Geodetic System 1984\",ELLIPSOID[\"WGS 84\",6378137,298.257223563,LENGTHUNIT[\"metre\",1]]],PRIMEM[\"Greenwich\",0,ANGLEUNIT[\"degree\",0.0174532925199433]],CS[ellipsoidal,2],AXIS[\"geodetic longitude (Lon)\",east,ORDER[1],ANGLEUNIT[\"degree\",0.0174532925199433]],AXIS[\"geodetic latitude (Lat)\",north,ORDER[2],ANGLEUNIT[\"degree\",0.0174532925199433]],ID[\"OGC\",\"CRS84\"]]"
+      }
+     ],
+     "multiple_locations": true
+    }
+   }
+  },
+  "position": {
+   "link": {
+    "href": "https://meteocore.app.meteo.fi/edr/collections/fmi-obs/position",
+    "rel": "data",
+    "variables": {
+     "title": "Position query",
+     "description": "Data at the WKT POINT or MULTIPOINT given in coords, as CRS84 longitude and latitude.",
+     "query_type": "position",
+     "output_formats": [
+      "CoverageJSON",
+      "GeoJSON",
+      "PNG"
+     ],
+     "default_output_format": "CoverageJSON",
+     "crs_details": [
+      {
+       "crs": "CRS84",
+       "wkt": "GEOGCRS[\"WGS 84 (CRS84)\",DATUM[\"World Geodetic System 1984\",ELLIPSOID[\"WGS 84\",6378137,298.257223563,LENGTHUNIT[\"metre\",1]]],PRIMEM[\"Greenwich\",0,ANGLEUNIT[\"degree\",0.0174532925199433]],CS[ellipsoidal,2],AXIS[\"geodetic longitude (Lon)\",east,ORDER[1],ANGLEUNIT[\"degree\",0.0174532925199433]],AXIS[\"geodetic latitude (Lat)\",north,ORDER[2],ANGLEUNIT[\"degree\",0.0174532925199433]],ID[\"OGC\",\"CRS84\"]]"
+      }
+     ]
+    }
+   }
+  },
+  "area": {
+   "link": {
+    "href": "https://meteocore.app.meteo.fi/edr/collections/fmi-obs/area",
+    "rel": "data",
+    "variables": {
+     "title": "Area query",
+     "description": "Data inside the WKT POLYGON given in coords, as CRS84 longitude and latitude.",
+     "query_type": "area",
+     "output_formats": [
+      "CoverageJSON"
+     ],
+     "default_output_format": "CoverageJSON",
+     "crs_details": [
+      {
+       "crs": "CRS84",
+       "wkt": "GEOGCRS[\"WGS 84 (CRS84)\",DATUM[\"World Geodetic System 1984\",ELLIPSOID[\"WGS 84\",6378137,298.257223563,LENGTHUNIT[\"metre\",1]]],PRIMEM[\"Greenwich\",0,ANGLEUNIT[\"degree\",0.0174532925199433]],CS[ellipsoidal,2],AXIS[\"geodetic longitude (Lon)\",east,ORDER[1],ANGLEUNIT[\"degree\",0.0174532925199433]],AXIS[\"geodetic latitude (Lat)\",north,ORDER[2],ANGLEUNIT[\"degree\",0.0174532925199433]],ID[\"OGC\",\"CRS84\"]]"
+      }
+     ]
+    }
+   }
+  },
+  "radius": {
+   "link": {
+    "href": "https://meteocore.app.meteo.fi/edr/collections/fmi-obs/radius",
+    "rel": "data",
+    "variables": {
+     "title": "Radius query",
+     "description": "Data within a distance of the WKT POINT given in coords, as CRS84 longitude and latitude; within and within-units give the distance.",
+     "query_type": "radius",
+     "output_formats": [
+      "CoverageJSON",
+      "GeoJSON"
+     ],
+     "default_output_format": "CoverageJSON",
+     "crs_details": [
+      {
+       "crs": "CRS84",
+       "wkt": "GEOGCRS[\"WGS 84 (CRS84)\",DATUM[\"World Geodetic System 1984\",ELLIPSOID[\"WGS 84\",6378137,298.257223563,LENGTHUNIT[\"metre\",1]]],PRIMEM[\"Greenwich\",0,ANGLEUNIT[\"degree\",0.0174532925199433]],CS[ellipsoidal,2],AXIS[\"geodetic longitude (Lon)\",east,ORDER[1],ANGLEUNIT[\"degree\",0.0174532925199433]],AXIS[\"geodetic latitude (Lat)\",north,ORDER[2],ANGLEUNIT[\"degree\",0.0174532925199433]],ID[\"OGC\",\"CRS84\"]]"
+      }
+     ],
+     "within_units": [
+      "km",
+      "m",
+      "mi"
+     ]
+    }
+   }
+  },
+  "items": {
+   "link": {
+    "href": "https://meteocore.app.meteo.fi/edr/collections/fmi-obs/items",
+    "rel": "data",
+    "variables": {
+     "title": "Items query",
+     "description": "The collection's features as a GeoJSON FeatureCollection, filtered by bbox and datetime and paged by limit",
+     "query_type": "items",
+     "output_formats": [
+      "GeoJSON"
+     ],
+     "default_output_format": "GeoJSON",
+     "crs_details": [
+      {
+       "crs": "CRS84",
+       "wkt": "GEOGCRS[\"WGS 84 (CRS84)\",DATUM[\"World Geodetic System 1984\",ELLIPSOID[\"WGS 84\",6378137,298.257223563,LENGTHUNIT[\"metre\",1]]],PRIMEM[\"Greenwich\",0,ANGLEUNIT[\"degree\",0.0174532925199433]],CS[ellipsoidal,2],AXIS[\"geodetic longitude (Lon)\",east,ORDER[1],ANGLEUNIT[\"degree\",0.0174532925199433]],AXIS[\"geodetic latitude (Lat)\",north,ORDER[2],ANGLEUNIT[\"degree\",0.0174532925199433]],ID[\"OGC\",\"CRS84\"]]"
+      }
+     ]
+    }
+   }
+  }
+ },
+ "crs": [
+  "http://www.opengis.net/def/crs/OGC/1.3/CRS84"
+ ],
+ "output_formats": [
+  "CoverageJSON",
+  "GeoJSON",
+  "PNG"
+ ],
+ "parameter_names": {
+  "air_temperature": {
+   "type": "Parameter",
+   "label": "2 m air temperature",
+   "description": "2 m air temperature, in \u00b0C",
+   "unit": {
+    "label": {
+     "en": "degC"
+    },
+    "symbol": {
+     "value": "\u00b0C",
+     "type": "https://qudt.org/vocab/unit/DEG_C"
+    }
+   },
+   "observedProperty": {
+    "label": {
+     "en": "2 m air temperature"
+    },
+    "description": "2 m air temperature, in \u00b0C"
+   }
+  },
+  "dew_point_temperature": {
+   "type": "Parameter",
+   "label": "Dew-point temperature",
+   "description": "Dew-point temperature, in \u00b0C",
+   "unit": {
+    "label": {
+     "en": "degC"
+    },
+    "symbol": {
+     "value": "\u00b0C",
+     "type": "https://qudt.org/vocab/unit/DEG_C"
+    }
+   },
+   "observedProperty": {
+    "label": {
+     "en": "Dew-point temperature"
+    },
+    "description": "Dew-point temperature, in \u00b0C"
+   }
+  },
+  "relative_humidity": {
+   "type": "Parameter",
+   "label": "Relative humidity",
+   "description": "Relative humidity, in percent",
+   "unit": {
+    "label": {
+     "en": "percent"
+    },
+    "symbol": {
+     "value": "percent",
+     "type": "http://www.opengis.net/def/uom/UCUM/"
+    }
+   },
+   "observedProperty": {
+    "label": {
+     "en": "Relative humidity"
+    },
+    "description": "Relative humidity, in percent"
+   }
+  },
+  "wind_from_direction": {
+   "type": "Parameter",
+   "label": "Wind from direction",
+   "description": "Wind from direction, in \u00b0",
+   "unit": {
+    "label": {
+     "en": "degree"
+    },
+    "symbol": {
+     "value": "\u00b0",
+     "type": "https://qudt.org/vocab/unit/DEG"
+    }
+   },
+   "observedProperty": {
+    "label": {
+     "en": "Wind from direction"
+    },
+    "description": "Wind from direction, in \u00b0"
+   }
+  },
+  "wind_speed": {
+   "type": "Parameter",
+   "label": "10 m wind speed",
+   "description": "10 m wind speed, in m/s",
+   "unit": {
+    "label": {
+     "en": "m/s"
+    },
+    "symbol": {
+     "value": "m/s",
+     "type": "https://qudt.org/vocab/unit/M-PER-SEC"
+    }
+   },
+   "observedProperty": {
+    "label": {
+     "en": "10 m wind speed"
+    },
+    "description": "10 m wind speed, in m/s"
+   }
+  },
+  "wind_speed_of_gust": {
+   "type": "Parameter",
+   "label": "10 m wind gust",
+   "description": "10 m wind gust, in m/s",
+   "unit": {
+    "label": {
+     "en": "m/s"
+    },
+    "symbol": {
+     "value": "m/s",
+     "type": "https://qudt.org/vocab/unit/M-PER-SEC"
+    }
+   },
+   "observedProperty": {
+    "label": {
+     "en": "10 m wind gust"
+    },
+    "description": "10 m wind gust, in m/s"
+   }
+  }
+ }
+}

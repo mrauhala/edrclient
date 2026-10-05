@@ -1,0 +1,236 @@
+{
+ "id": "ICON-D2-RUC@single_level",
+ "links": [
+  {
+   "href": "https://nwp.opendata-api.dwd.de/v1beta1/collections/ICON-D2-RUC@single_level",
+   "rel": "self",
+   "type": "application/json"
+  }
+ ],
+ "extent": {
+  "spatial": {
+   "bbox": [
+    [
+     -4.161636,
+     43.044051,
+     20.544435,
+     58.16465
+    ]
+   ],
+   "crs": "OGC:CRS84"
+  },
+  "temporal": {
+   "interval": [
+    [
+     "2026-10-05T10:00:00Z",
+     "2026-10-06T13:00:00Z"
+    ]
+   ],
+   "values": [
+    "R27/2026-10-05T10:00:00Z/PT1H"
+   ],
+   "trs": "Gregorian"
+  }
+ },
+ "data_queries": {
+  "position": {
+   "link": {
+    "href": "https://nwp.opendata-api.dwd.de/v1beta1/collections/ICON-D2-RUC@single_level/position",
+    "rel": "data",
+    "type": "application/vnd.cov+json",
+    "variables": {
+     "query_type": "position",
+     "output_formats": [
+      "CoverageJSON"
+     ],
+     "default_output_format": "CoverageJSON",
+     "title": "Position query",
+     "description": "Query to return data for a defined well known text point.",
+     "crs_details": [
+      {
+       "crs": "OGC:CRS84",
+       "wkt": "GEOGCRS[\"WGS 84 (CRS84)\",ENSEMBLE[\"World Geodetic System 1984 ensemble\",MEMBER[\"World Geodetic System 1984 (Transit)\"],MEMBER[\"World Geodetic System 1984 (G730)\"],MEMBER[\"World Geodetic System 1984 (G873)\"],MEMBER[\"World Geodetic System 1984 (G1150)\"],MEMBER[\"World Geodetic System 1984 (G1674)\"],MEMBER[\"World Geodetic System 1984 (G1762)\"],MEMBER[\"World Geodetic System 1984 (G2139)\"],MEMBER[\"World Geodetic System 1984 (G2296)\"],ELLIPSOID[\"WGS 84\",6378137,298.257223563,LENGTHUNIT[\"metre\",1]],ENSEMBLEACCURACY[2.0]],PRIMEM[\"Greenwich\",0,ANGLEUNIT[\"degree\",0.0174532925199433]],CS[ellipsoidal,2],AXIS[\"geodetic longitude (Lon)\",east,ORDER[1],ANGLEUNIT[\"degree\",0.0174532925199433]],AXIS[\"geodetic latitude (Lat)\",north,ORDER[2],ANGLEUNIT[\"degree\",0.0174532925199433]],USAGE[SCOPE[\"Not known.\"],AREA[\"World.\"],BBOX[-90,-180,90,180]],ID[\"OGC\",\"CRS84\"]]"
+      }
+     ]
+    }
+   }
+  },
+  "radius": {
+   "link": {
+    "href": "https://nwp.opendata-api.dwd.de/v1beta1/collections/ICON-D2-RUC@single_level/radius",
+    "rel": "data",
+    "type": "application/vnd.cov+json",
+    "variables": {
+     "query_type": "radius",
+     "output_formats": [
+      "CoverageJSON"
+     ],
+     "default_output_format": "CoverageJSON",
+     "within_units": [
+      "km",
+      "m"
+     ],
+     "title": "Radius query",
+     "description": "Query to return data within a radius of a defined well known text point.",
+     "crs_details": [
+      {
+       "crs": "OGC:CRS84",
+       "wkt": "GEOGCRS[\"WGS 84 (CRS84)\",ENSEMBLE[\"World Geodetic System 1984 ensemble\",MEMBER[\"World Geodetic System 1984 (Transit)\"],MEMBER[\"World Geodetic System 1984 (G730)\"],MEMBER[\"World Geodetic System 1984 (G873)\"],MEMBER[\"World Geodetic System 1984 (G1150)\"],MEMBER[\"World Geodetic System 1984 (G1674)\"],MEMBER[\"World Geodetic System 1984 (G1762)\"],MEMBER[\"World Geodetic System 1984 (G2139)\"],MEMBER[\"World Geodetic System 1984 (G2296)\"],ELLIPSOID[\"WGS 84\",6378137,298.257223563,LENGTHUNIT[\"metre\",1]],ENSEMBLEACCURACY[2.0]],PRIMEM[\"Greenwich\",0,ANGLEUNIT[\"degree\",0.0174532925199433]],CS[ellipsoidal,2],AXIS[\"geodetic longitude (Lon)\",east,ORDER[1],ANGLEUNIT[\"degree\",0.0174532925199433]],AXIS[\"geodetic latitude (Lat)\",north,ORDER[2],ANGLEUNIT[\"degree\",0.0174532925199433]],USAGE[SCOPE[\"Not known.\"],AREA[\"World.\"],BBOX[-90,-180,90,180]],ID[\"OGC\",\"CRS84\"]]"
+      }
+     ]
+    }
+   }
+  },
+  "area": {
+   "link": {
+    "href": "https://nwp.opendata-api.dwd.de/v1beta1/collections/ICON-D2-RUC@single_level/area",
+    "rel": "data",
+    "type": "application/vnd.cov+json",
+    "variables": {
+     "query_type": "area",
+     "output_formats": [
+      "CoverageJSON"
+     ],
+     "default_output_format": "CoverageJSON",
+     "title": "Area query",
+     "description": "Query to return data for a defined well known text polygon.",
+     "crs_details": [
+      {
+       "crs": "OGC:CRS84",
+       "wkt": "GEOGCRS[\"WGS 84 (CRS84)\",ENSEMBLE[\"World Geodetic System 1984 ensemble\",MEMBER[\"World Geodetic System 1984 (Transit)\"],MEMBER[\"World Geodetic System 1984 (G730)\"],MEMBER[\"World Geodetic System 1984 (G873)\"],MEMBER[\"World Geodetic System 1984 (G1150)\"],MEMBER[\"World Geodetic System 1984 (G1674)\"],MEMBER[\"World Geodetic System 1984 (G1762)\"],MEMBER[\"World Geodetic System 1984 (G2139)\"],MEMBER[\"World Geodetic System 1984 (G2296)\"],ELLIPSOID[\"WGS 84\",6378137,298.257223563,LENGTHUNIT[\"metre\",1]],ENSEMBLEACCURACY[2.0]],PRIMEM[\"Greenwich\",0,ANGLEUNIT[\"degree\",0.0174532925199433]],CS[ellipsoidal,2],AXIS[\"geodetic longitude (Lon)\",east,ORDER[1],ANGLEUNIT[\"degree\",0.0174532925199433]],AXIS[\"geodetic latitude (Lat)\",north,ORDER[2],ANGLEUNIT[\"degree\",0.0174532925199433]],USAGE[SCOPE[\"Not known.\"],AREA[\"World.\"],BBOX[-90,-180,90,180]],ID[\"OGC\",\"CRS84\"]]"
+      }
+     ]
+    }
+   }
+  },
+  "cube": {
+   "link": {
+    "href": "https://nwp.opendata-api.dwd.de/v1beta1/collections/ICON-D2-RUC@single_level/cube",
+    "rel": "data",
+    "type": "application/vnd.cov+json",
+    "variables": {
+     "query_type": "cube",
+     "output_formats": [
+      "CoverageJSON"
+     ],
+     "default_output_format": "CoverageJSON",
+     "height_units": [
+      "m"
+     ],
+     "title": "Cube query",
+     "description": "Query to return data for a defined bounding box.",
+     "crs_details": [
+      {
+       "crs": "OGC:CRS84",
+       "wkt": "GEOGCRS[\"WGS 84 (CRS84)\",ENSEMBLE[\"World Geodetic System 1984 ensemble\",MEMBER[\"World Geodetic System 1984 (Transit)\"],MEMBER[\"World Geodetic System 1984 (G730)\"],MEMBER[\"World Geodetic System 1984 (G873)\"],MEMBER[\"World Geodetic System 1984 (G1150)\"],MEMBER[\"World Geodetic System 1984 (G1674)\"],MEMBER[\"World Geodetic System 1984 (G1762)\"],MEMBER[\"World Geodetic System 1984 (G2139)\"],MEMBER[\"World Geodetic System 1984 (G2296)\"],ELLIPSOID[\"WGS 84\",6378137,298.257223563,LENGTHUNIT[\"metre\",1]],ENSEMBLEACCURACY[2.0]],PRIMEM[\"Greenwich\",0,ANGLEUNIT[\"degree\",0.0174532925199433]],CS[ellipsoidal,2],AXIS[\"geodetic longitude (Lon)\",east,ORDER[1],ANGLEUNIT[\"degree\",0.0174532925199433]],AXIS[\"geodetic latitude (Lat)\",north,ORDER[2],ANGLEUNIT[\"degree\",0.0174532925199433]],USAGE[SCOPE[\"Not known.\"],AREA[\"World.\"],BBOX[-90,-180,90,180]],ID[\"OGC\",\"CRS84\"]]"
+      }
+     ]
+    }
+   }
+  }
+ },
+ "crs": [
+  "OGC:CRS84"
+ ],
+ "output_formats": [
+  "CoverageJSON"
+ ],
+ "parameter_names": {
+  "ASWDIFD_S": {
+   "type": "Parameter",
+   "description": "Downward diffusive short wave radiation flux at surface (mean over forecast time)",
+   "data-type": "float",
+   "unit": {
+    "label": "Watt per square meter",
+    "symbol": {
+     "value": "watt / meter ** 2",
+     "type": "https://qudt.org/vocab/unit/W-PER-M2"
+    }
+   },
+   "observedProperty": {
+    "label": "ASWDIFD_S"
+   },
+   "dwd_grib_name": "ASWDIFD_S"
+  },
+  "ASWDIR_S": {
+   "type": "Parameter",
+   "description": "Downward direct short wave radiation flux at surface (mean over forecast time)",
+   "data-type": "float",
+   "unit": {
+    "label": "Watt per square meter",
+    "symbol": {
+     "value": "watt / meter ** 2",
+     "type": "https://qudt.org/vocab/unit/W-PER-M2"
+    }
+   },
+   "observedProperty": {
+    "label": "ASWDIR_S"
+   },
+   "dwd_grib_name": "ASWDIR_S"
+  },
+  "CAPE_ML": {
+   "type": "Parameter",
+   "description": "Convective Available Potential Energy, mean layer",
+   "data-type": "float",
+   "unit": {
+    "label": "Joule per kilogram",
+    "symbol": {
+     "value": "joule / kilogram",
+     "type": "https://qudt.org/vocab/unit/J-PER-KG"
+    }
+   },
+   "observedProperty": {
+    "label": "CAPE_ML"
+   },
+   "dwd_grib_name": "CAPE_ML"
+  },
+  "CEILING": {
+   "type": "Parameter",
+   "description": "Ceiling",
+   "data-type": "float",
+   "unit": {
+    "label": "Meter",
+    "symbol": {
+     "value": "meter",
+     "type": "https://qudt.org/vocab/unit/M"
+    }
+   },
+   "observedProperty": {
+    "label": "CEILING"
+   },
+   "dwd_grib_name": "CEILING"
+  },
+  "CIN_MU": {
+   "type": "Parameter",
+   "description": "Convective Inhibition, most unstable",
+   "data-type": "float",
+   "unit": {
+    "label": "Joule per kilogram",
+    "symbol": {
+     "value": "joule / kilogram",
+     "type": "https://qudt.org/vocab/unit/J-PER-KG"
+    }
+   },
+   "observedProperty": {
+    "label": "CIN_MU"
+   },
+   "dwd_grib_name": "CIN_MU"
+  },
+  "CLCM": {
+   "type": "Parameter",
+   "description": "Cloud Cover (400 - 800 hPa)",
+   "data-type": "float",
+   "unit": {
+    "label": "Percent",
+    "symbol": {
+     "value": "percent",
+     "type": "https://qudt.org/vocab/unit/PERCENT"
+    }
+   },
+   "observedProperty": {
+    "label": "CLCM"
+   },
+   "dwd_grib_name": "CLCM"
+  }
+ }
+}

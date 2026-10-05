@@ -1,0 +1,358 @@
+{
+ "id": "ecmwf_painepinta",
+ "links": [
+  {
+   "href": "https://opendata.fmi.fi/edr/collections/ecmwf_painepinta",
+   "hreflang": "en",
+   "rel": "self",
+   "type": "application/json"
+  }
+ ],
+ "extent": {
+  "custom": [
+   {
+    "id": "timestep",
+    "interval": [
+     [
+      360,
+      1440
+     ]
+    ],
+    "reference": "minutes",
+    "values": [
+     360,
+     720,
+     1440
+    ]
+   }
+  ],
+  "spatial": {
+   "crs": "OGC:CRS84",
+   "bbox": [
+    [
+     -180,
+     -90,
+     180,
+     90
+    ]
+   ]
+  },
+  "temporal": {
+   "interval": [
+    [
+     "2026-10-05T00:00:00Z",
+     "2026-10-15T00:00:00Z"
+    ]
+   ],
+   "trs": "TIMECRS[\"DateTime\",TDATUM[\"Gregorian Calendar\"],CS[TemporalDateTime,1],AXIS[\"Time (T)\",future]",
+   "values": [
+    "R40/2026-10-05T00:00:00Z/PT360M"
+   ]
+  },
+  "vertical": {
+   "interval": [
+    [
+     "1000",
+     "50"
+    ]
+   ],
+   "values": [
+    "1000",
+    "925",
+    "850",
+    "700",
+    "500",
+    "300",
+    "250",
+    "200",
+    "50"
+   ],
+   "vrs": "Vertical Reference System: PressureLevel"
+  }
+ },
+ "data_queries": {
+  "area": {
+   "link": {
+    "title": "Area query",
+    "href": "https://opendata.fmi.fi/edr/collections/ecmwf_painepinta/area",
+    "hreflang": "en",
+    "rel": "data",
+    "variables": {
+     "title": "Area query",
+     "description": "Data at the requested area",
+     "output_formats": [
+      "CoverageJSON",
+      "GeoJSON"
+     ],
+     "coords": "Well Known Text POLYGON value i.e. POLYGON((24 61,24 61.5,24.5 61.5,24.5 61,24 61))",
+     "crs_details": [
+      {
+       "crs": "OGC:CRS84",
+       "wkt": "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]]"
+      }
+     ],
+     "default_output_format": "CoverageJSON",
+     "query_type": "area"
+    }
+   }
+  },
+  "corridor": {
+   "link": {
+    "title": "Corridor query",
+    "href": "https://opendata.fmi.fi/edr/collections/ecmwf_painepinta/corridor",
+    "hreflang": "en",
+    "rel": "data",
+    "variables": {
+     "title": "Corridor query",
+     "description": "Data within corridor",
+     "output_formats": [
+      "CoverageJSON",
+      "GeoJSON"
+     ],
+     "coords": "Well Known Text LINESTRING value i.e. LINESTRING(24 61,24.2 61.2,24.3 61.3)",
+     "corridor-height": "Corridor height",
+     "corridor-width": "Corridor width",
+     "crs_details": [
+      {
+       "crs": "OGC:CRS84",
+       "wkt": "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]]"
+      }
+     ],
+     "default_output_format": "CoverageJSON",
+     "height-units": [
+      "hPa",
+      "mbar",
+      "Pa"
+     ],
+     "query_type": "corridor",
+     "width-units": [
+      "km",
+      "mi"
+     ]
+    }
+   }
+  },
+  "cube": {
+   "link": {
+    "title": "Cube query",
+    "href": "https://opendata.fmi.fi/edr/collections/ecmwf_painepinta/cube",
+    "hreflang": "en",
+    "rel": "data",
+    "variables": {
+     "title": "Cube query",
+     "description": "Data inside requested bounding box",
+     "output_formats": [
+      "CoverageJSON",
+      "GeoJSON"
+     ],
+     "coords": "Well Known Text POLYGON value i.e. POLYGON((24 61,24 61.5,24.5 61.5,24.5 61,24 61))",
+     "crs_details": [
+      {
+       "crs": "OGC:CRS84",
+       "wkt": "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]]"
+      }
+     ],
+     "default_output_format": "CoverageJSON",
+     "maxz": "Maximum level to return data for, for example 300",
+     "minz": "Minimum level to return data for, for example 850",
+     "query_type": "cube"
+    }
+   }
+  },
+  "instances": {
+   "link": {
+    "title": "Instances query",
+    "href": "https://opendata.fmi.fi/edr/collections/ecmwf_painepinta/instances",
+    "hreflang": "en",
+    "rel": "collection",
+    "variables": {
+     "title": "Instances query",
+     "output_formats": [
+      "CoverageJSON",
+      "GeoJSON"
+     ],
+     "crs_details": [
+      {
+       "crs": "OGC:CRS84",
+       "wkt": "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]]"
+      }
+     ],
+     "default_output_format": "CoverageJSON",
+     "query_type": "instances"
+    }
+   }
+  },
+  "locations": {
+   "link": {
+    "title": "Locations query",
+    "href": "https://opendata.fmi.fi/edr/collections/ecmwf_painepinta/locations",
+    "hreflang": "en",
+    "rel": "data",
+    "variables": {
+     "title": "Locations query",
+     "description": "Data at point location defined by a unique identifier",
+     "output_formats": [
+      "CoverageJSON",
+      "GeoJSON"
+     ],
+     "crs_details": [
+      {
+       "crs": "OGC:CRS84",
+       "wkt": "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]]"
+      }
+     ],
+     "default_output_format": "CoverageJSON",
+     "query_type": "locations"
+    }
+   }
+  },
+  "position": {
+   "link": {
+    "title": "Position query",
+    "href": "https://opendata.fmi.fi/edr/collections/ecmwf_painepinta/position",
+    "hreflang": "en",
+    "rel": "data",
+    "variables": {
+     "title": "Position query",
+     "description": "Data at point location",
+     "output_formats": [
+      "CoverageJSON",
+      "GeoJSON"
+     ],
+     "coords": "Well Known Text POINT value i.e. POINT(24.9384 60.1699)",
+     "crs_details": [
+      {
+       "crs": "OGC:CRS84",
+       "wkt": "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]]"
+      }
+     ],
+     "default_output_format": "CoverageJSON",
+     "query_type": "position"
+    }
+   }
+  },
+  "radius": {
+   "link": {
+    "title": "Radius query",
+    "href": "https://opendata.fmi.fi/edr/collections/ecmwf_painepinta/radius",
+    "hreflang": "en",
+    "rel": "data",
+    "variables": {
+     "title": "Radius query",
+     "description": "Data at the area specified with a geographic position and radial distance",
+     "output_formats": [
+      "CoverageJSON",
+      "GeoJSON"
+     ],
+     "coords": "Well Known Text POINT value i.e. POINT(24.9384 60.1699)",
+     "crs_details": [
+      {
+       "crs": "OGC:CRS84",
+       "wkt": "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]]"
+      }
+     ],
+     "default_output_format": "CoverageJSON",
+     "query_type": "radius",
+     "within_units": [
+      "km",
+      "mi"
+     ]
+    }
+   }
+  },
+  "trajectory": {
+   "link": {
+    "title": "Trajectory query",
+    "href": "https://opendata.fmi.fi/edr/collections/ecmwf_painepinta/trajectory",
+    "hreflang": "en",
+    "rel": "data",
+    "variables": {
+     "title": "Trajectory query",
+     "description": "Data along trajectory",
+     "output_formats": [
+      "CoverageJSON",
+      "GeoJSON"
+     ],
+     "coords": "Well Known Text LINESTRING value i.e. LINESTRING(24 61,24.2 61.2,24.3 61.3)",
+     "crs_details": [
+      {
+       "crs": "OGC:CRS84",
+       "wkt": "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]]"
+      }
+     ],
+     "default_output_format": "CoverageJSON",
+     "query_type": "trajectory"
+    }
+   }
+  }
+ },
+ "crs": [
+  "OGC:CRS84"
+ ],
+ "output_formats": [
+  "CoverageJSON",
+  "GeoJSON"
+ ],
+ "parameter_names": {
+  "dewpoint": {
+   "id": "DewPoint",
+   "description": "Td",
+   "label": "DewPoint",
+   "type": "Parameter",
+   "observedProperty": {
+    "id": "DewPoint",
+    "label": "DewPoint"
+   }
+  },
+  "geopheight": {
+   "id": "GeopHeight",
+   "description": "geop",
+   "label": "GeopHeight",
+   "type": "Parameter",
+   "observedProperty": {
+    "id": "GeopHeight",
+    "label": "GeopHeight"
+   }
+  },
+  "humidity": {
+   "id": "Humidity",
+   "description": "Suhteellinen kosteus",
+   "label": "Humidity",
+   "type": "Parameter",
+   "observedProperty": {
+    "id": "Humidity",
+    "label": "Humidity"
+   }
+  },
+  "temperature": {
+   "id": "Temperature",
+   "description": "Temperature",
+   "label": "Temperature",
+   "type": "Parameter",
+   "observedProperty": {
+    "id": "Temperature",
+    "label": "Temperature"
+   }
+  },
+  "verticalvelocitymms": {
+   "id": "VerticalVelocityMMS",
+   "description": "VerticalVelocityMMS",
+   "label": "VerticalVelocityMMS",
+   "type": "Parameter",
+   "observedProperty": {
+    "id": "VerticalVelocityMMS",
+    "label": "VerticalVelocityMMS"
+   }
+  },
+  "winddirection": {
+   "id": "WindDirection",
+   "description": "Tuulen suunta",
+   "label": "WindDirection",
+   "type": "Parameter",
+   "observedProperty": {
+    "id": "WindDirection",
+    "label": "WindDirection"
+   }
+  }
+ }
+}

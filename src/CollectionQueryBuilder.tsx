@@ -16,6 +16,8 @@ import ListItemText from '@mui/material/ListItemText';
 import { Collection, expandVerticalValues, expandCustomDimensionValues, getEffectiveCustomDimensions } from './DataRetrievalAPI';
 import { UseQueryUrlReturn } from './hooks/useQueryUrl';
 import TimeControl from './TimeControl';
+import QueryIssuesPanel, { FieldIssueText } from './QueryIssuesPanel';
+import { useQueryValidation } from './hooks/useQueryValidation';
 
 interface CollectionQueryBuilderProps {
   collection: Collection;
@@ -37,6 +39,10 @@ const CollectionQueryBuilder: React.FC<CollectionQueryBuilderProps> = ({ collect
     customDimensionEnds, setCustomDimensionEnds,
     getEffectiveOutputFormats,
   } = queryState;
+
+  const { issues } = useQueryValidation();
+  // The most important issue about a field, to show under it
+  const fieldIssue = (field: string) => issues.find(issue => issue.field === field && issue.severity !== 'info');
 
   return (
     <>
@@ -63,11 +69,13 @@ const CollectionQueryBuilder: React.FC<CollectionQueryBuilderProps> = ({ collect
         </FormControl>
       )}
 
+      {selectedDataQuery && <QueryIssuesPanel />}
+
       {/* Format Selector */}
       {(() => {
         const effectiveFormats = getEffectiveOutputFormats(collection, selectedDataQuery);
         return effectiveFormats.length > 0 && (
-          <FormControl fullWidth sx={{ mb: 2 }}>
+          <FormControl fullWidth sx={{ mb: 2 }} id="query-field-f" error={fieldIssue('f')?.severity === 'error'}>
             <InputLabel id="format-select-label">Output Format</InputLabel>
             <Select
               labelId="format-select-label"
@@ -87,13 +95,14 @@ const CollectionQueryBuilder: React.FC<CollectionQueryBuilderProps> = ({ collect
                 </MenuItem>
               ))}
             </Select>
+            <FieldIssueText issue={fieldIssue('f')} />
           </FormControl>
         );
       })()}
 
       {/* Parameter Selector - Multiselect */}
       { typeof collection.parameter_names !== "undefined" && (
-        <FormControl fullWidth sx={{ mb: 2 }}>
+        <FormControl fullWidth sx={{ mb: 2 }} id="query-field-parameter-name" error={fieldIssue('parameter-name')?.severity === 'error'}>
           <InputLabel id="parameter-select-label">Parameters</InputLabel>
           <Select
             labelId="parameter-select-label"
@@ -125,12 +134,16 @@ const CollectionQueryBuilder: React.FC<CollectionQueryBuilderProps> = ({ collect
                 })
             }
           </Select>
+          <FieldIssueText issue={fieldIssue('parameter-name')} />
         </FormControl>
       )}
 
       {/* Datetime Selector — TimeControl with slider + transport buttons */}
       {collection.extent?.temporal && (
-        <TimeControl temporal={collection.extent.temporal} queryState={queryState} />
+        <Box id="query-field-datetime">
+          <TimeControl temporal={collection.extent.temporal} queryState={queryState} />
+          <FieldIssueText issue={fieldIssue('datetime')} />
+        </Box>
       )}
 
       {/* Vertical Extent Selector */}
@@ -146,7 +159,7 @@ const CollectionQueryBuilder: React.FC<CollectionQueryBuilderProps> = ({ collect
 
         // Show vertical selection UI if collection has vertical extent (values OR interval)
         return (hasValues || hasInterval) ? (
-          <Box sx={{ mb: 2 }}>
+          <Box sx={{ mb: 2 }} id="query-field-z">
             <FormLabel component="legend" sx={{ fontSize: '0.875rem', mb: 1 }}>Vertical Level Selection</FormLabel>
 
             {/* Info message when using text input due to large intervals */}
@@ -332,6 +345,7 @@ const CollectionQueryBuilder: React.FC<CollectionQueryBuilderProps> = ({ collect
                 )}
               </Box>
             )}
+            <FieldIssueText issue={fieldIssue('z')} />
           </Box>
         ) : null;
       })()}
@@ -349,7 +363,7 @@ const CollectionQueryBuilder: React.FC<CollectionQueryBuilderProps> = ({ collect
 
         // Show dimension selection UI if dimension has values OR interval
         return (hasValues || hasInterval) ? (
-          <Box key={dimensionId} sx={{ mb: 2 }}>
+          <Box key={dimensionId} sx={{ mb: 2 }} id={`query-field-dim:${dimensionId}`}>
             <FormLabel component="legend" sx={{ fontSize: '0.875rem', mb: 1 }}>
               {dimension.id} Selection {dimension.reference ? `(${dimension.reference})` : ''}
             </FormLabel>
@@ -547,6 +561,7 @@ const CollectionQueryBuilder: React.FC<CollectionQueryBuilderProps> = ({ collect
                 )}
               </Box>
             )}
+            <FieldIssueText issue={fieldIssue(`dim:${dimensionId}`)} />
           </Box>
         ) : null;
       })}
