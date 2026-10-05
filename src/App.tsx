@@ -79,12 +79,12 @@ interface AppContentProps {
 }
 
 function AppContent({ customServices, setCustomServices }: AppContentProps) {
-  // Load theme mode from localStorage or default to 'system'
+  // Load theme mode from localStorage or default to 'dark'
   const [themeMode, setThemeMode] = useState<'light' | 'dark' | 'system'>(() => {
     const savedMode = localStorage.getItem('themeMode');
     return (savedMode === 'light' || savedMode === 'dark' || savedMode === 'system')
       ? savedMode
-      : 'system';
+      : 'dark';
   });
 
   const [settingsDrawerOpen, setSettingsDrawerOpen] = useState(false);
