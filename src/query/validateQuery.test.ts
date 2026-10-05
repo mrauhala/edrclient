@@ -19,7 +19,7 @@ const BERLIN: [number, number] = [13.4, 52.5];
 function issuesFor(collection: Collection, queryKey: string, overrides: Partial<QueryModelInput> = {}) {
   const model = buildQueryModel({
     collection, queryKey, format: 'CoverageJSON', parameters: [], datetime: emptyDim(), vertical: emptyDim(),
-    customDims: {}, points: [], polygons: [], radius: { value: 10, units: 'km' }, queryParams: {}, locationFeature: null, ...overrides,
+    customDims: {}, points: [], polygons: [], bbox: null, bboxAsCoords: false, radius: { value: 10, units: 'km' }, queryParams: {}, locationFeature: null, ...overrides,
   });
   return validateQuery(model!);
 }
@@ -62,8 +62,20 @@ describe('EDR geometry rules', () => {
     expect(problems(issuesFor(DWD, 'radius', { points: [BERLIN], radius: { value: 5, units: 'm' } }))).toEqual([]);
   });
 
+  it('cube needs a real lon/lat box over the collection', () => {
+    const cube = (bbox: [number, number, number, number] | null) => problems(issuesFor(FMI_LEVELS, 'cube', { bbox }));
+    expect(cube([24, 60, 25, 61])).toEqual([]);
+    expect(cube(null)).toEqual(['missing bbox']);
+    expect(issuesFor(FMI_LEVELS, 'cube').find(issue => issue.field === 'bbox')).toMatchObject({ input: 'map' });
+    expect(cube([25, 60, 24, 61])).toEqual(['error bbox']);
+    expect(cube([24, 61, 25, 61])).toEqual(['error bbox']);
+    expect(cube([24, 60, 25, 95])).toEqual(['error bbox']);
+    // ecmwf_painepinta is global; DWD's ICON-D2 covers central Europe
+    expect(problems(issuesFor(DWD, 'cube', { bbox: [150, -40, 160, -30] }))).toEqual(['warning bbox']);
+    expect(problems(issuesFor(DWD, 'cube', { bbox: [10, 50, 11, 51] }))).toEqual([]);
+  });
+
   it('flags query types the builder cannot fill yet', () => {
-    expect(problems(issuesFor(FMI_LEVELS, 'cube'))).toEqual(['warning bbox']);
     expect(ids(issuesFor(METEOCORE, 'items', { format: 'GeoJSON' }))).toContain('edr:query:list');
     expect(ids(issuesFor(FMI, 'instances'))).toContain('edr:query:list');
   });
@@ -164,7 +176,7 @@ describe('ordering and summary', () => {
 describe('addApiDocsIssues', () => {
   const model = (overrides: Partial<QueryModelInput> = {}) => buildQueryModel({
     collection: FMI, queryKey: 'position', format: 'CoverageJSON', parameters: [], datetime: emptyDim(), vertical: emptyDim(),
-    customDims: {}, points: [HELSINKI], polygons: [], radius: { value: 10, units: 'km' }, queryParams: {}, locationFeature: null, ...overrides,
+    customDims: {}, points: [HELSINKI], polygons: [], bbox: null, bboxAsCoords: false, radius: { value: 10, units: 'km' }, queryParams: {}, locationFeature: null, ...overrides,
   })!;
   const apiIssue = (field: string, severity: QueryIssue['severity'] = 'warning'): QueryIssue => ({
     id: `openapi:${field}:rule`, severity, source: 'openapi', field, message: `about ${field}`, pointer: '/paths',
@@ -194,7 +206,7 @@ describe('addApiDocsIssues', () => {
   it("notes a missing parameter the API docs mark optional", () => {
     const corridor = buildQueryModel({
       collection: FMI_LEVELS, queryKey: 'corridor', format: 'CoverageJSON', parameters: [], datetime: emptyDim(), vertical: emptyDim(),
-      customDims: {}, points: [HELSINKI, [25.5, 61.2]], polygons: [], radius: { value: 10, units: 'km' },
+      customDims: {}, points: [HELSINKI, [25.5, 61.2]], polygons: [], bbox: null, bboxAsCoords: false, radius: { value: 10, units: 'km' },
       queryParams: { 'corridor-width': '10', 'width-units': 'km' }, locationFeature: null,
     })!;
     const param = (name: string, required: boolean) => ({ name, in: 'query', required, enumValues: null, isArray: false, pointer: '' });

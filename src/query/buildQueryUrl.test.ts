@@ -120,7 +120,7 @@ describe('buildQueryUrl serializes exactly like the previous URL builder', () =>
         for (const polygons of POLYGONS) for (const location of LOCATIONS) for (const customDims of CUSTOM_DIMS)
         for (const [f, parameters] of [['', []], [format, ['Temperature', 'Humidity']]] as [string, string[]][]) {
           const input: QueryModelInput = {
-            collection, queryKey, format: f, parameters, datetime, vertical, customDims, points, polygons,
+            collection, queryKey, format: f, parameters, datetime, vertical, customDims, points, polygons, bbox: null, bboxAsCoords: false,
             radius: { value: 25, units: 'km' }, queryParams: {}, locationFeature: location,
           };
           const model = buildQueryModel(input)!;
@@ -145,7 +145,7 @@ describe('buildQueryUrl serializes exactly like the previous URL builder', () =>
 describe('buildQueryUrl', () => {
   const request = (queryKey: string, overrides: Partial<QueryModelInput>) => buildQueryUrl(buildQueryModel({
     collection: COLLECTIONS.fmiEcmwf, queryKey, format: 'CoverageJSON', parameters: [],
-    datetime: emptyDim(), vertical: emptyDim(), customDims: {}, points: [[24.9384, 60.1699]], polygons: [],
+    datetime: emptyDim(), vertical: emptyDim(), customDims: {}, points: [[24.9384, 60.1699]], polygons: [], bbox: null, bboxAsCoords: false,
     radius: { value: 10, units: 'km' }, queryParams: {}, locationFeature: null, ...overrides,
   })!)!;
   const position = (overrides: Partial<QueryModelInput>) => request('position', overrides);
@@ -176,10 +176,22 @@ describe('buildQueryUrl', () => {
     expect(new URL(position({ queryParams: { 'corridor-width': '10' } })).searchParams.has('corridor-width')).toBe(false);
   });
 
+  it('sends a cube box, and on request the same box as coords', () => {
+    const cube = (bboxAsCoords: boolean) => new URL(buildQueryUrl(buildQueryModel({
+      collection: COLLECTIONS.fmiPainepinta, queryKey: 'cube', format: 'CoverageJSON', parameters: [],
+      datetime: emptyDim(), vertical: emptyDim(), customDims: {}, points: [[24.9384, 60.1699]], polygons: [],
+      bbox: [24, 60.5, 25.25, 61], bboxAsCoords, radius: { value: 10, units: 'km' }, queryParams: {}, locationFeature: null,
+    })!)!).searchParams;
+    expect(cube(false).get('bbox')).toBe('24.000,60.500,25.250,61.000');
+    expect(cube(false).has('coords')).toBe(false); // clicked points belong to other query types
+    expect(cube(true).get('coords')).toBe('POLYGON((24.000 60.500,24.000 61.000,25.250 61.000,25.250 60.500,24.000 60.500))');
+    expect(new URL(position({ bbox: [24, 60, 25, 61] })).searchParams.has('bbox')).toBe(false);
+  });
+
   it('returns null for a query the collection does not offer', () => {
     expect(buildQueryModel({
       collection: COLLECTIONS.fmiEcmwf, queryKey: 'nope', format: '', parameters: [], datetime: emptyDim(),
-      vertical: emptyDim(), customDims: {}, points: [], polygons: [], radius: { value: 10, units: 'km' }, queryParams: {}, locationFeature: null,
+      vertical: emptyDim(), customDims: {}, points: [], polygons: [], bbox: null, bboxAsCoords: false, radius: { value: 10, units: 'km' }, queryParams: {}, locationFeature: null,
     })).toBeNull();
   });
 });

@@ -26,7 +26,8 @@ interface MapProps {
 const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
   // Context values for JSX rendering
   const { geoJsonLayers, setGeoJsonLayers, selectedGeoJsonFeature, setSelectedGeoJsonFeature } = useGeoJsonLayers();
-  const { clickedCoords, setClickedCoords, selectedArea, setSelectedArea, radius, setRadius, radiusUnits, dataQuery } = useMapInteraction();
+  const { clickedCoords, setClickedCoords, selectedArea, setSelectedArea, selectedBbox, setSelectedBbox, radius, setRadius, radiusUnits, dataQuery } = useMapInteraction();
+  const geometryKind = geometryKindOf(dataQuery);
   const radiusRange = rangeFor(radiusUnits);
   const { selectedCollection, selectedFeature, setSelectedFeature, landingPageLicense } = useCollection();
 
@@ -170,12 +171,13 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
       {/* What the query needs from the map, and clearing it */}
       <MapQueryOverlay
         queryType={dataQuery}
-        hasGeometry={geometryKindOf(dataQuery) === 'polygon' ? selectedArea.length > 0 : clickedCoords.length > 0}
+        hasGeometry={geometryKind === 'polygon' ? selectedArea.length > 0 : geometryKind === 'bbox' ? selectedBbox !== null : clickedCoords.length > 0}
         isDrawing={isDrawing}
         onClear={() => {
           abortDrawing();
           setClickedCoords([]);
           setSelectedArea([]);
+          setSelectedBbox(null);
         }}
         radiusLabel={`${radius} ${radiusUnits}`}
       >

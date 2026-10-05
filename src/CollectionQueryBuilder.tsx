@@ -18,6 +18,7 @@ import { UseQueryUrlReturn } from './hooks/useQueryUrl';
 import TimeControl from './TimeControl';
 import QueryIssuesPanel, { FieldIssueText } from './QueryIssuesPanel';
 import QueryTypeInputs from './QueryTypeInputs';
+import { queryTypeOf, queryVariables, unitsFor } from './query/queryTypes';
 import { useQueryValidation } from './hooks/useQueryValidation';
 
 interface CollectionQueryBuilderProps {
@@ -40,11 +41,16 @@ const CollectionQueryBuilder: React.FC<CollectionQueryBuilderProps> = ({ collect
     customDimensionEnds, setCustomDimensionEnds,
     getEffectiveOutputFormats,
     queryParams, setQueryParam,
+    bboxAsCoords, setBboxAsCoords,
   } = queryState;
 
   const { issues } = useQueryValidation();
   // The most important issue about a field, to show under it
   const fieldIssue = (field: string) => issues.find(issue => issue.field === field && issue.severity !== 'info');
+  // Units of z a query declares (cube height_units); a corridor's height units belong to its height
+  const zUnits = selectedDataQuery && queryTypeOf(collection, selectedDataQuery) !== 'corridor'
+    ? unitsFor(queryVariables(collection, selectedDataQuery), 'height')
+    : [];
 
   return (
     <>
@@ -73,7 +79,8 @@ const CollectionQueryBuilder: React.FC<CollectionQueryBuilderProps> = ({ collect
 
       {selectedDataQuery && <QueryIssuesPanel />}
       {selectedDataQuery && (
-        <QueryTypeInputs collection={collection} queryKey={selectedDataQuery} queryParams={queryParams} setQueryParam={setQueryParam} />
+        <QueryTypeInputs collection={collection} queryKey={selectedDataQuery} queryParams={queryParams} setQueryParam={setQueryParam}
+          bboxAsCoords={bboxAsCoords} setBboxAsCoords={setBboxAsCoords} />
       )}
 
       {/* Format Selector */}
@@ -165,7 +172,9 @@ const CollectionQueryBuilder: React.FC<CollectionQueryBuilderProps> = ({ collect
         // Show vertical selection UI if collection has vertical extent (values OR interval)
         return (hasValues || hasInterval) ? (
           <Box sx={{ mb: 2 }} id="query-field-z">
-            <FormLabel component="legend" sx={{ fontSize: '0.875rem', mb: 1 }}>Vertical Level Selection</FormLabel>
+            <FormLabel component="legend" sx={{ fontSize: '0.875rem', mb: 1 }}>
+              Vertical Level Selection{zUnits.length > 0 && ` (${zUnits.join(', ')})`}
+            </FormLabel>
 
             {/* Info message when using text input due to large intervals */}
             {tooManyValues && (

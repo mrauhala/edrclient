@@ -4,7 +4,7 @@ import { normalizeVertical, expandVerticalValues } from '../utils/extents/vertic
 import { normalizeBbox } from '../utils/extents/bbox';
 import { effectiveOutputFormats, parameterIdsOf, unitsFor } from './queryTypes';
 import type { QueryModel } from './queryModel';
-import type { DimSelection, IssueSeverity, IssueSource, QueryIssue } from './types';
+import type { BBox, DimSelection, IssueSeverity, IssueSource, QueryIssue } from './types';
 import { SEVERITY_ORDER } from './types';
 import type { ApiDocsCheck } from '../validation/openapi/checkQueryUrl';
 
@@ -21,6 +21,9 @@ interface Extents {
 }
 
 const extentsCache = new WeakMap<Collection, Extents>();
+
+// The collection's spatial extent as a sorted lon/lat box, if it has one in lon/lat
+export const spatialExtentOf = (collection: Collection): BBox | null => extentsOf(collection).bbox;
 
 const toTime = (value: string | null | undefined, open: number) => {
   if (!value || value === '..') return open;
@@ -114,8 +117,7 @@ function checkGeometry(model: QueryModel, add: Add) {
       });
       break;
     case 'cube':
-      add('warning', 'edr', 'bbox', 'unsupported',
-        "Cube queries need a bounding box (bbox), which the query builder can't set yet. The request is sent without it.");
+      checkBox(model.bbox, bbox, add);
       break;
     case 'corridor':
       if (points.length < 2) add('missing', 'edr', 'coords', 'required', "Draw the corridor's centre line on the map (at least 2 points)", 'map');
@@ -142,6 +144,22 @@ function checkGeometry(model: QueryModel, add: Add) {
       add('error', 'metadata', 'within-units', 'offered',
         `Radius unit "${model.radius.units}" isn't offered by this collection (${units.join(', ')})`, 'form');
     }
+  }
+}
+
+// A cube's box: drawn or typed, a real lon/lat box, and over the collection
+function checkBox(box: BBox | null, extent: BBox | null, add: Add) {
+  if (!box) {
+    add('missing', 'edr', 'bbox', 'required', 'Draw a box on the map, or enter its edges', 'map');
+    return;
+  }
+  const [west, south, east, north] = box;
+  if ([west, east].some(lon => lon < -180 || lon > 180) || [south, north].some(lat => lat < -90 || lat > 90)) {
+    add('error', 'edr', 'bbox', 'range', 'Box edges must be longitudes from -180 to 180 and latitudes from -90 to 90', 'form');
+  } else if (west >= east || south >= north) {
+    add('error', 'edr', 'bbox', 'order', 'The west edge must be less than the east edge, and the south edge less than the north edge', 'form');
+  } else if (extent && (east < extent[0] || west > extent[2] || north < extent[1] || south > extent[3])) {
+    add('warning', 'metadata', 'bbox', 'outside', "The box is outside the collection's spatial extent", 'map');
   }
 }
 

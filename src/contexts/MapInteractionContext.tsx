@@ -1,12 +1,15 @@
 import { createContext, useCallback, useContext, useState, useMemo, useRef, type ReactNode } from 'react';
 import { geometryKindOf } from '../query/queryTypes';
 import { convertLength } from '../query/units';
+import type { BBox } from '../query/types';
 
 interface MapInteractionContextValue {
   clickedCoords: [number, number][];
   setClickedCoords: (coords: [number, number][]) => void;
   selectedArea: [number, number][][];
   setSelectedArea: (area: [number, number][][]) => void;
+  selectedBbox: BBox | null; // cube box, drawn on the map or typed in the builder
+  setSelectedBbox: (bbox: BBox | null) => void;
   // Radius queries: the radius in radiusUnits. Changing the unit converts the radius.
   radius: number;
   setRadius: (radius: number) => void;
@@ -28,6 +31,7 @@ const MapInteractionContext = createContext<MapInteractionContextValue | null>(n
 export function MapInteractionProvider({ children }: { children: ReactNode }) {
   const [clickedCoords, setClickedCoords] = useState<[number, number][]>([]);
   const [selectedArea, setSelectedArea] = useState<[number, number][][]>([]);
+  const [selectedBbox, setSelectedBbox] = useState<BBox | null>(null);
   const [radius, setRadius] = useState<number>(10);
   const [radiusUnits, setRadiusUnitsState] = useState<string>('km');
   const radiusUnitsRef = useRef('km');
@@ -41,6 +45,7 @@ export function MapInteractionProvider({ children }: { children: ReactNode }) {
     if (geometryKindOf(queryType) !== geometryKindOf(dataQueryRef.current)) {
       setClickedCoords([]);
       setSelectedArea([]);
+      setSelectedBbox(null);
     }
     dataQueryRef.current = queryType;
     setDataQueryState(queryType);
@@ -59,6 +64,8 @@ export function MapInteractionProvider({ children }: { children: ReactNode }) {
     setClickedCoords,
     selectedArea,
     setSelectedArea,
+    selectedBbox,
+    setSelectedBbox,
     radius,
     setRadius,
     radiusUnits,
@@ -69,7 +76,7 @@ export function MapInteractionProvider({ children }: { children: ReactNode }) {
     setViewExtent,
     viewSize,
     setViewSize,
-  }), [clickedCoords, selectedArea, radius, radiusUnits, setRadiusUnits, dataQuery, setDataQuery, viewExtent, viewSize]);
+  }), [clickedCoords, selectedArea, selectedBbox, radius, radiusUnits, setRadiusUnits, dataQuery, setDataQuery, viewExtent, viewSize]);
 
   return (
     <MapInteractionContext.Provider value={value}>

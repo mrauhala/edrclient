@@ -47,6 +47,9 @@ export interface UseQueryUrlReturn {
   // Parameters of the query type set in their own fields (corridor width and height)
   queryParams: Record<string, string>;
   setQueryParam: (name: string, value: string) => void;
+  // Cube: also send the box as coords, for servers whose API docs require coords
+  bboxAsCoords: boolean;
+  setBboxAsCoords: (value: boolean) => void;
   // Utilities
   resetQueryState: () => void;
   getEffectiveOutputFormats: (collection: Collection, queryType: string) => string[];
@@ -54,7 +57,7 @@ export interface UseQueryUrlReturn {
 }
 
 export function useQueryUrl(): UseQueryUrlReturn {
-  const { clickedCoords, selectedArea, radius, radiusUnits, setRadiusUnits, setDataQuery } = useMapInteraction();
+  const { clickedCoords, selectedArea, selectedBbox, radius, radiusUnits, setRadiusUnits, setDataQuery } = useMapInteraction();
   const { selectedCollection, selectedFeature, setCollectionUrl } = useCollection();
   const { setQueryValidation } = useQueryValidationContext();
   const { index: apiIndex } = useOpenApi();
@@ -75,6 +78,7 @@ export function useQueryUrl(): UseQueryUrlReturn {
   const [customDimensionStarts, setCustomDimensionStarts] = useState<{[dimensionId: string]: string}>({});
   const [customDimensionEnds, setCustomDimensionEnds] = useState<{[dimensionId: string]: string}>({});
   const [queryParams, setQueryParams] = useState<Record<string, string>>({});
+  const [bboxAsCoords, setBboxAsCoords] = useState(false);
   const setQueryParam = useCallback((name: string, value: string) => setQueryParams(params => ({ ...params, [name]: value })), []);
 
   const resetQueryState = useCallback(() => {
@@ -94,6 +98,7 @@ export function useQueryUrl(): UseQueryUrlReturn {
     setCustomDimensionStarts({});
     setCustomDimensionEnds({});
     setQueryParams({});
+    setBboxAsCoords(false);
   }, []);
 
   const getEffectiveOutputFormats = effectiveOutputFormats;
@@ -168,6 +173,8 @@ export function useQueryUrl(): UseQueryUrlReturn {
       customDims,
       points: clickedCoords,
       polygons: selectedArea,
+      bbox: selectedBbox,
+      bboxAsCoords,
       radius: { value: radius, units: radiusUnits },
       queryParams,
       locationFeature: queryTypeOf(selectedCollection, selectedDataQuery) === 'locations' ? selectedFeature : null,
@@ -176,7 +183,7 @@ export function useQueryUrl(): UseQueryUrlReturn {
     selectedCollection, selectedDataQuery, selectedFormat, selectedParameters,
     datetimeMode, selectedDatetime, startDatetime, endDatetime,
     verticalMode, selectedVertical, startVertical, endVertical,
-    customDims, clickedCoords, selectedArea, radius, radiusUnits, queryParams, selectedFeature,
+    customDims, clickedCoords, selectedArea, selectedBbox, bboxAsCoords, radius, radiusUnits, queryParams, selectedFeature,
   ]);
 
   // Publish the request URL and what the query is still missing, adding the API docs' view once
@@ -194,7 +201,11 @@ export function useQueryUrl(): UseQueryUrlReturn {
     setQueryValidation({
       url,
       issues: apiDocs ? addApiDocsIssues(queryModel, issues, apiDocs) : issues,
-      apiOperation: operation ? { template: operation.template, pointer: operation.pointer } : null,
+      apiOperation: operation ? {
+        template: operation.template,
+        pointer: operation.pointer,
+        required: operation.params.filter(param => param.in === 'query' && param.required).map(param => param.name),
+      } : null,
     });
   }, [queryModel, apiIndex, setCollectionUrl, setQueryValidation]);
 
@@ -215,6 +226,7 @@ export function useQueryUrl(): UseQueryUrlReturn {
     customDimensionStarts, setCustomDimensionStarts,
     customDimensionEnds, setCustomDimensionEnds,
     queryParams, setQueryParam,
+    bboxAsCoords, setBboxAsCoords,
     resetQueryState,
     getEffectiveOutputFormats,
     selectDataQuery,
