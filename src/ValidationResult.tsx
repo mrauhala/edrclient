@@ -11,6 +11,13 @@ interface ValidationResultsProps {
 }
 
 const ValidationResults: React.FC<ValidationResultsProps> = ({ validation, expanded }) => {
+  // The API definition's findings are listed in the validation popover; here only its schema
+  // results, and whether it could be loaded at all
+  const openApiSummary = validation.openApiValidation && {
+    ...validation.openApiValidation,
+    errors: validation.openApiValidation.errors?.filter(error => error.keyword === 'unavailable') ?? null,
+  };
+
   // Helper function to render schema validation section
   const renderSchemaSection = (
     title: string,
@@ -115,6 +122,7 @@ const ValidationResults: React.FC<ValidationResultsProps> = ({ validation, expan
           {renderSchemaSection('Landing Page', validation.landingPageValidation)}
           {renderSchemaSection('Collections', validation.collectionsValidation)}
           {renderSchemaSection('Conformance', validation.conformanceValidation)}
+          {renderSchemaSection('API definition (OpenAPI)', openApiSummary)}
         </Box>
       </Alert>
     );
@@ -147,6 +155,7 @@ const ValidationResults: React.FC<ValidationResultsProps> = ({ validation, expan
           {renderSchemaSection('Landing Page', validation.landingPageValidation)}
           {renderSchemaSection('Collections', validation.collectionsValidation)}
           {renderSchemaSection('Conformance', validation.conformanceValidation)}
+          {renderSchemaSection('API definition (OpenAPI)', openApiSummary)}
         </Box>
 
         <Collapse in={expanded}>
@@ -186,6 +195,7 @@ const ValidationResults: React.FC<ValidationResultsProps> = ({ validation, expan
           {renderSchemaSection('Landing Page', validation.landingPageValidation)}
           {renderSchemaSection('Collections', validation.collectionsValidation)}
           {renderSchemaSection('Conformance', validation.conformanceValidation)}
+          {renderSchemaSection('API definition (OpenAPI)', openApiSummary)}
         </Box>
       </Alert>
 

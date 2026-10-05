@@ -16,6 +16,7 @@ import { GeoJsonLayerProvider, useGeoJsonLayers } from './contexts/GeoJsonLayerC
 import { MapsLayerProvider } from './contexts/MapsLayerContext';
 import { LayerManagerProvider } from './contexts/LayerManagerContext';
 import { ValidationProvider } from './contexts/ValidationContext';
+import { OpenApiProvider } from './contexts/OpenApiContext';
 import { MapInteractionProvider } from './contexts/MapInteractionContext';
 import { CollectionProvider, useCollection } from './contexts/CollectionContext';
 import { QueryValidationProvider } from './contexts/QueryValidationContext';
@@ -64,10 +65,12 @@ function App() {
               <MapsLayerProvider>
                 <LayerManagerProvider>
                   <ValidationProvider>
-                    <AppContent
-                      customServices={customServices}
-                      setCustomServices={setCustomServices}
-                    />
+                    <OpenApiProvider>
+                      <AppContent
+                        customServices={customServices}
+                        setCustomServices={setCustomServices}
+                      />
+                    </OpenApiProvider>
                   </ValidationProvider>
                 </LayerManagerProvider>
               </MapsLayerProvider>

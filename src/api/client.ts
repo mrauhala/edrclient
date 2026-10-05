@@ -4,6 +4,7 @@ import type { AuthCredentials, Collection, CollectionsResponse, GetCollectionsRe
 import { normalizeHref, resolveHref } from '../utils/href';
 import { sanitizeUrl } from '../utils/sanitizeUrl';
 import { getAxiosConfig, addApiKeyToUrl } from './auth';
+import { pickOpenApiLink } from '../validation/openapi/loadServiceDescription';
 
 export async function getCollections(apiUrl: string, auth?: AuthCredentials, signal?: AbortSignal): Promise<GetCollectionsResult> {
   // Initialize the schema validator outside the try block so it's accessible in the catch block
@@ -77,11 +78,9 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials, sig
         console.log('Found collections URL from landing page:', collectionsUrl ? sanitizeUrl(collectionsUrl) : collectionsUrl);
       }
 
-      // Look for a link with rel='service-desc' for OpenAPI/Swagger documentation
-      const serviceDescLink = landingPageData.links.find(
-        (link: Link) => link.rel === 'service-desc' ||
-                       link.rel === 'http://www.opengis.net/def/rel/ogc/1.0/service-desc'
-      );
+      // The OpenAPI service description (service-desc), chosen by media type: servers may also
+      // list e.g. an AsyncAPI description under the same rel
+      const serviceDescLink = pickOpenApiLink(landingPageData.links);
 
       // Look for conformance link
       const conformanceLink = landingPageData.links.find(

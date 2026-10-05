@@ -26,6 +26,7 @@ import { useCollection } from './contexts/CollectionContext';
 import { useService } from './contexts/ServiceContext';
 import { useValidation } from './contexts/ValidationContext';
 import { detectEdrVersion, validateLocationsResponse } from './validation/locationsValidator';
+import { allSectionsValid, isProblem } from './validation/severity';
 import { UseQueryUrlReturn } from './hooks/useQueryUrl';
 import { collectionBaseUrl } from './query/buildQueryUrl';
 
@@ -335,15 +336,11 @@ const CollectionsList = ({
       setValidationResult(prev => {
         const filteredErrors = (prev.errors || []).filter(e => e.section !== 'Locations');
         const { locationsValidation: _, ...rest } = prev;
-        const sectionsValid = [
-          prev.landingPageValidation?.isValid ?? true,
-          prev.collectionsValidation?.isValid ?? true,
-          prev.conformanceValidation?.isValid ?? true,
-        ].every(Boolean);
         return {
           ...rest,
           errors: filteredErrors.length > 0 ? filteredErrors : null,
-          isValid: sectionsValid && filteredErrors.length === 0,
+          // Notes, such as the API definition's, don't make the service invalid
+          isValid: allSectionsValid(rest) && !filteredErrors.some(isProblem),
         };
       });
       setEndpointUrls(prev => ({ ...prev, locations: undefined }));

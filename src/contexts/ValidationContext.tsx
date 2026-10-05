@@ -6,6 +6,7 @@ export interface EndpointUrls {
   collections?: string;
   conformance?: string;
   locations?: string;
+  openApi?: string;
 }
 
 export interface RawResponses {
@@ -13,6 +14,7 @@ export interface RawResponses {
   collections?: unknown;
   conformance?: unknown;
   locations?: unknown;
+  openApi?: unknown;
 }
 
 interface ValidationContextValue {
