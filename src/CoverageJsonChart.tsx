@@ -4,6 +4,7 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Alert from '@mui/material/Alert';
 import Divider from '@mui/material/Divider';
+import { ChartsText, type ChartsTextProps } from '@mui/x-charts/ChartsText';
 import type { AxisValueFormatterContext } from '@mui/x-charts/models';
 import { getTimeSeriesError } from './utils/coverageTimeSeries';
 
@@ -68,6 +69,11 @@ const formatTime = (value: Date | number, context: AxisValueFormatterContext<'ti
   const isNewDay = index <= 0 || ticks[index - 1].toDateString() !== date.toDateString();
   return isNewDay ? `${time}\n${date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}` : time;
 };
+
+// Bold the time axis labels that carry a date line, i.e. the first tick and each day change
+const TimeTickLabel: React.FC<ChartsTextProps> = (props) => (
+  <ChartsText {...props} style={{ ...props.style, fontWeight: props.text.includes('\n') ? 'bold' : undefined }} />
+);
 
 // Component to render a single coverage chart
 const SingleCoverageChart: React.FC<{ coverage: CoverageJson; index?: number }> = ({ coverage, index }) => {
@@ -248,6 +254,8 @@ const SingleCoverageChart: React.FC<{ coverage: CoverageJson; index?: number }> 
           ]}
           yAxis={yAxisConfig}
           series={mappedSeries}
+          // Set on the chart: LineChart overrides per-axis slots. Only time labels contain a date line.
+          slots={{ axisTickLabel: TimeTickLabel }}
           height={500}
           margin={{ left: 20, right: 20, top: 20, bottom: 20 }}
           grid={{ vertical: true, horizontal: true }}
