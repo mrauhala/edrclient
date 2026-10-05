@@ -235,6 +235,9 @@ const SingleCoverageChart: React.FC<{ coverage: CoverageJson; index?: number }> 
         label: s.label,
         valueFormatter: s.valueFormatter,
         yAxisId: s.yAxisKey || 'left',
+        // v9 hides marks and varies their shape per series by default; keep circles at each value
+        showMark: true,
+        shape: 'circle' as const,
       };
     });
   
