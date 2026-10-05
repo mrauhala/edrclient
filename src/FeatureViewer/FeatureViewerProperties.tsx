@@ -143,8 +143,7 @@ const PropertyRow: React.FC<PropertyRowProps> = ({
         <Typography
           variant="caption"
           component="div"
-          color={isSelected ? 'warning.main' : 'text.secondary'}
-          sx={{ fontWeight: 'bold' }}
+          sx={{ color: isSelected ? 'warning.main' : 'text.secondary', fontWeight: 'bold' }}
         >
           {propKey}
         </Typography>

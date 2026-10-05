@@ -230,13 +230,7 @@ const CollectionQueryBuilder: React.FC<CollectionQueryBuilderProps> = ({ collect
                       setSelectedVertical(vertical);
                     }}
                     size="small"
-                    MenuProps={{
-                      PaperProps: {
-                        style: {
-                          maxHeight: 300,
-                        },
-                      },
-                    }}
+                    MenuProps={{ slotProps: { paper: { style: { maxHeight: 300 } } } }}
                   >
                     {verticalValues.map((level) => (
                       <MenuItem key={level} value={level}>
@@ -284,13 +278,7 @@ const CollectionQueryBuilder: React.FC<CollectionQueryBuilderProps> = ({ collect
                           const newStart = e.target.value;
                           setStartVertical(newStart);
                         }}
-                        MenuProps={{
-                          PaperProps: {
-                            style: {
-                              maxHeight: 300,
-                            },
-                          },
-                        }}
+                        MenuProps={{ slotProps: { paper: { style: { maxHeight: 300 } } } }}
                       >
                         <MenuItem value="">
                           <em>Select start level</em>
@@ -320,13 +308,7 @@ const CollectionQueryBuilder: React.FC<CollectionQueryBuilderProps> = ({ collect
                           const newEnd = e.target.value;
                           setEndVertical(newEnd);
                         }}
-                        MenuProps={{
-                          PaperProps: {
-                            style: {
-                              maxHeight: 300,
-                            },
-                          },
-                        }}
+                        MenuProps={{ slotProps: { paper: { style: { maxHeight: 300 } } } }}
                       >
                         <MenuItem value="">
                           <em>Select end level</em>
@@ -465,13 +447,7 @@ const CollectionQueryBuilder: React.FC<CollectionQueryBuilderProps> = ({ collect
                       setSelectedCustomDimensions(prev => ({ ...prev, [dimensionId]: value }));
                     }}
                     size="small"
-                    MenuProps={{
-                      PaperProps: {
-                        style: {
-                          maxHeight: 300,
-                        },
-                      },
-                    }}
+                    MenuProps={{ slotProps: { paper: { style: { maxHeight: 300 } } } }}
                   >
                     {dimensionValues.map((val) => (
                       <MenuItem key={val} value={val}>
@@ -518,13 +494,7 @@ const CollectionQueryBuilder: React.FC<CollectionQueryBuilderProps> = ({ collect
                           const newStart = e.target.value;
                           setCustomDimensionStarts(prev => ({ ...prev, [dimensionId]: newStart }));
                         }}
-                        MenuProps={{
-                          PaperProps: {
-                            style: {
-                              maxHeight: 300,
-                            },
-                          },
-                        }}
+                        MenuProps={{ slotProps: { paper: { style: { maxHeight: 300 } } } }}
                       >
                         <MenuItem value="">
                           <em>Select start value</em>
@@ -554,13 +524,7 @@ const CollectionQueryBuilder: React.FC<CollectionQueryBuilderProps> = ({ collect
                           const newEnd = e.target.value;
                           setCustomDimensionEnds(prev => ({ ...prev, [dimensionId]: newEnd }));
                         }}
-                        MenuProps={{
-                          PaperProps: {
-                            style: {
-                              maxHeight: 300,
-                            },
-                          },
-                        }}
+                        MenuProps={{ slotProps: { paper: { style: { maxHeight: 300 } } } }}
                       >
                         <MenuItem value="">
                           <em>Select end value</em>

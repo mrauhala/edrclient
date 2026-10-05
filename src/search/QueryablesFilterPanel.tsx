@@ -198,11 +198,10 @@ export function QueryablesFilterPanel({
                   autoFocus
                   slotProps={{
                     ...params.slotProps,
-
                     htmlInput: {
                       ...params.slotProps.htmlInput,
                       inputMode: (selectedQP.type === 'number' || selectedQP.type === 'integer') ? 'numeric' : 'text',
-                    }
+                    },
                   }}
                 />
               )}

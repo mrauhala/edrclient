@@ -260,7 +260,7 @@ export function SearchContent({
               </Box>
             }
             slotProps={{
-              primary: { variant: 'body2', fontWeight: 500, noWrap: true },
+              primary: { variant: 'body2', noWrap: true, sx: { fontWeight: 500 } },
               secondary: { component: 'div' }
             }} />
         </ListItemButton>
@@ -311,7 +311,7 @@ export function SearchContent({
               </Box>
             }
             slotProps={{
-              primary: { variant: 'body2', fontWeight: 500, noWrap: true },
+              primary: { variant: 'body2', noWrap: true, sx: { fontWeight: 500 } },
               secondary: { component: 'div' }
             }} />
         </ListItemButton>
@@ -598,7 +598,7 @@ export function SearchContent({
                   primary={highlightMatch(svc.label, query)}
                   secondary={highlightMatch(svc.url, query)}
                   slotProps={{
-                    primary: { variant: 'body2', fontWeight: 500, noWrap: true },
+                    primary: { variant: 'body2', noWrap: true, sx: { fontWeight: 500 } },
                     secondary: { variant: 'caption', noWrap: true }
                   }} />
                 {svc.isActive && (
@@ -650,7 +650,7 @@ export function SearchContent({
                     </Box>
                   }
                   slotProps={{
-                    primary: { variant: 'body2', fontWeight: 500, noWrap: true },
+                    primary: { variant: 'body2', noWrap: true, sx: { fontWeight: 500 } },
                     secondary: { component: 'div' }
                   }} />
                 {result.collection.id === selectedCollectionId && (

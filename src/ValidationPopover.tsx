@@ -12,7 +12,7 @@ import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
 import GppBadIcon from '@mui/icons-material/GppBad';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
-import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
+import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutlined';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { useValidation } from './contexts/ValidationContext';
 import type { EndpointUrls, RawResponses } from './contexts/ValidationContext';
@@ -244,6 +244,7 @@ const ValidationPopover: React.FC = () => {
                           <ButtonBase
                             key={idx}
                             component="div"
+                            nativeButton={false}
                             disabled={!hasUrl}
                             onClick={() => handleErrorClick(error)}
                             sx={{
