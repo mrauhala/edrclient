@@ -71,6 +71,9 @@ The following secrets must be configured in your GitHub repository:
 
 1. `FIREBASE_SERVICE_ACCOUNT_EDRCLIENT_METEO_FI` - Firebase service account credentials for deployment
 2. `GITHUB_TOKEN` - Automatically provided by GitHub Actions
+3. `CARTO_API_KEY` - Carto basemap API key used by the Firebase deployment workflows
+
+> **Note:** Preview and production currently use the same Carto API key. To use different keys, add separate GitHub Actions secrets (for example, `CARTO_API_KEY_PREVIEW` and `CARTO_API_KEY_PRODUCTION`) and update `VITE_CARTO_API_KEY` in each deployment workflow to reference the appropriate secret.
 
 ## Setup Instructions
 
