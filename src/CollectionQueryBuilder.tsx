@@ -15,7 +15,6 @@ import Typography from '@mui/material/Typography';
 import ListItemText from '@mui/material/ListItemText';
 import { Collection, expandVerticalValues, expandCustomDimensionValues, getEffectiveCustomDimensions } from './DataRetrievalAPI';
 import { UseQueryUrlReturn } from './hooks/useQueryUrl';
-import { useMapInteraction } from './contexts/MapInteractionContext';
 import TimeControl from './TimeControl';
 
 interface CollectionQueryBuilderProps {
@@ -25,7 +24,7 @@ interface CollectionQueryBuilderProps {
 
 const CollectionQueryBuilder: React.FC<CollectionQueryBuilderProps> = ({ collection, queryState }) => {
   const {
-    selectedDataQuery, setSelectedDataQuery,
+    selectedDataQuery, selectDataQuery,
     selectedFormat, setSelectedFormat,
     selectedParameters, setSelectedParameters,
     selectedVertical, setSelectedVertical,
@@ -39,7 +38,6 @@ const CollectionQueryBuilder: React.FC<CollectionQueryBuilderProps> = ({ collect
     getEffectiveOutputFormats,
   } = queryState;
 
-  const { setClickedCoords, setDataQuery } = useMapInteraction();
   return (
     <>
       {/* Data Query Selector */}
@@ -50,32 +48,7 @@ const CollectionQueryBuilder: React.FC<CollectionQueryBuilderProps> = ({ collect
             labelId="data-query-select-label"
             value={selectedDataQuery}
             label="Data Query"
-            onChange={(e) => {
-              const queryType = e.target.value;
-              setSelectedDataQuery(queryType);
-
-              // Auto-select format for this data query
-              const effectiveFormats = getEffectiveOutputFormats(collection, queryType);
-              let formatToUse = selectedFormat;
-              if (selectedFormat && !effectiveFormats.includes(selectedFormat)) {
-                formatToUse = '';
-              }
-              if (!formatToUse && queryType && collection.data_queries[queryType]?.link?.variables?.default_output_format) {
-                const defaultFormat = collection.data_queries[queryType].link.variables.default_output_format;
-                if (effectiveFormats.includes(defaultFormat)) {
-                  formatToUse = defaultFormat;
-                }
-              }
-              if (formatToUse !== selectedFormat) {
-                setSelectedFormat(formatToUse);
-              }
-
-              setDataQuery(queryType);
-              if (queryType.toLowerCase() !== 'position') {
-                setClickedCoords([]);
-              }
-              // URL rebuild is handled by useQueryUrl consolidated effect
-            }}
+            onChange={(e) => selectDataQuery(collection, e.target.value)}
             size="small"
           >
             <MenuItem value="">

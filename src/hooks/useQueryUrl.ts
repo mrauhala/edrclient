@@ -38,6 +38,7 @@ export interface UseQueryUrlReturn {
   // Utilities
   resetQueryState: () => void;
   getEffectiveOutputFormats: (collection: Collection, queryType: string) => string[];
+  selectDataQuery: (collection: Collection, queryType: string) => void;
   buildUrlWithParams: (
     baseUrl: string,
     format: string,
@@ -64,7 +65,7 @@ export interface UseQueryUrlReturn {
 }
 
 export function useQueryUrl(): UseQueryUrlReturn {
-  const { clickedCoords, selectedArea, radiusKm } = useMapInteraction();
+  const { clickedCoords, setClickedCoords, selectedArea, radiusKm, setDataQuery } = useMapInteraction();
   const { selectedCollection, selectedFeature, setCollectionUrl } = useCollection();
 
   const [selectedDataQuery, setSelectedDataQuery] = useState<string>('');
@@ -113,6 +114,34 @@ export function useQueryUrl(): UseQueryUrlReturn {
     }
     return [];
   }, []);
+
+  // Switch the data query: keep the output format if the new query offers it, otherwise use the
+  // query's default; sync the map's query mode and drop clicked points other queries can't use
+  const selectDataQuery = useCallback((collection: Collection, queryType: string) => {
+    setSelectedDataQuery(queryType);
+    setSelectedFormat(current => {
+      const formats = getEffectiveOutputFormats(collection, queryType);
+      if (current && formats.includes(current)) return current;
+      const defaultFormat = collection.data_queries[queryType]?.link?.variables?.default_output_format;
+      return defaultFormat && formats.includes(defaultFormat) ? defaultFormat : '';
+    });
+    setDataQuery(queryType);
+    if (queryType.toLowerCase() !== 'position') {
+      setClickedCoords([]);
+    }
+  }, [getEffectiveOutputFormats, setDataQuery, setClickedCoords]);
+
+  // Selecting a location (on the map, in the Location Features list or via search) switches the
+  // query to `locations`, so the request targets that location
+  useEffect(() => {
+    if (!selectedFeature || !selectedCollection?.data_queries) return;
+    const locationsQuery = Object.keys(selectedCollection.data_queries).find(q => q.toLowerCase() === 'locations');
+    if (locationsQuery && selectedDataQuery !== locationsQuery) {
+      selectDataQuery(selectedCollection, locationsQuery);
+    }
+    // Only a new selection switches the query, not the user picking another query afterwards
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedFeature]);
 
   const buildUrlWithParams = useCallback((
     baseUrl: string,
@@ -332,6 +361,7 @@ export function useQueryUrl(): UseQueryUrlReturn {
     customDimensionEnds, setCustomDimensionEnds,
     resetQueryState,
     getEffectiveOutputFormats,
+    selectDataQuery,
     buildUrlWithParams,
   };
 }
