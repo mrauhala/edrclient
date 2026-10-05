@@ -1,0 +1,307 @@
+{
+ "id": "ecmwf",
+ "links": [
+  {
+   "href": "https://opendata.fmi.fi/edr/collections/ecmwf",
+   "hreflang": "en",
+   "rel": "self",
+   "type": "application/json"
+  }
+ ],
+ "extent": {
+  "custom": [
+   {
+    "id": "timestep",
+    "interval": [
+     [
+      180,
+      1440
+     ]
+    ],
+    "reference": "minutes",
+    "values": [
+     180,
+     360,
+     720,
+     1440
+    ]
+   }
+  ],
+  "spatial": {
+   "crs": "OGC:CRS84",
+   "bbox": [
+    [
+     -180,
+     -90,
+     180,
+     90
+    ]
+   ]
+  },
+  "temporal": {
+   "interval": [
+    [
+     "2026-10-05T03:00:00Z",
+     "2026-10-15T00:00:00Z"
+    ]
+   ],
+   "trs": "TIMECRS[\"DateTime\",TDATUM[\"Gregorian Calendar\"],CS[TemporalDateTime,1],AXIS[\"Time (T)\",future]",
+   "values": [
+    "R47/2026-10-05T03:00:00Z/PT180M",
+    "R15/2026-10-11T06:00:00Z/PT360M"
+   ]
+  }
+ },
+ "data_queries": {
+  "area": {
+   "link": {
+    "title": "Area query",
+    "href": "https://opendata.fmi.fi/edr/collections/ecmwf/area",
+    "hreflang": "en",
+    "rel": "data",
+    "variables": {
+     "title": "Area query",
+     "description": "Data at the requested area",
+     "output_formats": [
+      "CoverageJSON",
+      "GeoJSON"
+     ],
+     "coords": "Well Known Text POLYGON value i.e. POLYGON((24 61,24 61.5,24.5 61.5,24.5 61,24 61))",
+     "crs_details": [
+      {
+       "crs": "OGC:CRS84",
+       "wkt": "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]]"
+      }
+     ],
+     "default_output_format": "CoverageJSON",
+     "query_type": "area"
+    }
+   }
+  },
+  "corridor": {
+   "link": {
+    "title": "Corridor query",
+    "href": "https://opendata.fmi.fi/edr/collections/ecmwf/corridor",
+    "hreflang": "en",
+    "rel": "data",
+    "variables": {
+     "title": "Corridor query",
+     "description": "Data within corridor",
+     "output_formats": [
+      "CoverageJSON",
+      "GeoJSON"
+     ],
+     "coords": "Well Known Text LINESTRING value i.e. LINESTRING(24 61,24.2 61.2,24.3 61.3)",
+     "corridor-width": "Corridor width",
+     "crs_details": [
+      {
+       "crs": "OGC:CRS84",
+       "wkt": "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]]"
+      }
+     ],
+     "default_output_format": "CoverageJSON",
+     "query_type": "corridor",
+     "width-units": [
+      "km",
+      "mi"
+     ]
+    }
+   }
+  },
+  "instances": {
+   "link": {
+    "title": "Instances query",
+    "href": "https://opendata.fmi.fi/edr/collections/ecmwf/instances",
+    "hreflang": "en",
+    "rel": "collection",
+    "variables": {
+     "title": "Instances query",
+     "output_formats": [
+      "CoverageJSON",
+      "GeoJSON"
+     ],
+     "crs_details": [
+      {
+       "crs": "OGC:CRS84",
+       "wkt": "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]]"
+      }
+     ],
+     "default_output_format": "CoverageJSON",
+     "query_type": "instances"
+    }
+   }
+  },
+  "locations": {
+   "link": {
+    "title": "Locations query",
+    "href": "https://opendata.fmi.fi/edr/collections/ecmwf/locations",
+    "hreflang": "en",
+    "rel": "data",
+    "variables": {
+     "title": "Locations query",
+     "description": "Data at point location defined by a unique identifier",
+     "output_formats": [
+      "CoverageJSON",
+      "GeoJSON"
+     ],
+     "crs_details": [
+      {
+       "crs": "OGC:CRS84",
+       "wkt": "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]]"
+      }
+     ],
+     "default_output_format": "CoverageJSON",
+     "query_type": "locations"
+    }
+   }
+  },
+  "position": {
+   "link": {
+    "title": "Position query",
+    "href": "https://opendata.fmi.fi/edr/collections/ecmwf/position",
+    "hreflang": "en",
+    "rel": "data",
+    "variables": {
+     "title": "Position query",
+     "description": "Data at point location",
+     "output_formats": [
+      "CoverageJSON",
+      "GeoJSON"
+     ],
+     "coords": "Well Known Text POINT value i.e. POINT(24.9384 60.1699)",
+     "crs_details": [
+      {
+       "crs": "OGC:CRS84",
+       "wkt": "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]]"
+      }
+     ],
+     "default_output_format": "CoverageJSON",
+     "query_type": "position"
+    }
+   }
+  },
+  "radius": {
+   "link": {
+    "title": "Radius query",
+    "href": "https://opendata.fmi.fi/edr/collections/ecmwf/radius",
+    "hreflang": "en",
+    "rel": "data",
+    "variables": {
+     "title": "Radius query",
+     "description": "Data at the area specified with a geographic position and radial distance",
+     "output_formats": [
+      "CoverageJSON",
+      "GeoJSON"
+     ],
+     "coords": "Well Known Text POINT value i.e. POINT(24.9384 60.1699)",
+     "crs_details": [
+      {
+       "crs": "OGC:CRS84",
+       "wkt": "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]]"
+      }
+     ],
+     "default_output_format": "CoverageJSON",
+     "query_type": "radius",
+     "within_units": [
+      "km",
+      "mi"
+     ]
+    }
+   }
+  },
+  "trajectory": {
+   "link": {
+    "title": "Trajectory query",
+    "href": "https://opendata.fmi.fi/edr/collections/ecmwf/trajectory",
+    "hreflang": "en",
+    "rel": "data",
+    "variables": {
+     "title": "Trajectory query",
+     "description": "Data along trajectory",
+     "output_formats": [
+      "CoverageJSON",
+      "GeoJSON"
+     ],
+     "coords": "Well Known Text LINESTRING value i.e. LINESTRING(24 61,24.2 61.2,24.3 61.3)",
+     "crs_details": [
+      {
+       "crs": "OGC:CRS84",
+       "wkt": "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]]"
+      }
+     ],
+     "default_output_format": "CoverageJSON",
+     "query_type": "trajectory"
+    }
+   }
+  }
+ },
+ "crs": [
+  "OGC:CRS84"
+ ],
+ "output_formats": [
+  "CoverageJSON",
+  "GeoJSON"
+ ],
+ "parameter_names": {
+  "groundtemperature": {
+   "id": "GroundTemperature",
+   "description": "GroundTemperature",
+   "label": "GroundTemperature",
+   "type": "Parameter",
+   "observedProperty": {
+    "id": "GroundTemperature",
+    "label": "GroundTemperature"
+   }
+  },
+  "humidity": {
+   "id": "Humidity",
+   "description": "RH",
+   "label": "Humidity",
+   "type": "Parameter",
+   "observedProperty": {
+    "id": "Humidity",
+    "label": "Humidity"
+   }
+  },
+  "mostunstablecape": {
+   "id": "MostUnstableCAPE",
+   "description": " MostUnstableCAPE",
+   "label": "MostUnstableCAPE",
+   "type": "Parameter",
+   "observedProperty": {
+    "id": "MostUnstableCAPE",
+    "label": "MostUnstableCAPE"
+   }
+  },
+  "precipitation1h": {
+   "id": "Precipitation1h",
+   "description": "Precipitation1h",
+   "label": "Precipitation1h",
+   "type": "Parameter",
+   "observedProperty": {
+    "id": "Precipitation1h",
+    "label": "Precipitation1h"
+   }
+  },
+  "pressure": {
+   "id": "Pressure",
+   "description": "Pressure",
+   "label": "Pressure",
+   "type": "Parameter",
+   "observedProperty": {
+    "id": "Pressure",
+    "label": "Pressure"
+   }
+  },
+  "temperature": {
+   "id": "Temperature",
+   "description": "Temperature",
+   "label": "Temperature",
+   "type": "Parameter",
+   "observedProperty": {
+    "id": "Temperature",
+    "label": "Temperature"
+   }
+  }
+ }
+}

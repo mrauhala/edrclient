@@ -27,6 +27,7 @@ import { useService } from './contexts/ServiceContext';
 import { useValidation } from './contexts/ValidationContext';
 import { detectEdrVersion, validateLocationsResponse } from './validation/locationsValidator';
 import { UseQueryUrlReturn } from './hooks/useQueryUrl';
+import { collectionBaseUrl } from './query/buildQueryUrl';
 
 interface CollectionListItemHeaderProps {
   collection: Collection;
@@ -157,7 +158,6 @@ const CollectionsList = ({
     startDatetime,
     endDatetime,
     resetQueryState,
-    buildUrlWithParams,
   } = queryState;
 
   const [openCollectionIndex, setOpenCollectionIndex] = useState<number | null>(null);
@@ -237,7 +237,7 @@ const CollectionsList = ({
       if (!baseUrl) {
         baseUrl = currentApiUrl + "/collections/" + key;
       }
-      setCollectionUrl(buildUrlWithParams(baseUrl, '', [], false));
+      setCollectionUrl(collectionBaseUrl(baseUrl));
       resetQueryState();
       setClickedCoords([]);
       setDataQuery('');
