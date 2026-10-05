@@ -11,6 +11,7 @@
   { "label": "SmartMet Kenya", "url": "https://data-kenya.smartmet.org/edr", "type": "EDR" },
   { "label": "SmartMet Ethiopia", "url": "https://data-ethiopia.smartmet.org/edr", "type": "EDR" },
   { "label": "DWD NWP (Beta)", "url": "https://nwp.opendata-api.dwd.de/v1beta1/", "type": "EDR" },
+  { "label": "MeteoCore", "url": "https://meteocore.app.meteo.fi/edr/", "type": "EDR" },
   { "label": "WMO GDC WIS2 Germany", "url": "https://wis2.dwd.de/gdc/", "type": "Records" },
   { "label": "WMO GDC WIS2 Canada", "url": "https://wis2-gdc.weather.gc.ca", "type": "Records" },
   { "label": "WMO GDC WIS2 China", "url": "https://gdc.wis.cma.cn", "type": "Records" },
