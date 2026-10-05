@@ -13,6 +13,7 @@ export interface QueryIssue {
   field: string; // query parameter name ('coords', 'f', 'datetime', ...), 'query', or `dim:${id}`
   message: string;
   input?: 'map' | 'form'; // where the user fixes it
+  pointer?: string; // for API docs issues: JSON pointer into the API definition
 }
 
 export type DimMode = 'individual' | 'range';

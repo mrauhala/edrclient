@@ -3,10 +3,12 @@ import { Collection } from '../DataRetrievalAPI';
 import { useMapInteraction } from '../contexts/MapInteractionContext';
 import { useCollection } from '../contexts/CollectionContext';
 import { useQueryValidationContext } from '../contexts/QueryValidationContext';
+import { useOpenApi } from '../contexts/OpenApiContext';
 import { buildQueryModel } from '../query/queryModel';
 import { buildQueryUrl } from '../query/buildQueryUrl';
 import { effectiveOutputFormats, queryTypeOf } from '../query/queryTypes';
-import { validateQuery } from '../query/validateQuery';
+import { addApiDocsIssues, validateQuery } from '../query/validateQuery';
+import { checkQueryUrlAgainstOpenApi } from '../validation/openapi/checkQueryUrl';
 import type { DimSelection } from '../query/types';
 
 export interface UseQueryUrlReturn {
@@ -51,6 +53,7 @@ export function useQueryUrl(): UseQueryUrlReturn {
   const { clickedCoords, setClickedCoords, selectedArea, radiusKm, setDataQuery } = useMapInteraction();
   const { selectedCollection, selectedFeature, setCollectionUrl } = useCollection();
   const { setQueryValidation } = useQueryValidationContext();
+  const { index: apiIndex } = useOpenApi();
 
   const [selectedDataQuery, setSelectedDataQuery] = useState<string>('');
   const [selectedFormat, setSelectedFormat] = useState<string>('');
@@ -154,7 +157,8 @@ export function useQueryUrl(): UseQueryUrlReturn {
     customDims, clickedCoords, selectedArea, radiusKm, selectedFeature,
   ]);
 
-  // Publish the request URL and what the query is still missing
+  // Publish the request URL and what the query is still missing, adding the API docs' view once
+  // the service's API definition is loaded
   useEffect(() => {
     const url = queryModel ? buildQueryUrl(queryModel) : null;
     if (!queryModel || !url) {
@@ -162,8 +166,15 @@ export function useQueryUrl(): UseQueryUrlReturn {
       return;
     }
     setCollectionUrl(url);
-    setQueryValidation({ url, issues: validateQuery(queryModel) });
-  }, [queryModel, setCollectionUrl, setQueryValidation]);
+    const issues = validateQuery(queryModel);
+    const apiDocs = apiIndex ? checkQueryUrlAgainstOpenApi(url, apiIndex) : null;
+    const operation = apiDocs?.operation?.entry;
+    setQueryValidation({
+      url,
+      issues: apiDocs ? addApiDocsIssues(queryModel, issues, apiDocs.issues) : issues,
+      apiOperation: operation ? { template: operation.template, pointer: operation.pointer } : null,
+    });
+  }, [queryModel, apiIndex, setCollectionUrl, setQueryValidation]);
 
   return {
     selectedDataQuery, setSelectedDataQuery,

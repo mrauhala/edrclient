@@ -7,6 +7,8 @@ import type { QueryIssue } from '../query/types';
 export interface QueryValidationState {
   url: string;
   issues: QueryIssue[];
+  // The API definition's operation the URL was checked against, if the service has one that matches
+  apiOperation: { template: string; pointer: string } | null;
 }
 
 interface QueryValidationContextValue {
