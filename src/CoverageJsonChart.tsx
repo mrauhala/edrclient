@@ -211,6 +211,8 @@ const SingleCoverageChart: React.FC<{ coverage: CoverageJson; index?: number }> 
     label: s.label,
     valueFormatter: s.valueFormatter,
     yAxisId: s.yAxisKey || 'left',
+    // Mark every returned value so gaps and the server's time steps are visible
+    showMark: true,
   }));
 
   return (
