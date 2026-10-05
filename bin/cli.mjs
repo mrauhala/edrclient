@@ -2,7 +2,7 @@
 
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
-import { resolve, extname, dirname, join } from 'node:path';
+import { resolve, extname, dirname, join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -26,6 +26,8 @@ const server = createServer(async (req, res) => {
   let filePath = join(buildDir, req.url === '/' ? 'index.html' : req.url);
 
   try {
+    // Refuse paths that escape buildDir (e.g. GET /../package.json); they get the SPA fallback below.
+    if (!filePath.startsWith(buildDir + sep)) throw new Error('Path outside build directory');
     const data = await readFile(filePath);
     const ext = extname(filePath);
     res.writeHead(200, { 'Content-Type': mimeTypes[ext] || 'application/octet-stream' });
