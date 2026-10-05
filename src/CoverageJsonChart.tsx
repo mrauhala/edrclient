@@ -4,6 +4,7 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Alert from '@mui/material/Alert';
 import Divider from '@mui/material/Divider';
+import type { AxisValueFormatterContext } from '@mui/x-charts/models';
 import { getTimeSeriesError } from './utils/coverageTimeSeries';
 
 interface CoverageJsonChartProps {
@@ -53,6 +54,20 @@ interface CoverageJson {
     };
   };
 }
+
+// Time axis ticks show the time, with the date added on the first tick and wherever the day
+// changes from the previous tick. Tooltips show the full date and time.
+const formatTime = (value: Date | number, context: AxisValueFormatterContext<'time'>): string => {
+  const date = new Date(value);
+  if (context.location !== 'tick') {
+    return date.toLocaleString();
+  }
+  const time = date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  const ticks = context.scale.ticks(context.tickNumber);
+  const index = ticks.findIndex(tick => tick.getTime() === date.getTime());
+  const isNewDay = index <= 0 || ticks[index - 1].toDateString() !== date.toDateString();
+  return isNewDay ? `${time}\n${date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}` : time;
+};
 
 // Component to render a single coverage chart
 const SingleCoverageChart: React.FC<{ coverage: CoverageJson; index?: number }> = ({ coverage, index }) => {
@@ -227,13 +242,14 @@ const SingleCoverageChart: React.FC<{ coverage: CoverageJson; index?: number }> 
               data: timestamps,
               scaleType: 'time',
               label: 'Time',
-              valueFormatter: (value) => new Date(value).toLocaleString()
+              valueFormatter: formatTime,
+              height: 'auto'
             }
           ]}
           yAxis={yAxisConfig}
           series={mappedSeries}
           height={500}
-          margin={{ left: 20, right: 20, top: 20, bottom: 80 }}
+          margin={{ left: 20, right: 20, top: 20, bottom: 20 }}
           grid={{ vertical: true, horizontal: true }}
           slotProps={{
             legend: {
