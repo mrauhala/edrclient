@@ -13,6 +13,8 @@ interface ServiceContextValue {
   setActiveServiceUrl: (url: string | null) => void;
   conformsTo: string[] | null;
   setConformsTo: (conformsTo: string[] | null) => void;
+  serviceDescUrl: string | null; // the service's OpenAPI document (service-desc)
+  setServiceDescUrl: (url: string | null) => void;
 }
 
 const ServiceContext = createContext<ServiceContextValue | null>(null);
@@ -28,6 +30,7 @@ export function ServiceProvider({ children, customServices, selectedServiceUrl, 
   const [landingPageTitle, setLandingPageTitle] = useState<string | null>(null);
   const [activeServiceUrl, setActiveServiceUrl] = useState<string | null>(null);
   const [conformsTo, setConformsTo] = useState<string[] | null>(null);
+  const [serviceDescUrl, setServiceDescUrl] = useState<string | null>(null);
   const getAuthCredentials = useMemo(() => {
     return (url: string): AuthCredentials | undefined => {
       const service = customServices.find(s => {
@@ -68,7 +71,9 @@ export function ServiceProvider({ children, customServices, selectedServiceUrl, 
     setActiveServiceUrl,
     conformsTo,
     setConformsTo,
-  }), [customServices, getAuthCredentials, selectedServiceUrl, setSelectedServiceUrl, landingPageTitle, activeServiceUrl, conformsTo]);
+    serviceDescUrl,
+    setServiceDescUrl,
+  }), [customServices, getAuthCredentials, selectedServiceUrl, setSelectedServiceUrl, landingPageTitle, activeServiceUrl, conformsTo, serviceDescUrl]);
 
   return (
     <ServiceContext.Provider value={value}>

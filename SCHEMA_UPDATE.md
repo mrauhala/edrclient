@@ -42,6 +42,20 @@ Not yet published on schemas.opengis.net. Extracted from `components.schemas` of
 
 Regenerate only these with `node download-schemas-deref.js "EDR Part 1 v1.2"`.
 
+### OpenAPI 3.0 and 3.1 (servers' API definitions)
+- 3.0: `https://spec.openapis.org/oas/3.0/schema/2021-09-28` → `public/schemas/openapi/3.0/schema.json`
+- 3.1: `https://spec.openapis.org/oas/3.1/schema/2022-10-07` → `public/schemas/openapi/3.1/schema.json`
+
+These are used as published (`raw: true`, not dereferenced, because both are recursive), with two
+small transforms so AJV can run them. The download fails if upstream changes what they rely on:
+- **3.0** is a draft-04 schema; AJV runs draft-07+. Drop `$schema`, rename `id` to `$id`, and turn
+  the single draft-04 boolean `exclusiveMinimum` (`Schema.multipleOf`) into the numeric form.
+- **3.1**: AJV's `$dynamicRef` support fails every document on the `"$dynamicRef": "#meta"`
+  references (4 of them). In the base dialect they resolve to `#/$defs/schema`, so they become plain
+  `$ref`s. The validator also registers the `media-range` format.
+
+Regenerate with `node download-schemas-deref.js "OpenAPI"`.
+
 ### OGC API Common 1.0
 - Landing Page: `https://schemas.opengis.net/ogcapi/common/part1/1.0/openapi/schemas/landingPage.yaml`
 - Conformance: `https://schemas.opengis.net/ogcapi/common/part1/1.0/openapi/schemas/confClasses.yaml`

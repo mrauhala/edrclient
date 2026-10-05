@@ -15,23 +15,29 @@ import ErrorIcon from '@mui/icons-material/Error';
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutlined';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { useValidation } from './contexts/ValidationContext';
+import { useOpenApi } from './contexts/OpenApiContext';
 import type { EndpointUrls, RawResponses } from './contexts/ValidationContext';
 import type { ValidationError } from './DataRetrievalAPI';
+import { isProblem } from './validation/severity';
 
-function SectionStatus({ label, validation }: {
+function SectionStatus({ label, validation, loading, countSectionErrors }: {
   label: string;
   validation?: { isValid: boolean; errors: ValidationError[] | null; schemaResults?: Array<{ schema: string; isValid: boolean }> };
+  loading?: boolean;
+  countSectionErrors?: boolean; // count this section's own (section-tagged) problems
 }) {
-  if (!validation) {
+  if (!validation || loading) {
     return (
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         <RemoveCircleOutlineIcon sx={{ fontSize: 18, color: 'text.disabled' }} />
-        <Typography variant="body2" sx={{ color: 'text.secondary' }}>{label}</Typography>
+        <Typography variant="body2" sx={{ color: 'text.secondary', flex: 1 }}>{label}</Typography>
+        {loading && <Typography variant="caption" sx={{ color: 'text.secondary' }}>checking…</Typography>}
       </Box>
     );
   }
 
-  const errorCount = validation.errors?.filter(e => e.type !== 'cors' && e.type !== 'network' && !e.section).length ?? 0;
+  const errorCount = validation.errors?.filter(e => e.type !== 'cors' && e.type !== 'network'
+    && (countSectionErrors ? isProblem(e) : !e.section)).length ?? 0;
 
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -43,7 +49,7 @@ function SectionStatus({ label, validation }: {
       <Typography variant="body2" sx={{ flex: 1 }}>{label}</Typography>
       {errorCount > 0 && (
         <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-          {errorCount} {errorCount === 1 ? 'error' : 'errors'}
+          {errorCount} {countSectionErrors ? 'issue' : 'error'}{errorCount === 1 ? '' : 's'}
         </Typography>
       )}
     </Box>
@@ -56,6 +62,7 @@ function getUrlForSection(section: string | undefined, urls: EndpointUrls): stri
     case 'Conformance': return urls.conformance;
     case 'Collections': return urls.collections;
     case 'Locations': return urls.locations;
+    case 'OpenAPI': return urls.openApi;
     default: return urls.collections;
   }
 }
@@ -66,12 +73,14 @@ function getResponseForSection(section: string | undefined, responses: RawRespon
     case 'Conformance': return responses.conformance;
     case 'Collections': return responses.collections;
     case 'Locations': return responses.locations;
+    case 'OpenAPI': return responses.openApi;
     default: return responses.collections;
   }
 }
 
 const ValidationPopover: React.FC = () => {
   const { validationResult, endpointUrls, rawResponses } = useValidation();
+  const openApi = useOpenApi();
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
 
   // Close when layers popover opens; listen for keyboard toggle
@@ -91,7 +100,9 @@ const ValidationPopover: React.FC = () => {
 
   const open = Boolean(anchorEl);
   const hasService = validationResult.schemaCount !== undefined || validationResult.errors !== null;
-  const errorCount = validationResult.errors?.length ?? 0;
+  // Notes (info) are listed but not counted
+  const errorCount = validationResult.errors?.filter(isProblem).length ?? 0;
+  const noteCount = (validationResult.errors?.length ?? 0) - errorCount;
   const isValid = validationResult.isValid && errorCount === 0;
 
   const errorsBySchema = useMemo(() => {
@@ -170,7 +181,7 @@ const ValidationPopover: React.FC = () => {
         {/* Header */}
         <Box sx={{ px: 2, py: 1.5, borderBottom: 1, borderColor: 'divider' }}>
           <Typography variant="subtitle2">
-            Validation Results {errorCount > 0 && `(${errorCount} ${errorCount === 1 ? 'error' : 'errors'})`}
+            Validation Results {errorCount > 0 && `(${errorCount} ${errorCount === 1 ? 'issue' : 'issues'})`}
           </Typography>
         </Box>
 
@@ -182,10 +193,18 @@ const ValidationPopover: React.FC = () => {
           {validationResult.locationsValidation && (
             <SectionStatus label="Locations" validation={validationResult.locationsValidation} />
           )}
+          {(validationResult.openApiValidation || openApi.status === 'loading' || openApi.status === 'ready') && (
+            <SectionStatus
+              label="API definition (OpenAPI)"
+              validation={validationResult.openApiValidation}
+              loading={!validationResult.openApiValidation}
+              countSectionErrors
+            />
+          )}
         </Box>
 
         {/* Error list or empty state */}
-        {errorCount === 0 ? (
+        {errorCount === 0 && noteCount === 0 ? (
           <Box sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
             <CheckCircleIcon color="success" />
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>
@@ -269,6 +288,15 @@ const ValidationPopover: React.FC = () => {
                               </Box>
                             )}
                             <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5, flexWrap: 'wrap' }}>
+                              {error.severity && error.severity !== 'error' && (
+                                <Chip
+                                  label={error.severity === 'warning' ? 'warning' : 'note'}
+                                  size="small"
+                                  color={error.severity === 'warning' ? 'warning' : 'info'}
+                                  variant="outlined"
+                                  sx={{ fontSize: '0.6rem', height: 16 }}
+                                />
+                              )}
                               {error.keyword && (
                                 <Chip label={error.keyword} size="small" variant="outlined" sx={{ fontSize: '0.6rem', height: 16 }} />
                               )}

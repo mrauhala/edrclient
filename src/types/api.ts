@@ -120,6 +120,7 @@ export interface ValidationError {
   params?: Record<string, any>;
   collectionId?: string;
   section?: string;
+  severity?: 'error' | 'warning' | 'info'; // undefined means error
 }
 
 export interface ValidationResult {
@@ -144,6 +145,11 @@ export interface ValidationResult {
     schemaResults?: Array<{ schema: string; isValid: boolean }>;
   };
   locationsValidation?: {
+    isValid: boolean;
+    errors: ValidationError[] | null;
+    schemaResults?: Array<{ schema: string; isValid: boolean }>;
+  };
+  openApiValidation?: {
     isValid: boolean;
     errors: ValidationError[] | null;
     schemaResults?: Array<{ schema: string; isValid: boolean }>;

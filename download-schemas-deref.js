@@ -170,8 +170,55 @@ const schemas = [
     name: 'Maps Part 1 v1.0 - Conformance',
     url: 'https://schemas.opengis.net/ogcapi/maps/part1/1.0/openapi/schemas/common-core/confClasses.yaml',
     output: 'public/schemas/individual/maps-p1-v1.0/confClasses.json'
+  },
+
+  // OpenAPI 3.0 and 3.1 schemas, used to validate servers' API definitions (service-desc).
+  // Kept as published, with the small transforms below so AJV can run them.
+  {
+    name: 'OpenAPI 3.0 - Schema',
+    url: 'https://spec.openapis.org/oas/3.0/schema/2021-09-28',
+    output: 'public/schemas/openapi/3.0/schema.json',
+    raw: true,
+    transform: openApi30ForAjv,
+  },
+  {
+    name: 'OpenAPI 3.1 - Schema',
+    url: 'https://spec.openapis.org/oas/3.1/schema/2022-10-07',
+    output: 'public/schemas/openapi/3.1/schema.json',
+    raw: true,
+    transform: openApi31ForAjv,
   }
 ];
+
+// The OpenAPI 3.0 schema is draft-04; AJV runs draft-07+. Drop $schema, use $id, and turn
+// the one draft-04 boolean exclusiveMinimum (Schema.multipleOf) into its numeric form.
+function openApi30ForAjv(schema) {
+  delete schema.$schema;
+  schema.$id = schema.id;
+  delete schema.id;
+  let fixed = 0;
+  const visit = node => {
+    if (!node || typeof node !== 'object') return;
+    if (node.exclusiveMinimum === true) {
+      node.exclusiveMinimum = node.minimum;
+      delete node.minimum;
+      fixed++;
+    }
+    Object.values(node).forEach(visit);
+  };
+  visit(schema);
+  if (fixed !== 1) throw new Error(`Expected 1 boolean exclusiveMinimum, found ${fixed}: the schema changed, review the transform`);
+  return schema;
+}
+
+// AJV's $dynamicRef support can't handle the 3.1 schema's "#meta" anchor (every document fails).
+// In the base dialect it points at #/$defs/schema, so use a plain $ref.
+function openApi31ForAjv(schema) {
+  const text = JSON.stringify(schema);
+  const count = (text.match(/"\$dynamicRef":"#meta"/g) || []).length;
+  if (count !== 4) throw new Error(`Expected 4 $dynamicRef "#meta", found ${count}: the schema changed, review the transform`);
+  return JSON.parse(text.replace(/"\$dynamicRef":"#meta"/g, '"$ref":"#/$defs/schema"'));
+}
 
 // Bundles are downloaded once and shared by all entries that extract from them
 const parsedBundles = new Map();
@@ -220,7 +267,12 @@ async function downloadAndDereference(schema) {
   try {
     // Download and parse the YAML with all references resolved
     let dereferencedSchema;
-    if (schema.component) {
+    if (schema.raw) {
+      // Used as published (these schemas are recursive, so not dereferenced)
+      const response = await fetch(schema.url, { headers: { Accept: 'application/json' } });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      dereferencedSchema = schema.transform(await response.json());
+    } else if (schema.component) {
       const bundle = await parseBundle(schema.url);
       dereferencedSchema = await $RefParser.dereference(componentDocument(bundle, schema.component));
       delete dereferencedSchema.components;

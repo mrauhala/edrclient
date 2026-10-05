@@ -42,8 +42,6 @@ interface ServiceSelectorProps {
   onApiUrlChange: (url: string) => void;
   selectedConformanceUrl: string | null;
   setSelectedConformanceUrl: (url: string | null) => void;
-  serviceDescUrl: string | null;
-  setServiceDescUrl: (url: string | null) => void;
 }
 
 const ServiceSelector = ({
@@ -55,10 +53,8 @@ const ServiceSelector = ({
   onApiUrlChange,
   selectedConformanceUrl,
   setSelectedConformanceUrl,
-  serviceDescUrl,
-  setServiceDescUrl,
 }: ServiceSelectorProps) => {
-  const { customServices, getAuthCredentials, selectedServiceUrl: onServiceUrlSelect, landingPageTitle } = useService();
+  const { customServices, getAuthCredentials, selectedServiceUrl: onServiceUrlSelect, landingPageTitle, serviceDescUrl, setServiceDescUrl } = useService();
 
   const [apiUrl, setApiUrl] = useState(DEFAULT_SERVICE_URL);
   const [selectedService, setSelectedService] = useState(DEFAULT_SERVICE_URL);

@@ -8,7 +8,8 @@
 export function findLineForJsonPointer(prettyJson: string, pointer: string): number {
   if (!pointer || pointer === 'root') return 1;
 
-  const segments = pointer.replace(/^\//, '').split('/');
+  // Unescape per RFC 6901: OpenAPI paths are keys like "/collections/{id}/position" (~1collections~1…)
+  const segments = pointer.replace(/^\//, '').split('/').map(segment => segment.replace(/~1/g, '/').replace(/~0/g, '~'));
   if (segments.length === 0) return 1;
 
   const lines = prettyJson.split('\n');

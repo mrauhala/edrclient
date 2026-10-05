@@ -34,7 +34,6 @@ const Sidebar = ({ open }: SidebarProps) => {
   const [currentApiUrl, setCurrentApiUrl] = useState('https://opendata.fmi.fi/edr');
   const [isLoading, setIsLoading] = useState(false);
   const [landingPageDescription, setLandingPageDescription] = useState<string | null>(null);
-  const [serviceDescUrl, setServiceDescUrl] = useState<string | null>(null);
   const [landingPageLinks, setLandingPageLinks] = useState<ApiLink[] | null>(null);
   const [landingPageKeywords, setLandingPageKeywords] = useState<string[] | null>(null);
   const [collectionsLinks, setCollectionsLinks] = useState<ApiLink[] | null>(null);
@@ -135,8 +134,6 @@ const Sidebar = ({ open }: SidebarProps) => {
           onApiUrlChange={(url: string) => { setCurrentApiUrl(url); setActiveServiceUrl(url); }}
           selectedConformanceUrl={selectedConformanceUrl}
           setSelectedConformanceUrl={setSelectedConformanceUrl}
-          serviceDescUrl={serviceDescUrl}
-          setServiceDescUrl={setServiceDescUrl}
         />
 
         <ServiceInfoPanel

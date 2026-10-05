@@ -86,6 +86,12 @@ const DataModal: React.FC<DataModalProps> = ({
     currentErrorIdx, currentError, handlePrevError, handleNextError,
   } = useValidationErrorNavigation(validationErrors, formattedData, contentType, scrollToPath, open);
 
+  // Name the flagged lines after their worst severity: API definition findings are often only notes
+  const flagged = errorLineList.flatMap(entry => entry.errors.map(error => error.severity ?? 'error'));
+  const flaggedKind = flagged.includes('error') ? { noun: 'error', color: 'error' as const }
+    : flagged.includes('warning') ? { noun: 'issue', color: 'warning' as const }
+      : { noun: 'note', color: 'info' as const };
+
   const handleViewModeChange = (_event: React.MouseEvent<HTMLElement>, newMode: 'code' | 'preview' | null) => {
     if (newMode !== null) {
       setViewMode(newMode);
@@ -280,8 +286,8 @@ const DataModal: React.FC<DataModalProps> = ({
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25, ml: 1 }}>
                     <Chip
                       icon={<ErrorOutlineIcon />}
-                      label={`${errorLineList.length} ${errorLineList.length === 1 ? 'error' : 'errors'}`}
-                      color="error"
+                      label={`${errorLineList.length} ${flaggedKind.noun}${errorLineList.length === 1 ? '' : 's'}`}
+                      color={flaggedKind.color}
                       size="small"
                       variant="outlined"
                       onClick={viewMode === 'preview' ? () => setViewMode('code') : undefined}
@@ -371,7 +377,7 @@ const DataModal: React.FC<DataModalProps> = ({
                 py: 0.75,
                 backgroundColor: 'background.default',
                 borderBottom: '1px solid',
-                borderLeft: `3px solid ${theme.palette.error.main}`,
+                borderLeft: `3px solid ${theme.palette[flaggedKind.color].main}`,
                 borderColor: 'divider',
                 display: 'flex',
                 alignItems: 'baseline',
@@ -442,7 +448,7 @@ const DataModal: React.FC<DataModalProps> = ({
                     isDark={theme.palette.mode === 'dark'}
                     errorLines={errorLines}
                     gutterRanges={gutterRanges}
-                    errorColor={theme.palette.error.main}
+                    errorColor={theme.palette[flaggedKind.color].main}
                     scrollToLine={currentError?.line}
                   />
                 ) : (
