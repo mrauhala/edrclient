@@ -5,8 +5,8 @@ import Typography from '@mui/material/Typography';
 import Alert from '@mui/material/Alert';
 import Divider from '@mui/material/Divider';
 import { ChartsText, type ChartsTextProps } from '@mui/x-charts/ChartsText';
-import type { AxisValueFormatterContext } from '@mui/x-charts/models';
 import { getTimeSeriesError } from './utils/coverageTimeSeries';
+import { formatTimeTick } from './utils/timeAxisTicks';
 
 interface CoverageJsonChartProps {
   data: unknown;
@@ -56,21 +56,7 @@ interface CoverageJson {
   };
 }
 
-// Time axis ticks show the time, with the date added on the first tick and wherever the day
-// changes from the previous tick. Tooltips show the full date and time.
-const formatTime = (value: Date | number, context: AxisValueFormatterContext<'time'>): string => {
-  const date = new Date(value);
-  if (context.location !== 'tick') {
-    return date.toLocaleString();
-  }
-  const time = date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-  const ticks = context.scale.ticks(context.tickNumber);
-  const index = ticks.findIndex(tick => tick.getTime() === date.getTime());
-  const isNewDay = index <= 0 || ticks[index - 1].toDateString() !== date.toDateString();
-  return isNewDay ? `${time}\n${date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}` : time;
-};
-
-// Bold the time axis labels that carry a date line, i.e. the first tick and each day change
+// Bold the time axis labels that carry a date line, i.e. the first labelled tick and each day change
 const TimeTickLabel: React.FC<ChartsTextProps> = (props) => (
   <ChartsText {...props} style={{ ...props.style, fontWeight: props.text.includes('\n') ? 'bold' : undefined }} />
 );
@@ -248,7 +234,7 @@ const SingleCoverageChart: React.FC<{ coverage: CoverageJson; index?: number }> 
               data: timestamps,
               scaleType: 'time',
               label: 'Time',
-              valueFormatter: formatTime,
+              valueFormatter: formatTimeTick,
               height: 'auto'
             }
           ]}
