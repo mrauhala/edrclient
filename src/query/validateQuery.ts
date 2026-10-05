@@ -246,6 +246,23 @@ export function validateQuery(model: QueryModel): QueryIssue[] {
   return issues.sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
 }
 
+const FORM_FIELDS = new Set(['f', 'parameter-name', 'datetime', 'z']);
+
+// Add the API docs' issues to the query's own, under the builder's field names. A field that EDR or
+// the metadata already flags keeps only that issue: they're the stronger source, and one is enough.
+export function addApiDocsIssues(model: QueryModel, issues: QueryIssue[], apiIssues: QueryIssue[]): QueryIssue[] {
+  const dimensionIds = new Set([...(model.collection.extent?.custom ?? []).map(dim => dim.id), ...Object.keys(model.customDims)]);
+  const flagged = new Set(issues.filter(issue => issue.severity !== 'info').map(issue => issue.field));
+  const placed = apiIssues
+    .map(issue => {
+      const field = dimensionIds.has(issue.field) ? `dim:${issue.field}` : issue.field;
+      const input = FORM_FIELDS.has(field) || field.startsWith('dim:') ? 'form' as const : undefined;
+      return { ...issue, id: issue.id.replace(`:${issue.field}:`, `:${field}:`), field, input };
+    })
+    .filter(issue => !flagged.has(issue.field));
+  return [...issues, ...placed].sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
+}
+
 export interface IssueSummary {
   missing: number;
   error: number;

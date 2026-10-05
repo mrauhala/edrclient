@@ -8,6 +8,7 @@ export interface UseValidationErrorNavigationReturn {
   gutterRanges: { start: number; end: number }[];
   currentErrorIdx: number;
   currentError: { line: number; errors: ValidationError[] } | undefined;
+  scrollLine: number | undefined; // the current error's line, else the line scrollToPath points at
   handlePrevError: () => void;
   handleNextError: () => void;
 }
@@ -20,20 +21,23 @@ export function useValidationErrorNavigation(
   open: boolean,
 ): UseValidationErrorNavigationReturn {
   // Compute error line numbers, collection gutter ranges, and per-line error map
-  const { errorLines, errorLineList, gutterRanges, initialErrorIdx } = useMemo(() => {
+  const { errorLines, errorLineList, gutterRanges, initialErrorIdx, targetLine } = useMemo(() => {
+    const isJson = !!formattedData && !!contentType?.includes('json');
+    // The requested place, also when there's nothing to highlight there (e.g. an API docs operation)
+    const targetLine = isJson && scrollToPath && scrollToPath !== 'root' ? findLineForJsonPointer(formattedData, scrollToPath) : 0;
     const empty = {
       errorLines: new Set<number>(),
       errorLineList: [] as { line: number; errors: ValidationError[] }[],
       gutterRanges: [] as { start: number; end: number }[],
       initialErrorIdx: 0,
+      targetLine,
     };
-    if (!validationErrors.length || !formattedData || !contentType?.includes('json')) return empty;
+    if (!validationErrors.length || !isJson) return empty;
 
     const errLines = new Set<number>();
     const byLine = new Map<number, ValidationError[]>();
     const ranges: { start: number; end: number }[] = [];
     const seenCollections = new Set<number>();
-    let targetLine = 0;
 
     for (const err of validationErrors) {
       if (!err.path || err.path === 'root') continue;
@@ -50,14 +54,6 @@ export function useValidationErrorNavigation(
         const range = findCollectionRange(formattedData, collIdx);
         if (range) ranges.push(range);
       }
-
-      if (scrollToPath && err.path === scrollToPath && line > 0) {
-        targetLine = line;
-      }
-    }
-
-    if (!targetLine && scrollToPath && scrollToPath !== 'root') {
-      targetLine = findLineForJsonPointer(formattedData, scrollToPath);
     }
 
     // Build sorted list of unique error lines with their errors
@@ -72,7 +68,7 @@ export function useValidationErrorNavigation(
       if (idx >= 0) initIdx = idx;
     }
 
-    return { errorLines: errLines, errorLineList: sortedLines, gutterRanges: ranges, initialErrorIdx: initIdx };
+    return { errorLines: errLines, errorLineList: sortedLines, gutterRanges: ranges, initialErrorIdx: initIdx, targetLine };
   }, [validationErrors, formattedData, contentType, scrollToPath]);
 
   // Navigation state
@@ -112,6 +108,7 @@ export function useValidationErrorNavigation(
     gutterRanges,
     currentErrorIdx,
     currentError,
+    scrollLine: currentError?.line ?? (targetLine || undefined),
     handlePrevError,
     handleNextError,
   };

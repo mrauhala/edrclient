@@ -83,7 +83,7 @@ const DataModal: React.FC<DataModalProps> = ({
 
   const {
     errorLineList, errorLines, gutterRanges,
-    currentErrorIdx, currentError, handlePrevError, handleNextError,
+    currentErrorIdx, currentError, scrollLine, handlePrevError, handleNextError,
   } = useValidationErrorNavigation(validationErrors, formattedData, contentType, scrollToPath, open);
 
   // Name the flagged lines after their worst severity: API definition findings are often only notes
@@ -449,7 +449,7 @@ const DataModal: React.FC<DataModalProps> = ({
                     errorLines={errorLines}
                     gutterRanges={gutterRanges}
                     errorColor={theme.palette[flaggedKind.color].main}
-                    scrollToLine={currentError?.line}
+                    scrollToLine={scrollLine}
                   />
                 ) : (
                   <pre style={{

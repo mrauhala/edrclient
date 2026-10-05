@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { Collection } from '../types/api';
 import { buildQueryModel, emptyDim, type QueryModelInput } from './queryModel';
-import { summarizeIssues, validateQuery } from './validateQuery';
+import { addApiDocsIssues, summarizeIssues, validateQuery } from './validateQuery';
+import type { QueryIssue } from './types';
 import fmiEcmwf from './__fixtures__/fmi-ecmwf.json';
 import fmiPainepinta from './__fixtures__/fmi-ecmwf-painepinta.json';
 import dwdIcon from './__fixtures__/dwd-icon-d2-ruc-single-level.json';
@@ -130,5 +131,43 @@ describe('ordering and summary', () => {
     expect(order).toEqual([...order].sort((a, b) => ['missing', 'error', 'warning', 'info'].indexOf(a) - ['missing', 'error', 'warning', 'info'].indexOf(b)));
     expect(summarizeIssues(issues)).toMatchObject({ missing: 1, needsAttention: true });
     expect(summarizeIssues([])).toEqual({ missing: 0, error: 0, warning: 0, info: 0, needsAttention: false });
+  });
+});
+
+describe('addApiDocsIssues', () => {
+  const model = (overrides: Partial<QueryModelInput> = {}) => buildQueryModel({
+    collection: FMI, queryKey: 'position', format: 'CoverageJSON', parameters: [], datetime: emptyDim(), vertical: emptyDim(),
+    customDims: {}, points: [HELSINKI], polygons: [], radius: { value: 10, units: 'km' }, locationFeature: null, ...overrides,
+  })!;
+  const apiIssue = (field: string, severity: QueryIssue['severity'] = 'warning'): QueryIssue => ({
+    id: `openapi:${field}:rule`, severity, source: 'openapi', field, message: `about ${field}`, pointer: '/paths',
+  });
+
+  it('places API docs issues on the builder fields they concern', () => {
+    const issues = addApiDocsIssues(
+      model({ customDims: { member: { mode: 'individual', value: '1', start: '', end: '' } } }),
+      [], [apiIssue('member'), apiIssue('f'), apiIssue('coords'), apiIssue('query', 'info')],
+    );
+    expect(issues.map(issue => [issue.id, issue.field, issue.input])).toEqual([
+      ['openapi:dim:member:rule', 'dim:member', 'form'],
+      ['openapi:f:rule', 'f', 'form'],
+      ['openapi:coords:rule', 'coords', undefined],
+      ['openapi:query:rule', 'query', undefined],
+    ]);
+  });
+
+  it("leaves a field to EDR and the metadata when they already flag it, but not when they only note it", () => {
+    const own = issuesFor(FMI, 'position', { format: 'NetCDF4' }); // missing coords, f not offered
+    const merged = addApiDocsIssues(model({ format: 'NetCDF4', points: [] }), own, [apiIssue('coords'), apiIssue('f'), apiIssue('parameter-name')]);
+    expect(merged.filter(issue => issue.source === 'openapi').map(issue => issue.field)).toEqual(['parameter-name']);
+    expect(own.some(issue => issue.field === 'parameter-name' && issue.severity === 'info')).toBe(true);
+  });
+
+  it('keeps the severity order, with the query\'s own issues first', () => {
+    const own = issuesFor(FMI, 'position', { points: [HELSINKI], datetime: { mode: 'range', value: '', start: '2026-10-05T12:00:00Z', end: '' } });
+    const merged = addApiDocsIssues(model(), own, [apiIssue('query', 'info'), apiIssue('parameter-name')]);
+    expect(merged.map(issue => `${issue.severity} ${issue.source}`)).toEqual([
+      'missing metadata', 'warning openapi', ...own.filter(issue => issue.severity === 'info').map(issue => `info ${issue.source}`), 'info openapi',
+    ]);
   });
 });

@@ -3,9 +3,11 @@ import Alert from '@mui/material/Alert';
 import AlertTitle from '@mui/material/AlertTitle';
 import Box from '@mui/material/Box';
 import ButtonBase from '@mui/material/ButtonBase';
+import Chip from '@mui/material/Chip';
 import Collapse from '@mui/material/Collapse';
 import FormHelperText from '@mui/material/FormHelperText';
 import Link from '@mui/material/Link';
+import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import ErrorOutlinedIcon from '@mui/icons-material/ErrorOutlined';
@@ -14,7 +16,12 @@ import MapOutlinedIcon from '@mui/icons-material/MapOutlined';
 import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import { useQueryValidation } from './hooks/useQueryValidation';
+import { useOpenApi } from './contexts/OpenApiContext';
+import { openApiDocumentAt } from './validation/openapi/openApiDocument';
 import type { QueryIssue } from './query/types';
+import type { ValidationError } from './types/api';
+
+type OpenDocs = (pointer: string) => void;
 
 // Scroll a query builder field into view and focus it (fields carry id `query-field-<field>`)
 function focusQueryField(field: string) {
@@ -33,23 +40,58 @@ function IssueIcon({ issue }: { issue: QueryIssue }) {
   return <InfoOutlinedIcon sx={{ ...sx, color: 'info.main' }} />;
 }
 
-function IssueRow({ issue }: { issue: QueryIssue }) {
+function IssueRow({ issue, openDocs }: { issue: QueryIssue; openDocs?: OpenDocs }) {
   const content = (
     <>
       <IssueIcon issue={issue} />
       <Typography variant="body2" sx={{ textAlign: 'left' }}>{issue.message}</Typography>
     </>
   );
-  const rowSx = { display: 'flex', alignItems: 'flex-start', gap: 1, py: 0.25, width: '100%', justifyContent: 'flex-start' };
-  // Form issues jump to their field; map issues are fixed on the map
-  return issue.input === 'form' ? (
-    <ButtonBase onClick={() => focusQueryField(issue.field)} sx={{ ...rowSx, borderRadius: 0.5 }}>{content}</ButtonBase>
-  ) : (
-    <Box sx={rowSx}>{content}</Box>
+  const rowSx = { display: 'flex', alignItems: 'flex-start', gap: 1, py: 0.25, flex: 1, minWidth: 0, justifyContent: 'flex-start' };
+  const pointer = issue.source === 'openapi' ? issue.pointer : undefined;
+  // Form issues jump to their field; map issues are fixed on the map. API docs issues open the
+  // document where the rule is written.
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5 }}>
+      {issue.input === 'form' ? (
+        <ButtonBase onClick={() => focusQueryField(issue.field)} sx={{ ...rowSx, borderRadius: 0.5 }}>{content}</ButtonBase>
+      ) : (
+        <Box sx={rowSx}>{content}</Box>
+      )}
+      {pointer && openDocs && (
+        <Tooltip title="Show this in the API docs">
+          <Chip label="API docs" size="small" variant="outlined" onClick={() => openDocs(pointer)}
+            sx={{ height: 20, fontSize: 11, mt: '2px', flexShrink: 0 }} />
+        </Tooltip>
+      )}
+    </Box>
   );
 }
 
-function Notes({ notes }: { notes: QueryIssue[] }) {
+// The query was also checked against the service's API definition: link to the operation
+function ApiDocsNote({ operation, openDocs }: { operation: { template: string; pointer: string } | null; openDocs?: OpenDocs }) {
+  if (!operation || !openDocs) return null;
+  return (
+    <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+      Checked against the{' '}
+      <Tooltip title={`GET ${operation.template}`}>
+        <Link component="button" variant="caption" onClick={() => openDocs(operation.pointer)} sx={{ verticalAlign: 'baseline' }}>
+          API docs
+        </Link>
+      </Tooltip>
+    </Typography>
+  );
+}
+
+const asFinding = (issue: QueryIssue): ValidationError => ({
+  message: issue.message,
+  path: issue.pointer,
+  severity: issue.severity === 'info' ? 'info' : 'warning',
+  section: 'OpenAPI',
+  schema: 'API docs',
+});
+
+function Notes({ notes, openDocs }: { notes: QueryIssue[]; openDocs?: OpenDocs }) {
   const [open, setOpen] = useState(false);
   if (notes.length === 0) return null;
   return (
@@ -59,7 +101,7 @@ function Notes({ notes }: { notes: QueryIssue[] }) {
       </Link>
       <Collapse in={open}>
         <Box sx={{ mt: 0.5 }}>
-          {notes.map(issue => <IssueRow key={issue.id} issue={issue} />)}
+          {notes.map(issue => <IssueRow key={issue.id} issue={issue} openDocs={openDocs} />)}
         </Box>
       </Collapse>
     </>
@@ -68,11 +110,15 @@ function Notes({ notes }: { notes: QueryIssue[] }) {
 
 // What the data query is still missing or gets wrong, shown under the Data Query select
 const QueryIssuesPanel: React.FC = () => {
-  const { active, issues, summary } = useQueryValidation();
+  const { active, issues, summary, apiOperation } = useQueryValidation();
+  const { description } = useOpenApi();
   if (!active) return null;
 
   const problems = issues.filter(issue => issue.severity !== 'info');
   const notes = issues.filter(issue => issue.severity === 'info');
+  // The document opens with all of this query's API docs issues marked, at the one clicked
+  const findings = issues.filter(issue => issue.source === 'openapi' && issue.pointer).map(asFinding);
+  const openDocs = description ? (pointer: string) => openApiDocumentAt(description, pointer, findings) : undefined;
 
   if (problems.length === 0) {
     return (
@@ -81,7 +127,8 @@ const QueryIssuesPanel: React.FC = () => {
           <CheckCircleOutlinedIcon sx={{ fontSize: 18, color: 'success.main' }} />
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>Query complete</Typography>
         </Box>
-        <Notes notes={notes} />
+        <ApiDocsNote operation={apiOperation} openDocs={openDocs} />
+        <Notes notes={notes} openDocs={openDocs} />
       </Box>
     );
   }
@@ -90,8 +137,9 @@ const QueryIssuesPanel: React.FC = () => {
   return (
     <Alert severity={summary.needsAttention ? 'warning' : 'info'} variant="outlined" icon={false} sx={{ mb: 2, py: 0.5 }}>
       <AlertTitle sx={{ mb: 0.5 }}>{title}</AlertTitle>
-      {problems.map(issue => <IssueRow key={issue.id} issue={issue} />)}
-      <Notes notes={notes} />
+      {problems.map(issue => <IssueRow key={issue.id} issue={issue} openDocs={openDocs} />)}
+      <Notes notes={notes} openDocs={openDocs} />
+      <ApiDocsNote operation={apiOperation} openDocs={openDocs} />
     </Alert>
   );
 };
