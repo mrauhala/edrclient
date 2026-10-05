@@ -37,6 +37,12 @@ async function serveIndex(res) {
 }
 
 const server = createServer(async (req, res) => {
+  if (req.url === '/runtime-config.js') {
+    res.writeHead(200, { 'Content-Type': 'text/javascript', 'Cache-Control': 'no-store' });
+    res.end(`window.__RUNTIME_CONFIG__ = ${JSON.stringify({ VITE_CARTO_API_KEY: cartoApiKey })};`);
+    return;
+  }
+
   if (req.url === '/' || req.url === '/index.html') {
     try {
       await serveIndex(res);
