@@ -49,4 +49,11 @@ export default [
       'react-hooks/set-state-in-effect': 'off',
     },
   },
+  {
+    // Vitest runs tests in Node
+    files: ['src/**/*.test.ts'],
+    languageOptions: {
+      globals: { ...globals.browser, ...globals.node },
+    },
+  },
 ];
