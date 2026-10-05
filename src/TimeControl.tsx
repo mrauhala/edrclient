@@ -163,6 +163,7 @@ const TimeControl: React.FC<TimeControlProps> = ({ temporal, queryState }) => {
               onChange={(v: Dayjs | null) => setSelectedDatetime(v ? v.utc().format('YYYY-MM-DDTHH:mm:ss[Z]') : '')}
               format="DD/MM/YYYY HH:mm"
               ampm={false}
+              timezone="UTC"
               slotProps={{ textField: { fullWidth: true, size: 'small' } }}
             />
           ) : (
@@ -173,6 +174,7 @@ const TimeControl: React.FC<TimeControlProps> = ({ temporal, queryState }) => {
                 onChange={(v: Dayjs | null) => setStartDatetime(v ? v.utc().format('YYYY-MM-DDTHH:mm:ss[Z]') : '')}
                 format="DD/MM/YYYY HH:mm"
                 ampm={false}
+                timezone="UTC"
                 slotProps={{ textField: { fullWidth: true, size: 'small' } }}
               />
               <DateTimePicker
@@ -181,6 +183,7 @@ const TimeControl: React.FC<TimeControlProps> = ({ temporal, queryState }) => {
                 onChange={(v: Dayjs | null) => setEndDatetime(v ? v.utc().format('YYYY-MM-DDTHH:mm:ss[Z]') : '')}
                 format="DD/MM/YYYY HH:mm"
                 ampm={false}
+                timezone="UTC"
                 slotProps={{ textField: { fullWidth: true, size: 'small' } }}
               />
             </Box>
