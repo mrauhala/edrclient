@@ -14,6 +14,8 @@ import { useGeoJsonOverlays } from './hooks/useGeoJsonOverlays';
 import { useMapsOverlays } from './hooks/useMapsOverlays';
 import { useMapInteractions } from './hooks/useMapInteractions';
 import { useLayerManagerSync } from './hooks/useLayerManagerSync';
+import MapQueryOverlay from './MapQueryOverlay';
+import { geometryKindOf } from './query/queryTypes';
 
 
 interface MapProps {
@@ -130,212 +132,8 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
         </div>
       )}
 
-      {/* Position Selection Instruction - Top Center */}
-      {dataQuery && dataQuery.toLowerCase() === 'position' && (!clickedCoords || clickedCoords.length === 0) && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            backgroundColor: 'rgba(0, 0, 0, 0.9)',
-            color: 'white',
-            padding: '16px 24px',
-            borderRadius: '8px',
-            fontSize: '14px',
-            fontWeight: 'normal',
-            zIndex: 1000,
-            boxShadow: '0 4px 8px rgba(0,0,0,0.5)',
-            border: '2px solid rgba(255, 0, 0, 0.6)',
-            textAlign: 'center',
-          }}
-        >
-          <div style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '16px', color: '#FF4444' }}>
-            Click Points on Map
-          </div>
-          <div>Click to add multiple points</div>
-        </div>
-      )}
-
-        {/* Trajectory Selection Instruction - Top Center */}
-        {dataQuery && dataQuery.toLowerCase() === 'trajectory' && (!clickedCoords || clickedCoords.length === 0) && (
-          <div
-            style={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              backgroundColor: 'rgba(0, 0, 0, 0.9)',
-              color: 'white',
-              padding: '16px 24px',
-              borderRadius: '8px',
-              fontSize: '14px',
-              fontWeight: 'normal',
-              zIndex: 1000,
-              boxShadow: '0 4px 8px rgba(0,0,0,0.5)',
-              border: '2px solid rgba(255, 0, 0, 0.6)',
-              textAlign: 'center',
-            }}
-          >
-            <div style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '16px', color: '#FF4444' }}>
-              Draw Trajectory on Map
-            </div>
-            <div>Click to add points along the path; double-click to finish</div>
-          </div>
-        )}
-
-      {/* Reset Button for Position Mode */}
-      {dataQuery && dataQuery.toLowerCase() === 'position' && clickedCoords && clickedCoords.length > 0 && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '10px',
-            right: '10px',
-            zIndex: 1000,
-          }}
-        >
-          <button
-            onClick={() => {
-              setClickedCoords([]);
-            }}
-            style={{
-              backgroundColor: 'rgba(255, 68, 68, 0.9)',
-              color: 'white',
-              border: '2px solid rgba(255, 255, 255, 0.3)',
-              padding: '8px 16px',
-              borderRadius: '6px',
-              fontSize: '14px',
-              fontWeight: 'bold',
-              cursor: 'pointer',
-              boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255, 68, 68, 1)';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255, 68, 68, 0.9)';
-            }}
-          >
-            Clear Points
-          </button>
-        </div>
-      )}
-
-        {/* Reset Button for Trajectory Mode */}
-        {dataQuery && dataQuery.toLowerCase() === 'trajectory' && ((clickedCoords && clickedCoords.length > 0) || isDrawing) && (
-          <div
-            style={{
-              position: 'absolute',
-              top: '10px',
-              right: '10px',
-              zIndex: 1000,
-            }}
-          >
-            <button
-              onClick={() => {
-                abortDrawing();
-                setClickedCoords([]);
-                if (markerLayer) {
-                  const source = markerLayer.getSource();
-                  if (source) source.clear();
-                }
-              }}
-              style={{
-                backgroundColor: 'rgba(255, 68, 68, 0.9)',
-                color: 'white',
-                border: '2px solid rgba(255, 255, 255, 0.3)',
-                padding: '8px 16px',
-                borderRadius: '6px',
-                fontSize: '14px',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(255, 68, 68, 1)';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(255, 68, 68, 0.9)';
-              }}
-            >
-              Clear Trajectory
-            </button>
-          </div>
-        )}
-
-      {/* Area Drawing Instruction - Top Center */}
-      {dataQuery && dataQuery.toLowerCase() === 'area' && (!selectedArea || selectedArea.length === 0) && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            backgroundColor: 'rgba(0, 0, 0, 0.9)',
-            color: 'white',
-            padding: '16px 24px',
-            borderRadius: '8px',
-            fontSize: '14px',
-            fontWeight: 'normal',
-            zIndex: 1000,
-            boxShadow: '0 4px 8px rgba(0,0,0,0.5)',
-            border: '2px solid rgba(255, 0, 0, 0.6)',
-            textAlign: 'center',
-          }}
-        >
-          <div style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '16px', color: '#FF4444' }}>
-            Draw Areas on Map
-          </div>
-          <div>Click to add vertices, double-click to complete each polygon</div>
-        </div>
-      )}
-
-      {/* Reset Button for Area Mode */}
-      {dataQuery && dataQuery.toLowerCase() === 'area' && ((selectedArea && selectedArea.length > 0) || isDrawing) && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '10px',
-            right: '10px',
-            zIndex: 1000,
-          }}
-        >
-          <button
-            onClick={() => {
-              abortDrawing();
-              setSelectedArea([]);
-              if (areaLayer) {
-                const source = areaLayer.getSource();
-                if (source) {
-                  source.clear();
-                }
-              }
-            }}
-            style={{
-              backgroundColor: 'rgba(255, 68, 68, 0.9)',
-              color: 'white',
-              border: '2px solid rgba(255, 255, 255, 0.3)',
-              padding: '8px 16px',
-              borderRadius: '6px',
-              fontSize: '14px',
-              fontWeight: 'bold',
-              cursor: 'pointer',
-              boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255, 68, 68, 1)';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255, 68, 68, 0.9)';
-            }}
-          >
-            Clear Polygons
-          </button>
-        </div>
-      )}
-
       {/* Radius Selection Info - Lower Right Corner */}
-      {dataQuery && dataQuery.toLowerCase() === 'radius' && clickedCoords && clickedCoords.length > 0 && (
+      {dataQuery === 'radius' && clickedCoords && clickedCoords.length > 0 && (
         <div
           style={{
             position: 'absolute',
@@ -367,72 +165,19 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
         </div>
       )}
 
-      {/* Radius Selection Instruction - Top Center */}
-      {dataQuery && dataQuery.toLowerCase() === 'radius' && (!clickedCoords || clickedCoords.length === 0) && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            backgroundColor: 'rgba(0, 0, 0, 0.9)',
-            color: 'white',
-            padding: '16px 24px',
-            borderRadius: '8px',
-            fontSize: '14px',
-            fontWeight: 'normal',
-            zIndex: 1000,
-            boxShadow: '0 4px 8px rgba(0,0,0,0.5)',
-            border: '2px solid rgba(0, 123, 255, 0.6)',
-            textAlign: 'center',
-          }}
-        >
-          <div style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '16px', color: '#007BFF' }}>
-            Click Points on Map
-          </div>
-          <div>Click to add multiple points with radius {radiusKm} km</div>
-        </div>
-      )}
-
-      {/* Reset Button and Radius Control for Radius Mode */}
-      {dataQuery && dataQuery.toLowerCase() === 'radius' && clickedCoords && clickedCoords.length > 0 && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '10px',
-            right: '10px',
-            zIndex: 1000,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '10px',
-          }}
-        >
-          <button
-            onClick={() => {
-              setClickedCoords([]);
-            }}
-            style={{
-              backgroundColor: 'rgba(255, 68, 68, 0.9)',
-              color: 'white',
-              border: '2px solid rgba(255, 255, 255, 0.3)',
-              padding: '8px 16px',
-              borderRadius: '6px',
-              fontSize: '14px',
-              fontWeight: 'bold',
-              cursor: 'pointer',
-              boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255, 68, 68, 1)';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255, 68, 68, 0.9)';
-            }}
-          >
-            Clear Points
-          </button>
-
-          {/* Radius Control */}
+      {/* What the query needs from the map, and clearing it */}
+      <MapQueryOverlay
+        queryType={dataQuery}
+        hasGeometry={geometryKindOf(dataQuery) === 'polygon' ? selectedArea.length > 0 : clickedCoords.length > 0}
+        isDrawing={isDrawing}
+        onClear={() => {
+          abortDrawing();
+          setClickedCoords([]);
+          setSelectedArea([]);
+        }}
+        radiusLabel={`${radiusKm} km`}
+      >
+        {dataQuery === 'radius' && (
           <div
             style={{
               backgroundColor: 'rgba(0, 0, 0, 0.8)',
@@ -462,8 +207,8 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
               1 - 500 km
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </MapQueryOverlay>
 
       <FeatureViewer
         feature={selectedFeature ? normalizeGeoJsonFeature(selectedFeature) : null}

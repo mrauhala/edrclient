@@ -50,7 +50,7 @@ export interface UseQueryUrlReturn {
 }
 
 export function useQueryUrl(): UseQueryUrlReturn {
-  const { clickedCoords, setClickedCoords, selectedArea, radiusKm, setDataQuery } = useMapInteraction();
+  const { clickedCoords, selectedArea, radiusKm, setDataQuery } = useMapInteraction();
   const { selectedCollection, selectedFeature, setCollectionUrl } = useCollection();
   const { setQueryValidation } = useQueryValidationContext();
   const { index: apiIndex } = useOpenApi();
@@ -92,20 +92,17 @@ export function useQueryUrl(): UseQueryUrlReturn {
   const getEffectiveOutputFormats = effectiveOutputFormats;
 
   // Switch the data query: keep the output format if the new query offers it, otherwise use the
-  // query's default; sync the map's query mode and drop clicked points other queries can't use
-  const selectDataQuery = useCallback((collection: Collection, queryType: string) => {
-    setSelectedDataQuery(queryType);
+  // query's default; tell the map the query type, which drops geometry the new type can't use
+  const selectDataQuery = useCallback((collection: Collection, queryKey: string) => {
+    setSelectedDataQuery(queryKey);
     setSelectedFormat(current => {
-      const formats = getEffectiveOutputFormats(collection, queryType);
+      const formats = getEffectiveOutputFormats(collection, queryKey);
       if (current && formats.includes(current)) return current;
-      const defaultFormat = collection.data_queries[queryType]?.link?.variables?.default_output_format;
+      const defaultFormat = collection.data_queries[queryKey]?.link?.variables?.default_output_format;
       return defaultFormat && formats.includes(defaultFormat) ? defaultFormat : '';
     });
-    setDataQuery(queryType);
-    if (queryType.toLowerCase() !== 'position') {
-      setClickedCoords([]);
-    }
-  }, [getEffectiveOutputFormats, setDataQuery, setClickedCoords]);
+    setDataQuery(queryKey ? queryTypeOf(collection, queryKey) : '');
+  }, [getEffectiveOutputFormats, setDataQuery]);
 
   // Selecting a location (on the map, in the Location Features list or via search) switches the
   // query to `locations`, so the request targets that location

@@ -10,6 +10,7 @@ import Draw from 'ol/interaction/Draw';
 import { DrawEvent } from 'ol/interaction/Draw';
 import { useMapInteraction } from '../contexts/MapInteractionContext';
 import { useCollection } from '../contexts/CollectionContext';
+import { geometryKindOf } from '../query/queryTypes';
 
 export function useMapInteractions(
   map: Map | null,
@@ -18,6 +19,8 @@ export function useMapInteractions(
   radiusLayer: VectorLayer<VectorSource> | null,
 ): { abortDrawing: () => void; isDrawing: boolean } {
   const { clickedCoords, setClickedCoords, selectedArea, setSelectedArea, radiusKm, dataQuery } = useMapInteraction();
+  // dataQuery is the query type; the geometry kind decides what the map collects
+  const geometryKind = geometryKindOf(dataQuery);
   const { selectedCollection, selectedFeature } = useCollection();
   const [drawInteraction, setDrawInteraction] = useState<Draw | null>(null);
   // True while an area/trajectory sketch is in progress (between drawstart and drawend/abort).
@@ -30,16 +33,6 @@ export function useMapInteractions(
   // Keep refs in sync
   useEffect(() => { selectedAreaRef.current = selectedArea; }, [selectedArea]);
   useEffect(() => { clickedCoordsRef.current = clickedCoords; }, [clickedCoords]);
-
-  // Reset trajectory state when leaving trajectory mode
-  useEffect(() => {
-    if (dataQuery && dataQuery.toLowerCase() !== 'trajectory') {
-      if (markerLayer) {
-        const source = markerLayer.getSource();
-        if (source) source.clear();
-      }
-    }
-  }, [dataQuery, markerLayer]);
 
   // Zoom to feature when a location feature is selected
   useEffect(() => {
@@ -63,13 +56,13 @@ export function useMapInteractions(
     }
   }, [map, selectedFeature]);
 
-  // Update marker/trajectory when clicked coordinates change
+  // Draw the clicked points (position) or the line (trajectory, corridor) from state
   useEffect(() => {
-    if (markerLayer && dataQuery) {
+    if (markerLayer) {
       const source = markerLayer.getSource();
       if (source) {
         source.clear();
-        if (dataQuery.toLowerCase() === 'position' && clickedCoords && clickedCoords.length > 0) {
+        if (dataQuery === 'position' && clickedCoords && clickedCoords.length > 0) {
           clickedCoords.forEach(coords => {
             const [lon, lat] = coords;
             const feature = new Feature({
@@ -78,7 +71,7 @@ export function useMapInteractions(
             source.addFeature(feature);
           });
         }
-        if (dataQuery.toLowerCase() === 'trajectory' && clickedCoords && clickedCoords.length > 1) {
+        if (geometryKind === 'line' && clickedCoords && clickedCoords.length > 1) {
           const lineCoords = clickedCoords.map(([lon, lat]) => fromLonLat([lon, lat]));
           const lineFeature = new Feature({
             geometry: new LineString(lineCoords)
@@ -93,11 +86,11 @@ export function useMapInteractions(
         }
       }
     }
-  }, [clickedCoords, markerLayer, dataQuery]);
+  }, [clickedCoords, markerLayer, dataQuery, geometryKind]);
 
   // Update radius circles when clicked coords or radius change
   useEffect(() => {
-    if (radiusLayer && dataQuery && dataQuery.toLowerCase() === 'radius') {
+    if (radiusLayer && dataQuery === 'radius') {
       const source = radiusLayer.getSource();
       if (source) {
         source.clear();
@@ -136,7 +129,7 @@ export function useMapInteractions(
           });
         }
       }
-    } else if (radiusLayer && dataQuery && dataQuery.toLowerCase() !== 'radius') {
+    } else if (radiusLayer) {
       const source = radiusLayer.getSource();
       if (source) {
         source.clear();
@@ -144,7 +137,7 @@ export function useMapInteractions(
     }
   }, [clickedCoords, radiusLayer, radiusKm, dataQuery]);
 
-  // Handle map clicks for position and radius queries
+  // Handle map clicks for point queries (position, radius)
   useEffect(() => {
     if (!map) return;
 
@@ -157,11 +150,11 @@ export function useMapInteractions(
         }
       }
 
-      // Trajectory is intentionally excluded: in trajectory mode the Draw('LineString')
+      // Lines are intentionally excluded: for trajectory and corridor the Draw('LineString')
       // interaction below is the sole capturer of clickedCoords (mirroring how area's
       // polygon Draw owns selectedArea). Letting this handler also append here caused a
       // ghost line and premature queries from unfinished lines.
-      if (dataQuery && (dataQuery.toLowerCase() === 'position' || dataQuery.toLowerCase() === 'radius')) {
+      if (geometryKind === 'points') {
         const coords = map.getCoordinateFromPixel(event.pixel);
         const [x, y] = toLonLat(coords);
         const bbox = selectedCollection?.extent?.spatial?.bbox;
@@ -186,9 +179,9 @@ export function useMapInteractions(
     return () => {
       map.un('singleclick', handleMapClick);
     };
-  }, [map, dataQuery, selectedCollection, setClickedCoords]);
+  }, [map, geometryKind, selectedCollection, setClickedCoords]);
 
-  // Handle area and trajectory selection with drawing tool
+  // Draw areas (polygon) and lines (trajectory, corridor)
   useEffect(() => {
     if (!map) return;
 
@@ -198,7 +191,7 @@ export function useMapInteractions(
     }
 
     // Area query: Polygon drawing
-    if (dataQuery && dataQuery.toLowerCase() === 'area' && areaLayer) {
+    if (geometryKind === 'polygon' && areaLayer) {
       const source = areaLayer.getSource();
       if (!source) return;
 
@@ -244,8 +237,8 @@ export function useMapInteractions(
       };
     }
 
-    // Trajectory query: LineString drawing
-    if (dataQuery && dataQuery.toLowerCase() === 'trajectory' && markerLayer) {
+    // Trajectory and corridor queries: LineString drawing
+    if (geometryKind === 'line' && markerLayer) {
       const source = markerLayer.getSource();
       if (!source) return;
 
@@ -288,22 +281,10 @@ export function useMapInteractions(
         setIsDrawing(false);
       };
     }
-
-    // Clear layers and state when not in area/trajectory mode
-    if ((dataQuery && dataQuery.toLowerCase() !== 'area' && areaLayer) || (dataQuery && dataQuery.toLowerCase() !== 'trajectory' && markerLayer)) {
-      if (areaLayer) {
-        const source = areaLayer.getSource();
-        if (source) source.clear();
-        setSelectedArea([]);
-      }
-      if (markerLayer) {
-        const source = markerLayer.getSource();
-        if (source) source.clear();
-        setClickedCoords([]);
-      }
-    }
+    // Geometry another kind of query can't use is cleared by MapInteractionContext.setDataQuery,
+    // and the layers redraw from state
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, dataQuery, areaLayer, markerLayer]);
+  }, [map, geometryKind, areaLayer, markerLayer]);
 
   // Display selected areas
   useEffect(() => {
