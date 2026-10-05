@@ -19,7 +19,7 @@ function getCartoApiKey(): string | undefined {
 function getCartoBasemapUrl(style: string): string {
   const apiKey = getCartoApiKey();
   const base = `https://{a-c}.basemaps.cartocdn.com/${style}/{z}/{x}/{y}.png`;
-  return apiKey ? `${base}?key=${apiKey}` : base;
+  return apiKey ? `${base}?key=${encodeURIComponent(apiKey)}` : base;
 }
 
 export interface UseMapSetupReturn {
