@@ -27,7 +27,8 @@ const cartoApiKey =
 
 async function serveIndex(res) {
   const html = await readFile(join(buildDir, 'index.html'), 'utf-8');
-  const runtimeConfig = `<script>window.__RUNTIME_CONFIG__ = ${JSON.stringify({ VITE_CARTO_API_KEY: cartoApiKey })};</script>`;
+  // External script, not inline: index.html's CSP (script-src 'self') blocks inline scripts.
+  const runtimeConfig = '<script src="/runtime-config.js"></script>';
   const injected = html.includes('</head>')
     ? html.replace('</head>', `${runtimeConfig}</head>`)
     : runtimeConfig + html;
