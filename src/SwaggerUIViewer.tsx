@@ -2,6 +2,7 @@ import React, { lazy, Suspense, useState } from 'react';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, IconButton, Box, CircularProgress } from '@mui/material';
 import ApiIcon from '@mui/icons-material/Api';
 import CloseIcon from '@mui/icons-material/Close';
+import ErrorBoundary from './ErrorBoundary';
 
 // CSS loaded eagerly (small); JS loaded lazily (large ~1.5MB)
 import 'swagger-ui-react/swagger-ui.css';
@@ -70,9 +71,12 @@ const SwaggerUIViewer: React.FC<SwaggerUIViewerProps> = ({ serviceDescUrl, servi
         </DialogTitle>
         <DialogContent dividers sx={{ p: 0, height: 'calc(100% - 64px)', backgroundColor: '#fff' }}>
           <Box sx={{ height: '100%', overflow: 'auto', backgroundColor: '#fff' }}>
-            <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>}>
-              <LazySwaggerUI url={serviceDescUrl} />
-            </Suspense>
+            {/* A viewer that can't load or render stays inside the dialog instead of crashing the sidebar */}
+            <ErrorBoundary fallbackMessage="The API docs viewer failed.">
+              <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>}>
+                <LazySwaggerUI url={serviceDescUrl} />
+              </Suspense>
+            </ErrorBoundary>
           </Box>
         </DialogContent>
         <DialogActions>
