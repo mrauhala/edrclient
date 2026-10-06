@@ -18,8 +18,6 @@ describe('lintOpenApiForEdr on the real servers', () => {
     expect(summary(await lint('fmi'))).toEqual([
       'info edr-required-optional: corridor queries: the API docs mark corridor-height optional; EDR requires it',
       'info edr-required-optional: corridor queries: the API docs mark height-units optional; EDR requires it',
-      "info f-undeclared: instances queries: the API docs don't declare f, though the collection offers several output formats",
-      "info f-undeclared: locations queries: the API docs don't declare f, though the collection offers several output formats",
       "warning required-beyond-edr: cube queries: the API docs require coords, which EDR doesn't",
       'warning schema-items-without-array: Parameter resolution-x: the schema has "items" but no "type": "array"',
       'warning schema-items-without-array: Parameter resolution-y: the schema has "items" but no "type": "array"',
@@ -31,13 +29,8 @@ describe('lintOpenApiForEdr on the real servers', () => {
     expect(await lint('dwd')).toEqual([]);
   });
 
-  it('MeteoCore: per-collection repeats are reported once, listing the collections', async () => {
-    const findings = await lint('meteocore');
-    expect(summary(findings)).toEqual([
-      "info f-undeclared: instances queries: the API docs don't declare f, though the collection offers several output formats",
-      "info f-undeclared: locations queries: the API docs don't declare f, though the collection offers several output formats",
-    ]);
-    expect(findings.find(f => f.message.startsWith('locations'))?.params?.collections).toHaveLength(32);
+  it('MeteoCore: consistent (its locations and instances formats are checked where EDR puts them)', async () => {
+    expect(summary(await lint('meteocore'))).toEqual([]);
   });
 
   it('Met Office: within-units typed as a number, missing paths for model collections', async () => {
@@ -47,10 +40,8 @@ describe('lintOpenApiForEdr on the real servers', () => {
     expect(findings).toHaveLength(9);
   });
 
-  it('MET Norway and Meteogate: notes only', async () => {
-    expect(summary(await lint('metno'))).toEqual([
-      "info f-undeclared: locations queries: the API docs don't declare f, though the collection offers several output formats",
-    ]);
+  it('MET Norway: consistent; Meteogate: a note', async () => {
+    expect(summary(await lint('metno'))).toEqual([]);
     expect(summary(await lint('meteogate'))).toEqual([
       'info edr-required-optional: radius queries: the API docs mark within-units optional; EDR requires it',
     ]);
@@ -102,6 +93,35 @@ describe('lintOpenApiForEdr rules', () => {
     ])).toEqual([
       'info enum-case', 'warning enum-vs-metadata', 'warning enum-vs-metadata', 'warning enum-vs-metadata', 'warning enum-vs-metadata',
     ]);
+  });
+
+  // EDR 1.2: the locations list takes no f (paths/queries/locations.yaml); a location's data, and so
+  // the query's output_formats, come from /locations/{locationId}. MeteoCore's production docs.
+  it("checks a locations query's formats against /locations/{locationId}, not the list", () => {
+    const locations = {
+      id: 'c', links: [], crs: [], output_formats: null,
+      data_queries: { locations: { link: { href: 'https://x.org/edr/collections/c/locations', variables: { query_type: 'locations', output_formats: ['CoverageJSON', 'PNG'] } } } },
+    } as unknown as Collection;
+    const lint = (byIdFormats: string[] | null) => {
+      const paths: Record<string, unknown> = { '/collections/{id}/locations': { get: { parameters: [param('f', { enum: ['GeoJSON', 'HTML'] }, false)] } } };
+      if (byIdFormats) paths['/collections/{id}/locations/{locationId}'] = { get: { parameters: [param('f', { enum: byIdFormats }, false)] } };
+      const doc = { openapi: '3.1.0', servers: [{ url: 'https://x.org/edr' }], paths };
+      return lintOpenApiForEdr(buildOperationIndex({ url: 'https://x.org/edr/api', doc }), doc, [locations]);
+    };
+    expect(lint(['CoverageJSON', 'PNG', 'HTML'])).toEqual([]);
+    expect(lint(['CoverageJSON', 'HTML'])).toMatchObject([{ keyword: 'enum-vs-metadata', path: '/paths/~1collections~1{id}~1locations~1{locationId}/get/parameters/0' }]);
+    expect(lint(null)).toEqual([]); // the list alone describes no data formats
+  });
+
+  // EDR 1.2: an instances data query declares no output formats (instancesDataQuery.yaml) and
+  // /instances takes the core f (json, html), so the collection's formats don't apply
+  it("doesn't check instances against the collection's output formats", () => {
+    const instances = {
+      id: 'c', links: [], crs: [], output_formats: ['CoverageJSON', 'PNG', 'HTML'],
+      data_queries: { instances: { link: { href: 'https://x.org/edr/collections/c/instances', variables: { query_type: 'instances' } } } },
+    } as unknown as Collection;
+    const doc = { openapi: '3.1.0', servers: [{ url: 'https://x.org/edr' }], paths: { '/collections/{id}/instances': { get: { parameters: [param('f', { enum: ['json', 'html'] }, false)] } } } };
+    expect(lintOpenApiForEdr(buildOperationIndex({ url: 'https://x.org/edr/api', doc }), doc, [instances])).toEqual([]);
   });
 
   it('flags missing required parameters, a missing f and broken refs', () => {

@@ -3,7 +3,7 @@ import { normalizeHref } from '../../utils/href';
 import { EDR_QUERY_RULES } from '../../query/edrRules';
 import { effectiveOutputFormats, parameterIdsOf, queryTypeOf, queryVariables, unitsFor } from '../../query/queryTypes';
 import { findBrokenLocalRefs } from './refs';
-import { matchOperation, type OperationIndex, type ResolvedParam } from './operationIndex';
+import { matchOperation, type OperationEntry, type OperationIndex, type ResolvedParam } from './operationIndex';
 
 const SCHEMA = 'EDR consistency';
 const UNIT_PARAMS = new Set(['within-units', 'width-units', 'height-units']);
@@ -69,6 +69,19 @@ function lintParameterSchemas(index: OperationIndex, findings: Findings) {
   }
 }
 
+// The operation that returns a data query's data, which its output formats and parameters describe.
+// A locations query's href is the location list (GeoJSON; EDR gives it no f or parameter-name): its
+// data comes from /locations/{locationId}. Instances are metadata, and EDR's instances data query
+// declares no output formats (instancesDataQuery.yaml), so there is nothing to compare.
+function dataOperation(index: OperationIndex, type: string, href: string, listEntry: OperationEntry): OperationEntry | null {
+  if (type === 'instances') return null;
+  if (type !== 'locations') return listEntry;
+  const url = new URL(href);
+  url.pathname = `${url.pathname.replace(/\/+$/, '')}/location-id`;
+  const byId = matchOperation(index, url.toString())?.entry;
+  return byId && /^\{[^}]+\}$/.test(byId.segments[byId.segments.length - 1] ?? '') ? byId : null;
+}
+
 function lintDataQueries(index: OperationIndex, collections: Collection[], findings: Findings) {
   for (const collection of collections) {
     for (const queryKey of Object.keys(collection.data_queries ?? {})) {
@@ -109,12 +122,14 @@ function lintDataQueries(index: OperationIndex, collections: Collection[], findi
         }
       }
 
+      const dataEntry = dataOperation(index, type, href, entry);
+      const dataParam = (name: string) => dataEntry?.params.find(param => param.in === 'query' && param.name === name);
       const formats = effectiveOutputFormats(collection, queryKey);
-      const f = queryParam('f');
-      if (!f && formats.length > 1) {
+      const f = dataParam('f');
+      if (dataEntry && !f && formats.length > 1) {
         // A data query without f can't pick its format; for list requests it's only a gap in the docs
         const listsOnly = !rule || rule.geometry === 'none';
-        findings.add(`no-f:${type}`, listsOnly ? 'info' : 'warning', 'f-undeclared', entry.pointer,
+        findings.add(`no-f:${type}`, listsOnly ? 'info' : 'warning', 'f-undeclared', dataEntry.pointer,
           `${type} queries: the API docs don't declare f, though the collection offers several output formats`, collection.id);
       }
       if (f?.enumValues) {
@@ -132,7 +147,7 @@ function lintDataQueries(index: OperationIndex, collections: Collection[], findi
             `radius queries: within-units doesn't allow ${unit}, which the collection lists in within_units`, collection.id));
       }
 
-      const parameterName = queryParam('parameter-name');
+      const parameterName = dataParam('parameter-name');
       if (parameterName?.enumValues) {
         const { missing } = notInEnum(parameterName, parameterIdsOf(collection));
         if (missing.length > 0) {

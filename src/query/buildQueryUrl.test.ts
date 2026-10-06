@@ -119,6 +119,8 @@ describe('buildQueryUrl serializes exactly like the previous URL builder', () =>
         let compared = 0;
         for (const datetime of DATETIMES) for (const vertical of VERTICALS) for (const points of POINTS)
         for (const polygons of POLYGONS) for (const location of LOCATIONS) for (const customDims of CUSTOM_DIMS)
+        // The locations list no longer gets the data selection; tested below
+        if (queryKey !== 'locations' || location)
         for (const [f, parameters] of [['', []], [format, ['Temperature', 'Humidity']]] as [string, string[]][]) {
           const input: QueryModelInput = {
             collection, queryKey, format: f, parameters, datetime, vertical, customDims, points, polygons, bbox: null, bboxAsCoords: false,
@@ -137,7 +139,7 @@ describe('buildQueryUrl serializes exactly like the previous URL builder', () =>
           expect(buildQueryUrl(model)).toBe(legacy);
           compared++;
         }
-        expect(compared).toBe(4 * 3 * 3 * 3 * 3 * 2 * 2);
+        expect(compared).toBe(4 * 3 * 3 * 3 * (queryKey === 'locations' ? 2 : 3) * 2 * 2);
       });
     }
   }
@@ -202,6 +204,17 @@ describe('buildQueryUrl', () => {
     expect(Object.fromEntries(items({ bbox: [24, 60, 25, 61], queryParams: { limit: '50' } }))).toEqual({
       f: 'GeoJSON', datetime: '2026-10-06T06:00:00Z', bbox: '24.000,60.000,25.000,61.000', limit: '50',
     });
+  });
+
+  it('lists locations with the time only; a picked location gets the data selection', () => {
+    const locations = (locationFeature: QueryModelInput['locationFeature']) => buildQueryUrl(buildQueryModel({
+      collection: COLLECTIONS.meteocoreObs, queryKey: 'locations', format: 'CoverageJSON', parameters: ['ta'],
+      datetime: { mode: 'individual', value: '2026-10-06T06:00:00Z', start: '', end: '' },
+      vertical: { mode: 'individual', value: '2', start: '', end: '' }, customDims: { member: { mode: 'individual', value: '5', start: '', end: '' } },
+      points: [], polygons: [], bbox: null, bboxAsCoords: false, radius: { value: 10, units: 'km' }, queryParams: {}, locationFeature,
+    })!)!;
+    expect(new URL(locations(null)).search).toBe('?datetime=2026-10-06T06%3A00%3A00Z');
+    expect(Object.fromEntries(new URL(locations({ id: 'dkbor' })).searchParams)).toMatchObject({ f: 'CoverageJSON', 'parameter-name': 'ta', z: '2' });
   });
 
   it('returns null for a query the collection does not offer', () => {
