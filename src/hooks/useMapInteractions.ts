@@ -25,8 +25,6 @@ export function useMapInteractions(
   } = useMapInteraction();
   // dataQuery is the query type; the geometry kind decides what the map collects
   const geometryKind = geometryKindOf(dataQuery);
-  // Items take an optional box too, but the builder doesn't send one for them: only cube draws boxes
-  const drawsBox = dataQuery === 'cube';
   const { selectedCollection, selectedFeature } = useCollection();
   const [drawInteraction, setDrawInteraction] = useState<Draw | null>(null);
   // True while an area/trajectory sketch is in progress (between drawstart and drawend/abort).
@@ -198,8 +196,8 @@ export function useMapInteractions(
       setDrawInteraction(null);
     }
 
-    // Cube query: a box from two opposite corners, replacing the previous box
-    if (drawsBox && areaLayer) {
+    // Cube and items queries: a box from two opposite corners, replacing the previous box
+    if (geometryKind === 'bbox' && areaLayer) {
       const draw = new Draw({
         type: 'Circle',
         geometryFunction: createBox(),
@@ -321,7 +319,7 @@ export function useMapInteractions(
     // Geometry another kind of query can't use is cleared by MapInteractionContext.setDataQuery,
     // and the layers redraw from state
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, geometryKind, drawsBox, areaLayer, markerLayer]);
+  }, [map, geometryKind, areaLayer, markerLayer]);
 
   // Display selected areas and the cube's box
   useEffect(() => {

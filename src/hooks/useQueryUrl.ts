@@ -4,7 +4,8 @@ import { useMapInteraction } from '../contexts/MapInteractionContext';
 import { useCollection } from '../contexts/CollectionContext';
 import { useQueryValidationContext } from '../contexts/QueryValidationContext';
 import { useOpenApi } from '../contexts/OpenApiContext';
-import { buildQueryModel } from '../query/queryModel';
+import { buildQueryModel, emptyDim } from '../query/queryModel';
+import { EDR_QUERY_RULES } from '../query/edrRules';
 import { buildQueryUrl } from '../query/buildQueryUrl';
 import { effectiveOutputFormats, queryTypeOf, queryVariables, unitsFor } from '../query/queryTypes';
 import { pickUnit } from '../query/units';
@@ -50,6 +51,9 @@ export interface UseQueryUrlReturn {
   // Cube: also send the box as coords, for servers whose API docs require coords
   bboxAsCoords: boolean;
   setBboxAsCoords: (value: boolean) => void;
+  // Feature lists (items): the time is an optional filter, off unless chosen
+  filterByTime: boolean;
+  setFilterByTime: (value: boolean) => void;
   // Utilities
   resetQueryState: () => void;
   getEffectiveOutputFormats: (collection: Collection, queryType: string) => string[];
@@ -79,6 +83,7 @@ export function useQueryUrl(): UseQueryUrlReturn {
   const [customDimensionEnds, setCustomDimensionEnds] = useState<{[dimensionId: string]: string}>({});
   const [queryParams, setQueryParams] = useState<Record<string, string>>({});
   const [bboxAsCoords, setBboxAsCoords] = useState(false);
+  const [filterByTime, setFilterByTime] = useState(false);
   const setQueryParam = useCallback((name: string, value: string) => setQueryParams(params => ({ ...params, [name]: value })), []);
 
   const resetQueryState = useCallback(() => {
@@ -99,6 +104,7 @@ export function useQueryUrl(): UseQueryUrlReturn {
     setCustomDimensionEnds({});
     setQueryParams({});
     setBboxAsCoords(false);
+    setFilterByTime(false);
   }, []);
 
   const getEffectiveOutputFormats = effectiveOutputFormats;
@@ -163,12 +169,16 @@ export function useQueryUrl(): UseQueryUrlReturn {
   // The data query as one model: it builds the request URL and is validated
   const queryModel = useMemo(() => {
     if (!selectedCollection || !selectedDataQuery) return null;
+    // Items are listed from any time unless the time filter is on (the time control always holds a time)
+    const timeIsFilter = !!EDR_QUERY_RULES[queryTypeOf(selectedCollection, selectedDataQuery)]?.featureList;
     return buildQueryModel({
       collection: selectedCollection,
       queryKey: selectedDataQuery,
       format: selectedFormat,
       parameters: selectedParameters,
-      datetime: { mode: datetimeMode, value: selectedDatetime, start: startDatetime, end: endDatetime },
+      datetime: timeIsFilter && !filterByTime
+        ? emptyDim()
+        : { mode: datetimeMode, value: selectedDatetime, start: startDatetime, end: endDatetime },
       vertical: { mode: verticalMode, value: selectedVertical, start: startVertical, end: endVertical },
       customDims,
       points: clickedCoords,
@@ -181,7 +191,7 @@ export function useQueryUrl(): UseQueryUrlReturn {
     });
   }, [
     selectedCollection, selectedDataQuery, selectedFormat, selectedParameters,
-    datetimeMode, selectedDatetime, startDatetime, endDatetime,
+    datetimeMode, selectedDatetime, startDatetime, endDatetime, filterByTime,
     verticalMode, selectedVertical, startVertical, endVertical,
     customDims, clickedCoords, selectedArea, selectedBbox, bboxAsCoords, radius, radiusUnits, queryParams, selectedFeature,
   ]);
@@ -227,6 +237,7 @@ export function useQueryUrl(): UseQueryUrlReturn {
     customDimensionEnds, setCustomDimensionEnds,
     queryParams, setQueryParam,
     bboxAsCoords, setBboxAsCoords,
+    filterByTime, setFilterByTime,
     resetQueryState,
     getEffectiveOutputFormats,
     selectDataQuery,

@@ -19,6 +19,7 @@ import TimeControl from './TimeControl';
 import QueryIssuesPanel, { FieldIssueText } from './QueryIssuesPanel';
 import QueryTypeInputs from './QueryTypeInputs';
 import { queryTypeOf, queryVariables, unitsFor } from './query/queryTypes';
+import { EDR_QUERY_RULES } from './query/edrRules';
 import { useQueryValidation } from './hooks/useQueryValidation';
 
 interface CollectionQueryBuilderProps {
@@ -42,11 +43,14 @@ const CollectionQueryBuilder: React.FC<CollectionQueryBuilderProps> = ({ collect
     getEffectiveOutputFormats,
     queryParams, setQueryParam,
     bboxAsCoords, setBboxAsCoords,
+    filterByTime, setFilterByTime,
   } = queryState;
 
   const { issues } = useQueryValidation();
   // The most important issue about a field, to show under it
   const fieldIssue = (field: string) => issues.find(issue => issue.field === field && issue.severity !== 'info');
+  // A feature list (items) takes no parameters, levels or custom dimensions
+  const selectsData = !(selectedDataQuery && EDR_QUERY_RULES[queryTypeOf(collection, selectedDataQuery)]?.featureList);
   // Units of z a query declares (cube height_units); a corridor's height units belong to its height
   const zUnits = selectedDataQuery && queryTypeOf(collection, selectedDataQuery) !== 'corridor'
     ? unitsFor(queryVariables(collection, selectedDataQuery), 'height')
@@ -113,7 +117,7 @@ const CollectionQueryBuilder: React.FC<CollectionQueryBuilderProps> = ({ collect
       })()}
 
       {/* Parameter Selector - Multiselect */}
-      { typeof collection.parameter_names !== "undefined" && (
+      { selectsData && typeof collection.parameter_names !== "undefined" && (
         <FormControl fullWidth sx={{ mb: 2 }} id="query-field-parameter-name" error={fieldIssue('parameter-name')?.severity === 'error'}>
           <InputLabel id="parameter-select-label">Parameters</InputLabel>
           <Select
@@ -150,8 +154,17 @@ const CollectionQueryBuilder: React.FC<CollectionQueryBuilderProps> = ({ collect
         </FormControl>
       )}
 
+      {/* Items are listed from any time unless filtered by time */}
+      {!selectsData && collection.extent?.temporal && (
+        <FormControlLabel
+          sx={{ mb: 1 }}
+          control={<Checkbox size="small" checked={filterByTime} onChange={event => setFilterByTime(event.target.checked)} />}
+          label={<Typography variant="body2">Filter items by time</Typography>}
+        />
+      )}
+
       {/* Datetime Selector — TimeControl with slider + transport buttons */}
-      {collection.extent?.temporal && (
+      {collection.extent?.temporal && (selectsData || filterByTime) && (
         <Box id="query-field-datetime">
           <TimeControl temporal={collection.extent.temporal} queryState={queryState} />
           <FieldIssueText issue={fieldIssue('datetime')} />
@@ -159,7 +172,7 @@ const CollectionQueryBuilder: React.FC<CollectionQueryBuilderProps> = ({ collect
       )}
 
       {/* Vertical Extent Selector */}
-      {collection.extent?.vertical && (() => {
+      {selectsData && collection.extent?.vertical && (() => {
         const verticalValues = expandVerticalValues(collection.extent.vertical, 500);
         const hasValues = collection.extent.vertical.values && collection.extent.vertical.values.length > 0;
         const hasInterval = collection.extent.vertical.interval && collection.extent.vertical.interval.length > 0;
@@ -365,7 +378,7 @@ const CollectionQueryBuilder: React.FC<CollectionQueryBuilderProps> = ({ collect
       })()}
 
       {/* Custom Dimension Selectors — includes OGC API Maps UAD dimensions (top-level extent keys) */}
-      {getEffectiveCustomDimensions(collection.extent).map((dimension) => {
+      {selectsData && getEffectiveCustomDimensions(collection.extent).map((dimension) => {
         const dimensionId = dimension.id;
         const dimensionValues = expandCustomDimensionValues(dimension, 500);
         const hasValues = dimension.values && dimension.values.length > 0;

@@ -1,9 +1,10 @@
 import React, { type ReactNode } from 'react';
 
-// What the map asks for in each query type, and the button that clears it
+// What the map asks for in each query type, and the button that clears it. An optional geometry
+// (an items box) gets no prompt, only the clear button.
 interface QueryPrompt {
-  title: string;
-  text: string; // {radius} is replaced with the radius and its unit
+  title?: string;
+  text?: string; // {radius} is replaced with the radius and its unit
   clear: string;
   accent: 'red' | 'blue';
 }
@@ -18,6 +19,7 @@ const PROMPTS: Record<string, QueryPrompt> = {
     title: 'Draw the Corridor on Map', text: 'Click to add points along the centre line; double-click to finish', clear: 'Clear Corridor', accent: 'red',
   },
   cube: { title: 'Draw a Box on Map', text: 'Click one corner of the box, then the opposite corner', clear: 'Clear Box', accent: 'red' },
+  items: { clear: 'Clear Box', accent: 'red' },
   area: { title: 'Draw Areas on Map', text: 'Click to add vertices, double-click to complete each polygon', clear: 'Clear Polygons', accent: 'red' },
 };
 
@@ -70,10 +72,10 @@ const MapQueryOverlay: React.FC<MapQueryOverlayProps> = ({ queryType, hasGeometr
   const accent = ACCENTS[prompt.accent];
   return (
     <>
-      {!hasGeometry && (
+      {!hasGeometry && prompt.title && (
         <div style={{ ...promptStyle, border: `2px solid ${accent.border}` }}>
           <div style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '16px', color: accent.title }}>{prompt.title}</div>
-          <div>{prompt.text.replace('{radius}', radiusLabel)}</div>
+          <div>{prompt.text?.replace('{radius}', radiusLabel)}</div>
         </div>
       )}
       {(hasGeometry || isDrawing) && (
