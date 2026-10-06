@@ -2,6 +2,7 @@ import React from 'react';
 import Box from '@mui/material/Box';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
+import { isChunkLoadError } from './utils/chunkLoadError';
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
@@ -34,6 +35,24 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   };
 
   render() {
+    // A part of the app that couldn't load because the app was updated: only a reload helps
+    if (this.state.hasError && isChunkLoadError(this.state.error)) {
+      return (
+        <Box sx={{ p: 2, height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Alert
+            severity="warning"
+            action={
+              <Button color="inherit" size="small" onClick={() => window.location.reload()}>
+                Reload
+              </Button>
+            }
+          >
+            The app was updated since this page was loaded. Reload the page to get the new version.
+          </Alert>
+        </Box>
+      );
+    }
+
     if (this.state.hasError) {
       return (
         <Box sx={{ p: 2, height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
