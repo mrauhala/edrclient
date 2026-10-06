@@ -5,6 +5,7 @@ import { normalizeHref, resolveCollectionHrefs, resolveHref } from '../utils/hre
 import { sanitizeUrl } from '../utils/sanitizeUrl';
 import { getAxiosConfig, addApiKeyToUrl } from './auth';
 import { pickOpenApiLink } from '../validation/openapi/loadServiceDescription';
+import { dataLinkUrls } from './landingPageLinks';
 
 export async function getCollections(apiUrl: string, auth?: AuthCredentials, signal?: AbortSignal): Promise<GetCollectionsResult> {
   // Initialize the schema validator outside the try block so it's accessible in the catch block
@@ -43,13 +44,11 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials, sig
     let conformanceUrl: string | null = null;
 
     if (landingPageData && landingPageData.links && Array.isArray(landingPageData.links)) {
-      // Collect ALL data links to detect missing / ambiguous cases
-      const dataLinks = landingPageData.links.filter(
-        (link: Link) => link.rel === 'data' ||
-                       link.rel === 'http://www.opengis.net/def/rel/ogc/1.0/data'
-      );
+      // Collect ALL data link URLs to detect missing / ambiguous cases (one URL linked under both
+      // the EDR and the Common rel counts once)
+      const dataUrls = dataLinkUrls(landingPageData.links, apiUrl);
 
-      if (dataLinks.length === 0) {
+      if (dataUrls.length === 0) {
         dataLinkError = {
           title: 'Collections Link Missing',
           message: 'No data/collections link (rel="data") found in landing page. Using fallback URL.',
@@ -61,14 +60,12 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials, sig
         collectionsUrl = `${apiUrl}/collections`;
         collectionsUrlCandidates = [collectionsUrl];
       } else {
-        collectionsUrlCandidates = dataLinks
-          .map((l: Link) => normalizeHref(l.href, apiUrl))
-          .filter(Boolean) as string[];
+        collectionsUrlCandidates = dataUrls;
 
-        if (dataLinks.length > 1) {
+        if (dataUrls.length > 1) {
           dataLinkError = {
             title: 'Multiple Data Links',
-            message: `${dataLinks.length} data links (rel="data") found in landing page. Trying each in order: ${collectionsUrlCandidates.join(', ')}`,
+            message: `${dataUrls.length} different data links (rel="data") found in landing page. Trying each in order: ${collectionsUrlCandidates.join(', ')}`,
             type: 'unknown',
             section: 'data link'
           };
