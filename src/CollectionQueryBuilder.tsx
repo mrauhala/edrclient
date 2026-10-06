@@ -18,6 +18,7 @@ import { UseQueryUrlReturn } from './hooks/useQueryUrl';
 import TimeControl from './TimeControl';
 import QueryIssuesPanel, { FieldIssueText } from './QueryIssuesPanel';
 import QueryTypeInputs from './QueryTypeInputs';
+import InstancePicker from './InstancePicker';
 import { queryTypeOf, queryVariables, unitsFor } from './query/queryTypes';
 import { EDR_QUERY_RULES } from './query/edrRules';
 import { useQueryValidation } from './hooks/useQueryValidation';
@@ -27,9 +28,9 @@ interface CollectionQueryBuilderProps {
   queryState: UseQueryUrlReturn;
 }
 
-const CollectionQueryBuilder: React.FC<CollectionQueryBuilderProps> = ({ collection, queryState }) => {
+// The query's fields, for a collection's data query or an instance's: everything below the query pick
+const QueryFields: React.FC<{ collection: Collection; queryKey: string; queryState: UseQueryUrlReturn }> = ({ collection, queryKey, queryState }) => {
   const {
-    selectedDataQuery, selectDataQuery,
     selectedFormat, setSelectedFormat,
     selectedParameters, setSelectedParameters,
     selectedVertical, setSelectedVertical,
@@ -50,46 +51,20 @@ const CollectionQueryBuilder: React.FC<CollectionQueryBuilderProps> = ({ collect
   // The most important issue about a field, to show under it
   const fieldIssue = (field: string) => issues.find(issue => issue.field === field && issue.severity !== 'info');
   // A feature list (items) takes no parameters, levels or custom dimensions
-  const selectsData = !(selectedDataQuery && EDR_QUERY_RULES[queryTypeOf(collection, selectedDataQuery)]?.featureList);
+  const selectsData = !(queryKey && EDR_QUERY_RULES[queryTypeOf(collection, queryKey)]?.featureList);
   // Units of z a query declares (cube height_units); a corridor's height units belong to its height
-  const zUnits = selectedDataQuery && queryTypeOf(collection, selectedDataQuery) !== 'corridor'
-    ? unitsFor(queryVariables(collection, selectedDataQuery), 'height')
+  const zUnits = queryKey && queryTypeOf(collection, queryKey) !== 'corridor'
+    ? unitsFor(queryVariables(collection, queryKey), 'height')
     : [];
 
   return (
     <>
-      {/* Data Query Selector */}
-      { typeof collection.data_queries !== "undefined" && (
-        <FormControl fullWidth sx={{ mb: 2 }}>
-          <InputLabel id="data-query-select-label">Data Query</InputLabel>
-          <Select
-            labelId="data-query-select-label"
-            value={selectedDataQuery}
-            label="Data Query"
-            onChange={(e) => selectDataQuery(collection, e.target.value)}
-            size="small"
-          >
-            <MenuItem value="">
-              <em>Select a data query</em>
-            </MenuItem>
-            {Object.keys(collection.data_queries).map((queryKey) => (
-              <MenuItem key={queryKey} value={queryKey}>
-                {queryKey}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      )}
-
-      {selectedDataQuery && <QueryIssuesPanel />}
-      {selectedDataQuery && (
-        <QueryTypeInputs collection={collection} queryKey={selectedDataQuery} queryParams={queryParams} setQueryParam={setQueryParam}
-          bboxAsCoords={bboxAsCoords} setBboxAsCoords={setBboxAsCoords} />
-      )}
+      <QueryTypeInputs collection={collection} queryKey={queryKey} queryParams={queryParams} setQueryParam={setQueryParam}
+        bboxAsCoords={bboxAsCoords} setBboxAsCoords={setBboxAsCoords} />
 
       {/* Format Selector */}
       {(() => {
-        const effectiveFormats = getEffectiveOutputFormats(collection, selectedDataQuery);
+        const effectiveFormats = getEffectiveOutputFormats(collection, queryKey);
         return effectiveFormats.length > 0 && (
           <FormControl fullWidth sx={{ mb: 2 }} id="query-field-f" error={fieldIssue('f')?.severity === 'error'}>
             <InputLabel id="format-select-label">Output Format</InputLabel>
@@ -592,6 +567,46 @@ const CollectionQueryBuilder: React.FC<CollectionQueryBuilderProps> = ({ collect
           </Box>
         ) : null;
       })}
+    </>
+  );
+};
+
+const CollectionQueryBuilder: React.FC<CollectionQueryBuilderProps> = ({ collection, queryState }) => {
+  const { selectedDataQuery, selectDataQuery, selectedInstance, instanceQueryKey } = queryState;
+  const instanceMode = !!selectedDataQuery && queryTypeOf(collection, selectedDataQuery) === 'instances';
+  // What the fields describe: the collection's query, or the picked instance's
+  const target = instanceMode
+    ? (selectedInstance && instanceQueryKey ? { collection: selectedInstance, queryKey: instanceQueryKey } : null)
+    : (selectedDataQuery ? { collection, queryKey: selectedDataQuery } : null);
+
+  return (
+    <>
+      {/* Data Query Selector */}
+      { typeof collection.data_queries !== "undefined" && (
+        <FormControl fullWidth sx={{ mb: 2 }}>
+          <InputLabel id="data-query-select-label">Data Query</InputLabel>
+          <Select
+            labelId="data-query-select-label"
+            value={selectedDataQuery}
+            label="Data Query"
+            onChange={(e) => selectDataQuery(collection, e.target.value)}
+            size="small"
+          >
+            <MenuItem value="">
+              <em>Select a data query</em>
+            </MenuItem>
+            {Object.keys(collection.data_queries).map((queryKey) => (
+              <MenuItem key={queryKey} value={queryKey}>
+                {queryKey}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      )}
+
+      {instanceMode && <InstancePicker queryState={queryState} />}
+      {selectedDataQuery && <QueryIssuesPanel />}
+      {target && <QueryFields collection={target.collection} queryKey={target.queryKey} queryState={queryState} />}
     </>
   );
 };
