@@ -119,6 +119,9 @@ describe('checkQueryUrlAgainstOpenApi on the real servers', () => {
     expect(metoffice.brief(`${metoffice.href('pop_density', 'position')}?coords=POINT(-2 52)&datetime=2026-10-05T12:00:00Z`))
       .toEqual(['info query']);
     expect(metoffice.brief(`${metoffice.href('moukv-height-levels', 'position')}?coords=POINT(-2 52)`)).toEqual(['warning query']);
+    // ...which the document describes per instance
+    const instancePosition = 'https://labs.metoffice.gov.uk/edr/collections/moukv-height-levels/instances/2022070912/position';
+    expect(metoffice.brief(`${instancePosition}?coords=POINT(-2 52)&parameter-name=air_temperature`)).not.toContain('warning query');
   });
 
   it('MET Norway: the collection id is a path enum', async () => {

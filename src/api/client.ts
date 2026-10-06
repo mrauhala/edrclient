@@ -1,7 +1,7 @@
 import axios from 'axios';
 import SchemaValidator from '../SchemaValidator';
 import type { AuthCredentials, Collection, CollectionsResponse, GetCollectionsResult, LandingPage, Link, ValidationError, ValidationResult } from '../types/api';
-import { normalizeHref, resolveHref } from '../utils/href';
+import { normalizeHref, resolveCollectionHrefs, resolveHref } from '../utils/href';
 import { sanitizeUrl } from '../utils/sanitizeUrl';
 import { getAxiosConfig, addApiKeyToUrl } from './auth';
 import { pickOpenApiLink } from '../validation/openapi/loadServiceDescription';
@@ -274,21 +274,7 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials, sig
 
     // Resolve any relative hrefs in collections and their links against the API base URL
     for (const collection of collections) {
-      if (collection.links && Array.isArray(collection.links)) {
-        for (const link of collection.links) {
-          if (typeof link.href === 'string') {
-            link.href = resolveHref(link.href, apiUrl);
-          }
-        }
-      }
-      if (collection.data_queries && typeof collection.data_queries === 'object') {
-        for (const key of Object.keys(collection.data_queries)) {
-          const query = collection.data_queries[key];
-          if (query?.link?.href && typeof query.link.href === 'string') {
-            query.link.href = resolveHref(query.link.href, apiUrl);
-          }
-        }
-      }
+      resolveCollectionHrefs(collection, apiUrl);
     }
     if (collectionsLinks) {
       for (const link of collectionsLinks) {

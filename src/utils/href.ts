@@ -1,3 +1,5 @@
+import type { Collection } from '../types/api';
+
 // Validate that a URL uses a safe protocol (http/https or relative)
 function isSafeUrl(url: string): boolean {
   const trimmed = url.trim();
@@ -57,4 +59,14 @@ export function normalizeHref(href: string | { [lang: string]: string } | undefi
   }
 
   return null;
+}
+
+// Resolve a collection's (or an instance's) relative link and data query hrefs, in place
+export function resolveCollectionHrefs(collection: Collection, baseUrl: string): void {
+  for (const link of Array.isArray(collection.links) ? collection.links : []) {
+    if (typeof link.href === 'string') link.href = resolveHref(link.href, baseUrl);
+  }
+  for (const query of Object.values(collection.data_queries ?? {})) {
+    if (query?.link && typeof query.link.href === 'string') query.link.href = resolveHref(query.link.href, baseUrl);
+  }
 }

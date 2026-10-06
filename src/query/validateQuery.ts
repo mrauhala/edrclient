@@ -129,7 +129,7 @@ function checkGeometry(model: QueryModel, add: Add) {
       checkLimit(model, add);
       break;
     case 'instances':
-      add('info', 'edr', 'query', 'list', "Lists the collection's instances (e.g. model runs). The query builder can't query a single instance yet.");
+      add('info', 'edr', 'query', 'list', "Lists the collection's instances (e.g. model runs). Pick one to query it.");
       break;
     case 'locations':
       if (!model.locationFeature) {
@@ -317,12 +317,13 @@ const FORM_FIELDS = new Set(['f', 'parameter-name', 'datetime', 'z']);
 // Add the API docs' view to the query's own issues. Their issues go under the builder's field names,
 // except on a field EDR or the metadata already flags: those are the stronger source, and one issue
 // is enough. A parameter EDR requires but the API docs mark optional still counts as missing, noted.
-export function addApiDocsIssues(model: QueryModel, issues: QueryIssue[], check: ApiDocsCheck): QueryIssue[] {
+// The model is null for requests that aren't a data query yet (an instance list or description).
+export function addApiDocsIssues(model: QueryModel | null, issues: QueryIssue[], check: ApiDocsCheck): QueryIssue[] {
   const optional = new Set((check.operation?.entry.params ?? []).filter(param => param.in === 'query' && !param.required).map(param => param.name));
   const own = issues.map(issue => (issue.severity === 'missing' && optional.has(issue.field)
     ? { ...issue, message: `${issue.message} (the server's API docs mark it optional)` }
     : issue));
-  const dimensionIds = new Set([...(model.collection.extent?.custom ?? []).map(dim => dim.id), ...Object.keys(model.customDims)]);
+  const dimensionIds = new Set([...(model?.collection.extent?.custom ?? []).map(dim => dim.id), ...Object.keys(model?.customDims ?? {})]);
   const flagged = new Set(own.filter(issue => issue.severity !== 'info').map(issue => issue.field));
   const placed = check.issues
     .map(issue => {

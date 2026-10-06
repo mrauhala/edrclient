@@ -11,7 +11,10 @@ import { effectiveOutputFormats, queryTypeOf, queryVariables, unitsFor } from '.
 import { pickUnit } from '../query/units';
 import { addApiDocsIssues, validateQuery } from '../query/validateQuery';
 import { checkQueryUrlAgainstOpenApi } from '../validation/openapi/checkQueryUrl';
-import type { DimSelection } from '../query/types';
+import { useInstances, type InstancesState } from './useInstances';
+import { instanceStep, type Instance } from '../query/instances';
+import { normalizeHref } from '../utils/href';
+import type { DimSelection, QueryIssue } from '../query/types';
 
 export interface UseQueryUrlReturn {
   // Query states
@@ -54,6 +57,13 @@ export interface UseQueryUrlReturn {
   // Feature lists (items): the time is an optional filter, off unless chosen
   filterByTime: boolean;
   setFilterByTime: (value: boolean) => void;
+  // Instances queries: the collection's instances (loaded on demand), the one picked and the query
+  // run on it. The query fields then describe the instance.
+  instances: InstancesState;
+  selectedInstance: Instance | null;
+  selectInstance: (id: string) => void;
+  instanceQueryKey: string;
+  selectInstanceQuery: (queryKey: string) => void;
   // Utilities
   resetQueryState: () => void;
   getEffectiveOutputFormats: (collection: Collection, queryType: string) => string[];
@@ -84,6 +94,8 @@ export function useQueryUrl(): UseQueryUrlReturn {
   const [queryParams, setQueryParams] = useState<Record<string, string>>({});
   const [bboxAsCoords, setBboxAsCoords] = useState(false);
   const [filterByTime, setFilterByTime] = useState(false);
+  const [selectedInstanceId, setSelectedInstanceId] = useState('');
+  const [instanceQueryKey, setInstanceQueryKey] = useState('');
   const setQueryParam = useCallback((name: string, value: string) => setQueryParams(params => ({ ...params, [name]: value })), []);
 
   const resetQueryState = useCallback(() => {
@@ -105,14 +117,16 @@ export function useQueryUrl(): UseQueryUrlReturn {
     setQueryParams({});
     setBboxAsCoords(false);
     setFilterByTime(false);
+    setSelectedInstanceId('');
+    setInstanceQueryKey('');
   }, []);
 
   const getEffectiveOutputFormats = effectiveOutputFormats;
 
-  // Switch the data query: keep the output format if the new query offers it, otherwise use the
-  // query's default; tell the map the query type, which drops geometry the new type can't use
-  const selectDataQuery = useCallback((collection: Collection, queryKey: string) => {
-    setSelectedDataQuery(queryKey);
+  // Settings a newly picked query starts from: keep the output format if the query offers it,
+  // otherwise use its default; units it offers; and tell the map the query type, which drops
+  // geometry the new type can't use. The query is a collection's, or an instance's.
+  const applyQueryDefaults = useCallback((collection: Collection, queryKey: string) => {
     setSelectedFormat(current => {
       const formats = getEffectiveOutputFormats(collection, queryKey);
       if (current && formats.includes(current)) return current;
@@ -139,10 +153,54 @@ export function useQueryUrl(): UseQueryUrlReturn {
     setDataQuery(queryType);
   }, [getEffectiveOutputFormats, setDataQuery, setRadiusUnits, radiusUnits]);
 
+  // Switch the collection's data query, leaving any instance
+  const selectDataQuery = useCallback((collection: Collection, queryKey: string) => {
+    setSelectedDataQuery(queryKey);
+    setSelectedInstanceId('');
+    setInstanceQueryKey('');
+    applyQueryDefaults(collection, queryKey);
+  }, [applyQueryDefaults]);
+
+  // An instances query loads the instances; picking one and a query on it makes a data query
+  const instancesHref = selectedCollection && selectedDataQuery && queryTypeOf(selectedCollection, selectedDataQuery) === 'instances'
+    ? normalizeHref(selectedCollection.data_queries[selectedDataQuery]?.link?.href)
+    : null;
+  const instances = useInstances(instancesHref);
+  const selectedInstance = instances.instances.find(instance => String(instance.id) === selectedInstanceId) ?? null;
+
+  // Pick an instance, keeping the query if it has one too. A time from another run may lie outside
+  // this one, so the time control picks one again.
+  const selectInstance = useCallback((id: string) => {
+    setSelectedInstanceId(id);
+    setSelectedDatetime('');
+    setStartDatetime('');
+    setEndDatetime('');
+    const instance = instances.instances.find(candidate => String(candidate.id) === id);
+    if (instance && instanceQueryKey && instance.data_queries?.[instanceQueryKey]) {
+      applyQueryDefaults(instance, instanceQueryKey);
+    } else {
+      setInstanceQueryKey('');
+      setDataQuery('instances');
+    }
+  }, [instances.instances, instanceQueryKey, applyQueryDefaults, setDataQuery]);
+
+  const selectInstanceQuery = useCallback((queryKey: string) => {
+    setInstanceQueryKey(queryKey);
+    if (selectedInstance && queryKey) applyQueryDefaults(selectedInstance, queryKey);
+    else setDataQuery('instances');
+  }, [selectedInstance, applyQueryDefaults, setDataQuery]);
+
   // Selecting a location (on the map, in the Location Features list or via search) switches the
   // query to `locations`, so the request targets that location
   useEffect(() => {
-    if (!selectedFeature || !selectedCollection?.data_queries) return;
+    if (!selectedFeature) return;
+    // Inside an instance the location is queried through the instance's own locations query
+    if (selectedInstance) {
+      const instanceLocations = Object.keys(selectedInstance.data_queries ?? {}).find(q => q.toLowerCase() === 'locations');
+      if (instanceLocations && instanceQueryKey !== instanceLocations) selectInstanceQuery(instanceLocations);
+      return;
+    }
+    if (!selectedCollection?.data_queries) return;
     const locationsQuery = Object.keys(selectedCollection.data_queries).find(q => q.toLowerCase() === 'locations');
     if (locationsQuery && selectedDataQuery !== locationsQuery) {
       selectDataQuery(selectedCollection, locationsQuery);
@@ -166,14 +224,24 @@ export function useQueryUrl(): UseQueryUrlReturn {
     }]));
   }, [selectedCustomDimensions, customDimensionModes, customDimensionStarts, customDimensionEnds]);
 
+  // What is queried: the collection's data query, or in an instances query the picked instance's
+  const target = useMemo(() => {
+    if (instancesHref) return selectedInstance && instanceQueryKey ? { collection: selectedInstance, queryKey: instanceQueryKey } : null;
+    return selectedCollection && selectedDataQuery ? { collection: selectedCollection, queryKey: selectedDataQuery } : null;
+  }, [instancesHref, selectedInstance, instanceQueryKey, selectedCollection, selectedDataQuery]);
+
   // The data query as one model: it builds the request URL and is validated
   const queryModel = useMemo(() => {
-    if (!selectedCollection || !selectedDataQuery) return null;
+    if (!target) return null;
+    const queryType = queryTypeOf(target.collection, target.queryKey);
     // Items are listed from any time unless the time filter is on (the time control always holds a time)
-    const timeIsFilter = !!EDR_QUERY_RULES[queryTypeOf(selectedCollection, selectedDataQuery)]?.featureList;
+    const timeIsFilter = !!EDR_QUERY_RULES[queryType]?.featureList;
+    // A location's href points at the collection's locations; an instance's is addressed by id
+    const locationFeature = queryType !== 'locations' || !selectedFeature ? null
+      : instancesHref ? { id: selectedFeature.id } : selectedFeature;
     return buildQueryModel({
-      collection: selectedCollection,
-      queryKey: selectedDataQuery,
+      collection: target.collection,
+      queryKey: target.queryKey,
       format: selectedFormat,
       parameters: selectedParameters,
       datetime: timeIsFilter && !filterByTime
@@ -187,10 +255,10 @@ export function useQueryUrl(): UseQueryUrlReturn {
       bboxAsCoords,
       radius: { value: radius, units: radiusUnits },
       queryParams,
-      locationFeature: queryTypeOf(selectedCollection, selectedDataQuery) === 'locations' ? selectedFeature : null,
+      locationFeature,
     });
   }, [
-    selectedCollection, selectedDataQuery, selectedFormat, selectedParameters,
+    target, instancesHref, selectedFormat, selectedParameters,
     datetimeMode, selectedDatetime, startDatetime, endDatetime, filterByTime,
     verticalMode, selectedVertical, startVertical, endVertical,
     customDims, clickedCoords, selectedArea, selectedBbox, bboxAsCoords, radius, radiusUnits, queryParams, selectedFeature,
@@ -199,13 +267,19 @@ export function useQueryUrl(): UseQueryUrlReturn {
   // Publish the request URL and what the query is still missing, adding the API docs' view once
   // the service's API definition is loaded
   useEffect(() => {
-    const url = queryModel ? buildQueryUrl(queryModel) : null;
-    if (!queryModel || !url) {
+    let url: string | null = null;
+    let issues: QueryIssue[] = [];
+    if (queryModel) {
+      url = buildQueryUrl(queryModel);
+      if (url) issues = validateQuery(queryModel);
+    } else if (instancesHref) {
+      ({ url, issues } = instanceStep(instancesHref, selectedInstance));
+    }
+    if (!url) {
       setQueryValidation(null);
       return;
     }
     setCollectionUrl(url);
-    const issues = validateQuery(queryModel);
     const apiDocs = apiIndex ? checkQueryUrlAgainstOpenApi(url, apiIndex) : null;
     const operation = apiDocs?.operation?.entry;
     setQueryValidation({
@@ -217,7 +291,7 @@ export function useQueryUrl(): UseQueryUrlReturn {
         required: operation.params.filter(param => param.in === 'query' && param.required).map(param => param.name),
       } : null,
     });
-  }, [queryModel, apiIndex, setCollectionUrl, setQueryValidation]);
+  }, [queryModel, instancesHref, selectedInstance, apiIndex, setCollectionUrl, setQueryValidation]);
 
   return {
     selectedDataQuery, setSelectedDataQuery,
@@ -238,6 +312,8 @@ export function useQueryUrl(): UseQueryUrlReturn {
     queryParams, setQueryParam,
     bboxAsCoords, setBboxAsCoords,
     filterByTime, setFilterByTime,
+    instances, selectedInstance, selectInstance,
+    instanceQueryKey, selectInstanceQuery,
     resetQueryState,
     getEffectiveOutputFormats,
     selectDataQuery,
