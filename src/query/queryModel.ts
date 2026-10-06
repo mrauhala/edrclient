@@ -2,7 +2,7 @@ import type { Collection, QueryVariables } from '../types/api';
 import { normalizeHref } from '../utils/href';
 import { EDR_QUERY_RULES, type EdrQueryRule } from './edrRules';
 import { queryTypeOf } from './queryTypes';
-import type { DimSelection } from './types';
+import type { BBox, DimSelection } from './types';
 
 // The parts of a selected location feature that address it
 export interface LocationFeature {
@@ -22,7 +22,10 @@ export interface QueryModelInput {
   customDims: Record<string, DimSelection>;
   points: [number, number][]; // map clicks: position/radius points, trajectory vertices
   polygons: [number, number][][]; // drawn areas
+  bbox: BBox | null; // the box drawn or typed for cube queries: west, south, east, north (lon/lat)
+  bboxAsCoords: boolean; // also send the box as a coords polygon, for servers whose API docs require it
   radius: { value: number; units: string };
+  queryParams: Record<string, string>; // parameters of the query type, e.g. corridor-width; empty ones aren't sent
   locationFeature: LocationFeature | null; // selected location feature, for locations queries
 }
 

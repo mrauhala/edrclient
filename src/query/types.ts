@@ -16,6 +16,9 @@ export interface QueryIssue {
   pointer?: string; // for API docs issues: JSON pointer into the API definition
 }
 
+// A lon/lat box: west, south, east, north
+export type BBox = [number, number, number, number];
+
 export type DimMode = 'individual' | 'range';
 
 // A dimension selection as the builder holds it: a single value or a start/end range

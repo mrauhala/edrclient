@@ -4,8 +4,9 @@ import { normalizeVertical, expandVerticalValues } from '../utils/extents/vertic
 import { normalizeBbox } from '../utils/extents/bbox';
 import { effectiveOutputFormats, parameterIdsOf, unitsFor } from './queryTypes';
 import type { QueryModel } from './queryModel';
-import type { DimSelection, IssueSeverity, IssueSource, QueryIssue } from './types';
+import type { BBox, DimSelection, IssueSeverity, IssueSource, QueryIssue } from './types';
 import { SEVERITY_ORDER } from './types';
+import type { ApiDocsCheck } from '../validation/openapi/checkQueryUrl';
 
 // ── Collection extents, computed once per collection (validation runs on every slider tick) ──
 
@@ -20,6 +21,9 @@ interface Extents {
 }
 
 const extentsCache = new WeakMap<Collection, Extents>();
+
+// The collection's spatial extent as a sorted lon/lat box, if it has one in lon/lat
+export const spatialExtentOf = (collection: Collection): BBox | null => extentsOf(collection).bbox;
 
 const toTime = (value: string | null | undefined, open: number) => {
   if (!value || value === '..') return open;
@@ -113,12 +117,12 @@ function checkGeometry(model: QueryModel, add: Add) {
       });
       break;
     case 'cube':
-      add('warning', 'edr', 'bbox', 'unsupported',
-        "Cube queries need a bounding box (bbox), which the query builder can't set yet. The request is sent without it.");
+      checkBox(model.bbox, bbox, add);
       break;
     case 'corridor':
-      add('warning', 'edr', 'coords', 'unsupported',
-        "Corridor queries need a centre line, corridor width and height, which the query builder can't set yet. The request is sent without them.");
+      if (points.length < 2) add('missing', 'edr', 'coords', 'required', "Draw the corridor's centre line on the map (at least 2 points)", 'map');
+      checkLength(model, 'corridor-width', 'width-units', 'width', 'corridor width', add);
+      checkCorridorHeight(model, add);
       break;
     case 'items':
       add('info', 'edr', 'query', 'list', "Lists the collection's items. The query builder can't set a bounding box or limit for items yet.");
@@ -134,12 +138,59 @@ function checkGeometry(model: QueryModel, add: Add) {
   }
 
   if (queryType === 'radius') {
-    if (!(model.radius.value > 0)) add('error', 'edr', 'within', 'positive', 'The radius must be greater than 0', 'map');
+    if (!(model.radius.value > 0)) add('error', 'edr', 'within', 'positive', 'The radius must be greater than 0', 'form');
     const units = unitsFor(model.variables, 'within');
     if (units.length > 0 && !units.includes(model.radius.units)) {
       add('error', 'metadata', 'within-units', 'offered',
-        `Radius unit "${model.radius.units}" isn't offered by this collection (${units.join(', ')})`);
+        `Radius unit "${model.radius.units}" isn't offered by this collection (${units.join(', ')})`, 'form');
     }
+  }
+}
+
+// A cube's box: drawn or typed, a real lon/lat box, and over the collection
+function checkBox(box: BBox | null, extent: BBox | null, add: Add) {
+  if (!box) {
+    add('missing', 'edr', 'bbox', 'required', 'Draw a box on the map, or enter its edges', 'map');
+    return;
+  }
+  const [west, south, east, north] = box;
+  if ([west, east].some(lon => lon < -180 || lon > 180) || [south, north].some(lat => lat < -90 || lat > 90)) {
+    add('error', 'edr', 'bbox', 'range', 'Box edges must be longitudes from -180 to 180 and latitudes from -90 to 90', 'form');
+  } else if (west >= east || south >= north) {
+    add('error', 'edr', 'bbox', 'order', 'The west edge must be less than the east edge, and the south edge less than the north edge', 'form');
+  } else if (extent && (east < extent[0] || west > extent[2] || north < extent[1] || south > extent[3])) {
+    add('warning', 'metadata', 'bbox', 'outside', "The box is outside the collection's spatial extent", 'map');
+  }
+}
+
+const isChosen = ({ mode, value, start, end }: DimSelection) => (mode === 'range' ? !!start && !!end : !!value);
+
+// EDR requires a corridor height, measured from the centre line's level: z, since the map draws a 2D
+// line. Without vertical levels there is no such level, and servers reject a height (FMI: "requires
+// 3D coords or an explicit z"), so the corridor goes without one.
+function checkCorridorHeight(model: QueryModel, add: Add) {
+  if (!extentsOf(model.collection).levels) {
+    add('info', 'edr', 'corridor-height', 'no-levels',
+      'EDR asks for a corridor height, but this collection has no vertical levels, so the corridor is sent without one');
+    return;
+  }
+  checkLength(model, 'corridor-height', 'height-units', 'height', 'corridor height', add);
+  if (model.queryParams['corridor-height']?.trim() && !isChosen(model.vertical)) {
+    add('missing', 'edr', 'z', 'corridor-centre', "Pick the level of the corridor's centre: its height is measured from there", 'form');
+  }
+}
+
+// A size and its unit set in the builder (corridor width and height): EDR requires both
+function checkLength(model: QueryModel, field: string, unitField: string, unitKind: 'width' | 'height', label: string, add: Add) {
+  const value = model.queryParams[field]?.trim() ?? '';
+  if (!value) add('missing', 'edr', field, 'required', `Set the ${label}`, 'form');
+  else if (!(Number(value) > 0)) add('error', 'edr', field, 'positive', `The ${label} must be a number greater than 0`, 'form');
+
+  const unit = model.queryParams[unitField]?.trim() ?? '';
+  const offered = unitsFor(model.variables, unitKind);
+  if (!unit) add('missing', 'edr', unitField, 'required', `Pick the unit of the ${label}`, 'form');
+  else if (offered.length > 0 && !offered.includes(unit)) {
+    add('error', 'metadata', unitField, 'offered', `Unit "${unit}" isn't offered for the ${label} (${offered.join(', ')})`, 'form');
   }
 }
 
@@ -248,19 +299,24 @@ export function validateQuery(model: QueryModel): QueryIssue[] {
 
 const FORM_FIELDS = new Set(['f', 'parameter-name', 'datetime', 'z']);
 
-// Add the API docs' issues to the query's own, under the builder's field names. A field that EDR or
-// the metadata already flags keeps only that issue: they're the stronger source, and one is enough.
-export function addApiDocsIssues(model: QueryModel, issues: QueryIssue[], apiIssues: QueryIssue[]): QueryIssue[] {
+// Add the API docs' view to the query's own issues. Their issues go under the builder's field names,
+// except on a field EDR or the metadata already flags: those are the stronger source, and one issue
+// is enough. A parameter EDR requires but the API docs mark optional still counts as missing, noted.
+export function addApiDocsIssues(model: QueryModel, issues: QueryIssue[], check: ApiDocsCheck): QueryIssue[] {
+  const optional = new Set((check.operation?.entry.params ?? []).filter(param => param.in === 'query' && !param.required).map(param => param.name));
+  const own = issues.map(issue => (issue.severity === 'missing' && optional.has(issue.field)
+    ? { ...issue, message: `${issue.message} (the server's API docs mark it optional)` }
+    : issue));
   const dimensionIds = new Set([...(model.collection.extent?.custom ?? []).map(dim => dim.id), ...Object.keys(model.customDims)]);
-  const flagged = new Set(issues.filter(issue => issue.severity !== 'info').map(issue => issue.field));
-  const placed = apiIssues
+  const flagged = new Set(own.filter(issue => issue.severity !== 'info').map(issue => issue.field));
+  const placed = check.issues
     .map(issue => {
       const field = dimensionIds.has(issue.field) ? `dim:${issue.field}` : issue.field;
       const input = FORM_FIELDS.has(field) || field.startsWith('dim:') ? 'form' as const : undefined;
       return { ...issue, id: issue.id.replace(`:${issue.field}:`, `:${field}:`), field, input };
     })
     .filter(issue => !flagged.has(issue.field));
-  return [...issues, ...placed].sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
+  return [...own, ...placed].sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
 }
 
 export interface IssueSummary {

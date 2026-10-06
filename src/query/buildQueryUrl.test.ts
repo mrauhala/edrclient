@@ -110,7 +110,8 @@ const CUSTOM_DIMS: Record<string, DimSelection>[] = [{}, { member: { mode: 'indi
 
 describe('buildQueryUrl serializes exactly like the previous URL builder', () => {
   for (const [name, collection] of Object.entries(COLLECTIONS)) {
-    for (const queryKey of Object.keys(collection.data_queries)) {
+    // Corridor queries were sent without their geometry before; they're tested below
+    for (const queryKey of Object.keys(collection.data_queries).filter(key => key !== 'corridor')) {
       it(`${name} / ${queryKey}`, () => {
         const baseUrl = normalizeHref(collection.data_queries[queryKey].link.href)!;
         const format = collection.data_queries[queryKey].link.variables?.output_formats?.[0] ?? '';
@@ -119,8 +120,8 @@ describe('buildQueryUrl serializes exactly like the previous URL builder', () =>
         for (const polygons of POLYGONS) for (const location of LOCATIONS) for (const customDims of CUSTOM_DIMS)
         for (const [f, parameters] of [['', []], [format, ['Temperature', 'Humidity']]] as [string, string[]][]) {
           const input: QueryModelInput = {
-            collection, queryKey, format: f, parameters, datetime, vertical, customDims, points, polygons,
-            radius: { value: 25, units: 'km' }, locationFeature: location,
+            collection, queryKey, format: f, parameters, datetime, vertical, customDims, points, polygons, bbox: null, bboxAsCoords: false,
+            radius: { value: 25, units: 'km' }, queryParams: {}, locationFeature: location,
           };
           const model = buildQueryModel(input)!;
           const legacy = legacyBuildUrl(
@@ -142,11 +143,12 @@ describe('buildQueryUrl serializes exactly like the previous URL builder', () =>
 });
 
 describe('buildQueryUrl', () => {
-  const position = (overrides: Partial<QueryModelInput>) => buildQueryUrl(buildQueryModel({
-    collection: COLLECTIONS.fmiEcmwf, queryKey: 'position', format: 'CoverageJSON', parameters: [],
-    datetime: emptyDim(), vertical: emptyDim(), customDims: {}, points: [[24.9384, 60.1699]], polygons: [],
-    radius: { value: 10, units: 'km' }, locationFeature: null, ...overrides,
+  const request = (queryKey: string, overrides: Partial<QueryModelInput>) => buildQueryUrl(buildQueryModel({
+    collection: COLLECTIONS.fmiEcmwf, queryKey, format: 'CoverageJSON', parameters: [],
+    datetime: emptyDim(), vertical: emptyDim(), customDims: {}, points: [[24.9384, 60.1699]], polygons: [], bbox: null, bboxAsCoords: false,
+    radius: { value: 10, units: 'km' }, queryParams: {}, locationFeature: null, ...overrides,
   })!)!;
+  const position = (overrides: Partial<QueryModelInput>) => request('position', overrides);
 
   it('sends custom dimensions chosen as a range (dropped before the query model)', () => {
     const url = new URL(position({ customDims: { member: { mode: 'range', value: '', start: '1', end: '5' } } }));
@@ -157,10 +159,39 @@ describe('buildQueryUrl', () => {
     expect(position({})).toBe('https://opendata.fmi.fi/edr/collections/ecmwf/position?f=CoverageJSON&coords=POINT%2824.938+60.170%29');
   });
 
+  it('sends the radius in its unit', () => {
+    const url = new URL(request('radius', { radius: { value: 500, units: 'm' } }));
+    expect([url.searchParams.get('within'), url.searchParams.get('within-units')]).toEqual(['500', 'm']);
+  });
+
+  it('sends a corridor as its centre line plus the size parameters that are set', () => {
+    const url = new URL(request('corridor', {
+      points: [[24.9384, 60.1699], [25.5, 61.25]],
+      queryParams: { 'corridor-width': '10', 'width-units': 'km', 'corridor-height': ' ', 'height-units': 'hPa', unrelated: 'x' },
+    }));
+    expect(url.searchParams.get('coords')).toBe('LINESTRING(24.938 60.170, 25.500 61.250)');
+    expect(Object.fromEntries([...url.searchParams].filter(([name]) => name !== 'coords' && name !== 'f'))).toEqual({
+      'corridor-width': '10', 'width-units': 'km', 'height-units': 'hPa',
+    });
+    expect(new URL(position({ queryParams: { 'corridor-width': '10' } })).searchParams.has('corridor-width')).toBe(false);
+  });
+
+  it('sends a cube box, and on request the same box as coords', () => {
+    const cube = (bboxAsCoords: boolean) => new URL(buildQueryUrl(buildQueryModel({
+      collection: COLLECTIONS.fmiPainepinta, queryKey: 'cube', format: 'CoverageJSON', parameters: [],
+      datetime: emptyDim(), vertical: emptyDim(), customDims: {}, points: [[24.9384, 60.1699]], polygons: [],
+      bbox: [24, 60.5, 25.25, 61], bboxAsCoords, radius: { value: 10, units: 'km' }, queryParams: {}, locationFeature: null,
+    })!)!).searchParams;
+    expect(cube(false).get('bbox')).toBe('24.000,60.500,25.250,61.000');
+    expect(cube(false).has('coords')).toBe(false); // clicked points belong to other query types
+    expect(cube(true).get('coords')).toBe('POLYGON((24.000 60.500,24.000 61.000,25.250 61.000,25.250 60.500,24.000 60.500))');
+    expect(new URL(position({ bbox: [24, 60, 25, 61] })).searchParams.has('bbox')).toBe(false);
+  });
+
   it('returns null for a query the collection does not offer', () => {
     expect(buildQueryModel({
       collection: COLLECTIONS.fmiEcmwf, queryKey: 'nope', format: '', parameters: [], datetime: emptyDim(),
-      vertical: emptyDim(), customDims: {}, points: [], polygons: [], radius: { value: 10, units: 'km' }, locationFeature: null,
+      vertical: emptyDim(), customDims: {}, points: [], polygons: [], bbox: null, bboxAsCoords: false, radius: { value: 10, units: 'km' }, queryParams: {}, locationFeature: null,
     })).toBeNull();
   });
 });

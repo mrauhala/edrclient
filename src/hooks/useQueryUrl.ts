@@ -6,7 +6,8 @@ import { useQueryValidationContext } from '../contexts/QueryValidationContext';
 import { useOpenApi } from '../contexts/OpenApiContext';
 import { buildQueryModel } from '../query/queryModel';
 import { buildQueryUrl } from '../query/buildQueryUrl';
-import { effectiveOutputFormats, queryTypeOf } from '../query/queryTypes';
+import { effectiveOutputFormats, queryTypeOf, queryVariables, unitsFor } from '../query/queryTypes';
+import { pickUnit } from '../query/units';
 import { addApiDocsIssues, validateQuery } from '../query/validateQuery';
 import { checkQueryUrlAgainstOpenApi } from '../validation/openapi/checkQueryUrl';
 import type { DimSelection } from '../query/types';
@@ -43,6 +44,12 @@ export interface UseQueryUrlReturn {
   setCustomDimensionStarts: React.Dispatch<React.SetStateAction<{[dimensionId: string]: string}>>;
   customDimensionEnds: {[dimensionId: string]: string};
   setCustomDimensionEnds: React.Dispatch<React.SetStateAction<{[dimensionId: string]: string}>>;
+  // Parameters of the query type set in their own fields (corridor width and height)
+  queryParams: Record<string, string>;
+  setQueryParam: (name: string, value: string) => void;
+  // Cube: also send the box as coords, for servers whose API docs require coords
+  bboxAsCoords: boolean;
+  setBboxAsCoords: (value: boolean) => void;
   // Utilities
   resetQueryState: () => void;
   getEffectiveOutputFormats: (collection: Collection, queryType: string) => string[];
@@ -50,7 +57,7 @@ export interface UseQueryUrlReturn {
 }
 
 export function useQueryUrl(): UseQueryUrlReturn {
-  const { clickedCoords, setClickedCoords, selectedArea, radiusKm, setDataQuery } = useMapInteraction();
+  const { clickedCoords, selectedArea, selectedBbox, radius, radiusUnits, setRadiusUnits, setDataQuery } = useMapInteraction();
   const { selectedCollection, selectedFeature, setCollectionUrl } = useCollection();
   const { setQueryValidation } = useQueryValidationContext();
   const { index: apiIndex } = useOpenApi();
@@ -70,6 +77,9 @@ export function useQueryUrl(): UseQueryUrlReturn {
   const [customDimensionModes, setCustomDimensionModes] = useState<{[dimensionId: string]: 'individual' | 'range'}>({});
   const [customDimensionStarts, setCustomDimensionStarts] = useState<{[dimensionId: string]: string}>({});
   const [customDimensionEnds, setCustomDimensionEnds] = useState<{[dimensionId: string]: string}>({});
+  const [queryParams, setQueryParams] = useState<Record<string, string>>({});
+  const [bboxAsCoords, setBboxAsCoords] = useState(false);
+  const setQueryParam = useCallback((name: string, value: string) => setQueryParams(params => ({ ...params, [name]: value })), []);
 
   const resetQueryState = useCallback(() => {
     setSelectedDataQuery('');
@@ -87,25 +97,41 @@ export function useQueryUrl(): UseQueryUrlReturn {
     setCustomDimensionModes({});
     setCustomDimensionStarts({});
     setCustomDimensionEnds({});
+    setQueryParams({});
+    setBboxAsCoords(false);
   }, []);
 
   const getEffectiveOutputFormats = effectiveOutputFormats;
 
   // Switch the data query: keep the output format if the new query offers it, otherwise use the
-  // query's default; sync the map's query mode and drop clicked points other queries can't use
-  const selectDataQuery = useCallback((collection: Collection, queryType: string) => {
-    setSelectedDataQuery(queryType);
+  // query's default; tell the map the query type, which drops geometry the new type can't use
+  const selectDataQuery = useCallback((collection: Collection, queryKey: string) => {
+    setSelectedDataQuery(queryKey);
     setSelectedFormat(current => {
-      const formats = getEffectiveOutputFormats(collection, queryType);
+      const formats = getEffectiveOutputFormats(collection, queryKey);
       if (current && formats.includes(current)) return current;
-      const defaultFormat = collection.data_queries[queryType]?.link?.variables?.default_output_format;
+      const defaultFormat = collection.data_queries[queryKey]?.link?.variables?.default_output_format;
       return defaultFormat && formats.includes(defaultFormat) ? defaultFormat : '';
     });
-    setDataQuery(queryType);
-    if (queryType.toLowerCase() !== 'position') {
-      setClickedCoords([]);
+    const queryType = queryKey ? queryTypeOf(collection, queryKey) : '';
+    const variables = queryVariables(collection, queryKey);
+    if (queryType === 'radius') {
+      setRadiusUnits(pickUnit(unitsFor(variables, 'within'), radiusUnits));
     }
-  }, [getEffectiveOutputFormats, setDataQuery, setClickedCoords]);
+    // A corridor starts 10 wide in the preferred width unit; the height unit is the first offered.
+    // Without vertical levels a corridor has no height.
+    if (queryType === 'corridor') {
+      const hasLevels = !!collection.extent?.vertical;
+      setQueryParams(params => ({
+        ...params,
+        'corridor-width': params['corridor-width'] || '10',
+        'width-units': pickUnit(unitsFor(variables, 'width'), params['width-units'] || 'km'),
+        'corridor-height': hasLevels ? params['corridor-height'] ?? '' : '',
+        'height-units': hasLevels ? pickUnit(unitsFor(variables, 'height'), params['height-units'] || '') : '',
+      }));
+    }
+    setDataQuery(queryType);
+  }, [getEffectiveOutputFormats, setDataQuery, setRadiusUnits, radiusUnits]);
 
   // Selecting a location (on the map, in the Location Features list or via search) switches the
   // query to `locations`, so the request targets that location
@@ -147,14 +173,17 @@ export function useQueryUrl(): UseQueryUrlReturn {
       customDims,
       points: clickedCoords,
       polygons: selectedArea,
-      radius: { value: radiusKm, units: 'km' },
+      bbox: selectedBbox,
+      bboxAsCoords,
+      radius: { value: radius, units: radiusUnits },
+      queryParams,
       locationFeature: queryTypeOf(selectedCollection, selectedDataQuery) === 'locations' ? selectedFeature : null,
     });
   }, [
     selectedCollection, selectedDataQuery, selectedFormat, selectedParameters,
     datetimeMode, selectedDatetime, startDatetime, endDatetime,
     verticalMode, selectedVertical, startVertical, endVertical,
-    customDims, clickedCoords, selectedArea, radiusKm, selectedFeature,
+    customDims, clickedCoords, selectedArea, selectedBbox, bboxAsCoords, radius, radiusUnits, queryParams, selectedFeature,
   ]);
 
   // Publish the request URL and what the query is still missing, adding the API docs' view once
@@ -171,8 +200,12 @@ export function useQueryUrl(): UseQueryUrlReturn {
     const operation = apiDocs?.operation?.entry;
     setQueryValidation({
       url,
-      issues: apiDocs ? addApiDocsIssues(queryModel, issues, apiDocs.issues) : issues,
-      apiOperation: operation ? { template: operation.template, pointer: operation.pointer } : null,
+      issues: apiDocs ? addApiDocsIssues(queryModel, issues, apiDocs) : issues,
+      apiOperation: operation ? {
+        template: operation.template,
+        pointer: operation.pointer,
+        required: operation.params.filter(param => param.in === 'query' && param.required).map(param => param.name),
+      } : null,
     });
   }, [queryModel, apiIndex, setCollectionUrl, setQueryValidation]);
 
@@ -192,6 +225,8 @@ export function useQueryUrl(): UseQueryUrlReturn {
     customDimensionModes, setCustomDimensionModes,
     customDimensionStarts, setCustomDimensionStarts,
     customDimensionEnds, setCustomDimensionEnds,
+    queryParams, setQueryParam,
+    bboxAsCoords, setBboxAsCoords,
     resetQueryState,
     getEffectiveOutputFormats,
     selectDataQuery,

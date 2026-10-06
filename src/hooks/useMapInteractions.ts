@@ -6,10 +6,13 @@ import { Feature } from 'ol';
 import { Polygon, Point, LineString } from 'ol/geom';
 import { fromLonLat, toLonLat } from 'ol/proj';
 import { Style, Stroke } from 'ol/style';
-import Draw from 'ol/interaction/Draw';
+import Draw, { createBox } from 'ol/interaction/Draw';
 import { DrawEvent } from 'ol/interaction/Draw';
+import type MapBrowserEvent from 'ol/MapBrowserEvent';
 import { useMapInteraction } from '../contexts/MapInteractionContext';
 import { useCollection } from '../contexts/CollectionContext';
+import { geometryKindOf } from '../query/queryTypes';
+import { unitToMeters } from '../query/units';
 
 export function useMapInteractions(
   map: Map | null,
@@ -17,7 +20,13 @@ export function useMapInteractions(
   areaLayer: VectorLayer<VectorSource> | null,
   radiusLayer: VectorLayer<VectorSource> | null,
 ): { abortDrawing: () => void; isDrawing: boolean } {
-  const { clickedCoords, setClickedCoords, selectedArea, setSelectedArea, radiusKm, dataQuery } = useMapInteraction();
+  const {
+    clickedCoords, setClickedCoords, selectedArea, setSelectedArea, selectedBbox, setSelectedBbox, radius, radiusUnits, dataQuery,
+  } = useMapInteraction();
+  // dataQuery is the query type; the geometry kind decides what the map collects
+  const geometryKind = geometryKindOf(dataQuery);
+  // Items take an optional box too, but the builder doesn't send one for them: only cube draws boxes
+  const drawsBox = dataQuery === 'cube';
   const { selectedCollection, selectedFeature } = useCollection();
   const [drawInteraction, setDrawInteraction] = useState<Draw | null>(null);
   // True while an area/trajectory sketch is in progress (between drawstart and drawend/abort).
@@ -30,16 +39,6 @@ export function useMapInteractions(
   // Keep refs in sync
   useEffect(() => { selectedAreaRef.current = selectedArea; }, [selectedArea]);
   useEffect(() => { clickedCoordsRef.current = clickedCoords; }, [clickedCoords]);
-
-  // Reset trajectory state when leaving trajectory mode
-  useEffect(() => {
-    if (dataQuery && dataQuery.toLowerCase() !== 'trajectory') {
-      if (markerLayer) {
-        const source = markerLayer.getSource();
-        if (source) source.clear();
-      }
-    }
-  }, [dataQuery, markerLayer]);
 
   // Zoom to feature when a location feature is selected
   useEffect(() => {
@@ -63,13 +62,13 @@ export function useMapInteractions(
     }
   }, [map, selectedFeature]);
 
-  // Update marker/trajectory when clicked coordinates change
+  // Draw the clicked points (position) or the line (trajectory, corridor) from state
   useEffect(() => {
-    if (markerLayer && dataQuery) {
+    if (markerLayer) {
       const source = markerLayer.getSource();
       if (source) {
         source.clear();
-        if (dataQuery.toLowerCase() === 'position' && clickedCoords && clickedCoords.length > 0) {
+        if (dataQuery === 'position' && clickedCoords && clickedCoords.length > 0) {
           clickedCoords.forEach(coords => {
             const [lon, lat] = coords;
             const feature = new Feature({
@@ -78,7 +77,7 @@ export function useMapInteractions(
             source.addFeature(feature);
           });
         }
-        if (dataQuery.toLowerCase() === 'trajectory' && clickedCoords && clickedCoords.length > 1) {
+        if (geometryKind === 'line' && clickedCoords && clickedCoords.length > 1) {
           const lineCoords = clickedCoords.map(([lon, lat]) => fromLonLat([lon, lat]));
           const lineFeature = new Feature({
             geometry: new LineString(lineCoords)
@@ -93,16 +92,18 @@ export function useMapInteractions(
         }
       }
     }
-  }, [clickedCoords, markerLayer, dataQuery]);
+  }, [clickedCoords, markerLayer, dataQuery, geometryKind]);
 
   // Update radius circles when clicked coords or radius change
   useEffect(() => {
-    if (radiusLayer && dataQuery && dataQuery.toLowerCase() === 'radius') {
+    if (radiusLayer && dataQuery === 'radius') {
       const source = radiusLayer.getSource();
       if (source) {
         source.clear();
 
-        if (clickedCoords && clickedCoords.length > 0 && radiusKm) {
+        // A unit the map doesn't know leaves only the centre points
+        const radiusMeters = radius * (unitToMeters(radiusUnits) ?? 0);
+        if (clickedCoords && clickedCoords.length > 0 && radiusMeters > 0) {
           clickedCoords.forEach(coords => {
             const [lon, lat] = coords;
             const center = fromLonLat([lon, lat]);
@@ -112,8 +113,8 @@ export function useMapInteractions(
 
             for (let i = 0; i < pointsOnCircle; i++) {
               const angle = (i / pointsOnCircle) * 2 * Math.PI;
-              const lonOffset = (radiusKm * 1000) / (111320 * Math.cos(lat * Math.PI / 180)) * Math.cos(angle);
-              const latOffset = (radiusKm * 1000) / 110540 * Math.sin(angle);
+              const lonOffset = radiusMeters / (111320 * Math.cos(lat * Math.PI / 180)) * Math.cos(angle);
+              const latOffset = radiusMeters / 110540 * Math.sin(angle);
 
               const pointLon = lon + lonOffset;
               const pointLat = lat + latOffset;
@@ -136,15 +137,15 @@ export function useMapInteractions(
           });
         }
       }
-    } else if (radiusLayer && dataQuery && dataQuery.toLowerCase() !== 'radius') {
+    } else if (radiusLayer) {
       const source = radiusLayer.getSource();
       if (source) {
         source.clear();
       }
     }
-  }, [clickedCoords, radiusLayer, radiusKm, dataQuery]);
+  }, [clickedCoords, radiusLayer, radius, radiusUnits, dataQuery]);
 
-  // Handle map clicks for position and radius queries
+  // Handle map clicks for point queries (position, radius)
   useEffect(() => {
     if (!map) return;
 
@@ -157,11 +158,11 @@ export function useMapInteractions(
         }
       }
 
-      // Trajectory is intentionally excluded: in trajectory mode the Draw('LineString')
+      // Lines are intentionally excluded: for trajectory and corridor the Draw('LineString')
       // interaction below is the sole capturer of clickedCoords (mirroring how area's
       // polygon Draw owns selectedArea). Letting this handler also append here caused a
       // ghost line and premature queries from unfinished lines.
-      if (dataQuery && (dataQuery.toLowerCase() === 'position' || dataQuery.toLowerCase() === 'radius')) {
+      if (geometryKind === 'points') {
         const coords = map.getCoordinateFromPixel(event.pixel);
         const [x, y] = toLonLat(coords);
         const bbox = selectedCollection?.extent?.spatial?.bbox;
@@ -186,9 +187,9 @@ export function useMapInteractions(
     return () => {
       map.un('singleclick', handleMapClick);
     };
-  }, [map, dataQuery, selectedCollection, setClickedCoords]);
+  }, [map, geometryKind, selectedCollection, setClickedCoords]);
 
-  // Handle area and trajectory selection with drawing tool
+  // Draw areas (polygon), lines (trajectory, corridor) and boxes (cube)
   useEffect(() => {
     if (!map) return;
 
@@ -197,8 +198,37 @@ export function useMapInteractions(
       setDrawInteraction(null);
     }
 
+    // Cube query: a box from two opposite corners, replacing the previous box
+    if (drawsBox && areaLayer) {
+      const draw = new Draw({
+        type: 'Circle',
+        geometryFunction: createBox(),
+        condition: (event: MapBrowserEvent) => !map.getFeaturesAtPixel(event.pixel)?.some(feature => feature.get('layer') === 'geojson'),
+      });
+      draw.on('drawend', (event: DrawEvent) => {
+        const [minX, minY, maxX, maxY] = event.feature.getGeometry()!.getExtent();
+        const round = (value: number) => Math.round(value * 1000) / 1000;
+        const [west, south] = toLonLat([minX, minY]).map(round);
+        const [east, north] = toLonLat([maxX, maxY]).map(round);
+        setSelectedBbox([west, south, east, north]);
+      });
+      draw.on('drawstart', () => setIsDrawing(true));
+      draw.on('drawend', () => setIsDrawing(false));
+      draw.on('drawabort', () => setIsDrawing(false));
+
+      map.addInteraction(draw);
+      setDrawInteraction(draw);
+      drawInteractionRef.current = draw;
+
+      return () => {
+        map.removeInteraction(draw);
+        drawInteractionRef.current = null;
+        setIsDrawing(false);
+      };
+    }
+
     // Area query: Polygon drawing
-    if (dataQuery && dataQuery.toLowerCase() === 'area' && areaLayer) {
+    if (geometryKind === 'polygon' && areaLayer) {
       const source = areaLayer.getSource();
       if (!source) return;
 
@@ -244,8 +274,8 @@ export function useMapInteractions(
       };
     }
 
-    // Trajectory query: LineString drawing
-    if (dataQuery && dataQuery.toLowerCase() === 'trajectory' && markerLayer) {
+    // Trajectory and corridor queries: LineString drawing
+    if (geometryKind === 'line' && markerLayer) {
       const source = markerLayer.getSource();
       if (!source) return;
 
@@ -288,24 +318,12 @@ export function useMapInteractions(
         setIsDrawing(false);
       };
     }
-
-    // Clear layers and state when not in area/trajectory mode
-    if ((dataQuery && dataQuery.toLowerCase() !== 'area' && areaLayer) || (dataQuery && dataQuery.toLowerCase() !== 'trajectory' && markerLayer)) {
-      if (areaLayer) {
-        const source = areaLayer.getSource();
-        if (source) source.clear();
-        setSelectedArea([]);
-      }
-      if (markerLayer) {
-        const source = markerLayer.getSource();
-        if (source) source.clear();
-        setClickedCoords([]);
-      }
-    }
+    // Geometry another kind of query can't use is cleared by MapInteractionContext.setDataQuery,
+    // and the layers redraw from state
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, dataQuery, areaLayer, markerLayer]);
+  }, [map, geometryKind, drawsBox, areaLayer, markerLayer]);
 
-  // Display selected areas
+  // Display selected areas and the cube's box
   useEffect(() => {
     if (areaLayer && selectedArea) {
       const source = areaLayer.getSource();
@@ -318,9 +336,14 @@ export function useMapInteractions(
           const feature = new Feature({ geometry: polygon });
           source.addFeature(feature);
         });
+        if (selectedBbox) {
+          const [west, south, east, north] = selectedBbox;
+          const corners = [[west, south], [west, north], [east, north], [east, south], [west, south]];
+          source.addFeature(new Feature({ geometry: new Polygon([corners.map(corner => fromLonLat(corner))]) }));
+        }
       }
     }
-  }, [selectedArea, areaLayer]);
+  }, [selectedArea, selectedBbox, areaLayer]);
 
   // Abort an in-progress sketch (the half-drawn line/polygon lives on the Draw
   // interaction's own overlay, not in our vector layers, so clearing the layer
