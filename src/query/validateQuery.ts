@@ -125,7 +125,8 @@ function checkGeometry(model: QueryModel, add: Add) {
       checkCorridorHeight(model, add);
       break;
     case 'items':
-      add('info', 'edr', 'query', 'list', "Lists the collection's items. The query builder can't set a bounding box or limit for items yet.");
+      if (model.bbox) checkBox(model.bbox, bbox, add);
+      checkLimit(model, add);
       break;
     case 'instances':
       add('info', 'edr', 'query', 'list', "Lists the collection's instances (e.g. model runs). The query builder can't query a single instance yet.");
@@ -160,6 +161,16 @@ function checkBox(box: BBox | null, extent: BBox | null, add: Add) {
     add('error', 'edr', 'bbox', 'order', 'The west edge must be less than the east edge, and the south edge less than the north edge', 'form');
   } else if (extent && (east < extent[0] || west > extent[2] || north < extent[1] || south > extent[3])) {
     add('warning', 'metadata', 'bbox', 'outside', "The box is outside the collection's spatial extent", 'map');
+  }
+}
+
+// Items come a page at a time: limit sets the page size, else the server picks it
+function checkLimit(model: QueryModel, add: Add) {
+  const limit = model.queryParams.limit?.trim() ?? '';
+  if (!limit) {
+    add('info', 'edr', 'limit', 'default', 'No limit: the server decides how many items to return (often 10)');
+  } else if (!/^\d+$/.test(limit) || Number(limit) < 1) {
+    add('error', 'edr', 'limit', 'positive', 'The limit must be a whole number of at least 1', 'form');
   }
 }
 
@@ -288,7 +299,11 @@ export function validateQuery(model: QueryModel): QueryIssue[] {
 
   checkGeometry(model, add);
   checkFormat(model, add);
-  if (model.queryType !== 'items' && model.queryType !== 'instances') {
+  if (model.rule?.featureList) {
+    const { mode, value, start, end } = model.datetime;
+    if (value || start || end || mode === 'range') checkDatetime(model, add);
+    else if (model.collection.extent?.temporal) add('info', 'edr', 'datetime', 'no-filter', 'No time filter: items from any time are listed');
+  } else if (model.queryType !== 'instances') {
     checkParameters(model, add);
     checkDatetime(model, add);
     checkVertical(model, add);

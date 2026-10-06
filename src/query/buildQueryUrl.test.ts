@@ -110,8 +110,9 @@ const CUSTOM_DIMS: Record<string, DimSelection>[] = [{}, { member: { mode: 'indi
 
 describe('buildQueryUrl serializes exactly like the previous URL builder', () => {
   for (const [name, collection] of Object.entries(COLLECTIONS)) {
-    // Corridor queries were sent without their geometry before; they're tested below
-    for (const queryKey of Object.keys(collection.data_queries).filter(key => key !== 'corridor')) {
+    // Corridor queries were sent without their geometry before, items with data selections they don't
+    // take; both are tested below
+    for (const queryKey of Object.keys(collection.data_queries).filter(key => key !== 'corridor' && key !== 'items')) {
       it(`${name} / ${queryKey}`, () => {
         const baseUrl = normalizeHref(collection.data_queries[queryKey].link.href)!;
         const format = collection.data_queries[queryKey].link.variables?.output_formats?.[0] ?? '';
@@ -186,6 +187,21 @@ describe('buildQueryUrl', () => {
     expect(cube(false).has('coords')).toBe(false); // clicked points belong to other query types
     expect(cube(true).get('coords')).toBe('POLYGON((24.000 60.500,24.000 61.000,25.250 61.000,25.250 60.500,24.000 60.500))');
     expect(new URL(position({ bbox: [24, 60, 25, 61] })).searchParams.has('bbox')).toBe(false);
+  });
+
+  it('sends items their box and limit, but no data selection', () => {
+    const items = (overrides: Partial<QueryModelInput>) => new URL(buildQueryUrl(buildQueryModel({
+      collection: COLLECTIONS.meteocoreObs, queryKey: 'items', format: 'GeoJSON', parameters: ['ta'],
+      datetime: { mode: 'individual', value: '2026-10-06T06:00:00Z', start: '', end: '' },
+      vertical: { mode: 'individual', value: '2', start: '', end: '' },
+      customDims: { member: { mode: 'individual', value: '5', start: '', end: '' } },
+      points: [[24.9384, 60.1699]], polygons: [], bbox: null, bboxAsCoords: false,
+      radius: { value: 10, units: 'km' }, queryParams: {}, locationFeature: null, ...overrides,
+    })!)!).searchParams;
+    expect(Object.fromEntries(items({}))).toEqual({ f: 'GeoJSON', datetime: '2026-10-06T06:00:00Z' });
+    expect(Object.fromEntries(items({ bbox: [24, 60, 25, 61], queryParams: { limit: '50' } }))).toEqual({
+      f: 'GeoJSON', datetime: '2026-10-06T06:00:00Z', bbox: '24.000,60.000,25.000,61.000', limit: '50',
+    });
   });
 
   it('returns null for a query the collection does not offer', () => {

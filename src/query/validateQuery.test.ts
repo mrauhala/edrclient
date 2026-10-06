@@ -76,7 +76,6 @@ describe('EDR geometry rules', () => {
   });
 
   it('flags query types the builder cannot fill yet', () => {
-    expect(ids(issuesFor(METEOCORE, 'items', { format: 'GeoJSON' }))).toContain('edr:query:list');
     expect(ids(issuesFor(FMI, 'instances'))).toContain('edr:query:list');
   });
 
@@ -106,6 +105,19 @@ describe('EDR geometry rules', () => {
     expect(corridor({})).toEqual(['missing corridor-height', 'missing height-units']);
     expect(corridor({ 'corridor-height': '100', 'height-units': 'hPa' })).toEqual(['missing z']);
     expect(corridor({ 'corridor-height': 'tall', 'height-units': 'km' }, at850)).toEqual(['error corridor-height', 'error height-units']);
+  });
+
+  it('items: an optional box, a positive whole limit, and the time but no data selection', () => {
+    const items = (overrides: Partial<QueryModelInput>) => issuesFor(METEOCORE, 'items', { format: 'GeoJSON', ...overrides });
+    expect(problems(items({}))).toEqual([]);
+    expect(ids(items({}))).toEqual(expect.arrayContaining(['edr:limit:default', 'edr:datetime:no-filter']));
+    expect(ids(items({ queryParams: { limit: '50' } }))).not.toContain('edr:limit:default');
+    expect(problems(items({ queryParams: { limit: '0' } }))).toEqual(['error limit']);
+    expect(problems(items({ queryParams: { limit: '2.5' } }))).toEqual(['error limit']);
+    expect(problems(items({ bbox: [25, 60, 24, 61] }))).toEqual(['error bbox']);
+    // Leftover selections from another query type aren't checked: they aren't sent
+    expect(problems(items({ parameters: ['nope'], vertical: { mode: 'range', value: '', start: '1', end: '' } }))).toEqual([]);
+    expect(problems(items({ datetime: { mode: 'range', value: '', start: '2026-10-06T06:00:00Z', end: '' } }))).toEqual(['missing datetime']);
   });
 
   it('notes that a locations request without a location lists them all', () => {

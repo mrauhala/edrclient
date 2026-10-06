@@ -4,9 +4,10 @@ import type { DimSelection } from './types';
 // Parameters a query type takes from the builder's fields (queryParams)
 export const TYPE_PARAMS: Readonly<Record<string, string[]>> = {
   corridor: ['corridor-width', 'width-units', 'corridor-height', 'height-units'],
+  items: ['limit'],
 };
 
-const QUERY_PARAMS = ['f', 'parameter-name', 'datetime', 'z', 'coords', 'within', 'within-units', 'bbox', ...TYPE_PARAMS.corridor];
+const QUERY_PARAMS = ['f', 'parameter-name', 'datetime', 'z', 'coords', 'within', 'within-units', 'bbox', ...TYPE_PARAMS.corridor, ...TYPE_PARAMS.items];
 
 const lonLat = ([lon, lat]: [number, number]) => `${lon.toFixed(3)} ${lat.toFixed(3)}`;
 const ring = (polygon: [number, number][]) => polygon.map(([lon, lat]) => `${lon.toFixed(2)} ${lat.toFixed(2)}`).join(',');
@@ -14,6 +15,8 @@ const ring = (polygon: [number, number][]) => polygon.map(([lon, lat]) => `${lon
 function pointsWkt(points: [number, number][]): string {
   return points.length === 1 ? `POINT(${lonLat(points[0])})` : `MULTIPOINT(${points.map(p => `(${lonLat(p)})`).join(',')})`;
 }
+
+const emptySelection: DimSelection = { mode: 'individual', value: '', start: '', end: '' };
 
 function setDimension(params: URLSearchParams, name: string, selection: DimSelection) {
   if (selection.mode === 'range' && selection.start && selection.end) {
@@ -48,11 +51,13 @@ export function buildQueryUrl(model: QueryModel): string | null {
     const params = url.searchParams;
     if (model.format) params.set('f', model.format);
     else params.delete('f');
-    if (model.parameters.length > 0) params.set('parameter-name', model.parameters.join(','));
+    // A feature list takes no data selection, even if one is left from another query type
+    const selectsData = !model.rule?.featureList;
+    if (selectsData && model.parameters.length > 0) params.set('parameter-name', model.parameters.join(','));
     else params.delete('parameter-name');
     setDimension(params, 'datetime', model.datetime);
-    setDimension(params, 'z', model.vertical);
-    Object.entries(model.customDims).forEach(([id, selection]) => setDimension(params, id, selection));
+    setDimension(params, 'z', selectsData ? model.vertical : emptySelection);
+    Object.entries(model.customDims).forEach(([id, selection]) => setDimension(params, id, selectsData ? selection : emptySelection));
 
     const { points, polygons } = model;
     if (queryType === 'position' && points.length > 0) {
@@ -63,6 +68,9 @@ export function buildQueryUrl(model: QueryModel): string | null {
       params.set('coords', pointsWkt(points));
       params.set('within', model.radius.value.toString());
       params.set('within-units', model.radius.units);
+    } else if (queryType === 'items' && model.bbox) {
+      params.set('bbox', model.bbox.map(edge => edge.toFixed(3)).join(','));
+      params.delete('coords');
     } else if (queryType === 'cube' && model.bbox) {
       const [west, south, east, north] = model.bbox;
       params.set('bbox', [west, south, east, north].map(edge => edge.toFixed(3)).join(','));

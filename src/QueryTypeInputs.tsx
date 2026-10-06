@@ -103,8 +103,9 @@ function viewBox(viewExtent: [number, number, number, number], collectionBox: BB
 
 // A cube's box as four edge fields, in step with the box drawn on the map. Edges being typed live
 // here until all four are numbers; only then does the box (and the request) change.
-function BoxFields({ collection, issue, requiredByApiDocs, bboxAsCoords, setBboxAsCoords }: {
+function BoxFields({ collection, optional = false, issue, requiredByApiDocs, bboxAsCoords, setBboxAsCoords }: {
   collection: Collection;
+  optional?: boolean;
   issue?: QueryIssue;
   requiredByApiDocs: boolean;
   bboxAsCoords: boolean;
@@ -129,7 +130,9 @@ function BoxFields({ collection, issue, requiredByApiDocs, bboxAsCoords, setBbox
 
   return (
     <Box sx={{ mb: 2 }} id="query-field-bbox">
-      <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>Box (longitude/latitude)</Typography>
+      <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>
+        Box (longitude/latitude{optional ? ', optional: draw one on the map or type its edges' : ''})
+      </Typography>
       <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
         {EDGES.map(({ label, index }) => (
           <NumberField key={label} id={`query-field-bbox-${label.toLowerCase()}`} label={label} value={edges[index]}
@@ -162,7 +165,7 @@ interface QueryTypeInputsProps {
 }
 
 // Inputs a query type needs besides (or instead of) the map: the radius, a corridor's width and
-// height, or a cube's box
+// height, a cube's box, or the box and page size of items
 const QueryTypeInputs: React.FC<QueryTypeInputsProps> = ({ collection, queryKey, queryParams, setQueryParam, bboxAsCoords, setBboxAsCoords }) => {
   const { radius, setRadius, radiusUnits, setRadiusUnits } = useMapInteraction();
   const { issues, apiOperation } = useQueryValidation();
@@ -183,6 +186,20 @@ const QueryTypeInputs: React.FC<QueryTypeInputsProps> = ({ collection, queryKey,
     return (
       <BoxFields collection={collection} issue={fieldIssue('bbox')} requiredByApiDocs={!!apiOperation?.required.includes('coords')}
         bboxAsCoords={bboxAsCoords} setBboxAsCoords={setBboxAsCoords} />
+    );
+  }
+  if (queryType === 'items') {
+    const limit = queryParams.limit?.trim() ?? '';
+    return (
+      <>
+        <BoxFields collection={collection} optional issue={fieldIssue('bbox')} requiredByApiDocs={false}
+          bboxAsCoords={false} setBboxAsCoords={() => {}} />
+        <Box sx={{ mb: 2 }}>
+          <NumberField id="query-field-limit" label="Limit (items per page)" value={limit === '' || !isFinite(Number(limit)) ? null : Number(limit)}
+            onChange={value => setQueryParam('limit', value === null ? '' : String(value))} issue={fieldIssue('limit')} />
+          <FieldIssueText issue={fieldIssue('limit')} />
+        </Box>
+      </>
     );
   }
   if (queryType === 'corridor') {
