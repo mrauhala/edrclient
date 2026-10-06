@@ -49,10 +49,14 @@ export function buildQueryUrl(model: QueryModel): string | null {
     }
 
     const params = url.searchParams;
-    if (model.format) params.set('f', model.format);
+    // A locations query without a location lists the locations: EDR gives that list only bbox,
+    // datetime and limit, and returns GeoJSON. The query's formats are a location's (MeteoCore
+    // answers the list with f=CoverageJSON with 400).
+    const listsLocations = queryType === 'locations' && !model.locationFeature;
+    if (model.format && !listsLocations) params.set('f', model.format);
     else params.delete('f');
     // A feature list takes no data selection, even if one is left from another query type
-    const selectsData = !model.rule?.featureList;
+    const selectsData = !model.rule?.featureList && !listsLocations;
     if (selectsData && model.parameters.length > 0) params.set('parameter-name', model.parameters.join(','));
     else params.delete('parameter-name');
     setDimension(params, 'datetime', model.datetime);
