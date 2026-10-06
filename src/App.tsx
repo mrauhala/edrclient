@@ -339,15 +339,10 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
         console.error('Query result validation failed:', e);
       }
 
-      // If it's GeoJSON, add it as a layer
-      // Check for various GeoJSON format indicators (case-insensitive)
-      const isGeoJson = contentType.includes('json') && (
-        collectionUrl.toLowerCase().includes('f=geojson') ||
-        collectionUrl.toLowerCase().includes('f=application/geo%2bjson') ||
-        collectionUrl.toLowerCase().includes('f=application/geo+json')
-      );
-
-      if (isGeoJson) {
+      // GeoJSON becomes a map layer, whatever the request's f: a server may serve it as plain
+      // application/json (Met Office) or by default without f (items). CoverageJSON parses too,
+      // but isn't a Feature(Collection).
+      if (contentType.includes('json')) {
         try {
           const geoJsonData = JSON.parse(responseData);
           
