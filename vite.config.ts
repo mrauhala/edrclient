@@ -43,7 +43,7 @@ export default defineConfig({
     port: 3000,
   },
   test: {
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.{ts,tsx}'],
     environment: 'node',
   },
 })

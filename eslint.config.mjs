@@ -51,7 +51,7 @@ export default [
   },
   {
     // Vitest runs tests in Node
-    files: ['src/**/*.test.ts'],
+    files: ['src/**/*.test.{ts,tsx}'],
     languageOptions: {
       globals: { ...globals.browser, ...globals.node },
     },
