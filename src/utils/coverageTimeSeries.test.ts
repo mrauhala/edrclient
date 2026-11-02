@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { coverageParameters, getTimeSeriesError, isTimeSeriesCoverage } from './coverageTimeSeries';
+import { coverageParameters, getTimeSeriesError, isTimeSeriesCoverage, parameterLabel } from './coverageTimeSeries';
 import dwdPosition from './__fixtures__/dwd-position-multipolygonseries.json';
 import dwdArea from './__fixtures__/dwd-area-multipolygonseries.json';
 import fmiPosition from './__fixtures__/fmi-position-pointseries.json';
 import fmiLocation from './__fixtures__/fmi-location-pointseries-5d.json';
 import hidrografico from './__fixtures__/hidrografico-collection-parameters.json';
+import dmiPosition from './__fixtures__/dmi-position-grid.json';
 
 const firstCoverage = (doc: { type: string; coverages?: unknown[] }) =>
   doc.type === 'CoverageCollection' ? doc.coverages![0] : doc;
@@ -63,5 +64,24 @@ describe('coverage collection parameters', () => {
       .toEqual({ t2m: { label: 'own' }, rh: { label: 'collection' } });
     expect(coverageParameters({ parameters: own })).toEqual(own);
     expect(coverageParameters({})).toBeUndefined();
+  });
+});
+
+describe('parameterLabel', () => {
+  it("prefers the observed property's label, then the description, then the id", () => {
+    expect(parameterLabel('t2m', { observedProperty: { label: { en: 'Air temperature' } }, description: { en: 'Temperature at 2 m' } })).toBe('Air temperature');
+    expect(parameterLabel('t2m', { observedProperty: { label: { fi: 'Lämpötila' } } })).toBe('Lämpötila');
+    expect(parameterLabel('t2m', { description: { en: 'Temperature at 2 m' } })).toBe('Temperature at 2 m');
+    expect(parameterLabel('t2m', {})).toBe('t2m');
+    expect(parameterLabel('t2m')).toBe('t2m');
+  });
+
+  it('skips labels that are links (DMI)', () => {
+    expect(parameterLabel('dew-point-temperature-2m', dmiPosition.parameters['dew-point-temperature-2m'])).toBe('2 metre dewpoint temperature');
+    expect(parameterLabel('x', { observedProperty: { label: { en: 'http://vocab.nerc.ac.uk/x' } } })).toBe('x');
+  });
+
+  it('skips blank labels', () => {
+    expect(parameterLabel('x', { observedProperty: { label: { en: ' ' } }, description: { en: 'Wind speed' } })).toBe('Wind speed');
   });
 });
