@@ -8,8 +8,6 @@
   { "label": "Meteogate Observations", "url": "https://api.meteogate.eu/eu-eumetnet-surface-observations", "type": "EDR" },
   { "label": "Meteogate Climate Observations", "url": "https://api.meteogate.eu/eu-eumetnet-climate-observations/v1", "type": "EDR" },
   { "label": "Meteogate Weather Radar", "url": "https://api.meteogate.eu/eu-eumetnet-weather-radar", "type": "EDR" },
-  { "label": "SmartMet Kenya", "url": "https://data-kenya.smartmet.org/edr", "type": "EDR" },
-  { "label": "SmartMet Ethiopia", "url": "https://data-ethiopia.smartmet.org/edr", "type": "EDR" },
   { "label": "DWD NWP (Beta)", "url": "https://nwp.opendata-api.dwd.de/v1beta1/", "type": "EDR" },
   { "label": "MeteoCore", "url": "https://meteocore.app.meteo.fi/edr/", "type": "EDR" },
   { "label": "WMO GDC WIS2 Germany", "url": "https://wis2.dwd.de/gdc/", "type": "Records" },
