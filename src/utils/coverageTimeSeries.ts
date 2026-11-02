@@ -36,3 +36,13 @@ export function getTimeSeriesError(coverage: unknown): string | null {
 export function isTimeSeriesCoverage(coverage: unknown): boolean {
   return getTimeSeriesError(coverage) === null;
 }
+
+// The parameters describing a coverage's ranges. A CoverageCollection may define them once for all
+// its coverages (Instituto Hidrográfico does); a coverage's own definitions take precedence.
+export function coverageParameters<P>(
+  coverage: { parameters?: Record<string, P> },
+  collectionParameters?: Record<string, P>,
+): Record<string, P> | undefined {
+  if (!coverage.parameters && !collectionParameters) return undefined;
+  return { ...collectionParameters, ...coverage.parameters };
+}
