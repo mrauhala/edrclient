@@ -35,7 +35,9 @@ Nothing to do when there is nothing worth releasing: the pull request just waits
 ### Which version
 
 The version follows the [Conventional Commits](https://www.conventionalcommits.org/) prefixes of
-the commits merged since the last release. While the version is below 1.0:
+the commits merged since the last release. Pull requests are squash-merged (the only merge method
+the repository allows), and the pull request's title becomes the commit message, so **the title
+needs the prefix**: one changelog line per pull request. While the version is below 1.0:
 
 | Commit | Example | 0.1.0 becomes |
 |---|---|---|
@@ -43,15 +45,16 @@ the commits merged since the last release. While the version is below 1.0:
 | `feat:` | `feat: add DMI Forecast preset` | 0.2.0 |
 | breaking: `feat!:`, or a `BREAKING CHANGE:` footer | `feat!: drop the --carto-api-key flag` | 0.2.0 |
 
-`docs:`, `chore:`, `test:`, `refactor:`, `ci:` and `style:` commits don't bump the version or appear
-in the changelog. Commits without a prefix (such as review suggestions accepted on GitHub, "Update
-src/…") are left out too.
+`docs:`, `chore:`, `test:`, `refactor:`, `ci:` and `style:` titles don't bump the version or appear
+in the changelog. A title without a prefix is left out too.
 
 To pick a version yourself, for example 1.0.0, add a `Release-As: 1.0.0` footer to a commit message
 on `main`.
 
 The first release counts from `77abc8e`, the commit 0.1.0 was published from (`bootstrap-sha` in
-`release-please-config.json`).
+`release-please-config.json`). Pull requests up to #133 were merged with merge commits, which
+release-please reads twice (the pull request's title and the branch's commits), so the 0.2.0
+changelog lists some changes twice until it is tidied in the release pull request.
 
 ## One-time setup
 
