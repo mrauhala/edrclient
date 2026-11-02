@@ -402,10 +402,10 @@ const CollectionsList = ({
           </Alert>
         ))
       }
-      {/* Data link errors (missing or multiple) — non-fatal but always visible */}
+      {/* Data link problems (missing, multiple or repaired links) — non-fatal but always visible */}
       {!isLoading && validationResult.errors?.some(err => err.section === 'data link') &&
         validationResult.errors.filter(err => err.section === 'data link').map((error, index) => (
-          <Alert key={`data-${index}`} severity="error" sx={{ mt: 1 }}>
+          <Alert key={`data-${index}`} severity={error.severity ?? 'error'} sx={{ mt: 1 }}>
             <AlertTitle>{error.title ?? 'Collections Link Issue'}</AlertTitle>
             {error.message}
           </Alert>

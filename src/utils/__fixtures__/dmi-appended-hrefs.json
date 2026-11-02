@@ -1,0 +1,58 @@
+{
+  "_comment": "DMI Forecast EDR, trimmed: one collection of GET https://opendataapi.dmi.dk/v1/forecastedr/collections?f=json (2026-11-03), hrefs as served",
+  "requestUrl": "https://opendataapi.dmi.dk/v1/forecastedr/collections?f=json",
+  "collection": {
+    "id": "dkss_nsbs",
+    "title": "Get DKSS NSBS model",
+    "links": [
+      {
+        "href": "https://opendataapi.dmi.dk/v1/forecastedr/collections/dkss_nsbs?f=json",
+        "rel": "self",
+        "type": "application/json",
+        "title": "This document"
+      },
+      {
+        "href": "https://opendataapi.dmi.dk/v1/forecastedr/collections/dkss_nsbs/position?f=json",
+        "rel": "data",
+        "type": "position",
+        "title": "Query to return data for a specified position"
+      },
+      {
+        "href": "https://opendataapi.dmi.dk/v1/forecastedr/collections/dkss_nsbs/cube?f=json",
+        "rel": "data",
+        "type": "cube",
+        "title": "Query to return data for a specified bounding box"
+      }
+    ],
+    "data_queries": {
+      "position": {
+        "link": {
+          "href": "https://opendataapi.dmi.dk/v1/forecastedr/collections?f=json/dkss_nsbs/position",
+          "rel": "data",
+          "templated": true,
+          "variables": {
+            "query_type": "position",
+            "output_formats": [
+              "CoverageJSON",
+              "GeoJSON"
+            ]
+          }
+        }
+      },
+      "cube": {
+        "link": {
+          "href": "https://opendataapi.dmi.dk/v1/forecastedr/collections?f=json/dkss_nsbs/cube",
+          "rel": "data",
+          "templated": true,
+          "variables": {
+            "query_type": "cube",
+            "output_formats": [
+              "CoverageJSON",
+              "GeoJSON"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

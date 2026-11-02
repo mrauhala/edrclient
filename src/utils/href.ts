@@ -61,12 +61,34 @@ export function normalizeHref(href: string | { [lang: string]: string } | undefi
   return null;
 }
 
-// Resolve a collection's (or an instance's) relative link and data query hrefs, in place
-export function resolveCollectionHrefs(collection: Collection, baseUrl: string): void {
+// Some servers build a collection's hrefs by appending its id and path to the request URL, query
+// string and all: DMI answers `collections?f=json` with `collections?f=json/dkss_nsbs/position`,
+// which would request the collections list. Moves the appended path in front of the query.
+export function repairAppendedHref(href: string, requestUrl: string, id: string): string {
+  const queryStart = requestUrl.indexOf('?');
+  if (queryStart < 0 || !href.startsWith(`${requestUrl}/`)) return href;
+  const appended = href.slice(requestUrl.length);
+  // Anchored on the id: a query value can itself continue with a slash (a datetime interval)
+  const firstSegment = appended.split('/')[1];
+  if (firstSegment !== id && firstSegment !== encodeURIComponent(id)) return href;
+  return requestUrl.slice(0, queryStart) + appended;
+}
+
+// Resolve a collection's (or an instance's) relative link and data query hrefs, in place. With the
+// URL the collection was fetched from, hrefs appended to it are repaired too; returns how many were.
+export function resolveCollectionHrefs(collection: Collection, baseUrl: string, requestUrl?: string): number {
+  let repaired = 0;
+  const resolve = (href: string) => {
+    const resolved = resolveHref(href, baseUrl);
+    const fixed = requestUrl ? repairAppendedHref(resolved, requestUrl, String(collection.id)) : resolved;
+    if (fixed !== resolved) repaired++;
+    return fixed;
+  };
   for (const link of Array.isArray(collection.links) ? collection.links : []) {
-    if (typeof link.href === 'string') link.href = resolveHref(link.href, baseUrl);
+    if (typeof link.href === 'string') link.href = resolve(link.href);
   }
   for (const query of Object.values(collection.data_queries ?? {})) {
-    if (query?.link && typeof query.link.href === 'string') query.link.href = resolveHref(query.link.href, baseUrl);
+    if (query?.link && typeof query.link.href === 'string') query.link.href = resolve(query.link.href);
   }
+  return repaired;
 }
