@@ -1,8 +1,9 @@
-import Ajv, { type ValidateFunction } from 'ajv';
+import Ajv, { type ErrorObject, type ValidateFunction } from 'ajv';
 import addFormats from 'ajv-formats';
 import type { ValidationError } from '../../types/api';
 import { ajvErrorToValidationError, condenseAjvErrors } from '../ajvErrors';
 import { publicUrl } from '../../utils/publicUrl';
+import { resolvePointer, unescapePointerSegment } from './refs';
 
 export type OasVersion = '3.0' | '3.1';
 
@@ -40,6 +41,36 @@ export function oasVersionOf(doc: Record<string, unknown>): OasVersion | null {
   return null;
 }
 
+const MAX_ERRORS = 200;
+const MAX_NAMES = 6;
+
+// The same problem in many places is reported once: Meteogate's climate observations have 153
+// parameters without a schema. Says how many and which (by name when they have one), and keeps the
+// first one's path to navigate to.
+function summarizeRepeated(errors: ErrorObject[], doc: unknown, schemaName: string): ValidationError[] {
+  const groups = new Map<string, { kind: string; errors: ErrorObject[] }>();
+  for (const error of errors) {
+    // What the error is about: 'parameters' for /paths/~1a/get/parameters/0
+    const kind = unescapePointerSegment(error.instancePath.replace(/\/\d+$/, '').split('/').pop() ?? '');
+    const key = `${error.keyword}\u0000${error.message}\u0000${kind}`;
+    if (!groups.has(key)) groups.set(key, { kind, errors: [] });
+    groups.get(key)!.errors.push(error);
+  }
+  return [...groups.values()].map(({ kind, errors: group }) => {
+    const [first] = group;
+    const extra = { section: 'OpenAPI', schema: schemaName, severity: 'error' as const };
+    if (group.length === 1) return ajvErrorToValidationError(first, extra);
+    const names = [...new Set(group
+      .map(error => (resolvePointer(doc, error.instancePath) as { name?: unknown } | undefined)?.name)
+      .filter((name): name is string => typeof name === 'string'))];
+    const which = names.length > 0 ? ` (${names.slice(0, MAX_NAMES).join(', ')}${names.length > MAX_NAMES ? ', …' : ''})` : '';
+    return {
+      ...ajvErrorToValidationError(first, extra),
+      message: `${group.length} ${kind}${which}: ${first.message}`,
+    };
+  });
+}
+
 // Validate an API definition against the official OpenAPI schema of its version
 export async function validateOpenApiStructure(
   doc: Record<string, unknown>,
@@ -64,9 +95,13 @@ export async function validateOpenApiStructure(
   }
   const validate = await validators.get(version)!;
   if (validate(doc)) return { schemaName, errors: [] };
+  const summarized = summarizeRepeated(condenseAjvErrors(validate.errors ?? [], Infinity), doc, schemaName);
+  if (summarized.length <= MAX_ERRORS) return { schemaName, errors: summarized };
   return {
     schemaName,
-    errors: condenseAjvErrors(validate.errors ?? []).map(error =>
-      ajvErrorToValidationError(error, { section: 'OpenAPI', schema: schemaName, severity: 'error' })),
+    errors: [
+      ...summarized.slice(0, MAX_ERRORS),
+      { message: `+${summarized.length - MAX_ERRORS} more errors not shown`, section: 'OpenAPI', schema: schemaName, keyword: 'truncated', severity: 'error', type: 'schema' },
+    ],
   };
 }

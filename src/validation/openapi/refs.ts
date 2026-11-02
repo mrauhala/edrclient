@@ -39,19 +39,34 @@ export function derefLocal<T = unknown>(doc: unknown, node: unknown, maxDepth = 
   return current as T;
 }
 
+// Keys whose values are data, not part of the document: a $ref inside them is just text.
+// Meteogate's climate observations put JSON Schemas, $refs and all, in response examples.
+const LITERAL_KEYS = new Set(['example', 'default', 'enum', 'const']);
+// Maps whose keys are names chosen by the author, so a property may be called "example"
+const NAME_MAPS = new Set(['properties', 'patternProperties']);
+
+function isLiteral(key: string, child: unknown, parentKey: string, grandparentKey: string): boolean {
+  if (NAME_MAPS.has(parentKey)) return false;
+  if (LITERAL_KEYS.has(key) || key.startsWith('x-')) return true;
+  if (key === 'examples' && Array.isArray(child)) return true; // JSON Schema examples: values
+  return key === 'value' && grandparentKey === 'examples'; // an Example Object's value
+}
+
 // Every local $ref that doesn't resolve, with the pointer of the object holding it
 export function findBrokenLocalRefs(doc: unknown): { at: string; ref: string }[] {
   const broken: { at: string; ref: string }[] = [];
-  const visit = (node: unknown, at: string) => {
+  const visit = (node: unknown, at: string, key: string, parentKey: string) => {
     if (Array.isArray(node)) {
-      node.forEach((child, i) => visit(child, `${at}/${i}`));
+      node.forEach((child, i) => visit(child, `${at}/${i}`, String(i), key));
     } else if (node && typeof node === 'object') {
       if (isLocalRef(node) && resolvePointer(doc, node.$ref) === undefined) {
         broken.push({ at, ref: node.$ref });
       }
-      Object.entries(node).forEach(([key, child]) => visit(child, `${at}/${escapePointerSegment(key)}`));
+      Object.entries(node).forEach(([childKey, child]) => {
+        if (!isLiteral(childKey, child, key, parentKey)) visit(child, `${at}/${escapePointerSegment(childKey)}`, childKey, key);
+      });
     }
   };
-  visit(doc, '');
+  visit(doc, '', '', '');
   return broken;
 }
