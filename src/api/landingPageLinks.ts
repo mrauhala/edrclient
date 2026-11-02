@@ -13,3 +13,26 @@ export function dataLinkUrls(links: Link[], baseUrl: string): string[] {
     .filter((url): url is string => !!url);
   return [...new Set(urls)];
 }
+
+const lastPathSegment = (url: string): string => {
+  try {
+    return new URL(url).pathname.replace(/\/+$/, '').split('/').pop() ?? '';
+  } catch {
+    return '';
+  }
+};
+
+// Sort a landing page's data URLs into collections candidates, `/collections` first, and a
+// conformance declaration linked as data. Meteogate's climate observations link /conformance as
+// rel="data", ahead of /collections, and have no rel="conformance" link.
+export function classifyDataLinks(urls: string[]): { collections: string[]; conformance: string | null } {
+  const conformance = urls.find(url => lastPathSegment(url) === 'conformance') ?? null;
+  const others = urls.filter(url => url !== conformance);
+  const isCollections = (url: string) => lastPathSegment(url) === 'collections';
+  return { collections: [...others.filter(isCollections), ...others.filter(url => !isCollections(url))], conformance };
+}
+
+// Whether a response is a collections list: a `collections` array, or a bare array of collections
+export function hasCollectionsList(data: unknown): boolean {
+  return Array.isArray(data) || Array.isArray((data as { collections?: unknown } | null)?.collections);
+}

@@ -1,6 +1,7 @@
 import Ajv, { ValidateFunction } from 'ajv';
 import addFormats from 'ajv-formats';
 import type { ValidationError } from '../types/api';
+import { condenseAjvErrors, groupArrayItemErrors } from './ajvErrors';
 import { publicUrl } from '../utils/publicUrl';
 
 type EdrVersion = '1.0' | '1.1' | '1.2';
@@ -71,15 +72,22 @@ export async function validateLocationsResponse(
     return { isValid: true, errors: [] };
   }
 
-  const errors: ValidationError[] = (validator.errors || []).map(err => ({
-    message: `${err.instancePath || ''}: ${err.message}`,
-    path: err.instancePath || 'root',
-    keyword: err.keyword,
+  // One error per kind, with how many features have it: a large locations response would otherwise
+  // give one error per feature and property (91,888 for a Meteogate collection)
+  const features = (data as { features?: unknown } | null)?.features;
+  const featureCount = Array.isArray(features) ? features.length : undefined;
+  const groups = groupArrayItemErrors(condenseAjvErrors(validator.errors || [], Infinity));
+  const errors: ValidationError[] = groups.map(({ error, genericPath, array, count }) => ({
+    message: count > 1
+      ? `${genericPath}: ${error.message} (${count.toLocaleString('en')}${array === 'features' && featureCount ? ` of ${featureCount.toLocaleString('en')}` : ''} ${array})`
+      : `${error.instancePath || ''}: ${error.message}`,
+    path: error.instancePath || 'root',
+    keyword: error.keyword,
     schema: displayName,
     section: 'Locations',
     type: 'schema' as const,
   }));
 
-  console.warn(`❌ ${displayName}: ${errors.length} validation error(s)`);
+  console.warn(`❌ ${displayName}: ${validator.errors?.length ?? 0} validation error(s) in ${errors.length} group(s)`);
   return { isValid: false, errors };
 }

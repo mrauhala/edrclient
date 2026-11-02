@@ -20,6 +20,9 @@ import type { EndpointUrls, RawResponses } from './contexts/ValidationContext';
 import type { ValidationError } from './DataRetrievalAPI';
 import { isProblem } from './validation/severity';
 
+// Rendering tens of thousands of errors froze the popover (a 10 MB locations response)
+const MAX_ITEMS_PER_GROUP = 100;
+
 function SectionStatus({ label, validation, loading, countSectionErrors }: {
   label: string;
   validation?: { isValid: boolean; errors: ValidationError[] | null; schemaResults?: Array<{ schema: string; isValid: boolean }> };
@@ -150,12 +153,17 @@ const ValidationPopover: React.FC = () => {
           size="small"
           color="inherit"
           aria-label="validation results"
-          onClick={(e) => setAnchorEl(prev => {
-            if (prev) return null;
+          onClick={(e) => {
+            // Read before the state update: React clears currentTarget once the handler returns
+            const button = e.currentTarget;
+            if (anchorEl) {
+              setAnchorEl(null);
+              return;
+            }
             document.dispatchEvent(new Event('close-layers-popover'));
             document.dispatchEvent(new Event('close-search-popover'));
-            return e.currentTarget;
-          })}
+            setAnchorEl(button);
+          }}
         >
           <Badge
             badgeContent={errorCount}
@@ -254,7 +262,7 @@ const ValidationPopover: React.FC = () => {
                       <Typography variant="caption" sx={{ display: 'block', px: 1.5, pt: 0.75, pb: 0.25, fontWeight: 600, color: 'info.main' }}>
                         {group.label}
                       </Typography>
-                      {group.items.map((error, idx) => {
+                      {group.items.slice(0, MAX_ITEMS_PER_GROUP).map((error, idx) => {
                         const msg = error.path && error.message.startsWith(error.path)
                           ? error.message.slice(error.path.length).replace(/^:\s*/, '')
                           : error.message;
@@ -326,6 +334,11 @@ const ValidationPopover: React.FC = () => {
                           </ButtonBase>
                         );
                       })}
+                      {group.items.length > MAX_ITEMS_PER_GROUP && (
+                        <Typography variant="caption" sx={{ display: 'block', px: 1.5, py: 0.5, color: 'text.secondary' }}>
+                          +{(group.items.length - MAX_ITEMS_PER_GROUP).toLocaleString('en')} more not shown
+                        </Typography>
+                      )}
                     </Box>
                   ));
                 })()}

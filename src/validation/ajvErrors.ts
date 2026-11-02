@@ -49,6 +49,29 @@ export function condenseAjvErrors(errors: ErrorObject[], max = 200): ErrorObject
   ];
 }
 
+const ARRAY_INDEX = /\/\d+(?=\/|$)/g;
+
+export interface ArrayItemErrors {
+  error: ErrorObject; // the first one, whose path can be navigated to
+  genericPath: string; // the path with array indices as `*`
+  array: string; // the array the items are in: the segment before the first `*`
+  count: number;
+}
+
+// Errors repeated across the items of an array, once per kind: AJV reports a property missing
+// from 22,972 location features 22,972 times (Meteogate's climate observations)
+export function groupArrayItemErrors(errors: ErrorObject[]): ArrayItemErrors[] {
+  const groups = new Map<string, ArrayItemErrors>();
+  for (const error of errors) {
+    const genericPath = error.instancePath.replace(ARRAY_INDEX, '/*');
+    const key = `${genericPath}\u0000${error.keyword}\u0000${error.message}`;
+    const group = groups.get(key);
+    if (group) group.count++;
+    else groups.set(key, { error, genericPath, array: genericPath.split('/*')[0].split('/').pop() ?? '', count: 1 });
+  }
+  return [...groups.values()];
+}
+
 export function ajvErrorToValidationError(error: ErrorObject, extra: Partial<ValidationError> = {}): ValidationError {
   return {
     message: `${error.instancePath}: ${error.message}`,

@@ -5,7 +5,7 @@ import { normalizeHref, resolveCollectionHrefs, resolveHref } from '../utils/hre
 import { sanitizeUrl } from '../utils/sanitizeUrl';
 import { getAxiosConfig, addApiKeyToUrl } from './auth';
 import { pickOpenApiLink } from '../validation/openapi/loadServiceDescription';
-import { dataLinkUrls } from './landingPageLinks';
+import { classifyDataLinks, dataLinkUrls, hasCollectionsList } from './landingPageLinks';
 
 export async function getCollections(apiUrl: string, auth?: AuthCredentials, signal?: AbortSignal): Promise<GetCollectionsResult> {
   // Initialize the schema validator outside the try block so it's accessible in the catch block
@@ -15,6 +15,8 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials, sig
   let serviceDescUrl: string | null = null;
   let conformanceError: ValidationError | null = null;
   let dataLinkError: ValidationError | null = null;
+  // Problems with the landing page's links that the client worked around
+  const linkWarnings: ValidationError[] = [];
 
   try {
     console.log('=== Starting getCollections for:', sanitizeUrl(apiUrl), '===');
@@ -38,15 +40,17 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials, sig
     let collectionsUrl: string | null = null;
     let collectionsUrlCandidates: string[] = [];
     let conformanceUrl: string | null = null;
+    let conformanceAsData: string | null = null;
     // The URL the collections came from, with f and any API key: some servers append to it
     let collectionsRequestUrl: string | undefined;
 
     if (landingPageData && landingPageData.links && Array.isArray(landingPageData.links)) {
       // Collect ALL data link URLs to detect missing / ambiguous cases (one URL linked under both
       // the EDR and the Common rel counts once)
-      const dataUrls = dataLinkUrls(landingPageData.links, apiUrl);
+      const dataLinks = classifyDataLinks(dataLinkUrls(landingPageData.links, apiUrl));
+      conformanceAsData = dataLinks.conformance;
 
-      if (dataUrls.length === 0) {
+      if (dataLinks.collections.length === 0) {
         dataLinkError = {
           title: 'Collections Link Missing',
           message: 'No data/collections link (rel="data") found in landing page. Using fallback URL.',
@@ -58,17 +62,8 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials, sig
         collectionsUrl = `${apiUrl}/collections`;
         collectionsUrlCandidates = [collectionsUrl];
       } else {
-        collectionsUrlCandidates = dataUrls;
-
-        if (dataUrls.length > 1) {
-          dataLinkError = {
-            title: 'Multiple Data Links',
-            message: `${dataUrls.length} different data links (rel="data") found in landing page. Trying each in order: ${collectionsUrlCandidates.join(', ')}`,
-            type: 'unknown',
-            section: 'data link'
-          };
-          console.warn('Multiple data links found:', collectionsUrlCandidates);
-        }
+        collectionsUrlCandidates = dataLinks.collections;
+        if (collectionsUrlCandidates.length > 1) console.warn('Multiple data links found:', collectionsUrlCandidates);
         collectionsUrl = collectionsUrlCandidates[0];
         console.log('Found collections URL from landing page:', collectionsUrl ? sanitizeUrl(collectionsUrl) : collectionsUrl);
       }
@@ -97,6 +92,15 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials, sig
           conformanceUrl = normalizedHref;
           console.log('Found conformance URL from landing page:', sanitizeUrl(conformanceUrl));
         }
+      } else if (conformanceAsData) {
+        conformanceUrl = conformanceAsData;
+        linkWarnings.push({
+          title: 'Conformance Linked as Data',
+          message: `The landing page links its conformance declaration (${conformanceAsData}) as rel="data" and has no rel="conformance" link. It was used as the conformance link.`,
+          type: 'unknown',
+          section: 'conformance',
+          severity: 'warning',
+        });
       }
     } else {
       console.warn('Landing page has no links array. Using fallback.');
@@ -134,9 +138,17 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials, sig
     }
 
     console.log('Fetching collections. Candidates:', collectionsUrlCandidates.map(sanitizeUrl));
+    // The first candidate answering with a collections list wins. If none does, the first answer is
+    // used anyway, so its validation shows what came back instead.
     const collectionsPromise = (async () => {
-      let result: Awaited<ReturnType<typeof axios.get<CollectionsResponse>>> | null = null;
+      type Answer = { result: Awaited<ReturnType<typeof axios.get<CollectionsResponse>>>; candidate: string; requestUrl: string };
+      let firstAnswer: Answer | null = null;
       let lastErr: unknown = null;
+      const accept = ({ result, candidate, requestUrl }: Answer) => {
+        collectionsUrl = candidate;
+        collectionsRequestUrl = requestUrl;
+        return result;
+      };
       for (const candidate of collectionsUrlCandidates) {
         try {
           console.log('Trying collections URL:', sanitizeUrl(candidate));
@@ -145,16 +157,20 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials, sig
             urlWithFormat.searchParams.set('f', 'json');
           }
           const finalUrl = addApiKeyToUrl(urlWithFormat.toString(), auth);
-          result = await axios.get<CollectionsResponse>(finalUrl, getAxiosConfig(auth, signal));
-          collectionsUrl = candidate;
-          collectionsRequestUrl = (result.request as XMLHttpRequest | undefined)?.responseURL || finalUrl;
-          console.log('Collections fetch succeeded from:', sanitizeUrl(candidate), 'status:', result.status);
-          return result;
+          const result = await axios.get<CollectionsResponse>(finalUrl, getAxiosConfig(auth, signal));
+          const answer = { result, candidate, requestUrl: (result.request as XMLHttpRequest | undefined)?.responseURL || finalUrl };
+          if (hasCollectionsList(result.data)) {
+            console.log('Collections fetch succeeded from:', sanitizeUrl(candidate), 'status:', result.status);
+            return accept(answer);
+          }
+          console.warn('No collections list from:', sanitizeUrl(candidate));
+          firstAnswer ??= answer;
         } catch (err) {
           lastErr = err;
           console.warn('Collections fetch failed for:', sanitizeUrl(candidate), err);
         }
       }
+      if (firstAnswer) return accept(firstAnswer);
       throw lastErr;
     })();
 
@@ -225,6 +241,23 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials, sig
       throw collectionsResult.reason;
     }
     const response = collectionsResult.value;
+    if (collectionsUrlCandidates.length > 1) {
+      linkWarnings.push({
+        title: 'Multiple Data Links',
+        message: `The landing page links ${collectionsUrlCandidates.length} different URLs as data (rel="data"): ${collectionsUrlCandidates.join(', ')}. The collections came from ${collectionsUrl}.`,
+        type: 'unknown',
+        section: 'data link',
+        severity: 'warning',
+      });
+    }
+    if (!hasCollectionsList(response.data)) {
+      linkWarnings.push({
+        title: 'No Collections List',
+        message: `${collectionsUrl} answered without a "collections" array, so no collections can be listed.`,
+        type: 'unknown',
+        section: 'data link',
+      });
+    }
 
     // --- Schema loading + validation (depends on conformance result) ---
     try {
@@ -339,6 +372,7 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials, sig
         ...(collectionsValidation.errors || []),
         ...(conformanceValidation.errors || []),
         ...(dataLinkError ? [dataLinkError] : []),
+        ...linkWarnings,
         ...(appendedHrefsWarning ? [appendedHrefsWarning] : [])
       ],
       schemaCount: validator.getLoadedSchemaCount(),
@@ -469,7 +503,8 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials, sig
           { title: errorTitle, message: errorMessage, type: errorType, section: errorSection },
           // Include any non-fatal errors already computed before the fatal error
           ...(conformanceError ? [conformanceError] : []),
-          ...(dataLinkError ? [dataLinkError] : [])
+          ...(dataLinkError ? [dataLinkError] : []),
+          ...linkWarnings
         ],
         schemaCount: validator.isLoaded() ? validator.getLoadedSchemaCount() : 0,
         schemaUrls: validator.isLoaded() ? validator.getLoadedSchemaUrls() : []
