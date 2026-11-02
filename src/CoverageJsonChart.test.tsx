@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import CoverageJsonChart from './CoverageJsonChart';
 import hidrografico from './utils/__fixtures__/hidrografico-collection-parameters.json';
 import fmiPosition from './utils/__fixtures__/fmi-position-pointseries.json';
+import dmiPosition from './utils/__fixtures__/dmi-position-grid.json';
 
 // Rendered to HTML on the server: enough to tell a chart from the error and warning alerts
 const render = (data: unknown) => renderToStaticMarkup(<CoverageJsonChart data={data} />);
@@ -19,6 +20,13 @@ describe('CoverageJsonChart', () => {
     const html = render(fmiPosition);
     expect(html).not.toContain('No parameters or ranges found');
     expect(html).toContain('<svg');
+  });
+
+  it('names a series by its description when the observed property label is a link (DMI)', () => {
+    const html = render(dmiPosition);
+    expect(html).toContain('<svg');
+    expect(html).toContain('2 metre dewpoint temperature');
+    expect(html).not.toContain('codes.ecmwf.int');
   });
 
   it('explains what it cannot chart', () => {

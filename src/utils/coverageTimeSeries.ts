@@ -46,3 +46,21 @@ export function coverageParameters<P>(
   if (!coverage.parameters && !collectionParameters) return undefined;
   return { ...collectionParameters, ...coverage.parameters };
 }
+
+type I18nText = { en?: string; fi?: string };
+
+// A series' name: the observed property's label, else the parameter's description, else its id.
+// Labels that are links are skipped: DMI labels each observed property with an ECMWF parameter
+// database URL, which says nothing in a legend.
+export function parameterLabel(
+  id: string,
+  parameter?: { observedProperty?: { label?: I18nText }; description?: I18nText },
+): string {
+  const candidates = [
+    parameter?.observedProperty?.label?.en,
+    parameter?.observedProperty?.label?.fi,
+    parameter?.description?.en,
+    parameter?.description?.fi,
+  ];
+  return candidates.find(label => label?.trim() && !/^https?:\/\//i.test(label.trim())) ?? id;
+}

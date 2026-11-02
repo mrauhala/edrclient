@@ -5,7 +5,7 @@ import Typography from '@mui/material/Typography';
 import Alert from '@mui/material/Alert';
 import Divider from '@mui/material/Divider';
 import { ChartsText, type ChartsTextProps } from '@mui/x-charts/ChartsText';
-import { coverageParameters, getTimeSeriesError } from './utils/coverageTimeSeries';
+import { coverageParameters, getTimeSeriesError, parameterLabel } from './utils/coverageTimeSeries';
 import { formatTimeTick } from './utils/timeAxisTicks';
 
 interface CoverageJsonChartProps {
@@ -107,17 +107,7 @@ const SingleCoverageChart: React.FC<{
             index < timestamps.length ? value : null
           );
           
-          // Get parameter label (try English first, then Finnish, then fallback to key)
-          let label = paramKey;
-          if (parameter?.observedProperty?.label?.en) {
-            label = parameter.observedProperty.label.en;
-          } else if (parameter?.observedProperty?.label?.fi) {
-            label = parameter.observedProperty.label.fi;
-          } else if (parameter?.description?.en) {
-            label = parameter.description.en;
-          } else if (parameter?.description?.fi) {
-            label = parameter.description.fi;
-          }
+          const label = parameterLabel(paramKey, parameter);
 
           // Get unit for value formatter (try English first, then Finnish)
           let unit = '';
