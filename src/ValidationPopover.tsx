@@ -18,7 +18,7 @@ import { useValidation } from './contexts/ValidationContext';
 import { useOpenApi } from './contexts/OpenApiContext';
 import type { EndpointUrls, RawResponses } from './contexts/ValidationContext';
 import type { ValidationError } from './DataRetrievalAPI';
-import { isProblem } from './validation/severity';
+import { isProblem, problemCount } from './validation/severity';
 
 function SectionStatus({ label, validation, loading, countSectionErrors }: {
   label: string;
@@ -101,7 +101,7 @@ const ValidationPopover: React.FC = () => {
   const open = Boolean(anchorEl);
   const hasService = validationResult.schemaCount !== undefined || validationResult.errors !== null;
   // Notes (info) are listed but not counted
-  const errorCount = validationResult.errors?.filter(isProblem).length ?? 0;
+  const errorCount = problemCount(validationResult);
   const noteCount = (validationResult.errors?.length ?? 0) - errorCount;
   const isValid = validationResult.isValid && errorCount === 0;
 

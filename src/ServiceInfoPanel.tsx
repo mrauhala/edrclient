@@ -19,6 +19,7 @@ import { ValidationResult, formatConformanceClass, Link as ApiLink, normalizeHre
 import ValidationResults from './ValidationResult';
 import KeywordChips from './KeywordChips';
 import { useService } from './contexts/ServiceContext';
+import { problemCount } from './validation/severity';
 
 interface ServiceInfoPanelProps {
   landingPageDescription: string | null;
@@ -243,21 +244,18 @@ const ServiceInfoPanel = ({
                             variant="outlined"
                             sx={{ ml: 1, height: 20 }}
                           />
-                        ) : !validationResult.isValid ? (() => {
-                          let failureCount = 0;
-                          if (validationResult.landingPageValidation && !validationResult.landingPageValidation.isValid) failureCount++;
-                          if (validationResult.collectionsValidation && !validationResult.collectionsValidation.isValid) failureCount++;
-                          if (validationResult.conformanceValidation && !validationResult.conformanceValidation.isValid) failureCount++;
-
-                          return failureCount > 0 ? (
+                        ) : (() => {
+                          // The same count as the validation badge: errors and warnings, not notes
+                          const count = problemCount(validationResult);
+                          return count > 0 ? (
                             <Chip
-                              label={`${failureCount} issue${failureCount > 1 ? 's' : ''}`}
+                              label={`${count} issue${count > 1 ? 's' : ''}`}
                               size="small"
                               color="warning"
                               sx={{ ml: 1, height: 20 }}
                             />
                           ) : null;
-                        })() : null}
+                        })()}
                       </Typography>
                     }
                   />

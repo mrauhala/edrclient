@@ -36,6 +36,7 @@ import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import axios from 'axios';
 import { QueryResultValidator } from './QueryResultValidator';
+import { httpErrorMessage, serverErrorDetail } from './api/httpErrors';
 
 
 function App() {
@@ -380,17 +381,14 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
 
       console.error('Error fetching data:', error);
 
-      // Classify error for actionable feedback
+      // Classify error for actionable feedback, with what the server says went wrong
       let message = error.message || 'Failed to fetch data';
+      const httpMessage = error.response?.status
+        ? httpErrorMessage(error.response.status, serverErrorDetail(error.response.data))
+        : null;
 
-      if (error.response?.status === 401 || error.response?.status === 403) {
-        message = `Authentication failed (${error.response.status}). Check your credentials in Settings (S).`;
-      } else if (error.response?.status === 404) {
-        message = `Endpoint not found (404). Verify the query URL is correct.`;
-      } else if (error.response?.status === 429) {
-        message = `Rate limited (429). Wait a moment and try again.`;
-      } else if (error.response?.status >= 500) {
-        message = `Server error (${error.response.status}). The API returned an internal error.`;
+      if (httpMessage) {
+        message = httpMessage;
       } else if (
         error.message?.includes('CORS') ||
         error.message?.includes('Access-Control-Allow-Origin') ||

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { allSectionsValid, isProblem } from './severity';
+import { allSectionsValid, isProblem, problemCount } from './severity';
 import type { ValidationResult } from '../types/api';
 
 describe('isProblem', () => {
@@ -22,5 +22,21 @@ describe('allSectionsValid', () => {
   it('takes a revalidated section\'s new verdict instead of the stored overall one', () => {
     const before: ValidationResult = { isValid: false, errors: null, landingPageValidation: section(true), openApiValidation: section(false) };
     expect(allSectionsValid({ ...before, openApiValidation: section(true) })).toBe(true);
+  });
+});
+
+describe('problemCount', () => {
+  it('counts the errors and warnings of every section, not notes, as the badge does', () => {
+    const result: ValidationResult = {
+      isValid: true,
+      errors: [
+        { message: 'empty temporal values', section: 'collections' },
+        { message: 'conformance linked as data', section: 'conformance', severity: 'warning' },
+        { message: 'features lack datetime', section: 'Locations' },
+        { message: 'bbox marked optional', section: 'OpenAPI', severity: 'info' },
+      ],
+    };
+    expect(problemCount(result)).toBe(3);
+    expect(problemCount({ isValid: true, errors: null })).toBe(0);
   });
 });
