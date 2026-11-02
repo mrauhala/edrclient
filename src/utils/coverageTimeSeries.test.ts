@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { getTimeSeriesError, isTimeSeriesCoverage } from './coverageTimeSeries';
+import { coverageParameters, getTimeSeriesError, isTimeSeriesCoverage } from './coverageTimeSeries';
 import dwdPosition from './__fixtures__/dwd-position-multipolygonseries.json';
 import dwdArea from './__fixtures__/dwd-area-multipolygonseries.json';
 import fmiPosition from './__fixtures__/fmi-position-pointseries.json';
 import fmiLocation from './__fixtures__/fmi-location-pointseries-5d.json';
+import hidrografico from './__fixtures__/hidrografico-collection-parameters.json';
 
 const firstCoverage = (doc: { type: string; coverages?: unknown[] }) =>
   doc.type === 'CoverageCollection' ? doc.coverages![0] : doc;
@@ -37,5 +38,30 @@ describe('getTimeSeriesError', () => {
       expect(error).toMatch(expected);
     }
     expect(isTimeSeriesCoverage(coverage)).toBe(expected === null);
+  });
+});
+
+// Instituto Hidrográfico (tide_obs_nrt): the CoverageCollection defines parameters once, the coverages
+// have only ranges, and the range lists only its t axis (x and y hold one value each)
+describe('coverage collection parameters', () => {
+  const [coverage] = hidrografico.coverages;
+
+  it('charts a coverage whose range names only the t axis', () => {
+    expect(isTimeSeriesCoverage(coverage)).toBe(true);
+  });
+
+  it("uses the collection's parameters when the coverage has none", () => {
+    expect(coverage).not.toHaveProperty('parameters');
+    const parameters = coverageParameters(coverage as { parameters?: Record<string, unknown> }, hidrografico.parameters);
+    expect(parameters).toEqual(hidrografico.parameters);
+    expect(Object.keys(parameters!)).toEqual(Object.keys(coverage.ranges));
+  });
+
+  it("keeps a coverage's own parameter definitions over the collection's", () => {
+    const own = { t2m: { label: 'own' } };
+    expect(coverageParameters({ parameters: own }, { t2m: { label: 'collection' }, rh: { label: 'collection' } }))
+      .toEqual({ t2m: { label: 'own' }, rh: { label: 'collection' } });
+    expect(coverageParameters({ parameters: own })).toEqual(own);
+    expect(coverageParameters({})).toBeUndefined();
   });
 });

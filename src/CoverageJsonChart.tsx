@@ -5,7 +5,7 @@ import Typography from '@mui/material/Typography';
 import Alert from '@mui/material/Alert';
 import Divider from '@mui/material/Divider';
 import { ChartsText, type ChartsTextProps } from '@mui/x-charts/ChartsText';
-import { getTimeSeriesError } from './utils/coverageTimeSeries';
+import { coverageParameters, getTimeSeriesError } from './utils/coverageTimeSeries';
 import { formatTimeTick } from './utils/timeAxisTicks';
 
 interface CoverageJsonChartProps {
@@ -62,7 +62,12 @@ const TimeTickLabel: React.FC<ChartsTextProps> = (props) => (
 );
 
 // Component to render a single coverage chart
-const SingleCoverageChart: React.FC<{ coverage: CoverageJson; index?: number }> = ({ coverage, index }) => {
+// Inside a CoverageCollection the parameters may be defined once for all coverages (collectionParameters)
+const SingleCoverageChart: React.FC<{
+  coverage: CoverageJson;
+  index?: number;
+  collectionParameters?: CoverageJson['parameters'];
+}> = ({ coverage, index, collectionParameters }) => {
   const chartData = useMemo(() => {
     try {
       const timeSeriesError = getTimeSeriesError(coverage);
@@ -75,7 +80,7 @@ const SingleCoverageChart: React.FC<{ coverage: CoverageJson; index?: number }> 
       const timestamps = timeValues.map(t => new Date(t).getTime());
 
       // Extract parameter data
-      const parameters = coverage.parameters;
+      const parameters = coverageParameters(coverage, collectionParameters);
       const ranges = coverage.ranges;
 
       if (!parameters || !ranges) {
@@ -170,7 +175,7 @@ const SingleCoverageChart: React.FC<{ coverage: CoverageJson; index?: number }> 
       console.error('Error parsing CoverageJSON:', err);
       return { error: `Failed to parse CoverageJSON: ${err instanceof Error ? err.message : 'Unknown error'}` };
     }
-  }, [coverage]);
+  }, [coverage, collectionParameters]);
 
   if ('error' in chartData && chartData.error) {
     return (
@@ -289,7 +294,7 @@ const CoverageJsonChart: React.FC<CoverageJsonChartProps> = ({ data }) => {
         </Typography>
         {coverages.map((coverage, index) => (
           <Box key={index}>
-            <SingleCoverageChart coverage={coverage} index={index} />
+            <SingleCoverageChart coverage={coverage} index={index} collectionParameters={parsed.parameters} />
             {index < coverages.length - 1 && <Divider sx={{ my: 3 }} />}
           </Box>
         ))}
