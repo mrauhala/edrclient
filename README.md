@@ -41,6 +41,17 @@ This serves the app at `http://localhost:3000`. Use `--port` to change:
 npx ogcapibrowser --port 8080
 ```
 
+## Docker
+
+The image serves the built app with nginx (non-root, port 8080):
+
+```bash
+docker run --rm -p 8080:8080 ghcr.io/mrauhala/ogcapibrowser:latest
+# open http://localhost:8080
+```
+
+To build it yourself: `docker build -t ogcapibrowser .`. To serve the app under a sub-path behind a proxy that strips the prefix, build with `--build-arg BASE_PATH=/ogcapibrowser/`.
+
 ## Development
 
 ```bash

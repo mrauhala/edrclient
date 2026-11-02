@@ -1,0 +1,13 @@
+node_modules
+build
+coverage
+.git
+.github
+.firebase
+.claude
+tasks
+*.log
+.DS_Store
+.env*
+Dockerfile
+.dockerignore

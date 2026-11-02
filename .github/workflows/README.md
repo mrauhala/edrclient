@@ -76,6 +76,17 @@ This project uses GitHub Actions for continuous integration, testing, and deploy
 
 **Setup:** Settings → Pages → Build and deployment → Source: **GitHub Actions**.
 
+### 7. Docker image (`docker.yml`)
+**Triggers:** Push to `main`, version tags (`v*`), pull requests to `main`, or run manually
+
+**Purpose:** Builds the Docker image (nginx serving the static build) and publishes it to GitHub Container Registry as `ghcr.io/mrauhala/ogcapibrowser`.
+
+**Jobs:**
+- Builds for `linux/amd64` and `linux/arm64`; the app itself is built once on the runner's platform
+- Pull requests only build (no push), to catch a broken Dockerfile before merging
+- Tags: `latest` and `sha-<commit>` from `main`; `1.2.3` and `1.2` from a `v1.2.3` tag
+- Pushes with the workflow's `GITHUB_TOKEN` (`packages: write`); no secrets needed
+
 ## Required Secrets
 
 The following secrets must be configured in your GitHub repository:
