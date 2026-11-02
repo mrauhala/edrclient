@@ -16,10 +16,30 @@ function getCartoApiKey(): string | undefined {
   return window.__RUNTIME_CONFIG__?.VITE_CARTO_API_KEY || import.meta.env.VITE_CARTO_API_KEY;
 }
 
-function getCartoBasemapUrl(style: string): string {
-  const apiKey = getCartoApiKey();
-  const base = `https://{a-c}.basemaps.cartocdn.com/${style}/{z}/{x}/{y}.png`;
-  return apiKey ? `${base}?key=${encodeURIComponent(apiKey)}` : base;
+const ESRI_CANVAS = 'https://services.arcgisonline.com/arcgis/rest/services/Canvas';
+const ESRI_ATTRIBUTION = 'Powered by <a href="https://www.esri.com">Esri</a> | Esri, HERE, Garmin, © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, and the GIS user community';
+
+// The dark basemap. Carto's needs an API key now (without one its tiles show a watermark), so it's
+// used only with a key (build env or the CLI's --carto-api-key). Otherwise Esri's Dark Gray Canvas,
+// keyless: its place names are a separate layer, drawn above every data layer so they stay
+// readable over overlays. Esri has data to zoom 16; OpenLayers scales that up beyond.
+function basemapLayers(): TileLayer<XYZ>[] {
+  const cartoKey = getCartoApiKey();
+  if (cartoKey) {
+    return [new TileLayer({
+      source: new XYZ({
+        url: `https://{a-c}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png?key=${encodeURIComponent(cartoKey)}`,
+        attributions: '© <a href="https://carto.com/attributions">CARTO</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      }),
+    })];
+  }
+  const esri = (service: string, attributions?: string) =>
+    new XYZ({ url: `${ESRI_CANVAS}/${service}/MapServer/tile/{z}/{y}/{x}`, maxZoom: 16, attributions });
+  return [
+    new TileLayer({ source: esri('World_Dark_Gray_Base', ESRI_ATTRIBUTION) }),
+    // The layer manager numbers data layers from 0 up, so this stays on top
+    new TileLayer({ source: esri('World_Dark_Gray_Reference'), zIndex: 10000 }),
+  ];
 }
 
 export interface UseMapSetupReturn {
@@ -190,12 +210,7 @@ export function useMapSetup(zoomLevel: number): UseMapSetupReturn {
         zoom: false,
       }),
       layers: [
-        new TileLayer({
-          source: new XYZ({
-            url: getCartoBasemapUrl('dark_all'),
-            attributions: '© <a href="https://carto.com/attributions">CARTO</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-          }),
-        }),
+        ...basemapLayers(),
         newVectorLayer,
         newLocationLayer,
         newMarkerLayer,
