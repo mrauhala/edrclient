@@ -65,6 +65,17 @@ This project uses GitHub Actions for continuous integration, testing, and deploy
 - Creates security alerts for vulnerabilities
 - Scheduled weekly scans
 
+### 6. GitHub Pages (`github-pages.yml`)
+**Triggers:** Push to `main` branch, or run manually (Actions → Deploy to GitHub Pages → Run workflow)
+
+**Purpose:** Publishes the application to GitHub Pages at https://mrauhala.github.io/ogcapibrowser/.
+
+**Jobs:**
+- Builds with the base path GitHub Pages reports (`/ogcapibrowser/`), so assets and the bundled schemas load from the sub-path
+- Deploys with `actions/deploy-pages` to the `github-pages` environment; no secrets needed
+
+**Setup:** Settings → Pages → Build and deployment → Source: **GitHub Actions**.
+
 ## Required Secrets
 
 The following secrets must be configured in your GitHub repository:

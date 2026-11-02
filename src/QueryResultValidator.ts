@@ -1,6 +1,7 @@
 import Ajv, { ValidateFunction } from 'ajv';
 import addFormats from 'ajv-formats';
 import { ValidationError } from './types/api';
+import { publicUrl } from './utils/publicUrl';
 
 // --- Registry types ---
 
@@ -153,7 +154,7 @@ export class QueryResultValidator {
     if (cached) return cached;
 
     try {
-      const response = await fetch(schema.schemaPath);
+      const response = await fetch(publicUrl(schema.schemaPath));
       if (!response.ok) {
         console.error(`Failed to fetch schema ${schema.schemaPath}: ${response.status}`);
         return null;

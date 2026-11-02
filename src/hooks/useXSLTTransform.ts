@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { publicUrl } from '../utils/publicUrl';
 
 export interface UseXSLTTransformReturn {
   transformedHtml: string | null;
@@ -27,7 +28,7 @@ export function useXSLTTransform(
 
       // Load XSLT stylesheet (cached after first fetch)
       if (!cachedXsltText) {
-        const xsltResponse = await fetch('/iwxxm-transform.xsl', { signal });
+        const xsltResponse = await fetch(publicUrl('/iwxxm-transform.xsl'), { signal });
         if (!xsltResponse.ok) {
           throw new Error('Failed to load XSLT stylesheet');
         }
