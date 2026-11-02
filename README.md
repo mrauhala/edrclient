@@ -62,9 +62,9 @@ npm run preview   # Preview the production build
 npm run lint      # Run ESLint
 ```
 
-### Local Carto API key
+### Basemap and the optional Carto API key
 
-To use your own Carto API key during local development, create a `.env.local` file in the project root and add:
+The dark basemap is Esri's Dark Gray Canvas, which needs no key. With a Carto API key the app uses Carto's `dark_all` instead (Carto now requires a key). To use your own Carto API key during local development, create a `.env.local` file in the project root and add:
 
 ```dotenv
 VITE_CARTO_API_KEY=your-carto-api-key
@@ -82,7 +82,7 @@ npx ogcapibrowser --carto-api-key your-carto-api-key
 CARTO_API_KEY=your-carto-api-key npx ogcapibrowser
 ```
 
-This takes precedence over the key baked in at build time. If neither is set, the app falls back to the key the published bundle was built with (if any), then to the unauthenticated Carto endpoint.
+This takes precedence over the key baked in at build time. If neither is set, the app falls back to the key the published bundle was built with (if any), then to Esri's Dark Gray Canvas.
 
 ## Publishing to npm
 
