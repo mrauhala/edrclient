@@ -1,0 +1,64 @@
+name: Release Please
+
+# On every merge to main, release-please opens or updates a release pull request: the version bump
+# in package.json, package-lock.json and the manifest, plus CHANGELOG.md, from the conventional
+# commits since the last release. Merging that pull request tags vX.Y.Z, creates the GitHub release
+# and publishes the npm package. The tag starts the versioned Docker image build (docker.yml).
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  release-please:
+    name: Release pull request
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+
+    steps:
+      # A personal access token, not GITHUB_TOKEN: pull requests and tags made with GITHUB_TOKEN don't
+      # start other workflows, so the required checks would never run on the release pull request and
+      # the tag wouldn't build the Docker image. See docs/releasing.md for the token's permissions.
+      - name: Release Please
+        id: release
+        uses: googleapis/release-please-action@v5
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  npm:
+    name: Publish to npm
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    # Trusted publishing: npm accepts this workflow's OIDC token instead of a stored npm token, and
+    # attaches provenance. npmjs.com must list this repository and this workflow file (release-please.yml).
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout the release tag
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.release-please.outputs.tag_name }}
+
+      # Trusted publishing needs npm 11.5.1 or later; Node 24 on the runners ships 11.19
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24.x'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # prepublishOnly builds the app. No Carto key here: a key present at build time would be baked
+      # into the package for every npx user.
+      - name: Publish
+        run: npm publish
