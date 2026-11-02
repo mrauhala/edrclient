@@ -14,3 +14,6 @@ export function allSectionsValid(result: ValidationResult): boolean {
     result.openApiValidation,
   ].every(section => section?.isValid ?? true);
 }
+
+// How many problems a service has, as the validation badge and the service panel show it
+export const problemCount = (result: ValidationResult): number => result.errors?.filter(isProblem).length ?? 0;
