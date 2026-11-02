@@ -118,14 +118,6 @@ npm pack --dry-run   # Preview what files would be included
 npm pack             # Create a .tgz to inspect
 ```
 
-### Removing `"private": true`
-
-The package currently has `"private": true` in `package.json`, which **prevents `npm publish`**. Remove this field when you’re ready to publish:
-
-```diff
-- "private": true,
-```
-
 ## License
 
 Licensed under either of
