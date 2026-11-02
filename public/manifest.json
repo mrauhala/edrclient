@@ -1,6 +1,6 @@
 {
-  "short_name": "EDR Tool",
-  "name": "EDR Query Tool",
+  "short_name": "OGC Browser",
+  "name": "OGC API Browser",
   "icons": [
     {
       "src": "favicon.ico",

@@ -4,7 +4,7 @@ import { validateOpenApiStructure, type OasVersion } from './validateStructure';
 import { parseServiceDescription } from './loadServiceDescription';
 import { fixtureText, SERVERS, type ServerName } from './__fixtures__/servers';
 
-// The schemas as the app serves them (public/schemas/openapi, written by download-schemas-deref.js)
+// The schemas as the app serves them (public/schemas/openapi, written by scripts/download-schemas.js)
 const loadSchema = async (version: OasVersion) =>
   JSON.parse(readFileSync(new URL(`../../../public/schemas/openapi/${version}/schema.json`, import.meta.url), 'utf8'));
 

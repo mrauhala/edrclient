@@ -1,135 +1,108 @@
 # OGC API Browser
 
-OGC API client for browsing EDR, Features, Records, and STAC API services.
+A browser for OGC API services. Point it at an OGC API - EDR, Features, Records or STAC endpoint to
+explore its collections on a map, build and run data queries, and see how well the service follows
+the standards.
 
-Live: https://mrauhala.github.io/ogcapibrowser/ (GitHub Pages) and https://ogcbrowser.rauhala.app/ (Firebase), both deployed from `main`.
+**Use it online:** https://ogcbrowser.rauhala.app (also at https://mrauhala.github.io/ogcapibrowser/)
 
-## Keyboard Shortcuts
+## Features
 
-| Key | Action |
-|---|---|
-| **Navigation** | |
-| `PageDown` | Select next collection |
-| `PageUp` | Select previous collection |
-| `Cmd+Enter` / `Ctrl+Enter` | Fetch data from the query URL |
-| **UI Panels** | |
-| `B` | Toggle sidebar |
-| `S` | Toggle settings drawer |
-| `L` | Toggle layers popover |
-| `V` | Toggle validation popover |
-| `I` | Toggle collection info panel (collapsed/expanded) |
-| `/` | Toggle search |
-| `?` | Show keyboard shortcuts help |
-| **Map** (click map to focus) | |
-| Arrow keys | Pan the map |
-| `+` / `-` | Zoom in / out |
+- **Services:** 20 presets (EDR services such as FMI, DWD, Met Office, MeteoCore, Meteogate and
+  SWIM; WMO WIS2 Global Discovery Catalogues; STAC catalogues; MSC GeoMet), or any URL. Services can
+  use an API key, a bearer token, basic authentication or a custom header.
+- **Map:** collection extents, location features, OGC API - Maps layers with time animation, fetched
+  GeoJSON as layers, and a layer manager.
+- **EDR query builder:** every query type (position, radius, area, cube, trajectory, corridor, items,
+  locations, instances) with parameters, time, vertical levels, custom dimensions and output formats.
+  Geometry is drawn on the map, and the request URL updates as you go.
+- **Validation as you build:** what the query still misses or gets wrong, checked against EDR, the
+  collection's metadata and the server's OpenAPI definition. The service itself is validated
+  against the OGC schemas (Common, Features, EDR 1.0–1.2, Records, Maps), and its OpenAPI document
+  for structure and EDR consistency.
+- **Responses:** a JSON viewer that jumps to validation errors, CoverageJSON time series charts,
+  IWXXM rendered for reading, images, and feature tables. Features items can be filtered by their
+  queryables.
+- **Search:** a command palette (`/`) across collections and items.
 
-> Single-letter shortcuts are disabled when an input field has focus.
-> Layers and validation popovers are mutually exclusive.
+## Running it
 
-## Quick Start with npx
+**Online:** https://ogcbrowser.rauhala.app. Every merge to `main` deploys it.
 
-Run the pre-built client locally without cloning the repo:
-
-```bash
-npx ogcapibrowser
-```
-
-This serves the app at `http://localhost:3000`. Use `--port` to change:
+**With npx**, no clone needed (requires Node.js):
 
 ```bash
+npx ogcapibrowser              # http://localhost:3000
 npx ogcapibrowser --port 8080
 ```
 
-## Docker
-
-The image serves the built app with nginx (non-root, port 8080):
+**With Docker:**
 
 ```bash
-docker run --rm -p 8080:8080 ghcr.io/mrauhala/ogcapibrowser:latest
-# open http://localhost:8080
+docker run --rm -p 8080:8080 ghcr.io/mrauhala/ogcapibrowser:latest   # http://localhost:8080
 ```
 
-To build it yourself: `docker build -t ogcapibrowser .`. To serve the app under a sub-path behind a proxy that strips the prefix, build with `--build-arg BASE_PATH=/ogcapibrowser/`.
+The image serves the app with nginx as a non-root user. To build it yourself:
+`docker build -t ogcapibrowser .`. To serve it under a sub-path behind a proxy that strips the
+prefix, add `--build-arg BASE_PATH=/ogcapibrowser/`.
+
+## Basemap
+
+The dark basemap is Esri's Dark Gray Canvas, which needs no key. With a Carto API key the app uses
+Carto's `dark_all` instead:
+
+- **Development:** `VITE_CARTO_API_KEY=…` in `.env.local` (git-ignored). Restart the dev server after
+  changing it. Carto won't add localhost to a key already restricted to published websites, so use a
+  separate key for local development.
+- **npx:** `npx ogcapibrowser --carto-api-key …`, or the `CARTO_API_KEY` environment variable. It
+  applies at serve time, since the package ships a prebuilt app.
+
+The key ends up in the browser, so it is public: restrict it to your sites in Carto.
+
+## Keyboard shortcuts
+
+| Key | Action |
+|---|---|
+| `PageDown` / `PageUp` | Next / previous collection |
+| `Cmd+Enter` / `Ctrl+Enter` | Fetch data from the query URL |
+| `B` | Toggle sidebar |
+| `S` | Toggle settings |
+| `L` | Toggle layers |
+| `V` | Toggle validation results |
+| `I` | Toggle collection info |
+| `/` | Search |
+| `?` | Show keyboard shortcuts |
+| Arrow keys, `+` / `-` | Pan and zoom the map (click the map first) |
+
+Single-letter shortcuts don't fire while a text field has focus.
 
 ## Development
 
-```bash
-npm install       # Install dependencies
-npm run dev       # Start dev server (http://localhost:3000)
-npm run build     # Production build to build/
-npm run preview   # Preview the production build
-npm run lint      # Run ESLint
-```
-
-### Basemap and the optional Carto API key
-
-The dark basemap is Esri's Dark Gray Canvas, which needs no key. With a Carto API key the app uses Carto's `dark_all` instead (Carto now requires a key). To use your own Carto API key during local development, create a `.env.local` file in the project root and add:
-
-```dotenv
-VITE_CARTO_API_KEY=your-carto-api-key
-```
-
-Restart the Vite dev server after adding or changing the key. `.env.local` is git-ignored. Carto does not allow adding localhost to the website restrictions of an API key that is already restricted for published websites; use a separate API key for local development instead. Vite exposes `VITE_` variables to the browser, so the key is public in the client and must not be treated as a secret.
-
-### Carto API key when running via `npx ogcapibrowser`
-
-The published npm package ships a prebuilt `build/` directory, so the `VITE_CARTO_API_KEY` baked or not baked in at `npm publish` time is fixed for everyone. Setting the env var yourself has no effect on a prebuilt bundle. To let each installation use its own key, `bin/cli.mjs` injects one at serve time instead, via a `--carto-api-key` flag or a `CARTO_API_KEY` environment variable:
+Requires Node.js 24 (see `.node-version`).
 
 ```bash
-npx ogcapibrowser --carto-api-key your-carto-api-key
-# or
-CARTO_API_KEY=your-carto-api-key npx ogcapibrowser
+npm ci              # install dependencies
+npm run dev         # dev server at http://localhost:3000
+npm test            # unit tests (Vitest)
+npm run lint        # ESLint
+npm run build       # production build to build/
+npm run preview     # serve the production build
+npm run schemas     # regenerate the bundled OGC and OpenAPI schemas
 ```
 
-This takes precedence over the key baked in at build time. If neither is set, the app falls back to the key the published bundle was built with (if any), then to Esri's Dark Gray Canvas.
+The app is React, TypeScript and Vite, with MUI for the interface and OpenLayers for the map.
 
-## Publishing to npm
+| Path | Contents |
+|---|---|
+| `src/query/` | the data query model: building request URLs and validating queries |
+| `src/validation/` | service and OpenAPI document validation |
+| `src/api/` | fetching from OGC API services |
+| `src/contexts/` | shared app state |
+| `public/schemas/` | the bundled JSON Schemas ([docs/schemas.md](docs/schemas.md)) |
+| `scripts/` | the schema download script |
 
-The package is configured for npm distribution with `bin`, `files`, and `prepublishOnly` fields.
-
-### First-time setup
-
-1. Create an npm account at https://www.npmjs.com/signup if you don’t have one
-2. Log in from the terminal:
-   ```bash
-   npm login
-   ```
-3. If the package name `ogcapibrowser` is taken, update `"name"` in `package.json` (e.g. `@mrauhala/ogcapibrowser`)
-
-### Publishing a release
-
-1. Update the version in `package.json`:
-   ```bash
-   npm version patch   # 0.1.0 → 0.1.1 (bug fixes)
-   npm version minor   # 0.1.0 → 0.2.0 (new features)
-   npm version major   # 0.1.0 → 1.0.0 (breaking changes)
-   ```
-2. Publish:
-   ```bash
-   npm publish
-   ```
-   The `prepublishOnly` script automatically runs `npm run build` before publishing, so the `build/` directory is always fresh.
-
-3. For scoped packages (`@mrauhala/ogcapibrowser`), publish as public:
-   ```bash
-   npm publish --access public
-   ```
-
-### What gets published
-
-Only these are included (defined in `"files"` in package.json):
-
-- `build/` — Production build output (generated by `prepublishOnly`)
-- `bin/` — CLI entry point (`cli.mjs`)
-- `LICENSE-MIT`, `LICENSE-APACHE` — the license texts
-
-### Verifying before publish
-
-```bash
-npm pack --dry-run   # Preview what files would be included
-npm pack             # Create a .tgz to inspect
-```
+More: [releasing](docs/releasing.md), [bundled schemas](docs/schemas.md),
+[CI and deployment workflows](.github/workflows/README.md).
 
 ## License
 

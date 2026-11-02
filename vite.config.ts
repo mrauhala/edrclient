@@ -24,7 +24,7 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          'vendor-ol': ['ol', 'ol-layerswitcher'],
+          'vendor-ol': ['ol'],
           'vendor-mui': [
             '@mui/material',
             '@mui/icons-material',
