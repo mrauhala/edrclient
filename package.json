@@ -1,13 +1,16 @@
 {
   "name": "edrclient",
   "version": "0.1.0",
+  "license": "MIT OR Apache-2.0",
   "private": true,
   "bin": {
     "edrclient": "./bin/cli.mjs"
   },
   "files": [
     "build",
-    "bin"
+    "bin",
+    "LICENSE-MIT",
+    "LICENSE-APACHE"
   ],
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
