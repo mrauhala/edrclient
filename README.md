@@ -1,8 +1,8 @@
 # OGC API Browser
 
-A browser for OGC API services. Point it at an OGC API - EDR, Features, Records or STAC endpoint to
-explore its collections on a map, build and run data queries, and see how well the service follows
-the standards.
+A browser for OGC API services. Point it at an OGC API - EDR, Features, Maps, Records or STAC
+endpoint to explore its collections on a map, build and run data queries, and see how well the
+service follows the standards.
 
 **Use it online:** https://ogcbrowser.rauhala.app (also at https://mrauhala.github.io/ogcapibrowser/)
 
@@ -11,8 +11,8 @@ the standards.
 - **Services:** 20 presets (EDR services such as FMI, DWD, Met Office, MeteoCore, Meteogate and
   SWIM; WMO WIS2 Global Discovery Catalogues; STAC catalogues; MSC GeoMet), or any URL. Services can
   use an API key, a bearer token, basic authentication or a custom header.
-- **Map:** collection extents, location features, OGC API - Maps layers with time animation, fetched
-  GeoJSON as layers, and a layer manager.
+- **Map:** collection extents, location features, OGC API - Maps layers (map images or map tiles,
+  with styles and time animation), fetched GeoJSON as layers, and a layer manager.
 - **EDR query builder:** every query type (position, radius, area, cube, trajectory, corridor, items,
   locations, instances) with parameters, time, vertical levels, custom dimensions and output formats.
   Geometry is drawn on the map, and the request URL updates as you go.
