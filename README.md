@@ -8,7 +8,7 @@ service follows the standards.
 
 ## Features
 
-- **Services:** 20 presets (EDR services such as FMI, DWD, Met Office, MeteoCore, Meteogate and
+- **Services:** 18 presets (EDR services such as FMI, DWD, Met Office, MeteoCore, Meteogate and
   SWIM; WMO WIS2 Global Discovery Catalogues; STAC catalogues; MSC GeoMet), or any URL. Services can
   use an API key, a bearer token, basic authentication or a custom header.
 - **Map:** collection extents, location features, OGC API - Maps layers (map images or map tiles,
