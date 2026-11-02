@@ -1,0 +1,93 @@
+{
+  "_comment": "Meteogate climate observations nl-daily locations (2026-11-03), first 5 of 77 features",
+  "response": {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            2.9358,
+            54.3256
+          ]
+        },
+        "properties": {
+          "name": "D15-FA-1",
+          "type": "Platform",
+          "wmoId": "06201",
+          "height_above_mean_sea_level": 42.7
+        },
+        "id": "0-20000-0-06201"
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            3.3417,
+            52.36
+          ]
+        },
+        "properties": {
+          "name": "P11-B",
+          "type": "Platform",
+          "wmoId": "06203",
+          "height_above_mean_sea_level": 41.84
+        },
+        "id": "0-20000-0-06203"
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            3.6278,
+            53.2694
+          ]
+        },
+        "properties": {
+          "name": "K14-FA-1C",
+          "type": "Platform",
+          "wmoId": "06204",
+          "height_above_mean_sea_level": 41.8
+        },
+        "id": "0-20000-0-06204"
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            3.8103,
+            55.3992
+          ]
+        },
+        "properties": {
+          "name": "A12-CPP",
+          "type": "Platform",
+          "wmoId": "06205",
+          "height_above_mean_sea_level": 48.35
+        },
+        "id": "0-20000-0-06205"
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            4.0122,
+            54.1167
+          ]
+        },
+        "properties": {
+          "name": "F16-A",
+          "type": "Platform/AWS",
+          "wmoId": "06206",
+          "height_above_mean_sea_level": 43.4
+        },
+        "id": "0-20000-0-06206"
+      }
+    ]
+  }
+}

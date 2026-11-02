@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dataLinkUrls } from './landingPageLinks';
+import { classifyDataLinks, dataLinkUrls, hasCollectionsList } from './landingPageLinks';
 import type { Link } from '../types/api';
 
 const API = 'https://meteocore.app.meteo.fi/edr';
@@ -21,5 +21,43 @@ describe('dataLinkUrls', () => {
 
   it('finds none without a data link', () => {
     expect(dataLinkUrls([link('self', API)], API)).toEqual([]);
+  });
+});
+
+describe('classifyDataLinks', () => {
+  const MG = 'https://api.meteogate.eu/eu-eumetnet-climate-observations/v1';
+
+  it('takes a conformance declaration linked as data out of the collections candidates (Meteogate)', () => {
+    expect(classifyDataLinks([`${MG}/conformance`, `${MG}/collections`]))
+      .toEqual({ collections: [`${MG}/collections`], conformance: `${MG}/conformance` });
+  });
+
+  it('tries links to /collections first, keeping the order otherwise', () => {
+    expect(classifyDataLinks([`${API}/other`, `${API}/collections/`, `${API}/more`]))
+      .toEqual({ collections: [`${API}/collections/`, `${API}/other`, `${API}/more`], conformance: null });
+  });
+
+  it('matches whole path segments, ignoring the query', () => {
+    expect(classifyDataLinks([`${API}/myconformance`, `${API}/collections?f=json`]))
+      .toEqual({ collections: [`${API}/collections?f=json`, `${API}/myconformance`], conformance: null });
+  });
+
+  it('can leave no collections candidate', () => {
+    expect(classifyDataLinks([`${MG}/conformance`])).toEqual({ collections: [], conformance: `${MG}/conformance` });
+    expect(classifyDataLinks([])).toEqual({ collections: [], conformance: null });
+  });
+});
+
+describe('hasCollectionsList', () => {
+  it('accepts a collections array or a bare array', () => {
+    expect(hasCollectionsList({ collections: [] })).toBe(true);
+    expect(hasCollectionsList([{ id: 'a' }])).toBe(true);
+  });
+
+  it('rejects anything else, such as a conformance declaration', () => {
+    expect(hasCollectionsList({ conformsTo: ['http://www.opengis.net/spec/ogcapi-edr-1/1.1/conf/core'] })).toBe(false);
+    expect(hasCollectionsList({ collections: {} })).toBe(false);
+    expect(hasCollectionsList(null)).toBe(false);
+    expect(hasCollectionsList('<html>')).toBe(false);
   });
 });

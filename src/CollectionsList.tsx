@@ -368,7 +368,7 @@ const CollectionsList = ({
             validationResult.errors.filter(err => err.section !== 'conformance' && err.section !== 'data link').map((error, index) => (
               <Alert
                 key={index}
-                severity={error.type === 'cors' ? 'warning' : 'error'}
+                severity={error.type === 'cors' ? 'warning' : (error.severity ?? 'error')}
               >
                 <AlertTitle>
                   {error.title ?? (error.type === 'cors' ? 'CORS Issue' : 'Error')}
@@ -393,10 +393,10 @@ const CollectionsList = ({
           )}
         </>
       )}
-      {/* Conformance errors (missing link or failed fetch) — non-fatal but always visible */}
+      {/* Conformance problems (missing or misfiled link, failed fetch) — non-fatal but always visible */}
       {!isLoading && validationResult.errors?.some(err => err.section === 'conformance') &&
         validationResult.errors.filter(err => err.section === 'conformance').map((error, index) => (
-          <Alert key={`conf-${index}`} severity="error" sx={{ mt: 1 }}>
+          <Alert key={`conf-${index}`} severity={error.severity ?? 'error'} sx={{ mt: 1 }}>
             <AlertTitle>{error.title ?? 'Conformance Unavailable'}</AlertTitle>
             {error.message}
           </Alert>

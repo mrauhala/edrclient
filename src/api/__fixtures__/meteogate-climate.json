@@ -1,0 +1,310 @@
+{
+  "_comment": "Meteogate climate observations (2026-11-03): landing page, conformance and collections (only nl-daily, 3 of its parameters), keyed by request URL as fetched with ?f=json",
+  "https://api.meteogate.eu/eu-eumetnet-climate-observations/v1?f=json": {
+    "title": "MeteoGate - Climate Aggregator",
+    "description": "The Climate Aggregator gives access to OGC EDR APIs with meteorological station observation data from EUMETNET Members and the European Climate Assessment and Dataset (ECA&D). Users can query on ECVs in a spatio-temporal manner.",
+    "links": [
+      {
+        "href": "https://api.meteogate.eu/eu-eumetnet-climate-observations/v1/",
+        "rel": "self",
+        "title": "Landing Page in JSON"
+      },
+      {
+        "href": "https://api.meteogate.eu/eu-eumetnet-climate-observations/v1/docs",
+        "rel": "service-desc",
+        "title": "API description in HTML"
+      },
+      {
+        "href": "https://api.meteogate.eu/eu-eumetnet-climate-observations/v1/openapi.json",
+        "rel": "service-desc",
+        "title": "API description in JSON"
+      },
+      {
+        "href": "https://api.meteogate.eu/eu-eumetnet-climate-observations/v1/conformance",
+        "rel": "data",
+        "title": "Conformance Declaration in JSON"
+      },
+      {
+        "href": "https://api.meteogate.eu/eu-eumetnet-climate-observations/v1/collections",
+        "rel": "data",
+        "title": "Collections metadata in JSON"
+      }
+    ],
+    "keywords": [
+      "Weather",
+      "Temperature",
+      "Wind",
+      "Humidity",
+      "Pressure",
+      "Clouds",
+      "Radiation"
+    ],
+    "provider": {
+      "name": "Royal Netherlands Meteorological Institute (KNMI)",
+      "url": "https://dataplatform.knmi.nl"
+    },
+    "contact": {
+      "email": "opendata@knmi.nl"
+    }
+  },
+  "https://api.meteogate.eu/eu-eumetnet-climate-observations/v1/conformance?f=json": {
+    "conformsTo": [
+      "http://www.opengis.net/spec/ogcapi-edr-1/1.1/conf/core",
+      "http://www.opengis.net/spec/ogcapi-common-1/1.0/conf/core",
+      "http://www.opengis.net/spec/ogcapi-common-2/1.0/conf/collections",
+      "http://www.opengis.net/spec/ogcapi-edr-1/1.1/conf/oas30",
+      "http://www.opengis.net/spec/ogcapi-edr-1/1.1/conf/edr-geojson",
+      "http://www.opengis.net/spec/ogcapi-edr-1/1.1/conf/covjson"
+    ]
+  },
+  "https://api.meteogate.eu/eu-eumetnet-climate-observations/v1/collections?f=json": {
+    "collections": [
+      {
+        "id": "nl-daily",
+        "title": "Daily, validated and automated in-situ ground-based meteorological observations in the Netherlands",
+        "description": "KNMI collects in-situ meteorological observations in the Netherlands\naggregated into hourly, daily, monthly, and annual datasets. These data are derived from the 10-minute automatic\nmeasurements since the early 1990s, hourly observations from 1951 and daily observations from 1901. The earliest\ndata starts in 1901 with one station and gradually increases to the current measurement network of more than 50\nautomatic weather stations.\nThe weather stations measure essential climate variables (ECVs), surface precipitation, pressure, global radiation,\ntemperature, water vapor, wind speed and direction, clouds, and visibility. Sunshine duration and potential\nevapotranspiration are calculated from the ECVs. When applicable, minima, maxima, means, and sums are defined or\ncalculated.\nThis dataset contains meteorological observations since 1901-01-01 at a daily interval. To form this dataset,\nhourly observations have been aggregated to daily intervals. When applicable, hourly intervals are calculated in\nwhich the minimum or maximum occurred during the day. Before aggregation to daily intervals, the hourly data has\nundergone manual validation by KNMI experts, filling gaps and correcting measurement errors, after which it becomes\navailable. The expert validation can take 1-10 working days to complete. Validated data can be modified at any\nmoment in the future if further issues are found with the data.\nMore information: https://dataplatform.knmi.nl/dataset/daily-in-situ-meteorological-observations-validated-1-0",
+        "links": [
+          {
+            "href": "https://api.meteogate.eu/eu-eumetnet-climate-observations/v1/collections/nl-daily",
+            "rel": "self"
+          }
+        ],
+        "extent": {
+          "spatial": {
+            "bbox": [
+              [
+                -68.2758,
+                12.13,
+                7.1492,
+                55.3992
+              ]
+            ],
+            "crs": "EPSG:4326"
+          },
+          "temporal": {
+            "interval": [
+              [
+                "1901-01-02T00:00:00Z",
+                "2026-11-02T00:00:00Z"
+              ]
+            ],
+            "values": [
+              "R45961/1901-01-02T00:00:00Z/P1D"
+            ],
+            "trs": "datetime"
+          },
+          "custom": [
+            {
+              "id": "duration",
+              "interval": [
+                [
+                  "-P1D",
+                  "-P1D"
+                ]
+              ],
+              "values": [
+                "-P1D"
+              ],
+              "reference": "https://en.wikipedia.org/wiki/ISO_8601#Durations"
+            },
+            {
+              "id": "level",
+              "interval": [
+                [
+                  0.1,
+                  10.0
+                ]
+              ],
+              "values": [
+                0.1,
+                1.5,
+                10.0
+              ],
+              "reference": "Height of measurement above ground level in meters"
+            },
+            {
+              "id": "method",
+              "interval": [
+                [
+                  "fraction",
+                  "sum"
+                ]
+              ],
+              "values": [
+                "fraction",
+                "maximum",
+                "maximum hourly",
+                "mean",
+                "minimum",
+                "minimum hourly",
+                "sum"
+              ],
+              "reference": "Time aggregation functions"
+            },
+            {
+              "id": "standard_name",
+              "interval": [
+                [
+                  "air_pressure_at_mean_sea_level",
+                  "wind_speed_of_gust"
+                ]
+              ],
+              "values": [
+                "air_pressure_at_mean_sea_level",
+                "air_temperature",
+                "cloud_area_fraction",
+                "duration_of_sunshine",
+                "integral_wrt_time_of_surface_downwelling_shortwave_flux_in_air",
+                "precipitation_amount",
+                "relative_humidity",
+                "sea_water_temperature",
+                "visibility_in_air",
+                "water_potential_evapotranspiration_amount",
+                "water_vapor_partial_pressure_in_air",
+                "wind_from_direction",
+                "wind_speed",
+                "wind_speed_of_gust"
+              ],
+              "reference": "https://vocab.nerc.ac.uk/standard_name/"
+            }
+          ]
+        },
+        "data_queries": {
+          "position": {
+            "link": {
+              "href": "https://api.meteogate.eu/eu-eumetnet-climate-observations/v1/collections/nl-daily/position",
+              "rel": "data",
+              "variables": {
+                "query_type": "position",
+                "output_format": [
+                  "CoverageJSON",
+                  "netCDF4"
+                ]
+              }
+            }
+          },
+          "area": {
+            "link": {
+              "href": "https://api.meteogate.eu/eu-eumetnet-climate-observations/v1/collections/nl-daily/area",
+              "rel": "data",
+              "variables": {
+                "query_type": "area",
+                "output_format": [
+                  "CoverageJSON",
+                  "netCDF4"
+                ]
+              }
+            }
+          },
+          "cube": {
+            "link": {
+              "href": "https://api.meteogate.eu/eu-eumetnet-climate-observations/v1/collections/nl-daily/cube",
+              "rel": "data",
+              "variables": {
+                "query_type": "cube",
+                "output_format": [
+                  "CoverageJSON",
+                  "netCDF4"
+                ]
+              }
+            }
+          },
+          "locations": {
+            "link": {
+              "href": "https://api.meteogate.eu/eu-eumetnet-climate-observations/v1/collections/nl-daily/locations",
+              "rel": "data",
+              "variables": {
+                "query_type": "locations",
+                "output_format": [
+                  "CoverageJSON",
+                  "netCDF4"
+                ]
+              }
+            }
+          }
+        },
+        "crs": [
+          "WGS84"
+        ],
+        "output_formats": [
+          "CoverageJSON",
+          "netCDF4"
+        ],
+        "parameter_names": {
+          "DDFHX": {
+            "type": "Parameter",
+            "label": "Wind direction in hourly interval FHX",
+            "description": "Wind direction in hourly interval in which FHX was measured",
+            "data-type": "float",
+            "unit": {
+              "label": "degree",
+              "symbol": {
+                "value": "°",
+                "type": "https://qudt.org/vocab/unit/DEG"
+              }
+            },
+            "observedProperty": {
+              "id": "https://vocab.nerc.ac.uk/standard_name/wind_from_direction/",
+              "label": "Wind from direction"
+            },
+            "measurementType": {
+              "method": "N/A",
+              "duration": "-P1D"
+            },
+            "eumetnet:standard_name": "wind_from_direction"
+          },
+          "DDVEC": {
+            "type": "Parameter",
+            "label": "Mean wind direction",
+            "description": "Daily vector mean wind direction, representative for 10 meters, in degrees. Wind direction has been weighted with wind speed during aggregation. 360=north; 90=east; 180=south; 270=west; 0=calm/variable",
+            "data-type": "float",
+            "unit": {
+              "label": "degree",
+              "symbol": {
+                "value": "°",
+                "type": "https://qudt.org/vocab/unit/DEG"
+              }
+            },
+            "observedProperty": {
+              "id": "https://vocab.nerc.ac.uk/standard_name/wind_from_direction/",
+              "label": "Wind from direction"
+            },
+            "measurementType": {
+              "method": "mean",
+              "duration": "-P1D"
+            },
+            "eumetnet:standard_name": "wind_from_direction",
+            "eumetnet:level": 10.0
+          },
+          "DR": {
+            "type": "Parameter",
+            "label": "Precipitation duration",
+            "description": "Daily precipitation duration, in hours",
+            "data-type": "float",
+            "unit": {
+              "label": "hour",
+              "symbol": {
+                "value": "h",
+                "type": "https://qudt.org/vocab/unit/HR"
+              }
+            },
+            "observedProperty": {
+              "label": "Precipitation Duration",
+              "description": "Period during which more than 0.05 mm of precipitation was measured."
+            },
+            "measurementType": {
+              "method": "sum",
+              "duration": "-P1D"
+            }
+          }
+        }
+      }
+    ],
+    "links": [
+      {
+        "href": "https://api.meteogate.eu/eu-eumetnet-climate-observations/v1/collections",
+        "rel": "self"
+      }
+    ]
+  }
+}
