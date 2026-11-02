@@ -10,6 +10,8 @@
   { "label": "Meteogate Weather Radar", "url": "https://api.meteogate.eu/eu-eumetnet-weather-radar", "type": "EDR" },
   { "label": "DWD NWP (Beta)", "url": "https://nwp.opendata-api.dwd.de/v1beta1/", "type": "EDR" },
   { "label": "MeteoCore", "url": "https://meteocore.app.meteo.fi/edr/", "type": "EDR" },
+  { "label": "DMI Forecast", "url": "https://opendataapi.dmi.dk/v1/forecastedr/", "type": "EDR" },
+  { "label": "Instituto Hidrográfico (PT)", "url": "https://ogcapi.hidrografico.pt", "type": "EDR" },
   { "label": "WMO GDC WIS2 Germany", "url": "https://wis2.dwd.de/gdc/", "type": "Records" },
   { "label": "WMO GDC WIS2 Canada", "url": "https://wis2-gdc.weather.gc.ca", "type": "Records" },
   { "label": "WMO GDC WIS2 China", "url": "https://gdc.wis.cma.cn", "type": "Records" },
