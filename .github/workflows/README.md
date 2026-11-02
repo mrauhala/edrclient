@@ -97,8 +97,8 @@ The following secrets must be configured in your GitHub repository:
 Add these badges to your main README.md:
 
 ```markdown
-![CI](https://github.com/mrauhala/edrclient/workflows/CI/badge.svg)
-![Deploy to Firebase Hosting (Production)](https://github.com/mrauhala/edrclient/workflows/Deploy%20to%20Firebase%20Hosting%20(Production)/badge.svg)
+![CI](https://github.com/mrauhala/ogcapibrowser/workflows/CI/badge.svg)
+![Deploy to Firebase Hosting (Production)](https://github.com/mrauhala/ogcapibrowser/workflows/Deploy%20to%20Firebase%20Hosting%20(Production)/badge.svg)
 ```
 
 ## Troubleshooting

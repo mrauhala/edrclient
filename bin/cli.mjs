@@ -74,5 +74,5 @@ const server = createServer(async (req, res) => {
 });
 
 server.listen(port, () => {
-  console.log(`edrclient running at http://localhost:${port}`);
+  console.log(`ogcapibrowser running at http://localhost:${port}`);
 });
