@@ -19,16 +19,12 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials, sig
   try {
     console.log('=== Starting getCollections for:', sanitizeUrl(apiUrl), '===');
 
-    // Check if this is DMI service (to avoid f=json bug)
-    const isDMI = apiUrl.includes('api.meteogate.eu/dk/edr');
-
     // Step 1: Fetch and validate the landing page
     console.log('Step 1: Fetching landing page from:', sanitizeUrl(apiUrl));
 
     // Add f=json format parameter if not already present
-    // Skip for DMI service as it incorrectly includes f=json in the href paths
     const landingPageUrl = new URL(apiUrl);
-    if (!landingPageUrl.searchParams.has('f') && !isDMI) {
+    if (!landingPageUrl.searchParams.has('f')) {
       landingPageUrl.searchParams.set('f', 'json');
     }
 
@@ -42,6 +38,8 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials, sig
     let collectionsUrl: string | null = null;
     let collectionsUrlCandidates: string[] = [];
     let conformanceUrl: string | null = null;
+    // The URL the collections came from, with f and any API key: some servers append to it
+    let collectionsRequestUrl: string | undefined;
 
     if (landingPageData && landingPageData.links && Array.isArray(landingPageData.links)) {
       // Collect ALL data link URLs to detect missing / ambiguous cases (one URL linked under both
@@ -143,12 +141,13 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials, sig
         try {
           console.log('Trying collections URL:', sanitizeUrl(candidate));
           const urlWithFormat = new URL(candidate);
-          if (!urlWithFormat.searchParams.has('f') && !isDMI) {
+          if (!urlWithFormat.searchParams.has('f')) {
             urlWithFormat.searchParams.set('f', 'json');
           }
           const finalUrl = addApiKeyToUrl(urlWithFormat.toString(), auth);
           result = await axios.get<CollectionsResponse>(finalUrl, getAxiosConfig(auth, signal));
           collectionsUrl = candidate;
+          collectionsRequestUrl = (result.request as XMLHttpRequest | undefined)?.responseURL || finalUrl;
           console.log('Collections fetch succeeded from:', sanitizeUrl(candidate), 'status:', result.status);
           return result;
         } catch (err) {
@@ -270,9 +269,17 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials, sig
     }
 
     // Resolve any relative hrefs in collections and their links against the API base URL
+    let repairedHrefs = 0;
     for (const collection of collections) {
-      resolveCollectionHrefs(collection, apiUrl);
+      repairedHrefs += resolveCollectionHrefs(collection, apiUrl, collectionsRequestUrl);
     }
+    const appendedHrefsWarning: ValidationError | null = repairedHrefs > 0 ? {
+      title: 'Hrefs Appended to the Request URL',
+      message: `${repairedHrefs} collection link and data query hrefs add their path after the query string of the collections request (${sanitizeUrl(collectionsRequestUrl ?? '')}/…), so they would request the collections list. They were repaired by moving the path in front of the query.`,
+      type: 'unknown',
+      section: 'data link',
+      severity: 'warning'
+    } : null;
     if (collectionsLinks) {
       for (const link of collectionsLinks) {
         if (typeof link.href === 'string') {
@@ -331,7 +338,8 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials, sig
         ...(landingPageValidation.errors || []),
         ...(collectionsValidation.errors || []),
         ...(conformanceValidation.errors || []),
-        ...(dataLinkError ? [dataLinkError] : [])
+        ...(dataLinkError ? [dataLinkError] : []),
+        ...(appendedHrefsWarning ? [appendedHrefsWarning] : [])
       ],
       schemaCount: validator.getLoadedSchemaCount(),
       schemaUrls: validator.getLoadedSchemaUrls(),
