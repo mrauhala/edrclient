@@ -47,4 +47,29 @@ describe('findBrokenLocalRefs', () => {
     const broken = { a: { $ref: '#/components/schemas/wkt' }, b: [{ $ref: '#/components/schemas/gone' }], c: { $ref: 'other.yaml#/x' } };
     expect(findBrokenLocalRefs({ ...broken, components: doc.components })).toEqual([{ at: '/b/0', ref: '#/components/schemas/gone' }]);
   });
+
+  it('ignores $refs inside example and other literal values (Meteogate)', () => {
+    const gone = { $ref: '#/$defs/Link' };
+    const literalOnly = {
+      paths: { '/collections': { get: { responses: { 200: { content: { 'application/json': {
+        // Meteogate puts a pydantic JSON Schema in the example, with its own $defs refs
+        example: { properties: { links: { items: gone } } },
+        examples: { full: { summary: 'A', value: { links: [gone] } } },
+        schema: { type: 'object', default: gone, enum: [gone], const: gone, examples: [gone], 'x-schema': gone },
+      } } } } } } },
+    };
+    expect(findBrokenLocalRefs(literalOnly)).toEqual([]);
+  });
+
+  it('still checks refs where the document itself uses them', () => {
+    const gone = { $ref: '#/components/examples/gone' };
+    expect(findBrokenLocalRefs({
+      // an Example Object may itself be a $ref, and a property may be named "example"
+      content: { 'application/json': { examples: { full: gone } } },
+      schema: { properties: { example: { $ref: '#/components/schemas/gone' } } },
+    })).toEqual([
+      { at: '/content/application~1json/examples/full', ref: '#/components/examples/gone' },
+      { at: '/schema/properties/example', ref: '#/components/schemas/gone' },
+    ]);
+  });
 });

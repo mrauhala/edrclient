@@ -6,8 +6,9 @@ const UMBRELLA_KEYWORDS = new Set(['oneOf', 'anyOf', 'if', 'then', 'else']);
 const BRANCH = /\/(oneOf|anyOf)\/\d+\//;
 
 // Make AJV's allErrors output readable: per instance path, drop umbrella errors when more specific
-// ones exist (also at deeper paths), merge the 'required' errors of oneOf/anyOf branches into one
-// "must have one of" error, drop duplicates, and cap the list ("+N more" as the last error).
+// ones exist (also at deeper paths) and unevaluatedProperties when other errors explain it, merge
+// the 'required' errors of oneOf/anyOf branches into one "must have one of" error, drop duplicates,
+// and cap the list ("+N more" as the last error).
 export function condenseAjvErrors(errors: ErrorObject[], max = 200): ErrorObject[] {
   const byPath = new Map<string, ErrorObject[]>();
   errors.forEach(error => byPath.set(error.instancePath, [...(byPath.get(error.instancePath) ?? []), error]));
@@ -15,7 +16,12 @@ export function condenseAjvErrors(errors: ErrorObject[], max = 200): ErrorObject
 
   const condensed: ErrorObject[] = [];
   for (const [path, group] of byPath) {
-    const specific = group.filter(error => !UMBRELLA_KEYWORDS.has(error.keyword));
+    const nonUmbrella = group.filter(error => !UMBRELLA_KEYWORDS.has(error.keyword));
+    // unevaluatedProperties follows from another failure here: properties checked only by a failed
+    // subschema count as unevaluated (a parameter without schema or content gets its examples flagged)
+    const specific = nonUmbrella.some(error => error.keyword !== 'unevaluatedProperties')
+      ? nonUmbrella.filter(error => error.keyword !== 'unevaluatedProperties')
+      : nonUmbrella;
     if (specific.length === 0) {
       // Only umbrellas here: keep them unless a deeper path explains the failure
       if (!paths.some(other => other.startsWith(path + '/'))) condensed.push(...group.slice(0, 1));

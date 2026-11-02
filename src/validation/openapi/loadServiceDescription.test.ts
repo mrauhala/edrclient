@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import axios from 'axios';
-import { loadServiceDescription, parseServiceDescription, pickOpenApiLink } from './loadServiceDescription';
+import { loadServiceDescription, parseServiceDescription, pickOpenApiLink, WebPageError } from './loadServiceDescription';
 import { fixtureText } from './__fixtures__/servers';
 
 vi.mock('axios', () => ({ default: { get: vi.fn() } }));
@@ -18,6 +18,17 @@ describe('pickOpenApiLink', () => {
     expect(pickOpenApiLink([desc(), desc('application/json'), desc('application/openapi+yaml')])?.type).toBe('application/openapi+yaml');
     expect(pickOpenApiLink([desc(), desc('application/json')])?.type).toBe('application/json');
     expect(pickOpenApiLink([desc()])?.href).toBe('https://x.org/untyped');
+  });
+
+  it('picks the document over a web page among untyped links (Meteogate)', () => {
+    const mg = 'https://api.meteogate.eu/eu-eumetnet-climate-observations/v1';
+    const untyped = (href: string) => ({ rel: 'service-desc', href });
+    expect(pickOpenApiLink([untyped(`${mg}/docs`), untyped(`${mg}/openapi.json`)])?.href).toBe(`${mg}/openapi.json`);
+    expect(pickOpenApiLink([untyped('https://x.org/api.html'), untyped('https://x.org/api')])?.href).toBe('https://x.org/api');
+    expect(pickOpenApiLink([untyped('https://x.org/swagger-ui/'), untyped('https://x.org/spec.yaml?f=yaml')])?.href).toBe('https://x.org/spec.yaml?f=yaml');
+    // A typed link still wins, and a web page is used when it is all there is
+    expect(pickOpenApiLink([untyped('https://x.org/openapi.json'), desc('application/json')])?.type).toBe('application/json');
+    expect(pickOpenApiLink([untyped(`${mg}/docs`)])?.href).toBe(`${mg}/docs`);
   });
 
   it('accepts the OGC rel URI and ignores other links', () => {
@@ -63,6 +74,16 @@ describe('loadServiceDescription', () => {
     await expect(loadServiceDescription('https://b.org/api')).rejects.toThrow('offline');
     get.mockResolvedValueOnce({ data: '{"openapi":"3.1.0"}', headers: {} });
     await expect(loadServiceDescription('https://b.org/api')).resolves.toMatchObject({ version: '3.1.0' });
+  });
+
+  it('rejects a web page with a message saying so, not parser output (Meteogate /docs)', async () => {
+    get.mockResolvedValueOnce({ data: '<!DOCTYPE html>\n<html><head><title>Swagger UI</title></head></html>', headers: { 'content-type': 'text/html; charset=utf-8' } });
+    const loading = loadServiceDescription('https://d.org/docs');
+    await expect(loading).rejects.toThrow(new WebPageError('https://d.org/docs is a web page, not an OpenAPI document'));
+    await expect(loading).rejects.toBeInstanceOf(WebPageError);
+    // Also without a content type
+    get.mockResolvedValueOnce({ data: '  <html><body>docs</body></html>', headers: {} });
+    await expect(loadServiceDescription('https://d.org/docs2')).rejects.toBeInstanceOf(WebPageError);
   });
 
   it('adds auth: API key in the URL, bearer token as a header', async () => {

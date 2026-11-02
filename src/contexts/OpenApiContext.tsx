@@ -3,7 +3,7 @@ import axios from 'axios';
 import { useService } from './ServiceContext';
 import { useCollection } from './CollectionContext';
 import { useValidation } from './ValidationContext';
-import { loadServiceDescription, type ServiceDescription } from '../validation/openapi/loadServiceDescription';
+import { loadServiceDescription, WebPageError, type ServiceDescription } from '../validation/openapi/loadServiceDescription';
 import { buildOperationIndex, type OperationIndex } from '../validation/openapi/operationIndex';
 import { validateOpenApiStructure } from '../validation/openapi/validateStructure';
 import { lintOpenApiForEdr } from '../validation/openapi/lintEdr';
@@ -44,7 +44,8 @@ function unavailable(error: unknown): ValidationError {
     section: 'OpenAPI',
     schema: 'OpenAPI',
     keyword: 'unavailable',
-    severity: status === 404 ? 'warning' : 'info',
+    // A missing document or a web page in its place is the server's problem; a network error may not be
+    severity: status === 404 || error instanceof WebPageError ? 'warning' : 'info',
     type: status ? 'unknown' : 'network',
   };
 }

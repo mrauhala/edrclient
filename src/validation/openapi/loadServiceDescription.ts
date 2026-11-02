@@ -13,6 +13,15 @@ export interface ServiceDescription {
 
 const SERVICE_DESC_RELS = ['service-desc', 'http://www.opengis.net/def/rel/ogc/1.0/service-desc'];
 
+// An untyped link's href hints at what it is. Meteogate's climate observations list two untyped
+// service-desc links, the Swagger UI page /docs first and /openapi.json second.
+function untypedRank(href: unknown): number {
+  const path = (typeof href === 'string' ? href : '').split(/[?#]/)[0].toLowerCase();
+  if (/\.(json|ya?ml)$|openapi/.test(path)) return 1;
+  if (/\.html?$|\/docs\/?$|swagger-ui|redoc/.test(path)) return 0.5;
+  return 0.75;
+}
+
 // Rank a service-desc link by media type: OpenAPI JSON first, then YAML, plain JSON, untyped.
 // AsyncAPI and other non-OpenAPI descriptions are skipped.
 function linkRank(link: Link): number {
@@ -22,8 +31,11 @@ function linkRank(link: Link): number {
   if (type.includes('openapi')) return 3;
   if (type.includes('json')) return 2;
   if (type.includes('yaml')) return 1;
-  return type === '' ? 1 : 0;
+  return type === '' ? untypedRank(link.href) : 0;
 }
+
+// A service-desc link that answers with a web page (a Swagger UI or ReDoc page) instead of a document
+export class WebPageError extends Error {}
 
 export function pickOpenApiLink(links: Link[] | undefined): Link | null {
   const candidates = (links ?? []).filter(link => SERVICE_DESC_RELS.includes(link.rel ?? '') && linkRank(link) > 0);
@@ -60,7 +72,11 @@ async function fetchServiceDescription(url: string, auth?: AuthCredentials): Pro
     },
   });
   const text = String(response.data ?? '');
-  const { doc, format } = await parseServiceDescription(text, String(response.headers['content-type'] ?? ''));
+  const contentType = String(response.headers['content-type'] ?? '');
+  if (/text\/html/i.test(contentType) || /^\s*<(!doctype html|html)/i.test(text)) {
+    throw new WebPageError(`${url} is a web page, not an OpenAPI document`);
+  }
+  const { doc, format } = await parseServiceDescription(text, contentType);
   return { url, doc, format, bytes: text.length, version: typeof doc.openapi === 'string' ? doc.openapi : '' };
 }
 
