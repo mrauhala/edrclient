@@ -7,7 +7,7 @@ import { publicUrl } from '../../utils/publicUrl';
 export type OasVersion = '3.0' | '3.1';
 
 // Loads the official OpenAPI schema for a version. The app serves them from /schemas/openapi;
-// download-schemas-deref.js writes them, adapted for AJV (see SCHEMA_UPDATE.md).
+// scripts/download-schemas.js writes them, adapted for AJV (see docs/schemas.md).
 export type OasSchemaLoader = (version: OasVersion) => Promise<object>;
 
 const fetchSchema: OasSchemaLoader = async version => {

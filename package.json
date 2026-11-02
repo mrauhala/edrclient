@@ -2,6 +2,28 @@
   "name": "ogcapibrowser",
   "version": "0.1.0",
   "license": "MIT OR Apache-2.0",
+  "description": "Browser for OGC API services: explore EDR, Features, Maps, Records and STAC collections on a map, and build and validate data queries",
+  "keywords": [
+    "ogc",
+    "ogc-api",
+    "edr",
+    "ogc-api-features",
+    "ogc-api-maps",
+    "ogc-api-records",
+    "stac",
+    "coveragejson",
+    "geospatial",
+    "meteorology"
+  ],
+  "homepage": "https://ogcbrowser.rauhala.app",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mrauhala/ogcapibrowser.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mrauhala/ogcapibrowser/issues"
+  },
+  "author": "Mikko Rauhala",
   "bin": {
     "ogcapibrowser": "bin/cli.mjs"
   },
@@ -24,20 +46,17 @@
     "@mui/x-date-pickers": "^9.14.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
-    "@types/react-syntax-highlighter": "^15.5.13",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "axios": "^1.6.0",
     "dayjs": "^1.11.19",
     "js-yaml": "^4.3.2",
     "ol": "^10.6.1",
-    "ol-layerswitcher": "^4.1.1",
+    "prismjs": "^1.30.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-syntax-highlighter": "^16.1.0",
     "react-window": "^2.2.7",
     "swagger-ui-react": "^5.32.1",
-    "url": "^0.11.3",
     "web-vitals": "^3.5.0"
   },
   "scripts": {
@@ -48,18 +67,14 @@
     "test:watch": "vitest",
     "lint": "eslint src --ext .ts,.tsx,.js,.jsx",
     "lint:fix": "eslint src --ext .ts,.tsx,.js,.jsx --fix",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "schemas": "node scripts/download-schemas.js"
   },
   "overrides": {
     "dompurify": "^3.3.3"
   },
   "engines": {
     "node": ">=24.0.0"
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app"
-    ]
   },
   "browserslist": {
     "production": [
@@ -78,12 +93,12 @@
     "@eslint/js": "^9.39.1",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.13.9",
+    "@types/prismjs": "^1.26.6",
     "@types/swagger-ui-react": "^5.18.0",
     "@typescript-eslint/eslint-plugin": "^8.48.0",
     "@typescript-eslint/parser": "^8.48.0",
     "@vitejs/plugin-react": "^4.4.0",
     "eslint": "^9.39.1",
-    "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",

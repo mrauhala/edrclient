@@ -124,7 +124,3 @@ export async function fetchQueryables(
   }
 }
 
-export function clearQueryablesCache(): void {
-  cache.clear();
-}
-

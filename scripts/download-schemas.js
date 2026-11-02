@@ -310,7 +310,7 @@ async function main() {
   console.log('2. Resolve all $ref references');
   console.log('3. Save as standalone JSON files\n');
 
-  // Optional name filter, e.g. `node download-schemas-deref.js "EDR Part 1 v1.2"`
+  // Optional name filter, e.g. `npm run schemas -- "EDR Part 1 v1.2"`
   const filter = process.argv[2];
   const selected = filter ? schemas.filter(s => s.name.includes(filter)) : schemas;
   if (filter) {
