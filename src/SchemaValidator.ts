@@ -1,5 +1,6 @@
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
+import { publicUrl } from './utils/publicUrl';
 
 // Schema type definitions
 type SchemaType = 'edr-p1-v1.0' | 'edr-p1-v1.1' | 'edr-p1-v1.2' | 'features-p1-v1.0' | 'features-p2-v1.0' | 'common-p1-v1.0' | 'common-p2-v1.0' | 'records-p1-v1.0' | 'maps-p1-v1.0';
@@ -218,7 +219,7 @@ export class SchemaValidator {
       // Load landing page schema if available
       if (config.schemas.landingPage) {
         try {
-          const response = await fetch(config.schemas.landingPage);
+          const response = await fetch(publicUrl(config.schemas.landingPage));
           if (response.ok) {
             schemaSet.landingPage = await response.json();
             validatorSet.landingPage = this.ajv.compile(schemaSet.landingPage);
@@ -233,7 +234,7 @@ export class SchemaValidator {
       // Load collections schema if available
       if (config.schemas.collections) {
         try {
-          const response = await fetch(config.schemas.collections);
+          const response = await fetch(publicUrl(config.schemas.collections));
           if (response.ok) {
             schemaSet.collections = await response.json();
             validatorSet.collections = this.ajv.compile(schemaSet.collections);
@@ -248,7 +249,7 @@ export class SchemaValidator {
       // Load conformance schema if available
       if (config.schemas.conformance) {
         try {
-          const response = await fetch(config.schemas.conformance);
+          const response = await fetch(publicUrl(config.schemas.conformance));
           if (response.ok) {
             schemaSet.conformance = await response.json();
             validatorSet.conformance = this.ajv.compile(schemaSet.conformance);

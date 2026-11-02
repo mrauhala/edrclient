@@ -2,6 +2,7 @@ import Ajv, { type ValidateFunction } from 'ajv';
 import addFormats from 'ajv-formats';
 import type { ValidationError } from '../../types/api';
 import { ajvErrorToValidationError, condenseAjvErrors } from '../ajvErrors';
+import { publicUrl } from '../../utils/publicUrl';
 
 export type OasVersion = '3.0' | '3.1';
 
@@ -10,7 +11,7 @@ export type OasVersion = '3.0' | '3.1';
 export type OasSchemaLoader = (version: OasVersion) => Promise<object>;
 
 const fetchSchema: OasSchemaLoader = async version => {
-  const response = await fetch(`/schemas/openapi/${version}/schema.json`);
+  const response = await fetch(publicUrl(`/schemas/openapi/${version}/schema.json`));
   if (!response.ok) throw new Error(`OpenAPI ${version} schema not available (${response.status})`);
   return response.json();
 };

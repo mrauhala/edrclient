@@ -1,6 +1,7 @@
 import Ajv, { ValidateFunction } from 'ajv';
 import addFormats from 'ajv-formats';
 import type { ValidationError } from '../types/api';
+import { publicUrl } from '../utils/publicUrl';
 
 type EdrVersion = '1.0' | '1.1' | '1.2';
 
@@ -34,7 +35,7 @@ async function getValidator(version: EdrVersion): Promise<ValidateFunction | nul
   if (cached) return cached;
 
   try {
-    const response = await fetch(SCHEMA_PATHS[version]);
+    const response = await fetch(publicUrl(SCHEMA_PATHS[version]));
     if (!response.ok) return null;
     const schema = await response.json();
     const validator = ajv.compile(schema);
