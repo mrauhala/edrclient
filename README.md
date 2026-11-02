@@ -2,7 +2,7 @@
 
 OGC API client for browsing EDR, Features, Records, and STAC API services.
 
-Live: https://mrauhala.github.io/ogcapibrowser/ (GitHub Pages) and https://edrclient-meteo-fi.web.app/ (Firebase), both deployed from `main`.
+Live: https://mrauhala.github.io/ogcapibrowser/ (GitHub Pages) and https://ogcbrowser.rauhala.app/ (Firebase), both deployed from `main`.
 
 ## Keyboard Shortcuts
 
