@@ -1,5 +1,5 @@
 // ...existing imports...
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import 'ol/ol.css';
 import { FeatureViewer, normalizeGeoJsonFeature, normalizeOLFeature } from './FeatureViewer';
 import DraggableMapPanel from './DraggableMapPanel';
@@ -7,6 +7,7 @@ import MapsAnimationBar from './MapsAnimationBar';
 import { useGeoJsonLayers } from './contexts/GeoJsonLayerContext';
 import { useMapInteraction } from './contexts/MapInteractionContext';
 import { useCollection } from './contexts/CollectionContext';
+import { useSidebar } from './contexts/SidebarContext';
 import { useMapSetup } from './hooks/useMapSetup';
 import { useCollectionExtents } from './hooks/useCollectionExtents';
 import { useLocationFeatures } from './hooks/useLocationFeatures';
@@ -30,6 +31,13 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
   const geometryKind = geometryKindOf(dataQuery);
   const radiusRange = rangeFor(radiusUnits);
   const { selectedCollection, selectedFeature, setSelectedFeature, landingPageLicense } = useCollection();
+  const { isMobile } = useSidebar();
+
+  // The selected location's information. Closing it leaves the selection, which the query uses. On
+  // desktop it opens beside the map with each selection; on a phone it would cover the map and the
+  // bottom bar, so it waits to be asked for
+  const [locationInfoOpen, setLocationInfoOpen] = useState(false);
+  useEffect(() => setLocationInfoOpen(!isMobile), [selectedFeature, isMobile]);
 
   // Hook composition
   const { map, vectorLayer, locationLayer, markerLayer, areaLayer, radiusLayer, tooltipRef } =
@@ -75,150 +83,10 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
         <DraggableMapPanel collection={selectedCollection} fallbackLicense={landingPageLicense} />
       )}
 
-      {/* Coordinates Legend - Lower Right Corner */}
-      {clickedCoords && clickedCoords.length > 0 && (
-        <div
-          style={{
-            position: 'absolute',
-            bottom: '10px',
-            right: '10px',
-            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-            color: 'white',
-            padding: '8px 12px',
-            borderRadius: '6px',
-            fontSize: '12px',
-            fontWeight: 'normal',
-            zIndex: 1000,
-            boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
-            border: '1px solid rgba(255,255,255,0.2)',
-            fontFamily: 'monospace',
-          }}
-        >
-          <div style={{ fontWeight: 'bold', marginBottom: '4px', fontSize: '11px', opacity: 0.7 }}>
-            Selected Points ({clickedCoords.length})
-          </div>
-          {clickedCoords.map((coords, idx) => (
-            <div key={idx} style={{ fontSize: '10px', marginTop: idx > 0 ? '4px' : '0' }}>
-              {idx + 1}. Lat: {coords[1].toFixed(6)}°, Lon: {coords[0].toFixed(6)}°
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Area Selection Info - Lower Right Corner */}
-      {selectedArea && selectedArea.length > 0 && (
-        <div
-          style={{
-            position: 'absolute',
-            bottom: '10px',
-            right: '10px',
-            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-            color: 'white',
-            padding: '8px 12px',
-            borderRadius: '6px',
-            fontSize: '12px',
-            fontWeight: 'normal',
-            zIndex: 1000,
-            boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
-            border: '1px solid rgba(255,255,255,0.2)',
-            fontFamily: 'monospace',
-          }}
-        >
-          <div style={{ fontWeight: 'bold', marginBottom: '4px', fontSize: '11px', opacity: 0.7 }}>
-            Selected Polygons ({selectedArea.length})
-          </div>
-          {selectedArea.map((polygon, idx) => (
-            <div key={idx} style={{ fontSize: '10px' }}>
-              {idx + 1}. {polygon.length} vertices
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Radius Selection Info - Lower Right Corner */}
-      {dataQuery === 'radius' && clickedCoords && clickedCoords.length > 0 && (
-        <div
-          style={{
-            position: 'absolute',
-            bottom: '10px',
-            right: '10px',
-            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-            color: 'white',
-            padding: '8px 12px',
-            borderRadius: '6px',
-            fontSize: '12px',
-            fontWeight: 'normal',
-            zIndex: 1000,
-            boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
-            border: '1px solid rgba(0, 123, 255, 0.5)',
-            fontFamily: 'monospace',
-          }}
-        >
-          <div style={{ fontWeight: 'bold', marginBottom: '4px', fontSize: '11px', opacity: 0.7 }}>
-            Selected Points ({clickedCoords.length})
-          </div>
-          {clickedCoords.map((coords, idx) => (
-            <div key={idx} style={{ fontSize: '10px', marginTop: idx > 0 ? '4px' : '0' }}>
-              {idx + 1}. Lat: {coords[1].toFixed(6)}°, Lon: {coords[0].toFixed(6)}°
-            </div>
-          ))}
-          <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.2)', fontWeight: 'bold' }}>
-            Radius: {radius} {radiusUnits}
-          </div>
-        </div>
-      )}
-
-      {/* What the query needs from the map, and clearing it */}
-      <MapQueryOverlay
-        queryType={dataQuery}
-        hasGeometry={geometryKind === 'polygon' ? selectedArea.length > 0 : geometryKind === 'bbox' ? selectedBbox !== null : clickedCoords.length > 0}
-        isDrawing={isDrawing}
-        onClear={() => {
-          abortDrawing();
-          setClickedCoords([]);
-          setSelectedArea([]);
-          setSelectedBbox(null);
-        }}
-        radiusLabel={`${radius} ${radiusUnits}`}
-      >
-        {dataQuery === 'radius' && (
-          <div
-            style={{
-              backgroundColor: 'rgba(0, 0, 0, 0.8)',
-              color: 'white',
-              border: '2px solid rgba(0, 123, 255, 0.5)',
-              padding: '12px',
-              borderRadius: '6px',
-              fontSize: '12px',
-              boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
-            }}
-          >
-            <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>Radius: {radius} {radiusUnits}</div>
-            <input
-              type="range"
-              min={radiusRange.min}
-              max={radiusRange.max}
-              step={radiusRange.step}
-              value={radius}
-              onChange={(e) => {
-                setRadius(Number(e.target.value));
-              }}
-              style={{
-                width: '150px',
-                cursor: 'pointer',
-              }}
-            />
-            <div style={{ marginTop: '4px', fontSize: '10px', opacity: 0.7 }}>
-              {radiusRange.min} - {radiusRange.max} {radiusUnits}
-            </div>
-          </div>
-        )}
-      </MapQueryOverlay>
-
       <FeatureViewer
-        feature={selectedFeature ? normalizeGeoJsonFeature(selectedFeature) : null}
+        feature={selectedFeature && locationInfoOpen ? normalizeGeoJsonFeature(selectedFeature) : null}
         variant="location"
-        onClose={() => setSelectedFeature(null)}
+        onClose={() => setLocationInfoOpen(false)}
       />
 
       <FeatureViewer
@@ -239,7 +107,66 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
         }}
       />
 
-      <MapsAnimationBar />
+      {/* Along the bottom edge, the query's card above the animation bars, so neither covers the other */}
+      <div style={{ position: 'absolute', left: 0, right: 0, bottom: '10px', zIndex: 1000, display: 'flex', flexDirection: 'column', gap: '8px', pointerEvents: 'none' }}>
+        {/* What the query needs from the map, and clearing it */}
+        <MapQueryOverlay
+          queryType={dataQuery}
+          hasGeometry={
+            dataQuery === 'locations' ? !!selectedFeature
+              : geometryKind === 'polygon' ? selectedArea.length > 0
+                : geometryKind === 'bbox' ? selectedBbox !== null
+                  : clickedCoords.length > 0
+          }
+          isDrawing={isDrawing}
+          onClear={() => {
+            abortDrawing();
+            setClickedCoords([]);
+            setSelectedArea([]);
+            setSelectedBbox(null);
+            setSelectedFeature(null);
+          }}
+          radiusLabel={`${radius} ${radiusUnits}`}
+          selection={geometryKind === 'polygon'
+            ? { title: 'Selected Polygons', items: selectedArea.map(polygon => `${polygon.length} vertices`) }
+            : {
+              title: 'Selected Points',
+              items: clickedCoords.map(([lon, lat]) => `Lat: ${lat.toFixed(6)}°, Lon: ${lon.toFixed(6)}°`),
+            }}
+          location={dataQuery === 'locations' && selectedFeature ? {
+            name: String(selectedFeature.properties?.name || selectedFeature.properties?.title || selectedFeature.id || 'Location'),
+            onInfo: () => setLocationInfoOpen(true),
+          } : undefined}
+        >
+          {dataQuery === 'radius' && (
+            <div style={{ margin: '2px 0 4px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '12px', fontSize: '12px' }}>
+                <span style={{ fontWeight: 'bold' }}>Radius: {radius} {radiusUnits}</span>
+                <span style={{ fontSize: '10px', opacity: 0.7 }}>{radiusRange.min} - {radiusRange.max} {radiusUnits}</span>
+              </div>
+              <input
+                type="range"
+                aria-label="Radius"
+                min={radiusRange.min}
+                max={radiusRange.max}
+                step={radiusRange.step}
+                value={radius}
+                onChange={(e) => {
+                  setRadius(Number(e.target.value));
+                }}
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  margin: '6px 0 0',
+                  cursor: 'pointer',
+                }}
+              />
+            </div>
+          )}
+        </MapQueryOverlay>
+
+        <MapsAnimationBar />
+      </div>
     </div>
   );
 };

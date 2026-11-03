@@ -209,6 +209,8 @@ const CollectionsList = ({
     const collection = collections[index];
     const selectedColl = newIndex !== null ? collection : null;
     setSelectedCollection(selectedColl);
+    // Its locations belong to the collection that's closing
+    setSelectedFeature(null);
 
     // Initialize GeoJSON layers for the selected collection
     if (selectedColl) {

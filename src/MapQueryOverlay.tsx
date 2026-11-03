@@ -1,7 +1,12 @@
-import React, { type ReactNode } from 'react';
+import React, { useId, useState, type ReactNode } from 'react';
+import ButtonBase from '@mui/material/ButtonBase';
+import ExpandMore from '@mui/icons-material/ExpandMore';
+import ExpandLess from '@mui/icons-material/ExpandLess';
+import InfoOutlined from '@mui/icons-material/InfoOutlined';
+import { useSidebar } from './contexts/SidebarContext';
 
-// What the map asks for in each query type, and the button that clears it. An optional geometry
-// (an items box) gets no prompt, only the clear button.
+// What the map asks for in each query type, and the button that clears it. An optional input
+// (an items box, a location) gets no prompt, only the clear button.
 interface QueryPrompt {
   title?: string;
   text?: string; // {radius} is replaced with the radius and its unit
@@ -20,43 +25,67 @@ const PROMPTS: Record<string, QueryPrompt> = {
   },
   cube: { title: 'Draw a Box on Map', text: 'Click one corner of the box, then the opposite corner', clear: 'Clear Box', accent: 'red' },
   items: { clear: 'Clear Box', accent: 'red' },
+  locations: { clear: 'Clear Location', accent: 'red' },
   area: { title: 'Draw Areas on Map', text: 'Click to add vertices, double-click to complete each polygon', clear: 'Clear Polygons', accent: 'red' },
 };
 
 const ACCENTS = {
-  red: { border: 'rgba(255, 0, 0, 0.6)', title: '#FF4444' },
-  blue: { border: 'rgba(0, 123, 255, 0.6)', title: '#007BFF' },
+  red: { border: 'rgba(255, 0, 0, 0.6)', title: '#FF4444', selection: 'rgba(255, 255, 255, 0.2)' },
+  blue: { border: 'rgba(0, 123, 255, 0.6)', title: '#007BFF', selection: 'rgba(0, 123, 255, 0.5)' },
 };
 
-const promptStyle: React.CSSProperties = {
-  position: 'absolute',
-  top: '50%',
-  left: '50%',
-  transform: 'translate(-50%, -50%)',
+// At the left of the map's bottom edge, out of the way of where people click and clear of the
+// collection panel (top left), the feature viewer (top right) and the attribution button (bottom right)
+const cardStyle: React.CSSProperties = {
+  alignSelf: 'flex-start',
+  marginLeft: '10px',
+  maxWidth: 'calc(100% - 74px)',
   backgroundColor: 'rgba(0, 0, 0, 0.9)',
   color: 'white',
-  padding: '16px 24px',
+  padding: '6px 10px',
   borderRadius: '8px',
-  fontSize: '14px',
+  fontSize: '13px',
   fontWeight: 'normal',
-  zIndex: 1000,
   boxShadow: '0 4px 8px rgba(0,0,0,0.5)',
-  textAlign: 'center',
-  // Taps and clicks on it reach the map: on a phone it covers the middle, where people tap first
-  pointerEvents: 'none',
+};
+
+const rowStyle: React.CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  columnGap: '12px',
+  rowGap: '4px',
 };
 
 const clearButtonStyle: React.CSSProperties = {
   backgroundColor: 'rgba(255, 68, 68, 0.9)',
   color: 'white',
-  border: '2px solid rgba(255, 255, 255, 0.3)',
-  padding: '8px 16px',
+  border: '1px solid rgba(255, 255, 255, 0.3)',
+  padding: '8px 10px',
   borderRadius: '6px',
-  fontSize: '14px',
+  fontSize: '12px',
   fontWeight: 'bold',
   cursor: 'pointer',
-  boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
+  // Also while the prompt beside it lets clicks through
+  pointerEvents: 'auto',
 };
+
+const headerButtonSx = { minHeight: 32, gap: 0.5, borderRadius: '4px', font: 'inherit', fontSize: 12, fontWeight: 'bold', textAlign: 'left' };
+
+const listStyle: React.CSSProperties = {
+  margin: '2px 0 4px',
+  maxHeight: '30vh',
+  overflowY: 'auto',
+  overscrollBehavior: 'contain',
+  fontFamily: 'monospace',
+  fontSize: '10px',
+};
+
+export interface MapSelection {
+  title: string;
+  items: string[];
+}
 
 interface MapQueryOverlayProps {
   queryType: string;
@@ -64,24 +93,55 @@ interface MapQueryOverlayProps {
   isDrawing: boolean;
   onClear: () => void;
   radiusLabel?: string;
-  children?: ReactNode; // controls shown under the clear button, e.g. the radius slider
+  selection?: MapSelection; // what the query has from the map, listed once it has it
+  location?: { name: string; onInfo: () => void }; // the selected location, and showing its information
+  children?: ReactNode; // controls for the geometry, under the list, e.g. the radius slider
 }
 
-// The prompt in the middle of the map until the query has its geometry, then the clear button
-const MapQueryOverlay: React.FC<MapQueryOverlayProps> = ({ queryType, hasGeometry, isDrawing, onClear, radiusLabel = '', children }) => {
+// Everything about the query's map input, in one card: the prompt until the query has its geometry,
+// then what it has, and the clear button. The list collapses, and starts collapsed on phones, where
+// it would cover the map. The parent stacks the card along the map's bottom edge
+const MapQueryOverlay: React.FC<MapQueryOverlayProps> = ({ queryType, hasGeometry, isDrawing, onClear, radiusLabel = '', selection, location, children }) => {
+  const { isMobile } = useSidebar();
+  const [listOpen, setListOpen] = useState(!isMobile);
+  const listId = useId();
+
   const prompt = PROMPTS[queryType];
   if (!prompt) return null;
+  const showPrompt = !hasGeometry && !!prompt.title;
+  const showClear = hasGeometry || isDrawing;
+  if (!showPrompt && !showClear) return null;
+  const list = hasGeometry && selection && selection.items.length > 0 ? selection : null;
   const accent = ACCENTS[prompt.accent];
   return (
-    <>
-      {!hasGeometry && prompt.title && (
-        <div style={{ ...promptStyle, border: `2px solid ${accent.border}` }}>
-          <div style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '16px', color: accent.title }}>{prompt.title}</div>
-          <div>{prompt.text?.replace('{radius}', radiusLabel)}</div>
-        </div>
-      )}
-      {(hasGeometry || isDrawing) && (
-        <div style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 1000, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+    <div
+      style={{
+        ...cardStyle,
+        border: hasGeometry ? `1px solid ${accent.selection}` : `2px solid ${accent.border}`,
+        // Clicks on the prompt reach the map
+        pointerEvents: hasGeometry ? 'auto' : 'none',
+      }}
+    >
+      <div style={rowStyle}>
+        {showPrompt && <div style={{ fontWeight: 'bold', fontSize: '14px', color: accent.title }}>{prompt.title}</div>}
+        {list && (
+          <ButtonBase
+            aria-expanded={listOpen}
+            aria-controls={listOpen ? listId : undefined}
+            onClick={() => setListOpen(!listOpen)}
+            sx={headerButtonSx}
+          >
+            {list.title} ({list.items.length})
+            {listOpen ? <ExpandMore sx={{ fontSize: 18 }} /> : <ExpandLess sx={{ fontSize: 18 }} />}
+          </ButtonBase>
+        )}
+        {location && (
+          <ButtonBase aria-label={`Location information: ${location.name}`} onClick={location.onInfo} sx={headerButtonSx}>
+            <InfoOutlined sx={{ fontSize: 18 }} />
+            {location.name}
+          </ButtonBase>
+        )}
+        {showClear && (
           <button
             onClick={onClear}
             style={clearButtonStyle}
@@ -90,10 +150,18 @@ const MapQueryOverlay: React.FC<MapQueryOverlayProps> = ({ queryType, hasGeometr
           >
             {prompt.clear}
           </button>
-          {hasGeometry && children}
+        )}
+      </div>
+      {showPrompt && <div style={{ marginTop: '4px' }}>{prompt.text?.replace('{radius}', radiusLabel)}</div>}
+      {list && listOpen && (
+        <div id={listId} style={listStyle}>
+          {list.items.map((item, idx) => (
+            <div key={idx} style={{ marginTop: idx > 0 ? '4px' : '0' }}>{idx + 1}. {item}</div>
+          ))}
         </div>
       )}
-    </>
+      {hasGeometry && children}
+    </div>
   );
 };
 
