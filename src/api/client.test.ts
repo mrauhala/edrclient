@@ -62,3 +62,45 @@ describe('getCollections', () => {
       .toBe(`${MG}/other answered without a "collections" array, so no collections can be listed.`);
   });
 });
+
+describe('getCollections when a request fails', () => {
+  const LANDING = `${MG}?f=json`;
+  const COLLECTIONS = `${MG}/collections?f=json`;
+
+  // The landing page answers unless it is the URL that fails; the failing URL throws like axios does
+  const failAt = (failingUrl: string, error: Error) => vi.spyOn(axios, 'get').mockImplementation(async (url: string) => {
+    if (url === failingUrl) throw Object.assign(error, { config: { url } });
+    if (url === LANDING) return { data: { links: [{ rel: 'data', href: `${MG}/collections` }] }, status: 200, headers: {}, request: { responseURL: url } };
+    throw new Error(`unexpected request: ${url}`);
+  });
+  const fatal = async () => (await getCollections(MG)).validation.errors?.[0];
+
+  it.each([
+    [LANDING, new Error('Network Error'), 'Connection Failed', 'network',
+      `Unable to connect to landing page. This may be due to CORS restrictions or the service being unavailable. URL: ${LANDING}`],
+    [COLLECTIONS, new Error('Network Error'), 'Collections Unreachable', 'network',
+      `Unable to connect to collections endpoint. This may be due to CORS restrictions or the service being unavailable. URL: ${COLLECTIONS}`],
+    [COLLECTIONS, new Error('Blocked by CORS policy'), 'Collections CORS Error', 'cors',
+      `collections endpoint does not allow cross-origin requests from web browsers. URL: ${COLLECTIONS}`],
+    [COLLECTIONS, new Error('Request failed with status code 404'), 'Collections Not Found', 'network',
+      `collections endpoint returned 404. URL: ${COLLECTIONS}`],
+    [LANDING, new Error('Request failed with status code 401'), 'Authentication Error', 'network',
+      `landing page requires authentication or returned access denied. URL: ${LANDING}`],
+    [LANDING, new Error('socket hang up'), 'Error', 'unknown',
+      `Failed to fetch landing page: socket hang up. URL: ${LANDING}`],
+  ])('%s: %s → %s', async (url, error, title, type, message) => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    failAt(url, error);
+    expect(await fatal()).toMatchObject({ title, type, message });
+  });
+
+  it('treats an unclassified ERR_NETWORK as unreachable, without assuming CORS', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    failAt(LANDING, Object.assign(new Error('xhr failed'), { code: 'ERR_NETWORK' }));
+    expect(await fatal()).toMatchObject({
+      title: 'Connection Failed',
+      type: 'network',
+      message: `Unable to connect to landing page. The service may be unreachable or blocking cross-origin requests. URL: ${LANDING}`,
+    });
+  });
+});
