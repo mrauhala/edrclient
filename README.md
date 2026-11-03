@@ -46,6 +46,29 @@ The image serves the app with nginx as a non-root user. To build it yourself:
 `docker build -t ogcapi-browser .`. To serve it under a sub-path behind a proxy that strips the
 prefix, add `--build-arg BASE_PATH=/ogcapi-browser/`.
 
+## Local and private APIs
+
+You don't need to run the app yourself to use an API on `localhost`, on your intranet or behind a
+VPN. There is no backend: your browser sends every request straight to the API, so the online
+version reaches any API your browser can. Credentials you enter are kept in your browser and sent
+only to that API. npx and Docker serve the same static files and don't proxy anything.
+
+The browser's own rules still apply:
+
+- **CORS:** the API has to allow requests from other sites, with an `Access-Control-Allow-Origin`
+  header (`*`, or the app's address). With authentication it also has to allow the header the
+  credentials travel in (`Access-Control-Allow-Headers`). This holds wherever the app runs, since an
+  app on `localhost:3000` is another site to the API too.
+- **HTTPS:** the online version is served over HTTPS, and browsers block plain `http://` APIs from
+  HTTPS pages, with two exceptions:
+  - `http://localhost` and `http://127.0.0.1`, in Chrome, Edge and Firefox. Safari blocks them.
+  - In Chrome, a private IP address such as `http://192.168.1.10`, or a `.local` name.
+
+  For any other `http://` API, such as an intranet server by name, run the app with npx or Docker:
+  served from `http://localhost`, it can call `http://` APIs.
+- **Local network permission:** Chrome asks the first time the page connects to `localhost` or a
+  private address. Allow it; if you blocked it, change it from the icon left of the address bar.
+
 ## Basemap
 
 The dark basemap is Esri's Dark Gray Canvas, which needs no key. With a Carto API key the app uses
