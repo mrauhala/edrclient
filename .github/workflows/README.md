@@ -1,20 +1,19 @@
 # GitHub Actions Workflows
 
-This project uses GitHub Actions for continuous integration, testing, and deployment to Firebase Hosting.
+This project uses GitHub Actions for continuous integration, testing, deployment (Firebase Hosting, GitHub Pages, the Docker image) and releases.
 
 ## Workflows
 
 ### 1. CI (`ci.yml`)
 **Triggers:** Push to `main`/`develop` branches, Pull requests to `main`/`develop`
 
-**Purpose:** Runs automated linting, type checking, and builds on every push and pull request.
+**Purpose:** Runs linting, type checking, the unit tests and the build on every push and pull request.
 
 **Jobs:**
-- **Lint & Type Check**: 
-  - Runs on Node.js 18.x and 20.x (matrix strategy)
+- **Lint & Type Check**:
+  - Runs on Node.js 24.x
   - Installs dependencies with npm caching
-  - Runs ESLint to check code quality
-  - Performs TypeScript type checking
+  - Runs ESLint, TypeScript type checking and the Vitest unit tests
 
 - **Build**:
   - Runs after lint and type check pass
@@ -87,6 +86,16 @@ This project uses GitHub Actions for continuous integration, testing, and deploy
 - Tags: `latest` and `sha-<commit>` from `main`; `1.2.3` and `1.2` from a `v1.2.3` tag
 - Pushes with the workflow's `GITHUB_TOKEN` (`packages: write`); no secrets needed
 
+### 8. Release Please (`release-please.yml`)
+**Triggers:** Push to `main`
+
+**Purpose:** Versions and publishes releases from the conventional commits on `main` (see [docs/releasing.md](../../docs/releasing.md)).
+
+**Jobs:**
+- **Release pull request**: opens or updates a release pull request with the version bump and `CHANGELOG.md`. Merging it tags `vX.Y.Z` and creates the GitHub release; the tag starts the versioned Docker build (`docker.yml`)
+- **Publish to npm**: runs only when a release was created; publishes with npm trusted publishing (OIDC, `id-token: write`), so no npm token is stored
+- Uses the `RELEASE_PLEASE_TOKEN` secret, not `GITHUB_TOKEN`: pull requests and tags made with `GITHUB_TOKEN` don't start other workflows, so the required checks wouldn't run on the release pull request
+
 ## Required Secrets
 
 The following secrets must be configured in your GitHub repository:
@@ -94,6 +103,7 @@ The following secrets must be configured in your GitHub repository:
 1. `FIREBASE_SERVICE_ACCOUNT_EDRCLIENT_METEO_FI` - Firebase service account credentials for deployment
 2. `GITHUB_TOKEN` - Automatically provided by GitHub Actions
 3. `CARTO_API_KEY` - Carto basemap API key used by the Firebase deployment workflows
+4. `RELEASE_PLEASE_TOKEN` - fine-grained personal access token for Release Please (see [docs/releasing.md](../../docs/releasing.md))
 
 > **Note:** Preview and production currently use the same Carto API key. To use different keys, add separate GitHub Actions secrets (for example, `CARTO_API_KEY_PREVIEW` and `CARTO_API_KEY_PRODUCTION`) and update `VITE_CARTO_API_KEY` in each deployment workflow to reference the appropriate secret.
 
@@ -126,7 +136,7 @@ Add these badges to your main README.md:
 ## Troubleshooting
 
 ### Build Failures
-- Check Node.js version compatibility (18.x or 20.x)
+- Check Node.js version compatibility (24.x)
 - Verify all dependencies are properly listed in `package.json`
 - Review build logs in the Actions tab
 
