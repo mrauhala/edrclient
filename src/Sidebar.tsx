@@ -19,7 +19,7 @@ const Sidebar = () => {
   const sidebarWidth = isMobile ? '100%' : 480;
   const { setGeoJsonLayers } = useGeoJsonLayers();
   const { setClickedCoords, setDataQuery } = useMapInteraction();
-  const { collections, setCollections, setSelectedCollection, setSelectedCollectionExtents, setLocationFeatures, setLandingPageLicense, setCollectionUrl } = useCollection();
+  const { collections, setCollections, setSelectedCollection, setSelectedFeature, setSelectedCollectionExtents, setLocationFeatures, setLandingPageLicense, setCollectionUrl } = useCollection();
   const { setLandingPageTitle, setActiveServiceUrl, conformsTo, setConformsTo } = useService();
   const queryState = useQueryUrl();
   const { resetQueryState } = queryState;
@@ -52,6 +52,7 @@ const Sidebar = () => {
   const handleBeforeLoad = useCallback(() => {
     setCollections([]);
     setSelectedCollection(null);
+    setSelectedFeature(null);
     resetQueryState();
     setCollectionUrl('');
     setGeoJsonLayers([]);
@@ -68,7 +69,7 @@ const Sidebar = () => {
     setLocationFeatures(null);
     setClickedCoords([]);
     setDataQuery('');
-  }, [setCollections, resetQueryState, setCollectionUrl, setGeoJsonLayers, setSelectedCollection, setSelectedCollectionExtents, setLocationFeatures, setClickedCoords, setDataQuery, setValidationResult, setEndpointUrls, setRawResponses, setLandingPageTitle, setConformsTo]);
+  }, [setCollections, resetQueryState, setCollectionUrl, setGeoJsonLayers, setSelectedCollection, setSelectedFeature, setSelectedCollectionExtents, setLocationFeatures, setClickedCoords, setDataQuery, setValidationResult, setEndpointUrls, setRawResponses, setLandingPageTitle, setConformsTo]);
 
   const handleLoadResult = useCallback((result: GetCollectionsResult) => {
     setCollections(result.collections || []);

@@ -2,10 +2,11 @@ import React, { useId, useState, type ReactNode } from 'react';
 import ButtonBase from '@mui/material/ButtonBase';
 import ExpandMore from '@mui/icons-material/ExpandMore';
 import ExpandLess from '@mui/icons-material/ExpandLess';
+import InfoOutlined from '@mui/icons-material/InfoOutlined';
 import { useSidebar } from './contexts/SidebarContext';
 
-// What the map asks for in each query type, and the button that clears it. An optional geometry
-// (an items box) gets no prompt, only the clear button.
+// What the map asks for in each query type, and the button that clears it. An optional input
+// (an items box, a location) gets no prompt, only the clear button.
 interface QueryPrompt {
   title?: string;
   text?: string; // {radius} is replaced with the radius and its unit
@@ -24,6 +25,7 @@ const PROMPTS: Record<string, QueryPrompt> = {
   },
   cube: { title: 'Draw a Box on Map', text: 'Click one corner of the box, then the opposite corner', clear: 'Clear Box', accent: 'red' },
   items: { clear: 'Clear Box', accent: 'red' },
+  locations: { clear: 'Clear Location', accent: 'red' },
   area: { title: 'Draw Areas on Map', text: 'Click to add vertices, double-click to complete each polygon', clear: 'Clear Polygons', accent: 'red' },
 };
 
@@ -69,6 +71,8 @@ const clearButtonStyle: React.CSSProperties = {
   pointerEvents: 'auto',
 };
 
+const headerButtonSx = { minHeight: 32, gap: 0.5, borderRadius: '4px', font: 'inherit', fontSize: 12, fontWeight: 'bold', textAlign: 'left' };
+
 const listStyle: React.CSSProperties = {
   margin: '2px 0 4px',
   maxHeight: '30vh',
@@ -90,13 +94,14 @@ interface MapQueryOverlayProps {
   onClear: () => void;
   radiusLabel?: string;
   selection?: MapSelection; // what the query has from the map, listed once it has it
+  location?: { name: string; onInfo: () => void }; // the selected location, and showing its information
   children?: ReactNode; // controls for the geometry, under the list, e.g. the radius slider
 }
 
 // Everything about the query's map input, in one card: the prompt until the query has its geometry,
 // then what it has, and the clear button. The list collapses, and starts collapsed on phones, where
 // it would cover the map. The parent stacks the card along the map's bottom edge
-const MapQueryOverlay: React.FC<MapQueryOverlayProps> = ({ queryType, hasGeometry, isDrawing, onClear, radiusLabel = '', selection, children }) => {
+const MapQueryOverlay: React.FC<MapQueryOverlayProps> = ({ queryType, hasGeometry, isDrawing, onClear, radiusLabel = '', selection, location, children }) => {
   const { isMobile } = useSidebar();
   const [listOpen, setListOpen] = useState(!isMobile);
   const listId = useId();
@@ -124,10 +129,16 @@ const MapQueryOverlay: React.FC<MapQueryOverlayProps> = ({ queryType, hasGeometr
             aria-expanded={listOpen}
             aria-controls={listOpen ? listId : undefined}
             onClick={() => setListOpen(!listOpen)}
-            sx={{ minHeight: 32, gap: 0.5, borderRadius: '4px', font: 'inherit', fontSize: 12, fontWeight: 'bold' }}
+            sx={headerButtonSx}
           >
             {list.title} ({list.items.length})
             {listOpen ? <ExpandMore sx={{ fontSize: 18 }} /> : <ExpandLess sx={{ fontSize: 18 }} />}
+          </ButtonBase>
+        )}
+        {location && (
+          <ButtonBase aria-label={`Location information: ${location.name}`} onClick={location.onInfo} sx={headerButtonSx}>
+            <InfoOutlined sx={{ fontSize: 18 }} />
+            {location.name}
           </ButtonBase>
         )}
         {showClear && (

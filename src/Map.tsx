@@ -1,5 +1,5 @@
 // ...existing imports...
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import 'ol/ol.css';
 import { FeatureViewer, normalizeGeoJsonFeature, normalizeOLFeature } from './FeatureViewer';
 import DraggableMapPanel from './DraggableMapPanel';
@@ -7,6 +7,7 @@ import MapsAnimationBar from './MapsAnimationBar';
 import { useGeoJsonLayers } from './contexts/GeoJsonLayerContext';
 import { useMapInteraction } from './contexts/MapInteractionContext';
 import { useCollection } from './contexts/CollectionContext';
+import { useSidebar } from './contexts/SidebarContext';
 import { useMapSetup } from './hooks/useMapSetup';
 import { useCollectionExtents } from './hooks/useCollectionExtents';
 import { useLocationFeatures } from './hooks/useLocationFeatures';
@@ -30,6 +31,13 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
   const geometryKind = geometryKindOf(dataQuery);
   const radiusRange = rangeFor(radiusUnits);
   const { selectedCollection, selectedFeature, setSelectedFeature, landingPageLicense } = useCollection();
+  const { isMobile } = useSidebar();
+
+  // The selected location's information. Closing it leaves the selection, which the query uses. On
+  // desktop it opens beside the map with each selection; on a phone it would cover the map and the
+  // bottom bar, so it waits to be asked for
+  const [locationInfoOpen, setLocationInfoOpen] = useState(false);
+  useEffect(() => setLocationInfoOpen(!isMobile), [selectedFeature, isMobile]);
 
   // Hook composition
   const { map, vectorLayer, locationLayer, markerLayer, areaLayer, radiusLayer, tooltipRef } =
@@ -76,9 +84,9 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
       )}
 
       <FeatureViewer
-        feature={selectedFeature ? normalizeGeoJsonFeature(selectedFeature) : null}
+        feature={selectedFeature && locationInfoOpen ? normalizeGeoJsonFeature(selectedFeature) : null}
         variant="location"
-        onClose={() => setSelectedFeature(null)}
+        onClose={() => setLocationInfoOpen(false)}
       />
 
       <FeatureViewer
@@ -104,13 +112,19 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
         {/* What the query needs from the map, and clearing it */}
         <MapQueryOverlay
           queryType={dataQuery}
-          hasGeometry={geometryKind === 'polygon' ? selectedArea.length > 0 : geometryKind === 'bbox' ? selectedBbox !== null : clickedCoords.length > 0}
+          hasGeometry={
+            dataQuery === 'locations' ? !!selectedFeature
+              : geometryKind === 'polygon' ? selectedArea.length > 0
+                : geometryKind === 'bbox' ? selectedBbox !== null
+                  : clickedCoords.length > 0
+          }
           isDrawing={isDrawing}
           onClear={() => {
             abortDrawing();
             setClickedCoords([]);
             setSelectedArea([]);
             setSelectedBbox(null);
+            setSelectedFeature(null);
           }}
           radiusLabel={`${radius} ${radiusUnits}`}
           selection={geometryKind === 'polygon'
@@ -119,6 +133,10 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
               title: 'Selected Points',
               items: clickedCoords.map(([lon, lat]) => `Lat: ${lat.toFixed(6)}°, Lon: ${lon.toFixed(6)}°`),
             }}
+          location={dataQuery === 'locations' && selectedFeature ? {
+            name: String(selectedFeature.properties?.name || selectedFeature.properties?.title || selectedFeature.id || 'Location'),
+            onInfo: () => setLocationInfoOpen(true),
+          } : undefined}
         >
           {dataQuery === 'radius' && (
             <div style={{ margin: '2px 0 4px' }}>

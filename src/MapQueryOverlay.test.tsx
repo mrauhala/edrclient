@@ -10,11 +10,12 @@ interface Options {
   isDrawing?: boolean;
   isMobile?: boolean;
   selection?: MapSelection;
+  location?: { name: string; onInfo: () => void };
 }
 
-const render = (queryType: string, { hasGeometry = false, isDrawing = false, isMobile = false, selection = points }: Options = {}) => renderToStaticMarkup(
+const render = (queryType: string, { hasGeometry = false, isDrawing = false, isMobile = false, selection = points, location }: Options = {}) => renderToStaticMarkup(
   <SidebarProvider value={{ sidebarOpen: false, isMobile, toggleSidebar: () => {}, showMap: () => {} }}>
-    <MapQueryOverlay queryType={queryType} hasGeometry={hasGeometry} isDrawing={isDrawing} onClear={() => {}} radiusLabel="10 km" selection={selection}>
+    <MapQueryOverlay queryType={queryType} hasGeometry={hasGeometry} isDrawing={isDrawing} onClear={() => {}} radiusLabel="10 km" selection={selection} location={location}>
       <input aria-label="Radius" />
     </MapQueryOverlay>
   </SidebarProvider>
@@ -86,6 +87,19 @@ describe('MapQueryOverlay', () => {
     expect(render('items')).toBe('');
     expect(render('items', { isDrawing: true })).toContain('Clear Box');
     expect(render('locations')).toBe('');
-    expect(render('locations', { hasGeometry: true })).toBe('');
+    expect(render('metadata', { hasGeometry: true })).toBe('');
+  });
+
+  it('names the selected location, with its information a tap away and the clear button beside it', () => {
+    const location = { name: 'Savukoski Tulppio', onInfo: () => {} };
+    const html = render('locations', { hasGeometry: true, isMobile: true, selection: { title: 'Selected Points', items: [] }, location });
+    expect(html).toMatch(/<button[^>]*aria-label="Location information: Savukoski Tulppio"[^>]*>.*Savukoski Tulppio<\/button>/);
+    expect(html).toContain('Clear Location');
+    expect(html).not.toContain('Selected Points');
+  });
+
+  it('shows no location card until one is selected', () => {
+    const location = { name: 'Savukoski Tulppio', onInfo: () => {} };
+    expect(render('locations', { location })).toBe('');
   });
 });
