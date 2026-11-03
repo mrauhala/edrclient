@@ -11,7 +11,6 @@ import Select, { SelectChangeEvent } from '@mui/material/Select';
 import Person from '@mui/icons-material/Person';
 import Lock from '@mui/icons-material/Lock';
 import { getCollections, GetCollectionsResult } from './DataRetrievalAPI';
-import SchemaInspector from './SchemaInspector';
 import SwaggerUIViewer from './SwaggerUIViewer';
 import ConformanceViewer from './ConformanceViewer';
 import { useService } from './contexts/ServiceContext';
@@ -373,7 +372,6 @@ const ServiceSelector = ({
         conformanceUrl={selectedConformanceUrl}
         onClose={() => setSelectedConformanceUrl(null)}
       />
-      <SchemaInspector />
     </Box>
   );
 };

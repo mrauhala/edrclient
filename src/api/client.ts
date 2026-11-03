@@ -451,8 +451,6 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials, sig
     const isCollections = errorSection === 'collections endpoint';
     let errorTitle = isCollections ? 'Collections Error' : 'Error';
     if (error instanceof Error) {
-      errorMessage = error.message;
-
       // Common CORS error indicators
       if (error.message.includes('CORS') ||
           error.message.includes('Access-Control-Allow-Origin') ||
