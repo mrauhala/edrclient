@@ -25,6 +25,7 @@ import { useMapInteraction } from './contexts/MapInteractionContext';
 import { useCollection } from './contexts/CollectionContext';
 import { useService } from './contexts/ServiceContext';
 import { useValidation } from './contexts/ValidationContext';
+import { useSidebar } from './contexts/SidebarContext';
 import { detectEdrVersion, validateLocationsResponse } from './validation/locationsValidator';
 import { allSectionsValid, isProblem } from './validation/severity';
 import { UseQueryUrlReturn } from './hooks/useQueryUrl';
@@ -150,6 +151,7 @@ const CollectionsList = ({
 }: CollectionsListProps) => {
   const { geoJsonLayers, setGeoJsonLayers } = useGeoJsonLayers();
   const { setClickedCoords, setDataQuery } = useMapInteraction();
+  const { showMap } = useSidebar();
   const { selectedCollection, setSelectedCollection, setSelectedCollectionExtents, locationFeatures, setLocationFeatures, setSelectedFeature, setCollectionUrl, selectCollectionByIndexRef } = useCollection();
   const { getAuthCredentials, conformsTo } = useService();
   const { setValidationResult, setEndpointUrls, setRawResponses } = useValidation();
@@ -469,6 +471,8 @@ const CollectionsList = ({
                         const nonSelectedLayers = geoJsonLayers.filter(l => !l.title.startsWith('Selected: '));
                         const updatedLayers = [...nonSelectedLayers, featureLayer];
                         setGeoJsonLayers(updatedLayers);
+                        // Where it's shown
+                        showMap();
                       };
 
                       return (
@@ -492,7 +496,10 @@ const CollectionsList = ({
                     <Box sx={{ mt: 1 }}>
                       <LocationFeatureList
                         features={locationFeatures}
-                        onFeatureSelect={setSelectedFeature}
+                        onFeatureSelect={feature => {
+                          setSelectedFeature(feature);
+                          showMap();
+                        }}
                       />
                     </Box>
                   )}

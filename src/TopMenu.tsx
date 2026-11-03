@@ -16,21 +16,22 @@ import LayerManager from './LayerManager';
 import ValidationPopover from './ValidationPopover';
 import { useService } from './contexts/ServiceContext';
 import { useCollection } from './contexts/CollectionContext';
+import { useSidebar } from './contexts/SidebarContext';
 import systemServices from './config/services.json';
 import { ServiceDefinition } from './types/ServiceType';
 
 const typedSystemServices: ServiceDefinition[] = systemServices as ServiceDefinition[];
 
 interface TopMenuProps {
-  onMenuClick: () => void;
   onSettingsClick: () => void;
 }
 
-const TopMenu: React.FC<TopMenuProps> = ({ onMenuClick, onSettingsClick }) => {
+const TopMenu: React.FC<TopMenuProps> = ({ onSettingsClick }) => {
   const theme = useTheme();
   const showBreadcrumb = useMediaQuery(theme.breakpoints.up('md'));
   const { activeServiceUrl, customServices, landingPageTitle } = useService();
   const { selectedCollection } = useCollection();
+  const { sidebarOpen, toggleSidebar } = useSidebar();
 
   const systemService = typedSystemServices.find(s => s.url === activeServiceUrl);
   const customService = customServices.find(s => s.url === activeServiceUrl);
@@ -38,15 +39,18 @@ const TopMenu: React.FC<TopMenuProps> = ({ onMenuClick, onSettingsClick }) => {
   const collectionName = selectedCollection?.title ?? selectedCollection?.id;
 
   return (
-    <AppBar position="static" >
+    // Clear of the notch and status bar, which it extends under
+    <AppBar position="static" sx={{ pt: 'var(--safe-top)', pl: 'var(--safe-left)', pr: 'var(--safe-right)' }}>
       <Toolbar variant="dense">
         <IconButton
           size="small"
           edge="start"
           color="inherit"
-          aria-label="menu"
+          aria-label="Side panel"
+          aria-controls="sidebar"
+          aria-expanded={sidebarOpen}
           sx={{ mr: 2 }}
-          onClick={onMenuClick}
+          onClick={toggleSidebar}
         >
           <MenuIcon />
         </IconButton>

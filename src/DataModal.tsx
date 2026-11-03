@@ -23,6 +23,7 @@ import Tooltip from '@mui/material/Tooltip';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
 import { useTheme } from '@mui/material/styles';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import VirtualizedCodeView from './VirtualizedCodeView';
 import CoverageJsonChart from './CoverageJsonChart';
 import FetchErrorAlert from './FetchErrorAlert';
@@ -63,6 +64,7 @@ const DataModal: React.FC<DataModalProps> = ({
   scrollToPath,
 }) => {
   const theme = useTheme();
+  const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
   const [viewMode, setViewMode] = useState<'code' | 'preview'>('code');
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [copiedData, setCopiedData] = useState(false);
@@ -130,20 +132,16 @@ const DataModal: React.FC<DataModalProps> = ({
       onClose={onClose}
       maxWidth="xl"
       fullWidth
+      // Full screen on phones, where the theme keeps it clear of the notch and home indicator
+      fullScreen={fullScreen}
       slotProps={{
         paper: {
-          sx: {
-            height: { xs: '100vh', sm: '90vh' },
-            maxHeight: { xs: '100vh', sm: '90vh' },
-            m: { xs: 0, sm: 4 },
-            width: { xs: '100%', sm: undefined },
-            maxWidth: { xs: '100%', sm: undefined },
-            borderRadius: { xs: 0, sm: 1 },
-          }
+          sx: fullScreen ? undefined : { height: '90vh', maxHeight: '90vh', m: 4 },
         }
       }}
     >
-      <DialogTitle sx={{ m: 0, p: 2, pr: 6 }}>
+      {/* Positioned for the close button, which then stays below a notch's inset */}
+      <DialogTitle sx={{ m: 0, p: 2, pr: 6, position: 'relative' }}>
         <Typography variant="h6" component="div" noWrap>
           API Response
         </Typography>

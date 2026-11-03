@@ -17,6 +17,7 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 import { useCollection } from './contexts/CollectionContext';
 import { useService } from './contexts/ServiceContext';
 import { useGeoJsonLayers } from './contexts/GeoJsonLayerContext';
+import { useSidebar } from './contexts/SidebarContext';
 import systemServices from './config/services.json';
 import { ServiceDefinition } from './types/ServiceType';
 import { SERVICE_TYPE_ORDER } from './config/serviceTypeConfig';
@@ -36,6 +37,7 @@ const CommandPalette: React.FC = () => {
   const { collections, selectedCollection, selectCollectionByIndexRef, locationFeatures, setSelectedFeature } = useCollection();
   const { activeServiceUrl, customServices, setSelectedServiceUrl } = useService();
   const { geoJsonLayers, setGeoJsonLayers } = useGeoJsonLayers();
+  const { showMap } = useSidebar();
 
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -227,6 +229,8 @@ const CommandPalette: React.FC = () => {
       };
       const nonSelected = geoJsonLayers.filter(l => !l.title.startsWith('Selected: '));
       setGeoJsonLayers([...nonSelected, featureLayer]);
+      // Where it's shown
+      showMap();
     } else if (activeTab === 'locations') {
       const loc = filteredLocations[index];
       if (!loc) return;
@@ -239,9 +243,10 @@ const CommandPalette: React.FC = () => {
       };
       const nonSelected = geoJsonLayers.filter(l => !l.title.startsWith('Selected: '));
       setGeoJsonLayers([...nonSelected, featureLayer]);
+      showMap();
     }
     handleClose();
-  }, [activeTab, filteredServices, filteredCollections, filteredItems, filteredLocations, selectedCollection?.id, setSelectedServiceUrl, selectCollectionByIndexRef, geoJsonLayers, setGeoJsonLayers, setSelectedFeature, handleClose]);
+  }, [activeTab, filteredServices, filteredCollections, filteredItems, filteredLocations, selectedCollection?.id, setSelectedServiceUrl, selectCollectionByIndexRef, geoJsonLayers, setGeoJsonLayers, setSelectedFeature, handleClose, showMap]);
 
   // Keyboard navigation
   const {
