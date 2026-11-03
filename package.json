@@ -71,7 +71,7 @@
     "schemas": "node scripts/download-schemas.js"
   },
   "overrides": {
-    "dompurify": "^3.3.3"
+    "dompurify": "^3.4.17"
   },
   "engines": {
     "node": ">=24.0.0"
