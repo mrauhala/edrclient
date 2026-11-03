@@ -311,7 +311,8 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
 
       const response = await axios.get(finalUrl, config);
 
-      const contentType = response.headers['content-type'] || '';
+      const contentTypeHeader = response.headers['content-type'];
+      const contentType = typeof contentTypeHeader === 'string' ? contentTypeHeader : '';
       setModalContentType(contentType);
 
       // Binary image response (image/png, image/jpeg, image/webp, image/svg+xml, etc.):

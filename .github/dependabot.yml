@@ -1,0 +1,20 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    # Security updates only: version updates stay off until wanted (raise the limit to turn them on)
+    open-pull-requests-limit: 0
+    # Conventional titles for release-please, since pull requests are squash-merged with their title:
+    # "fix(deps): …" releases a patch for runtime dependencies, which ship in the app and the npm
+    # package; "chore(deps-dev): …" for build tools doesn't
+    commit-message:
+      prefix: fix
+      prefix-development: chore
+      include: scope
+    # One pull request for the security fixes found together, instead of one per package
+    groups:
+      security:
+        applies-to: security-updates
+        patterns: ['*']

@@ -15,7 +15,9 @@ permissions:
 jobs:
   build_and_preview:
     name: Build and Deploy Preview
-    if: '${{ github.event.pull_request.head.repo.full_name == github.repository }}'
+    # Not for forks, which don't get the secrets, nor for Dependabot: its pull requests only get
+    # Dependabot secrets, and the Firebase service account shouldn't be in reach of dependency updates
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-latest
     
     steps:
