@@ -36,7 +36,7 @@ import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import axios from 'axios';
 import { QueryResultValidator } from './QueryResultValidator';
-import { httpErrorMessage, serverErrorDetail } from './api/httpErrors';
+import { httpErrorMessage, isRetryableStatus, serverErrorDetail } from './api/httpErrors';
 
 
 function App() {
@@ -117,7 +117,7 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
   const modalImageUrlRef = useRef<string | null>(null);
   const [modalContentType, setModalContentType] = useState<string | null>(null);
   const [modalLoading, setModalLoading] = useState(false);
-  const [modalError, setModalError] = useState<string | null>(null);
+  const [modalError, setModalError] = useState<{ message: string; retryable: boolean } | null>(null);
   const [modalUrl, setModalUrl] = useState<string>('');
   const [modalValidationErrors, setModalValidationErrors] = useState<import('./types/api').ValidationError[]>([]);
   const [modalValidationSchemaName, setModalValidationSchemaName] = useState<string | null>(null);
@@ -251,16 +251,15 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
     }
   };
 
-  const handleFetchData = useCallback(async () => {
-    if (!collectionUrl) return;
-
+  // Fetches a query into the result window
+  const fetchQuery = useCallback(async (url: string) => {
     // Cancel any in-flight fetch
     fetchControllerRef.current?.abort();
     const controller = new AbortController();
     fetchControllerRef.current = controller;
 
     setModalOpen(true);
-    setModalUrl(collectionUrl);
+    setModalUrl(url);
     setModalValidationErrors([]);
     setModalValidationSchemaName(null);
     setModalScrollToPath(undefined);
@@ -276,12 +275,12 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
     setModalImageUrl(null);
 
     try {
-      const auth = getAuthCredentials(collectionUrl);
+      const auth = getAuthCredentials(url);
 
       // Add API key to URL if provided
-      let finalUrl = collectionUrl;
+      let finalUrl = url;
       if (auth && (auth as any).apiKey) {
-        const urlObj = new URL(collectionUrl);
+        const urlObj = new URL(url);
         const paramName = (auth as any).apiKeyParam || 'api-key';
         urlObj.searchParams.set(paramName, (auth as any).apiKey);
         finalUrl = urlObj.toString();
@@ -332,7 +331,7 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
 
       // Validate query result against registered schemas (e.g. CoverageJSON)
       try {
-        const validation = await QueryResultValidator.getInstance().validate(responseData, contentType, collectionUrl);
+        const validation = await QueryResultValidator.getInstance().validate(responseData, contentType, url);
         if (validation.matched) {
           setModalValidationSchemaName(validation.schemaName || null);
           setModalValidationErrors(validation.errors || []);
@@ -350,13 +349,13 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
           
           if (geoJsonData.type === 'FeatureCollection' || geoJsonData.type === 'Feature') {
             // Generate a title from the URL or use a default
-            const urlParts = collectionUrl.split('/');
+            const urlParts = url.split('/');
             const collectionName = urlParts.find(part => part.includes('collections'))
               ? urlParts[urlParts.indexOf(urlParts.find(part => part.includes('collections'))!) + 1]
               : 'Fetched Data';
             
             const newLayer = {
-              url: collectionUrl,
+              url,
               title: `${collectionName} (Fetched)`,
               visible: true,
               labelProperty: 'name',
@@ -365,7 +364,7 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
 
             // Add layer if it doesn't already exist
             setGeoJsonLayers(prev => {
-              const exists = prev.some(layer => layer.url === collectionUrl);
+              const exists = prev.some(layer => layer.url === url);
               if (exists) {
                 return prev;
               }
@@ -384,9 +383,8 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
 
       // Classify error for actionable feedback, with what the server says went wrong
       let message = error.message || 'Failed to fetch data';
-      const httpMessage = error.response?.status
-        ? httpErrorMessage(error.response.status, serverErrorDetail(error.response.data))
-        : null;
+      const status: number | undefined = error.response?.status;
+      const httpMessage = status ? httpErrorMessage(status, serverErrorDetail(error.response.data)) : null;
 
       if (httpMessage) {
         message = httpMessage;
@@ -404,11 +402,22 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
         message = 'Network error. The API may be unreachable or blocking cross-origin requests (CORS).';
       }
 
-      setModalError(message);
+      // Without a response (network failures, timeouts, CORS, which the browser can't tell apart),
+      // the same request may well work next time
+      setModalError({ message, retryable: status ? isRetryableStatus(status) : true });
     } finally {
       setModalLoading(false);
     }
-  }, [collectionUrl, getAuthCredentials, setGeoJsonLayers]);
+  }, [getAuthCredentials, setGeoJsonLayers]);
+
+  const handleFetchData = useCallback(() => {
+    if (collectionUrl) fetchQuery(collectionUrl);
+  }, [collectionUrl, fetchQuery]);
+
+  // The result window's Try again: the request that failed, even if the query builder has moved on
+  const handleRetryFetch = useCallback(() => {
+    if (modalUrl) fetchQuery(modalUrl);
+  }, [modalUrl, fetchQuery]);
 
   // Cmd+Enter (Mac) / Ctrl+Enter (Windows) to fetch data
   useEffect(() => {
@@ -585,7 +594,8 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
             imageUrl={modalImageUrl}
             contentType={modalContentType}
             isLoading={modalLoading}
-            error={modalError}
+            error={modalError?.message ?? null}
+            onRetry={modalError?.retryable ? handleRetryFetch : undefined}
             url={modalUrl || collectionUrl}
             validationErrors={modalValidationErrors}
             validationSchemaName={modalValidationSchemaName}
