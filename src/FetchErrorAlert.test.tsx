@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import FetchErrorAlert from './FetchErrorAlert';
 
-const RATE_LIMITED = 'Rate limited (429): Server is busy. Please try again later.';
+const RATE_LIMITED = 'Too many requests (429): Server is busy. Please try again later.';
 
 describe('FetchErrorAlert', () => {
   it('shows the error with a Try again button when the request can be retried', () => {

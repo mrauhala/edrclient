@@ -44,12 +44,12 @@ describe('httpErrorMessage', () => {
 
   it('keeps advice that still applies', () => {
     expect(httpErrorMessage(401, 'Invalid API key')).toBe('Authentication failed (401): Invalid API key. Check your credentials in Settings (S).');
-    expect(httpErrorMessage(429, 'Quota of 100 requests per minute exceeded')).toBe('Rate limited (429): Quota of 100 requests per minute exceeded. Wait a moment and try again.');
-    expect(httpErrorMessage(429)).toBe('Rate limited (429). Wait a moment and try again.');
+    expect(httpErrorMessage(429, 'Quota of 100 requests per minute exceeded')).toBe('Too many requests (429): Quota of 100 requests per minute exceeded. Wait a moment and try again.');
+    expect(httpErrorMessage(429)).toBe('Too many requests (429). Wait a moment and try again.');
   });
 
   it("doesn't repeat advice the server already gives", () => {
-    expect(httpErrorMessage(429, 'Server is busy. Please try again later.')).toBe('Rate limited (429): Server is busy. Please try again later.');
+    expect(httpErrorMessage(429, 'Server is busy. Please try again later.')).toBe('Too many requests (429): Server is busy. Please try again later.');
   });
 
   it('falls back to the advice when the server only names the status, or says nothing', () => {
