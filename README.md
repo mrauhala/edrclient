@@ -4,7 +4,7 @@ A browser for OGC API services. Point it at an OGC API - EDR, Features, Maps, Re
 endpoint to explore its collections on a map, build and run data queries, and see how well the
 service follows the standards.
 
-**Use it online:** https://ogcbrowser.rauhala.app (also at https://mrauhala.github.io/ogcapibrowser/)
+**Use it online:** https://ogcbrowser.rauhala.app (also at https://mrauhala.github.io/ogcapi-browser/)
 
 ## Features
 
@@ -32,19 +32,19 @@ service follows the standards.
 **With npx**, no clone needed (requires Node.js):
 
 ```bash
-npx ogcapibrowser              # http://localhost:3000
-npx ogcapibrowser --port 8080
+npx ogcapi-browser              # http://localhost:3000
+npx ogcapi-browser --port 8080
 ```
 
 **With Docker:**
 
 ```bash
-docker run --rm -p 8080:8080 ghcr.io/mrauhala/ogcapibrowser:latest   # http://localhost:8080
+docker run --rm -p 8080:8080 ghcr.io/mrauhala/ogcapi-browser:latest   # http://localhost:8080
 ```
 
 The image serves the app with nginx as a non-root user. To build it yourself:
-`docker build -t ogcapibrowser .`. To serve it under a sub-path behind a proxy that strips the
-prefix, add `--build-arg BASE_PATH=/ogcapibrowser/`.
+`docker build -t ogcapi-browser .`. To serve it under a sub-path behind a proxy that strips the
+prefix, add `--build-arg BASE_PATH=/ogcapi-browser/`.
 
 ## Basemap
 
@@ -54,7 +54,7 @@ Carto's `dark_all` instead:
 - **Development:** `VITE_CARTO_API_KEY=…` in `.env.local` (git-ignored). Restart the dev server after
   changing it. Carto won't add localhost to a key already restricted to published websites, so use a
   separate key for local development.
-- **npx:** `npx ogcapibrowser --carto-api-key …`, or the `CARTO_API_KEY` environment variable. It
+- **npx:** `npx ogcapi-browser --carto-api-key …`, or the `CARTO_API_KEY` environment variable. It
   applies at serve time, since the package ships a prebuilt app.
 
 The key ends up in the browser, so it is public: restrict it to your sites in Carto.

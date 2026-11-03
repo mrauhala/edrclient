@@ -7,7 +7,7 @@ describe('publicUrl', () => {
   });
 
   it('puts them under the base path a deployment uses (GitHub Pages)', () => {
-    expect(publicUrl('/schemas/covjson/1.0/coveragejson.json', '/ogcapibrowser/')).toBe('/ogcapibrowser/schemas/covjson/1.0/coveragejson.json');
-    expect(publicUrl('iwxxm-transform.xsl', '/ogcapibrowser')).toBe('/ogcapibrowser/iwxxm-transform.xsl');
+    expect(publicUrl('/schemas/covjson/1.0/coveragejson.json', '/ogcapi-browser/')).toBe('/ogcapi-browser/schemas/covjson/1.0/coveragejson.json');
+    expect(publicUrl('iwxxm-transform.xsl', '/ogcapi-browser')).toBe('/ogcapi-browser/iwxxm-transform.xsl');
   });
 });
