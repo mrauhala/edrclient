@@ -9,7 +9,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import SettingsIcon from '@mui/icons-material/Settings';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import Tooltip from '@mui/material/Tooltip';
-import { useTheme } from '@mui/material/styles';
+import { getOverlayAlpha, lighten, useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import CommandPalette from './CommandPalette';
 import LayerManager from './LayerManager';
@@ -21,6 +21,9 @@ import systemServices from './config/services.json';
 import { ServiceDefinition } from './types/ServiceType';
 
 const typedSystemServices: ServiceDefinition[] = systemServices as ServiceDefinition[];
+
+// MUI's default for an AppBar
+const BAR_ELEVATION = 4;
 
 interface TopMenuProps {
   onSettingsClick: () => void;
@@ -39,8 +42,24 @@ const TopMenu: React.FC<TopMenuProps> = ({ onSettingsClick }) => {
   const collectionName = selectedCollection?.title ?? selectedCollection?.id;
 
   return (
-    // Clear of the notch and status bar, which it extends under
-    <AppBar position="static" sx={{ pt: 'var(--safe-top)', pl: 'var(--safe-left)', pr: 'var(--safe-right)' }}>
+    <>
+    {/* Under the status bar iOS 26 blurs the page's top edge, so the bar's top looked blurred. It fills the
+        status bar with a colour instead when a fixed, opaque, full-width box covers that edge, taking the
+        box's background-color. So the bar is fixed, and in dark mode its elevation overlay (a background
+        image) is part of that colour. The padding keeps its content clear of the notch and status bar */}
+    <AppBar
+      position="fixed"
+      elevation={BAR_ELEVATION}
+      sx={{
+        pt: 'var(--safe-top)',
+        pl: 'var(--safe-left)',
+        pr: 'var(--safe-right)',
+        ...(theme.palette.mode === 'dark' && {
+          backgroundColor: lighten(theme.palette.background.paper, getOverlayAlpha(BAR_ELEVATION)),
+          backgroundImage: 'none',
+        }),
+      }}
+    >
       <Toolbar variant="dense">
         <IconButton
           size="small"
@@ -116,6 +135,11 @@ const TopMenu: React.FC<TopMenuProps> = ({ onSettingsClick }) => {
         </Box>
       </Toolbar>
     </AppBar>
+    {/* Holds the fixed bar's place in the layout */}
+    <Box aria-hidden sx={{ flexShrink: 0, pt: 'var(--safe-top)' }}>
+      <Toolbar variant="dense" />
+    </Box>
+    </>
   );
 };
 
