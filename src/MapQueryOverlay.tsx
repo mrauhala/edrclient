@@ -1,4 +1,5 @@
 import React, { type ReactNode } from 'react';
+import MapSelectionInfo, { type MapSelection } from './MapSelectionInfo';
 
 // What the map asks for in each query type, and the button that clears it. An optional geometry
 // (an items box) gets no prompt, only the clear button.
@@ -24,25 +25,31 @@ const PROMPTS: Record<string, QueryPrompt> = {
 };
 
 const ACCENTS = {
-  red: { border: 'rgba(255, 0, 0, 0.6)', title: '#FF4444' },
-  blue: { border: 'rgba(0, 123, 255, 0.6)', title: '#007BFF' },
+  red: { border: 'rgba(255, 0, 0, 0.6)', title: '#FF4444', selection: 'rgba(255, 255, 255, 0.2)' },
+  blue: { border: 'rgba(0, 123, 255, 0.6)', title: '#007BFF', selection: 'rgba(0, 123, 255, 0.5)' },
+};
+
+// The prompt and then the selection take the bottom left corner, out of the way of where people click
+// and clear of the collection panel (top left), the clear button (top right) and the attribution
+// button and legends (bottom right)
+const cornerStyle: React.CSSProperties = {
+  position: 'absolute',
+  bottom: '10px',
+  left: '10px',
+  maxWidth: 'calc(100% - 64px)',
+  zIndex: 1000,
 };
 
 const promptStyle: React.CSSProperties = {
-  position: 'absolute',
-  top: '50%',
-  left: '50%',
-  transform: 'translate(-50%, -50%)',
+  ...cornerStyle,
   backgroundColor: 'rgba(0, 0, 0, 0.9)',
   color: 'white',
-  padding: '16px 24px',
+  padding: '10px 14px',
   borderRadius: '8px',
-  fontSize: '14px',
+  fontSize: '13px',
   fontWeight: 'normal',
-  zIndex: 1000,
   boxShadow: '0 4px 8px rgba(0,0,0,0.5)',
-  textAlign: 'center',
-  // Taps and clicks on it reach the map: on a phone it covers the middle, where people tap first
+  // Clicks on it reach the map
   pointerEvents: 'none',
 };
 
@@ -64,11 +71,12 @@ interface MapQueryOverlayProps {
   isDrawing: boolean;
   onClear: () => void;
   radiusLabel?: string;
+  selection?: MapSelection; // what the query has from the map, listed once it has it
   children?: ReactNode; // controls shown under the clear button, e.g. the radius slider
 }
 
-// The prompt in the middle of the map until the query has its geometry, then the clear button
-const MapQueryOverlay: React.FC<MapQueryOverlayProps> = ({ queryType, hasGeometry, isDrawing, onClear, radiusLabel = '', children }) => {
+// The prompt until the query has its geometry, then what it has and the clear button
+const MapQueryOverlay: React.FC<MapQueryOverlayProps> = ({ queryType, hasGeometry, isDrawing, onClear, radiusLabel = '', selection, children }) => {
   const prompt = PROMPTS[queryType];
   if (!prompt) return null;
   const accent = ACCENTS[prompt.accent];
@@ -76,8 +84,13 @@ const MapQueryOverlay: React.FC<MapQueryOverlayProps> = ({ queryType, hasGeometr
     <>
       {!hasGeometry && prompt.title && (
         <div style={{ ...promptStyle, border: `2px solid ${accent.border}` }}>
-          <div style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '16px', color: accent.title }}>{prompt.title}</div>
+          <div style={{ fontWeight: 'bold', marginBottom: '4px', fontSize: '14px', color: accent.title }}>{prompt.title}</div>
           <div>{prompt.text?.replace('{radius}', radiusLabel)}</div>
+        </div>
+      )}
+      {hasGeometry && selection && selection.items.length > 0 && (
+        <div style={cornerStyle}>
+          <MapSelectionInfo {...selection} borderColor={accent.selection} />
         </div>
       )}
       {(hasGeometry || isDrawing) && (

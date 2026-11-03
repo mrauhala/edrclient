@@ -75,99 +75,6 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
         <DraggableMapPanel collection={selectedCollection} fallbackLicense={landingPageLicense} />
       )}
 
-      {/* Coordinates Legend - Lower Right Corner */}
-      {clickedCoords && clickedCoords.length > 0 && (
-        <div
-          style={{
-            position: 'absolute',
-            bottom: '10px',
-            right: '10px',
-            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-            color: 'white',
-            padding: '8px 12px',
-            borderRadius: '6px',
-            fontSize: '12px',
-            fontWeight: 'normal',
-            zIndex: 1000,
-            boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
-            border: '1px solid rgba(255,255,255,0.2)',
-            fontFamily: 'monospace',
-          }}
-        >
-          <div style={{ fontWeight: 'bold', marginBottom: '4px', fontSize: '11px', opacity: 0.7 }}>
-            Selected Points ({clickedCoords.length})
-          </div>
-          {clickedCoords.map((coords, idx) => (
-            <div key={idx} style={{ fontSize: '10px', marginTop: idx > 0 ? '4px' : '0' }}>
-              {idx + 1}. Lat: {coords[1].toFixed(6)}°, Lon: {coords[0].toFixed(6)}°
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Area Selection Info - Lower Right Corner */}
-      {selectedArea && selectedArea.length > 0 && (
-        <div
-          style={{
-            position: 'absolute',
-            bottom: '10px',
-            right: '10px',
-            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-            color: 'white',
-            padding: '8px 12px',
-            borderRadius: '6px',
-            fontSize: '12px',
-            fontWeight: 'normal',
-            zIndex: 1000,
-            boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
-            border: '1px solid rgba(255,255,255,0.2)',
-            fontFamily: 'monospace',
-          }}
-        >
-          <div style={{ fontWeight: 'bold', marginBottom: '4px', fontSize: '11px', opacity: 0.7 }}>
-            Selected Polygons ({selectedArea.length})
-          </div>
-          {selectedArea.map((polygon, idx) => (
-            <div key={idx} style={{ fontSize: '10px' }}>
-              {idx + 1}. {polygon.length} vertices
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Radius Selection Info - Lower Right Corner */}
-      {dataQuery === 'radius' && clickedCoords && clickedCoords.length > 0 && (
-        <div
-          style={{
-            position: 'absolute',
-            bottom: '10px',
-            right: '10px',
-            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-            color: 'white',
-            padding: '8px 12px',
-            borderRadius: '6px',
-            fontSize: '12px',
-            fontWeight: 'normal',
-            zIndex: 1000,
-            boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
-            border: '1px solid rgba(0, 123, 255, 0.5)',
-            fontFamily: 'monospace',
-          }}
-        >
-          <div style={{ fontWeight: 'bold', marginBottom: '4px', fontSize: '11px', opacity: 0.7 }}>
-            Selected Points ({clickedCoords.length})
-          </div>
-          {clickedCoords.map((coords, idx) => (
-            <div key={idx} style={{ fontSize: '10px', marginTop: idx > 0 ? '4px' : '0' }}>
-              {idx + 1}. Lat: {coords[1].toFixed(6)}°, Lon: {coords[0].toFixed(6)}°
-            </div>
-          ))}
-          <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.2)', fontWeight: 'bold' }}>
-            Radius: {radius} {radiusUnits}
-          </div>
-        </div>
-      )}
-
       {/* What the query needs from the map, and clearing it */}
       <MapQueryOverlay
         queryType={dataQuery}
@@ -180,6 +87,13 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
           setSelectedBbox(null);
         }}
         radiusLabel={`${radius} ${radiusUnits}`}
+        selection={geometryKind === 'polygon'
+          ? { title: 'Selected Polygons', items: selectedArea.map(polygon => `${polygon.length} vertices`) }
+          : {
+            title: 'Selected Points',
+            items: clickedCoords.map(([lon, lat]) => `Lat: ${lat.toFixed(6)}°, Lon: ${lon.toFixed(6)}°`),
+            footer: dataQuery === 'radius' ? `Radius: ${radius} ${radiusUnits}` : undefined,
+          }}
       >
         {dataQuery === 'radius' && (
           <div
