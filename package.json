@@ -1,5 +1,5 @@
 {
-  "name": "ogcapibrowser",
+  "name": "ogcapi-browser",
   "version": "0.1.0",
   "license": "MIT OR Apache-2.0",
   "description": "Browser for OGC API services: explore EDR, Features, Maps, Records and STAC collections on a map, and build and validate data queries",
@@ -18,14 +18,14 @@
   "homepage": "https://ogcbrowser.rauhala.app",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mrauhala/ogcapibrowser.git"
+    "url": "git+https://github.com/mrauhala/ogcapi-browser.git"
   },
   "bugs": {
-    "url": "https://github.com/mrauhala/ogcapibrowser/issues"
+    "url": "https://github.com/mrauhala/ogcapi-browser/issues"
   },
   "author": "Mikko Rauhala",
   "bin": {
-    "ogcapibrowser": "bin/cli.mjs"
+    "ogcapi-browser": "bin/cli.mjs"
   },
   "files": [
     "build",

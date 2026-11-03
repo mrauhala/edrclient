@@ -8,7 +8,7 @@ COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
 # The path the app is served under. Leave / unless a proxy serves it under a sub-path
-# (e.g. --build-arg BASE_PATH=/ogcapibrowser/ behind a proxy that strips that prefix)
+# (e.g. --build-arg BASE_PATH=/ogcapi-browser/ behind a proxy that strips that prefix)
 ARG BASE_PATH=/
 RUN npm run build -- --base="${BASE_PATH}"
 

@@ -68,10 +68,10 @@ This project uses GitHub Actions for continuous integration, testing, and deploy
 ### 6. GitHub Pages (`github-pages.yml`)
 **Triggers:** Push to `main` branch, or run manually (Actions → Deploy to GitHub Pages → Run workflow)
 
-**Purpose:** Publishes the application to GitHub Pages at https://mrauhala.github.io/ogcapibrowser/.
+**Purpose:** Publishes the application to GitHub Pages at https://mrauhala.github.io/ogcapi-browser/.
 
 **Jobs:**
-- Builds with the base path GitHub Pages reports (`/ogcapibrowser/`), so assets and the bundled schemas load from the sub-path
+- Builds with the base path GitHub Pages reports (`/ogcapi-browser/`), so assets and the bundled schemas load from the sub-path
 - Deploys with `actions/deploy-pages` to the `github-pages` environment; no secrets needed
 
 **Setup:** Settings → Pages → Build and deployment → Source: **GitHub Actions**.
@@ -79,7 +79,7 @@ This project uses GitHub Actions for continuous integration, testing, and deploy
 ### 7. Docker image (`docker.yml`)
 **Triggers:** Push to `main`, version tags (`v*`), pull requests to `main`, or run manually
 
-**Purpose:** Builds the Docker image (nginx serving the static build) and publishes it to GitHub Container Registry as `ghcr.io/mrauhala/ogcapibrowser`.
+**Purpose:** Builds the Docker image (nginx serving the static build) and publishes it to GitHub Container Registry as `ghcr.io/mrauhala/ogcapi-browser`.
 
 **Jobs:**
 - Builds for `linux/amd64` and `linux/arm64`; the app itself is built once on the runner's platform
@@ -119,8 +119,8 @@ The following secrets must be configured in your GitHub repository:
 Add these badges to your main README.md:
 
 ```markdown
-![CI](https://github.com/mrauhala/ogcapibrowser/workflows/CI/badge.svg)
-![Deploy to Firebase Hosting (Production)](https://github.com/mrauhala/ogcapibrowser/workflows/Deploy%20to%20Firebase%20Hosting%20(Production)/badge.svg)
+![CI](https://github.com/mrauhala/ogcapi-browser/workflows/CI/badge.svg)
+![Deploy to Firebase Hosting (Production)](https://github.com/mrauhala/ogcapi-browser/workflows/Deploy%20to%20Firebase%20Hosting%20(Production)/badge.svg)
 ```
 
 ## Troubleshooting

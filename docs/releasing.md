@@ -1,15 +1,15 @@
 # Releasing
 
 Merging to `main` deploys the web app on its own. A release adds a version number: the npm package
-(`npx ogcapibrowser`) and versioned Docker image tags.
+(`npx ogcapi-browser`) and versioned Docker image tags.
 
 ## What happens on a merge to `main`
 
 | Target | Workflow | Result |
 |---|---|---|
 | Firebase Hosting | `firebase-hosting-merge.yml` | https://ogcbrowser.rauhala.app |
-| GitHub Pages | `github-pages.yml` | https://mrauhala.github.io/ogcapibrowser/ |
-| GitHub Container Registry | `docker.yml` | `ghcr.io/mrauhala/ogcapibrowser:latest` and `:sha-<commit>` |
+| GitHub Pages | `github-pages.yml` | https://mrauhala.github.io/ogcapi-browser/ |
+| GitHub Container Registry | `docker.yml` | `ghcr.io/mrauhala/ogcapi-browser:latest` and `:sha-<commit>` |
 
 `main` is protected: every change goes through a pull request, and the checks "Lint & Type Check"
 and "Build" must pass.
