@@ -26,6 +26,12 @@ body,
   }
 }
 
+/* Every touch on the map is the map's own: OpenLayers' pan-x pan-y would let the browser take a drag
+   before it moves past the map's tap tolerance */
+#map .ol-viewport {
+  touch-action: none;
+}
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',

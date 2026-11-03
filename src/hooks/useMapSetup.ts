@@ -218,6 +218,9 @@ export function useMapSetup(zoomLevel: number): UseMapSetupReturn {
         altShiftDragRotate: false,
         pinchRotate: false,
       }),
+      // A finger moves a few pixels during a tap, and past the default 1 px OpenLayers takes it for a
+      // drag: on a phone most taps added no point
+      moveTolerance: window.matchMedia('(pointer: coarse)').matches ? 10 : 1,
       layers: [
         ...basemapLayers(),
         newVectorLayer,
