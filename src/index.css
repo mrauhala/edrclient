@@ -1,3 +1,37 @@
+/* Draw under notches and the home indicator; the app keeps its content clear with these insets */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+}
+
+/* The app fills the screen and scrolls only inside its panels: the page itself never scrolls,
+   bounces or pulls to refresh, which would move the whole UI or reload it */
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+/* iOS zooms in on inputs under 16px when they get focus. !important beats the components' own
+   (class selector) font sizes */
+@media (pointer: coarse) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* Every touch on the map is the map's own: OpenLayers' pan-x pan-y would let the browser take a drag
+   before it moves past the map's tap tolerance */
+#map .ol-viewport {
+  touch-action: none;
+}
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',

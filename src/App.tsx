@@ -23,6 +23,8 @@ import { QueryValidationProvider } from './contexts/QueryValidationContext';
 import { useQueryValidation } from './hooks/useQueryValidation';
 import { useCollectionKeyboardNav } from './hooks/useCollectionKeyboardNav';
 import { ServiceProvider, useService } from './contexts/ServiceContext';
+import { SidebarProvider, useSidebarState } from './contexts/SidebarContext';
+import MapListToggle from './MapListToggle';
 import Paper from '@mui/material/Paper';
 import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
@@ -98,7 +100,6 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
   });
 
   const [settingsDrawerOpen, setSettingsDrawerOpen] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false);
 
   const { setGeoJsonLayers } = useGeoJsonLayers();
@@ -139,9 +140,42 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
     return themeMode;
   }, [themeMode, prefersDarkMode]);
 
-  const handleSidebarToggle = useCallback(() => {
-    setSidebarOpen(prev => !prev);
-  }, []);
+  // Create theme based on actual mode
+  const theme = useMemo(
+    () =>
+      createTheme({
+        palette: {
+          mode: actualMode,
+        },
+        components: {
+          // Drawers and full-screen dialogs touch the screen's edges: keep their content clear of
+          // notches, the home indicator and gesture bars (the --safe-* variables in index.css)
+          MuiDrawer: {
+            styleOverrides: {
+              paper: ({ ownerState }) => ({
+                paddingTop: ownerState.anchor === 'bottom' ? undefined : 'var(--safe-top)',
+                paddingRight: ownerState.anchor === 'left' ? undefined : 'var(--safe-right)',
+                paddingBottom: ownerState.anchor === 'top' ? undefined : 'var(--safe-bottom)',
+                paddingLeft: ownerState.anchor === 'right' ? undefined : 'var(--safe-left)',
+              }),
+            },
+          },
+          MuiDialog: {
+            styleOverrides: {
+              paperFullScreen: {
+                padding: 'var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left)',
+              },
+            },
+          },
+        },
+      }),
+    [actualMode]
+  );
+
+  // Phones show the sidebar over the map, so the two take turns
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'), { noSsr: true });
+  const sidebar = useSidebarState(isMobile);
+  const { sidebarOpen, toggleSidebar } = sidebar;
 
   const handleSettingsDrawerToggle = useCallback(() => {
     setSettingsDrawerOpen(prev => !prev);
@@ -156,7 +190,7 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
 
       switch (e.key.toLowerCase()) {
         case 'b':
-          handleSidebarToggle();
+          toggleSidebar();
           break;
         case 's':
           handleSettingsDrawerToggle();
@@ -187,7 +221,7 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [handleSidebarToggle, handleSettingsDrawerToggle]);
+  }, [toggleSidebar, handleSettingsDrawerToggle]);
 
   // Listen for validation error clicks to open API response viewer with stored data
   const handleOpenValidationResponse = useCallback((e: Event) => {
@@ -232,18 +266,6 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
     // Reset after a short delay so it can be triggered again if needed
     setTimeout(() => setSelectedServiceUrl(null), 100);
   };
-
-  // Create theme based on actual mode
-  const theme = useMemo(
-    () =>
-      createTheme({
-        palette: {
-          mode: actualMode,
-        },
-      }),
-    [actualMode]
-  );
-
 
   const handleCopyUrl = () => {
     if (collectionUrl) {
@@ -459,24 +481,27 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
 
   return (
     <ThemeProvider theme={theme}>
+    <SidebarProvider value={sidebar}>
       <CssBaseline />
-      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
-        <TopMenu onMenuClick={handleSidebarToggle} onSettingsClick={handleSettingsDrawerToggle} />
+      {/* The visible viewport (dvh), not the one with the browser's toolbars hidden (vh), which is taller on phones */}
+      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', '@supports (height: 100dvh)': { height: '100dvh' }, overflow: 'hidden' }}>
+        <TopMenu onSettingsClick={handleSettingsDrawerToggle} />
       
+      {/* Positioned, so that on phones the sidebar covers just this row, between the menu and the bottom bar */}
       <Box 
         sx={{ 
           display: 'flex', 
           flex: 1, 
+          minHeight: 0,
+          position: 'relative',
           overflow: 'hidden',
-          paddingBottom: '56px', // Height of the bottom bar
         }}
       >
         <ErrorBoundary fallbackMessage="Sidebar crashed. Click Retry to recover.">
-          <Sidebar
-            open={sidebarOpen}
-          />
+          <Sidebar />
         </ErrorBoundary>
         
+        {/* Clear of a notch on the sides in landscape, unless the sidebar is between */}
         <Box 
           component="main" 
           sx={{ 
@@ -484,6 +509,8 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
             height: '100%',
             position: 'relative',
             overflow: 'hidden',
+            pl: sidebarOpen && !isMobile ? 0 : 'var(--safe-left)',
+            pr: 'var(--safe-right)',
           }}
         >
           <ErrorBoundary fallbackMessage="Map crashed. Click Retry to recover.">
@@ -496,21 +523,23 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
         </Box>
       </Box>
       
-      {/* Fixed Bottom Query Bar - Always Visible */}
+      {/* Bottom query bar, always visible. Above the sidebar, which covers the map on phones, and clear of the home indicator */}
       <Paper 
         elevation={8}
         sx={{ 
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
+          flexShrink: 0,
+          position: 'relative',
           zIndex: 1200,
           borderRadius: 0,
           borderTop: '1px solid rgba(0, 0, 0, 0.12)',
-          height: '56px',
+          pb: 'var(--safe-bottom)',
+          pl: 'var(--safe-left)',
+          pr: 'var(--safe-right)',
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', p: 1, gap: 1, height: '100%' }}>
+        {/* 56px with the border */}
+        <Box sx={{ display: 'flex', alignItems: 'center', p: 1, gap: 1, height: 55 }}>
+          <MapListToggle />
           {collectionUrl ? (
             <>
               <TextField
@@ -562,7 +591,7 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
               })()}
             </>
           ) : (
-            <Typography variant="body2" sx={{ color: 'text.secondary', pl: 1 }}>
+            <Typography variant="body2" noWrap sx={{ color: 'text.secondary', pl: 1 }}>
               Select a collection and query to generate URL
             </Typography>
           )}
@@ -604,6 +633,7 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
         </Suspense>
       </ErrorBoundary>
     </Box>
+    </SidebarProvider>
     </ThemeProvider>
   );
 }

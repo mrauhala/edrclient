@@ -24,3 +24,10 @@ export const EDR_QUERY_RULES: Readonly<Record<string, EdrQueryRule>> = {
   locations: { geometry: 'none', minVertices: 0, required: [] },
   instances: { geometry: 'none', minVertices: 0, required: [] },
 };
+
+// Whether the query needs a point, line, area or box drawn on the map: position, radius, area, cube,
+// trajectory and corridor. Items' box is optional
+export function mapInputRequired(queryType: string): boolean {
+  const rule = Object.prototype.hasOwnProperty.call(EDR_QUERY_RULES, queryType) ? EDR_QUERY_RULES[queryType] : undefined;
+  return !!rule && rule.required.some(param => param === 'coords' || param === 'bbox');
+}

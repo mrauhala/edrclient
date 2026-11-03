@@ -20,7 +20,8 @@ import QueryIssuesPanel, { FieldIssueText } from './QueryIssuesPanel';
 import QueryTypeInputs from './QueryTypeInputs';
 import InstancePicker from './InstancePicker';
 import { queryTypeOf, queryVariables, unitsFor } from './query/queryTypes';
-import { EDR_QUERY_RULES } from './query/edrRules';
+import { EDR_QUERY_RULES, mapInputRequired } from './query/edrRules';
+import { useSidebar } from './contexts/SidebarContext';
 import { useQueryValidation } from './hooks/useQueryValidation';
 
 interface CollectionQueryBuilderProps {
@@ -573,6 +574,7 @@ const QueryFields: React.FC<{ collection: Collection; queryKey: string; querySta
 
 const CollectionQueryBuilder: React.FC<CollectionQueryBuilderProps> = ({ collection, queryState }) => {
   const { selectedDataQuery, selectDataQuery, selectedInstance, instanceQueryKey } = queryState;
+  const { showMap } = useSidebar();
   const instanceMode = !!selectedDataQuery && queryTypeOf(collection, selectedDataQuery) === 'instances';
   // What the fields describe: the collection's query, or the picked instance's
   const target = instanceMode
@@ -589,7 +591,11 @@ const CollectionQueryBuilder: React.FC<CollectionQueryBuilderProps> = ({ collect
             labelId="data-query-select-label"
             value={selectedDataQuery}
             label="Data Query"
-            onChange={(e) => selectDataQuery(collection, e.target.value)}
+            onChange={(e) => {
+              selectDataQuery(collection, e.target.value);
+              // Its next step, drawing the query's geometry, happens on the map
+              if (mapInputRequired(queryTypeOf(collection, e.target.value))) showMap();
+            }}
             size="small"
           >
             <MenuItem value="">

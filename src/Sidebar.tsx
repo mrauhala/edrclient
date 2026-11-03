@@ -1,7 +1,5 @@
 import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
-import { useTheme } from '@mui/material/styles';
-import useMediaQuery from '@mui/material/useMediaQuery';
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { GetCollectionsResult, Link as ApiLink } from './DataRetrievalAPI';
 import { useValidation } from './contexts/ValidationContext';
@@ -14,14 +12,10 @@ import { useMapInteraction } from './contexts/MapInteractionContext';
 import { useCollection } from './contexts/CollectionContext';
 import { useService } from './contexts/ServiceContext';
 import { useQueryUrl } from './hooks/useQueryUrl';
+import { useSidebar } from './contexts/SidebarContext';
 
-interface SidebarProps {
-  open: boolean;
-}
-
-const Sidebar = ({ open }: SidebarProps) => {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+const Sidebar = () => {
+  const { sidebarOpen: open, isMobile } = useSidebar();
   const sidebarWidth = isMobile ? '100%' : 480;
   const { setGeoJsonLayers } = useGeoJsonLayers();
   const { setClickedCoords, setDataQuery } = useMapInteraction();
@@ -103,14 +97,17 @@ const Sidebar = ({ open }: SidebarProps) => {
 
   return (
     <Box
+      id="sidebar"
       sx={{
         width: open ? sidebarWidth : 0,
         flexShrink: 0,
-        transition: 'width 225ms cubic-bezier(0, 0, 0.2, 1) 0ms',
+        // Hidden once closed, so its controls leave the tab order; it stays mounted to keep its state
+        visibility: open ? 'visible' : 'hidden',
+        transition: 'width 225ms cubic-bezier(0, 0, 0.2, 1) 0ms, visibility 225ms',
         overflow: 'hidden',
         height: '100%',
-        position: isMobile ? 'absolute' : 'relative',
-        zIndex: isMobile ? 1100 : 'auto',
+        // On phones it covers the map, within the row between the menu and the bottom bar
+        ...(isMobile ? { position: 'absolute', top: 0, bottom: 0, left: 0, zIndex: 1100 } : { position: 'relative' }),
       }}
     >
       <Paper
@@ -121,6 +118,11 @@ const Sidebar = ({ open }: SidebarProps) => {
           height: '100%',
           overflowY: 'scroll',
           overflowX: 'hidden',
+          // Scrolling past either end doesn't carry on to the page
+          overscrollBehavior: 'contain',
+          // Clear of a notch in landscape: on the left, and on phones, where it's full width, on the right
+          pl: 'var(--safe-left)',
+          pr: isMobile ? 'var(--safe-right)' : 0,
           borderRight: '1px solid rgba(0, 0, 0, 0.12)',
         }}
         className="sidebar-scrollable"

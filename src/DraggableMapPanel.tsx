@@ -90,6 +90,8 @@ export default function DraggableMapPanel({ collection, fallbackLicense }: Dragg
           justifyContent: 'center',
           cursor: dragging ? 'grabbing' : 'grab',
           userSelect: 'none',
+          // A touch drag moves the panel instead of scrolling
+          touchAction: 'none',
           pt: '6px',
           pb: '2px',
         }}

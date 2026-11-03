@@ -10,6 +10,9 @@ import Select from '@mui/material/Select';
 import TextField from '@mui/material/TextField';
 import type { UseQueryUrlReturn } from './hooks/useQueryUrl';
 import type { Instance } from './query/instances';
+import { queryTypeOf } from './query/queryTypes';
+import { mapInputRequired } from './query/edrRules';
+import { useSidebar } from './contexts/SidebarContext';
 
 const idOf = (instance: Instance) => String(instance.id);
 
@@ -17,6 +20,7 @@ const idOf = (instance: Instance) => String(instance.id);
 // and the query to run on it
 const InstancePicker: React.FC<{ queryState: UseQueryUrlReturn }> = ({ queryState }) => {
   const { instances, selectedInstance, selectInstance, instanceQueryKey, selectInstanceQuery } = queryState;
+  const { showMap } = useSidebar();
   const count = instances.status === 'ready' ? ` (${instances.instances.length}, latest first)` : '';
 
   return (
@@ -48,7 +52,10 @@ const InstancePicker: React.FC<{ queryState: UseQueryUrlReturn }> = ({ queryStat
         <FormControl fullWidth size="small" sx={{ mb: 2 }} id="query-field-instance-query">
           <InputLabel id="instance-query-label">Query on this instance</InputLabel>
           <Select labelId="instance-query-label" label="Query on this instance" value={instanceQueryKey}
-            onChange={event => selectInstanceQuery(event.target.value)}>
+            onChange={event => {
+              selectInstanceQuery(event.target.value);
+              if (mapInputRequired(queryTypeOf(selectedInstance, event.target.value))) showMap();
+            }}>
             <MenuItem value=""><em>Select a query</em></MenuItem>
             {Object.keys(selectedInstance.data_queries ?? {}).map(queryKey => (
               <MenuItem key={queryKey} value={queryKey}>{queryKey}</MenuItem>

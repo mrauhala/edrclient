@@ -42,6 +42,8 @@ const promptStyle: React.CSSProperties = {
   zIndex: 1000,
   boxShadow: '0 4px 8px rgba(0,0,0,0.5)',
   textAlign: 'center',
+  // Taps and clicks on it reach the map: on a phone it covers the middle, where people tap first
+  pointerEvents: 'none',
 };
 
 const clearButtonStyle: React.CSSProperties = {
