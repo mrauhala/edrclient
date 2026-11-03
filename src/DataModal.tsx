@@ -25,6 +25,7 @@ import Alert from '@mui/material/Alert';
 import { useTheme } from '@mui/material/styles';
 import VirtualizedCodeView from './VirtualizedCodeView';
 import CoverageJsonChart from './CoverageJsonChart';
+import FetchErrorAlert from './FetchErrorAlert';
 import type { ValidationError } from './DataRetrievalAPI';
 import { useContentTypeDetection } from './hooks/useContentTypeDetection';
 import { useXSLTTransform } from './hooks/useXSLTTransform';
@@ -39,6 +40,8 @@ interface DataModalProps {
   contentType: string | null;
   isLoading: boolean;
   error: string | null;
+  // Sends the failed request again; only given when that may help
+  onRetry?: () => void;
   url: string;
   validationErrors?: ValidationError[];
   validationSchemaName?: string | null;
@@ -53,6 +56,7 @@ const DataModal: React.FC<DataModalProps> = ({
   contentType,
   isLoading,
   error,
+  onRetry,
   url,
   validationErrors = [],
   validationSchemaName = null,
@@ -194,14 +198,7 @@ const DataModal: React.FC<DataModalProps> = ({
           </Box>
         )}
 
-        {error && (
-          <Box sx={{ p: 2 }}>
-            <Alert severity="error">
-              <Typography variant="subtitle2">Error fetching data:</Typography>
-              <Typography variant="body2">{error}</Typography>
-            </Alert>
-          </Box>
-        )}
+        {error && <FetchErrorAlert message={error} onRetry={onRetry} />}
 
         {!isLoading && !error && imageUrl && (
           <Box sx={{

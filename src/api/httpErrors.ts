@@ -51,8 +51,15 @@ export function httpErrorMessage(status: number, serverDetail?: string): string 
   const said = detail ? `: ${/[.!?]$/.test(detail) ? detail : `${detail}.`}` : '.';
   if (status === 401 || status === 403) return `Authentication failed (${status})${said} Check your credentials in Settings (S).`;
   if (status === 404) return detail ? `Not found (404)${said}` : 'Endpoint not found (404). Verify the query URL is correct.';
-  if (status === 429) return `Rate limited (429)${said} Wait a moment and try again.`;
+  // DMI already says "Please try again later"
+  if (status === 429) return `Rate limited (429)${said}${detail && /try again/i.test(detail) ? '' : ' Wait a moment and try again.'}`;
   if (status >= 500) return detail ? `Server error (${status})${said}` : `Server error (${status}). The API returned an internal error.`;
   if (status >= 400) return `The server rejected the request (${status})${said}`;
   return null;
 }
+
+// Statuses after which the same request may well succeed: a timeout, a rate limit (DMI answers 429
+// "Server is busy" without a Retry-After header) or a failure on the server's side
+const RETRYABLE_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504]);
+
+export const isRetryableStatus = (status: number) => RETRYABLE_STATUSES.has(status);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { httpErrorMessage, serverErrorDetail } from './httpErrors';
+import { httpErrorMessage, isRetryableStatus, serverErrorDetail } from './httpErrors';
 
 const bytes = (text: string) => new TextEncoder().encode(text).buffer;
 
@@ -44,7 +44,12 @@ describe('httpErrorMessage', () => {
 
   it('keeps advice that still applies', () => {
     expect(httpErrorMessage(401, 'Invalid API key')).toBe('Authentication failed (401): Invalid API key. Check your credentials in Settings (S).');
-    expect(httpErrorMessage(429, 'Server is busy. Please try again later.')).toBe('Rate limited (429): Server is busy. Please try again later. Wait a moment and try again.');
+    expect(httpErrorMessage(429, 'Quota of 100 requests per minute exceeded')).toBe('Rate limited (429): Quota of 100 requests per minute exceeded. Wait a moment and try again.');
+    expect(httpErrorMessage(429)).toBe('Rate limited (429). Wait a moment and try again.');
+  });
+
+  it("doesn't repeat advice the server already gives", () => {
+    expect(httpErrorMessage(429, 'Server is busy. Please try again later.')).toBe('Rate limited (429): Server is busy. Please try again later.');
   });
 
   it('falls back to the advice when the server only names the status, or says nothing', () => {
@@ -56,5 +61,16 @@ describe('httpErrorMessage', () => {
 
   it('is null for statuses that are not errors', () => {
     expect(httpErrorMessage(304)).toBeNull();
+  });
+});
+
+describe('isRetryableStatus', () => {
+  it('offers a retry after rate limits, timeouts and failures on the server', () => {
+    // DMI's rate limit: 429 {"message":"Server is busy. Please try again later."}, no Retry-After
+    for (const status of [408, 425, 429, 500, 502, 503, 504]) expect(isRetryableStatus(status), String(status)).toBe(true);
+  });
+
+  it("doesn't when the request itself is wrong, or the server can't do it", () => {
+    for (const status of [400, 401, 403, 404, 405, 406, 413, 422, 501]) expect(isRetryableStatus(status), String(status)).toBe(false);
   });
 });
