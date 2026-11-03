@@ -27,12 +27,11 @@ export default function MapsAnimationBar() {
   return (
     <Box
       sx={{
-        position: 'absolute',
-        bottom: 16,
-        left: '50%',
-        transform: 'translateX(-50%)',
-        zIndex: 1000,
+        alignSelf: 'center',
+        mb: '6px',
         width: 'min(700px, 92%)',
+        // Its parent lets clicks through to the map
+        pointerEvents: 'auto',
       }}
     >
       <Stack spacing={1}>

@@ -75,60 +75,6 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
         <DraggableMapPanel collection={selectedCollection} fallbackLicense={landingPageLicense} />
       )}
 
-      {/* What the query needs from the map, and clearing it */}
-      <MapQueryOverlay
-        queryType={dataQuery}
-        hasGeometry={geometryKind === 'polygon' ? selectedArea.length > 0 : geometryKind === 'bbox' ? selectedBbox !== null : clickedCoords.length > 0}
-        isDrawing={isDrawing}
-        onClear={() => {
-          abortDrawing();
-          setClickedCoords([]);
-          setSelectedArea([]);
-          setSelectedBbox(null);
-        }}
-        radiusLabel={`${radius} ${radiusUnits}`}
-        selection={geometryKind === 'polygon'
-          ? { title: 'Selected Polygons', items: selectedArea.map(polygon => `${polygon.length} vertices`) }
-          : {
-            title: 'Selected Points',
-            items: clickedCoords.map(([lon, lat]) => `Lat: ${lat.toFixed(6)}°, Lon: ${lon.toFixed(6)}°`),
-            footer: dataQuery === 'radius' ? `Radius: ${radius} ${radiusUnits}` : undefined,
-          }}
-      >
-        {dataQuery === 'radius' && (
-          <div
-            style={{
-              backgroundColor: 'rgba(0, 0, 0, 0.8)',
-              color: 'white',
-              border: '2px solid rgba(0, 123, 255, 0.5)',
-              padding: '12px',
-              borderRadius: '6px',
-              fontSize: '12px',
-              boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
-            }}
-          >
-            <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>Radius: {radius} {radiusUnits}</div>
-            <input
-              type="range"
-              min={radiusRange.min}
-              max={radiusRange.max}
-              step={radiusRange.step}
-              value={radius}
-              onChange={(e) => {
-                setRadius(Number(e.target.value));
-              }}
-              style={{
-                width: '150px',
-                cursor: 'pointer',
-              }}
-            />
-            <div style={{ marginTop: '4px', fontSize: '10px', opacity: 0.7 }}>
-              {radiusRange.min} - {radiusRange.max} {radiusUnits}
-            </div>
-          </div>
-        )}
-      </MapQueryOverlay>
-
       <FeatureViewer
         feature={selectedFeature ? normalizeGeoJsonFeature(selectedFeature) : null}
         variant="location"
@@ -153,7 +99,56 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
         }}
       />
 
-      <MapsAnimationBar />
+      {/* Along the bottom edge, the query's card above the animation bars, so neither covers the other */}
+      <div style={{ position: 'absolute', left: 0, right: 0, bottom: '10px', zIndex: 1000, display: 'flex', flexDirection: 'column', gap: '8px', pointerEvents: 'none' }}>
+        {/* What the query needs from the map, and clearing it */}
+        <MapQueryOverlay
+          queryType={dataQuery}
+          hasGeometry={geometryKind === 'polygon' ? selectedArea.length > 0 : geometryKind === 'bbox' ? selectedBbox !== null : clickedCoords.length > 0}
+          isDrawing={isDrawing}
+          onClear={() => {
+            abortDrawing();
+            setClickedCoords([]);
+            setSelectedArea([]);
+            setSelectedBbox(null);
+          }}
+          radiusLabel={`${radius} ${radiusUnits}`}
+          selection={geometryKind === 'polygon'
+            ? { title: 'Selected Polygons', items: selectedArea.map(polygon => `${polygon.length} vertices`) }
+            : {
+              title: 'Selected Points',
+              items: clickedCoords.map(([lon, lat]) => `Lat: ${lat.toFixed(6)}°, Lon: ${lon.toFixed(6)}°`),
+            }}
+        >
+          {dataQuery === 'radius' && (
+            <div style={{ margin: '2px 0 4px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '12px', fontSize: '12px' }}>
+                <span style={{ fontWeight: 'bold' }}>Radius: {radius} {radiusUnits}</span>
+                <span style={{ fontSize: '10px', opacity: 0.7 }}>{radiusRange.min} - {radiusRange.max} {radiusUnits}</span>
+              </div>
+              <input
+                type="range"
+                aria-label="Radius"
+                min={radiusRange.min}
+                max={radiusRange.max}
+                step={radiusRange.step}
+                value={radius}
+                onChange={(e) => {
+                  setRadius(Number(e.target.value));
+                }}
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  margin: '6px 0 0',
+                  cursor: 'pointer',
+                }}
+              />
+            </div>
+          )}
+        </MapQueryOverlay>
+
+        <MapsAnimationBar />
+      </div>
     </div>
   );
 };
