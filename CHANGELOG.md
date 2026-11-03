@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/mrauhala/ogcapi-browser/compare/v0.2.0...v0.2.1) (2026-11-03)
+
+
+### Bug Fixes
+
+* **deps:** update dependencies with security fixes ([#142](https://github.com/mrauhala/ogcapi-browser/issues/142)) ([a46b3a9](https://github.com/mrauhala/ogcapi-browser/commit/a46b3a9c72e8a200ec5121cd2bf82bbbf1287f47))
+
 ## [0.2.0](https://github.com/mrauhala/ogcapi-browser/compare/v0.1.0...v0.2.0) (2026-11-03)
 
 
