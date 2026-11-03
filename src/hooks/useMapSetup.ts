@@ -8,6 +8,7 @@ import XYZ from 'ol/source/XYZ';
 import Overlay from 'ol/Overlay';
 import { Style, Stroke, Fill, Circle } from 'ol/style';
 import { defaults as defaultControls } from 'ol/control';
+import { defaults as defaultInteractions } from 'ol/interaction';
 import { useGeoJsonLayers } from '../contexts/GeoJsonLayerContext';
 import { useCollection } from '../contexts/CollectionContext';
 import { useMapInteraction } from '../contexts/MapInteractionContext';
@@ -208,6 +209,14 @@ export function useMapSetup(zoomLevel: number): UseMapSetupReturn {
       target: 'map',
       controls: defaultControls({
         zoom: false,
+      }),
+      // The map has a tabindex for the keyboard shortcuts, and then OpenLayers' default pans and
+      // wheel-zooms only once the map has focus: on a phone one finger did nothing until a tap. The
+      // map isn't in a page that scrolls, so it doesn't need to wait. No rotation
+      interactions: defaultInteractions({
+        onFocusOnly: false,
+        altShiftDragRotate: false,
+        pinchRotate: false,
       }),
       layers: [
         ...basemapLayers(),
