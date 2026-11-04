@@ -11,6 +11,7 @@ import { DrawEvent } from 'ol/interaction/Draw';
 import type MapBrowserEvent from 'ol/MapBrowserEvent';
 import { useMapInteraction } from '../contexts/MapInteractionContext';
 import { useCollection } from '../contexts/CollectionContext';
+import { withoutLastCorner, withoutLastPoint } from '../query/mapGeometry';
 import { geometryKindOf } from '../query/queryTypes';
 import { unitToMeters } from '../query/units';
 
@@ -19,7 +20,7 @@ export function useMapInteractions(
   markerLayer: VectorLayer<VectorSource> | null,
   areaLayer: VectorLayer<VectorSource> | null,
   radiusLayer: VectorLayer<VectorSource> | null,
-): { abortDrawing: () => void; isDrawing: boolean } {
+): { abortDrawing: () => void; undoLast: () => void; isDrawing: boolean } {
   const {
     clickedCoords, setClickedCoords, selectedArea, setSelectedArea, selectedBbox, setSelectedBbox, radius, radiusUnits, dataQuery,
   } = useMapInteraction();
@@ -358,5 +359,17 @@ export function useMapInteractions(
     setIsDrawing(false);
   }, []);
 
-  return { abortDrawing, isDrawing };
+  // Take back the newest point or vertex: the sketch's while one is in progress (OpenLayers aborts it
+  // when its first vertex goes), otherwise what the query has
+  const undoLast = useCallback(() => {
+    if (isDrawing) {
+      drawInteractionRef.current?.removeLastPoint();
+    } else if (geometryKind === 'polygon') {
+      setSelectedArea(withoutLastCorner(selectedAreaRef.current));
+    } else if (geometryKind === 'points' || geometryKind === 'line') {
+      setClickedCoords(withoutLastPoint(clickedCoordsRef.current, geometryKind));
+    }
+  }, [isDrawing, geometryKind, setSelectedArea, setClickedCoords]);
+
+  return { abortDrawing, undoLast, isDrawing };
 }

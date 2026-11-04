@@ -12,6 +12,7 @@ import { defaults as defaultInteractions } from 'ol/interaction';
 import { useGeoJsonLayers } from '../contexts/GeoJsonLayerContext';
 import { useCollection } from '../contexts/CollectionContext';
 import { useMapInteraction } from '../contexts/MapInteractionContext';
+import { takesMapGeometry } from '../query/queryTypes';
 
 function getCartoApiKey(): string | undefined {
   return window.__RUNTIME_CONFIG__?.VITE_CARTO_API_KEY || import.meta.env.VITE_CARTO_API_KEY;
@@ -56,7 +57,7 @@ export interface UseMapSetupReturn {
 export function useMapSetup(zoomLevel: number): UseMapSetupReturn {
   const { setSelectedGeoJsonFeature } = useGeoJsonLayers();
   const { locationFeatures, selectedFeature, setSelectedFeature } = useCollection();
-  const { setViewExtent, setViewSize } = useMapInteraction();
+  const { dataQuery, setViewExtent, setViewSize } = useMapInteraction();
 
   const [map, setMap] = useState<Map | null>(null);
   const [vectorLayer, setVectorLayer] = useState<VectorLayer<VectorSource> | null>(null);
@@ -68,12 +69,14 @@ export function useMapSetup(zoomLevel: number): UseMapSetupReturn {
   const selectedFeatureRef = useRef(selectedFeature);
   const onFeatureSelectRef = useRef(setSelectedFeature);
   const locationFeaturesRef = useRef(locationFeatures);
+  const dataQueryRef = useRef(dataQuery);
   const tooltipRef = useRef<HTMLDivElement>(null);
 
   // Keep refs in sync with current values
   useEffect(() => { selectedFeatureRef.current = selectedFeature; }, [selectedFeature]);
   useEffect(() => { onFeatureSelectRef.current = setSelectedFeature; }, [setSelectedFeature]);
   useEffect(() => { locationFeaturesRef.current = locationFeatures; }, [locationFeatures]);
+  useEffect(() => { dataQueryRef.current = dataQuery; }, [dataQuery]);
 
   // Map initialization — creates map, layers, click/hover handlers
   useEffect(() => {
@@ -277,8 +280,9 @@ export function useMapSetup(zoomLevel: number): UseMapSetupReturn {
           return;
         }
 
-        // Look for location features
-        const locationFeature = features.find(feature => {
+        // Look for location features. A query that takes its geometry from the map gets the tap like
+        // any other: selecting a location would switch it to `locations` and drop what it has
+        const locationFeature = !takesMapGeometry(dataQueryRef.current) && features.find(feature => {
           const layer = feature.get('layer');
           return layer === 'location' || feature.get('featureIndex') !== undefined;
         });
