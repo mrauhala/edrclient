@@ -12,6 +12,7 @@ import { defaults as defaultInteractions } from 'ol/interaction';
 import { useGeoJsonLayers } from '../contexts/GeoJsonLayerContext';
 import { useCollection } from '../contexts/CollectionContext';
 import { useMapInteraction } from '../contexts/MapInteractionContext';
+import { zoomToPoint } from '../mapView';
 import { takesMapGeometry } from '../query/queryTypes';
 
 function getCartoApiKey(): string | undefined {
@@ -70,6 +71,7 @@ export function useMapSetup(zoomLevel: number): UseMapSetupReturn {
   const onFeatureSelectRef = useRef(setSelectedFeature);
   const locationFeaturesRef = useRef(locationFeatures);
   const dataQueryRef = useRef(dataQuery);
+  const pickedOnMapRef = useRef<unknown>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
 
   // Keep refs in sync with current values
@@ -292,6 +294,7 @@ export function useMapSetup(zoomLevel: number): UseMapSetupReturn {
           const originalFeature = locationFeaturesRef.current?.[featureIndex];
 
           if (originalFeature) {
+            pickedOnMapRef.current = originalFeature;
             onFeatureSelectRef.current?.(originalFeature);
           }
         } else {
@@ -364,6 +367,17 @@ export function useMapSetup(zoomLevel: number): UseMapSetupReturn {
       openLayersMap.setTarget(undefined);
     };
   }, [zoomLevel, setSelectedGeoJsonFeature, setViewExtent, setViewSize]);
+
+  // Zoom in on a location selected in the list or search. One picked on the map is already in view,
+  // and zooming in would mean zooming back out to pick another
+  useEffect(() => {
+    const pickedOnMap = pickedOnMapRef.current;
+    pickedOnMapRef.current = null;
+    if (!map || selectedFeature === pickedOnMap) return;
+    if (selectedFeature?.geometry?.type === 'Point' && selectedFeature.geometry.coordinates) {
+      zoomToPoint(map.getView(), selectedFeature.geometry.coordinates);
+    }
+  }, [map, selectedFeature]);
 
   return { map, vectorLayer, locationLayer, markerLayer, areaLayer, radiusLayer, tooltipRef };
 }

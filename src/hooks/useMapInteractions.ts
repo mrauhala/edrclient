@@ -26,7 +26,7 @@ export function useMapInteractions(
   } = useMapInteraction();
   // dataQuery is the query type; the geometry kind decides what the map collects
   const geometryKind = geometryKindOf(dataQuery);
-  const { selectedCollection, selectedFeature } = useCollection();
+  const { selectedCollection } = useCollection();
   const [drawInteraction, setDrawInteraction] = useState<Draw | null>(null);
   // True while an area/trajectory sketch is in progress (between drawstart and drawend/abort).
   const [isDrawing, setIsDrawing] = useState(false);
@@ -38,28 +38,6 @@ export function useMapInteractions(
   // Keep refs in sync
   useEffect(() => { selectedAreaRef.current = selectedArea; }, [selectedArea]);
   useEffect(() => { clickedCoordsRef.current = clickedCoords; }, [clickedCoords]);
-
-  // Zoom to feature when a location feature is selected
-  useEffect(() => {
-    if (!map || !selectedFeature?.geometry?.coordinates) return;
-    const coords = selectedFeature.geometry.coordinates;
-    if (selectedFeature.geometry.type === 'Point') {
-      const [lon, lat] = coords;
-      const margin = 0.5;
-      const bbox: [number, number, number, number] = [lon - margin, lat - margin, lon + margin, lat + margin];
-      const [west, south, east, north] = bbox;
-      if (isFinite(west) && isFinite(south) && isFinite(east) && isFinite(north) && west !== east && south !== north) {
-        const extent = [...fromLonLat([west, south]), ...fromLonLat([east, north])];
-        if (extent.every(coord => isFinite(coord)) && extent[0] !== extent[2] && extent[1] !== extent[3]) {
-          try {
-            map.getView().fit(extent, { padding: [10, 10, 10, 10] });
-          } catch (error) {
-            console.error('Error fitting to feature:', error);
-          }
-        }
-      }
-    }
-  }, [map, selectedFeature]);
 
   // Draw the clicked points (position) or the line (trajectory, corridor) from state
   useEffect(() => {

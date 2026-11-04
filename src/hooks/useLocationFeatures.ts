@@ -4,6 +4,7 @@ import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
 import GeoJSON from 'ol/format/GeoJSON';
 import { useCollection } from '../contexts/CollectionContext';
+import { zoomToLocations } from '../mapView';
 
 export function useLocationFeatures(
   map: Map | null,
@@ -46,27 +47,7 @@ export function useLocationFeatures(
         // Only zoom to location features if there's no bbox extent being displayed
         if (!selectedCollectionExtents || selectedCollectionExtents.length === 0) {
           const extent = locationLayer.getSource()?.getExtent();
-          if (extent && extent.every(coord => isFinite(coord))) {
-            const hasValidArea = extent[0] !== extent[2] && extent[1] !== extent[3];
-
-            if (!hasValidArea) {
-              console.warn('Location extent has no area (point), using center with zoom instead of fit');
-              const centerX = (extent[0] + extent[2]) / 2;
-              const centerY = (extent[1] + extent[3]) / 2;
-              map.getView().setCenter([centerX, centerY]);
-              map.getView().setZoom(10);
-            } else {
-              try {
-                map.getView().fit(extent, {
-                  padding: [50, 50, 50, 50],
-                  duration: 1000,
-                  maxZoom: 10
-                });
-              } catch (error) {
-                console.error('Error fitting location extent to map view:', error, extent);
-              }
-            }
-          }
+          if (extent) zoomToLocations(map.getView(), extent);
         }
       }
 
