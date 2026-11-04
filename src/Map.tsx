@@ -1,6 +1,9 @@
 // ...existing imports...
 import React, { useEffect, useState } from 'react';
 import 'ol/ol.css';
+import IconButton from '@mui/material/IconButton';
+import Tooltip from '@mui/material/Tooltip';
+import ZoomOutMapIcon from '@mui/icons-material/ZoomOutMap';
 import { FeatureViewer, normalizeGeoJsonFeature, normalizeOLFeature } from './FeatureViewer';
 import DraggableMapPanel from './DraggableMapPanel';
 import MapsAnimationBar from './MapsAnimationBar';
@@ -16,6 +19,7 @@ import { useMapsOverlays } from './hooks/useMapsOverlays';
 import { useMapInteractions } from './hooks/useMapInteractions';
 import { useLayerManagerSync } from './hooks/useLayerManagerSync';
 import MapQueryOverlay from './MapQueryOverlay';
+import { zoomToOverview } from './mapView';
 import { geometryKindOf } from './query/queryTypes';
 import { rangeFor } from './query/units';
 
@@ -24,13 +28,29 @@ interface MapProps {
   zoomLevel: number;
 }
 
+// At the right of the map's bottom edge, above the attribution button
+const overviewButtonSx = {
+  ml: 'auto',
+  mr: '10px',
+  mb: '40px',
+  width: 44,
+  height: 44,
+  flexShrink: 0,
+  color: 'white',
+  backgroundColor: 'rgba(0, 0, 0, 0.9)',
+  borderRadius: '8px',
+  boxShadow: '0 4px 8px rgba(0,0,0,0.5)',
+  pointerEvents: 'auto',
+  '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.75)' },
+};
+
 const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
   // Context values for JSX rendering
   const { geoJsonLayers, setGeoJsonLayers, selectedGeoJsonFeature, setSelectedGeoJsonFeature } = useGeoJsonLayers();
   const { clickedCoords, setClickedCoords, selectedArea, setSelectedArea, selectedBbox, setSelectedBbox, radius, setRadius, radiusUnits, dataQuery } = useMapInteraction();
   const geometryKind = geometryKindOf(dataQuery);
   const radiusRange = rangeFor(radiusUnits);
-  const { selectedCollection, selectedFeature, setSelectedFeature, landingPageLicense } = useCollection();
+  const { selectedCollection, selectedCollectionExtents, selectedFeature, setSelectedFeature, landingPageLicense } = useCollection();
   const { isMobile } = useSidebar();
 
   // The selected location's information. Closing it leaves the selection, which the query uses. On
@@ -107,66 +127,77 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
         }}
       />
 
-      {/* Along the bottom edge, the query's card above the animation bars, so neither covers the other */}
+      {/* Along the bottom edge, the query's card and the way back to the overview above the animation bars, so nothing covers anything else */}
       <div style={{ position: 'absolute', left: 0, right: 0, bottom: '10px', zIndex: 1000, display: 'flex', flexDirection: 'column', gap: '8px', pointerEvents: 'none' }}>
-        {/* What the query needs from the map, and clearing it */}
-        <MapQueryOverlay
-          queryType={dataQuery}
-          hasGeometry={
-            dataQuery === 'locations' ? !!selectedFeature
-              : geometryKind === 'polygon' ? selectedArea.length > 0
-                : geometryKind === 'bbox' ? selectedBbox !== null
-                  : clickedCoords.length > 0
-          }
-          isDrawing={isDrawing}
-          onClear={() => {
-            abortDrawing();
-            setClickedCoords([]);
-            setSelectedArea([]);
-            setSelectedBbox(null);
-            setSelectedFeature(null);
-          }}
-          // A box is one gesture and a location one pick: Clear takes those back
-          onUndo={geometryKind === 'bbox' || geometryKind === 'none' ? undefined : undoLast}
-          radiusLabel={`${radius} ${radiusUnits}`}
-          selection={geometryKind === 'polygon'
-            // The ring ends on its first vertex
-            ? { title: 'Selected Polygons', items: selectedArea.map(polygon => `${polygon.length - 1} vertices`) }
-            : {
-              title: 'Selected Points',
-              items: clickedCoords.map(([lon, lat]) => `Lat: ${lat.toFixed(6)}°, Lon: ${lon.toFixed(6)}°`),
+        <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+          {/* What the query needs from the map, and clearing it */}
+          <MapQueryOverlay
+            queryType={dataQuery}
+            hasGeometry={
+              dataQuery === 'locations' ? !!selectedFeature
+                : geometryKind === 'polygon' ? selectedArea.length > 0
+                  : geometryKind === 'bbox' ? selectedBbox !== null
+                    : clickedCoords.length > 0
+            }
+            isDrawing={isDrawing}
+            onClear={() => {
+              abortDrawing();
+              setClickedCoords([]);
+              setSelectedArea([]);
+              setSelectedBbox(null);
+              setSelectedFeature(null);
             }}
-          location={dataQuery === 'locations' && selectedFeature ? {
-            name: String(selectedFeature.properties?.name || selectedFeature.properties?.title || selectedFeature.id || 'Location'),
-            onInfo: () => setLocationInfoOpen(true),
-          } : undefined}
-        >
-          {dataQuery === 'radius' && (
-            <div style={{ margin: '2px 0 4px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '12px', fontSize: '12px' }}>
-                <span style={{ fontWeight: 'bold' }}>Radius: {radius} {radiusUnits}</span>
-                <span style={{ fontSize: '10px', opacity: 0.7 }}>{radiusRange.min} - {radiusRange.max} {radiusUnits}</span>
+            // A box is one gesture and a location one pick: Clear takes those back
+            onUndo={geometryKind === 'bbox' || geometryKind === 'none' ? undefined : undoLast}
+            radiusLabel={`${radius} ${radiusUnits}`}
+            selection={geometryKind === 'polygon'
+              // The ring ends on its first vertex
+              ? { title: 'Selected Polygons', items: selectedArea.map(polygon => `${polygon.length - 1} vertices`) }
+              : {
+                title: 'Selected Points',
+                items: clickedCoords.map(([lon, lat]) => `Lat: ${lat.toFixed(6)}°, Lon: ${lon.toFixed(6)}°`),
+              }}
+            location={dataQuery === 'locations' && selectedFeature ? {
+              name: String(selectedFeature.properties?.name || selectedFeature.properties?.title || selectedFeature.id || 'Location'),
+              onInfo: () => setLocationInfoOpen(true),
+            } : undefined}
+          >
+            {dataQuery === 'radius' && (
+              <div style={{ margin: '2px 0 4px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '12px', fontSize: '12px' }}>
+                  <span style={{ fontWeight: 'bold' }}>Radius: {radius} {radiusUnits}</span>
+                  <span style={{ fontSize: '10px', opacity: 0.7 }}>{radiusRange.min} - {radiusRange.max} {radiusUnits}</span>
+                </div>
+                <input
+                  type="range"
+                  aria-label="Radius"
+                  min={radiusRange.min}
+                  max={radiusRange.max}
+                  step={radiusRange.step}
+                  value={radius}
+                  onChange={(e) => {
+                    setRadius(Number(e.target.value));
+                  }}
+                  style={{
+                    display: 'block',
+                    width: '100%',
+                    margin: '6px 0 0',
+                    cursor: 'pointer',
+                  }}
+                />
               </div>
-              <input
-                type="range"
-                aria-label="Radius"
-                min={radiusRange.min}
-                max={radiusRange.max}
-                step={radiusRange.step}
-                value={radius}
-                onChange={(e) => {
-                  setRadius(Number(e.target.value));
-                }}
-                style={{
-                  display: 'block',
-                  width: '100%',
-                  margin: '6px 0 0',
-                  cursor: 'pointer',
-                }}
-              />
-            </div>
-          )}
-        </MapQueryOverlay>
+            )}
+          </MapQueryOverlay>
+          <Tooltip title="Zoom to the overview">
+            <IconButton
+              aria-label="Zoom to the overview"
+              onClick={() => map && zoomToOverview(map.getView(), selectedCollectionExtents, locationLayer?.getSource()?.getExtent())}
+              sx={overviewButtonSx}
+            >
+              <ZoomOutMapIcon />
+            </IconButton>
+          </Tooltip>
+        </div>
 
         <MapsAnimationBar />
       </div>

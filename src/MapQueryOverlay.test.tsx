@@ -34,7 +34,7 @@ describe('MapQueryOverlay', () => {
 
   it('keeps the prompt out of the middle of the map, and lets clicks through it', () => {
     const html = render('position');
-    expect(html).toMatch(/<div style="[^"]*align-self:flex-start[^"]*pointer-events:none[^"]*">/);
+    expect(html).toMatch(/<div style="[^"]*margin-left:10px[^"]*pointer-events:none[^"]*">/);
     expect(html).not.toContain('50%');
   });
 
@@ -54,7 +54,7 @@ describe('MapQueryOverlay', () => {
     expect(html).toContain('2. Lat: 61°, Lon: 24°');
     expect(html).toContain('Clear Points');
     expect(html).toContain('aria-label="Radius"');
-    expect(html).toMatch(/<div style="[^"]*align-self:flex-start[^"]*pointer-events:auto[^"]*">/);
+    expect(html).toMatch(/<div style="[^"]*margin-left:10px[^"]*pointer-events:auto[^"]*">/);
     // Nothing floats off to another corner of the map
     expect(html).not.toContain('position:absolute');
   });

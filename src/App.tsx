@@ -25,14 +25,11 @@ import { useCollectionKeyboardNav } from './hooks/useCollectionKeyboardNav';
 import { ServiceProvider, useService } from './contexts/ServiceContext';
 import { SidebarProvider, useSidebarState } from './contexts/SidebarContext';
 import MapListToggle from './MapListToggle';
+import FetchButton from './FetchButton';
 import Paper from '@mui/material/Paper';
 import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
-import Button from '@mui/material/Button';
-import Badge from '@mui/material/Badge';
-import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
@@ -563,32 +560,7 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
                   <ContentCopyIcon />
                 </IconButton>
               </Tooltip>
-              {(() => {
-                // An incomplete query can still be sent (e.g. to see the server's error), but says so
-                const problems = queryIssues.filter(issue => issue.severity === 'missing' || issue.severity === 'error');
-                const tooltip = querySummary.needsAttention ? (
-                  <>
-                    {querySummary.missing > 0 ? 'Query incomplete' : 'Query has problems'}, fetch anyway:
-                    {problems.slice(0, 3).map(issue => <div key={issue.id}>• {issue.message}</div>)}
-                    {problems.length > 3 && <div>+{problems.length - 3} more</div>}
-                  </>
-                ) : querySummary.warning > 0 ? `Fetch Data (${querySummary.warning} warning${querySummary.warning > 1 ? 's' : ''})` : 'Fetch Data';
-                return (
-                  <Tooltip title={tooltip}>
-                    <Badge badgeContent={problems.length} color="warning" overlap="rectangular" invisible={problems.length === 0}>
-                      <Button
-                        variant="contained"
-                        color={querySummary.needsAttention ? 'warning' : 'primary'}
-                        onClick={handleFetchData}
-                        startIcon={querySummary.needsAttention ? <WarningAmberIcon /> : <CloudDownloadIcon />}
-                        sx={{ flexShrink: 0, whiteSpace: 'nowrap' }}
-                      >
-                        Fetch
-                      </Button>
-                    </Badge>
-                  </Tooltip>
-                );
-              })()}
+              <FetchButton issues={queryIssues} summary={querySummary} onFetch={handleFetchData} />
             </>
           ) : (
             <Typography variant="body2" noWrap sx={{ color: 'text.secondary', pl: 1 }}>

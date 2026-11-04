@@ -35,9 +35,9 @@ const ACCENTS = {
 };
 
 // At the left of the map's bottom edge, out of the way of where people click and clear of the
-// collection panel (top left), the feature viewer (top right) and the attribution button (bottom right)
+// collection panel (top left), the feature viewer (top right) and the overview and attribution
+// buttons (bottom right)
 const cardStyle: React.CSSProperties = {
-  alignSelf: 'flex-start',
   marginLeft: '10px',
   maxWidth: 'calc(100% - 74px)',
   backgroundColor: 'rgba(0, 0, 0, 0.9)',
