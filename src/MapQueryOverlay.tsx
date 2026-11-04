@@ -71,6 +71,13 @@ const clearButtonStyle: React.CSSProperties = {
   pointerEvents: 'auto',
 };
 
+const undoButtonStyle: React.CSSProperties = {
+  ...clearButtonStyle,
+  backgroundColor: 'rgba(255, 255, 255, 0.15)',
+};
+
+const buttonsStyle: React.CSSProperties = { display: 'flex', gap: '6px', marginLeft: 'auto' };
+
 const headerButtonSx = { minHeight: 32, gap: 0.5, borderRadius: '4px', font: 'inherit', fontSize: 12, fontWeight: 'bold', textAlign: 'left' };
 
 const listStyle: React.CSSProperties = {
@@ -92,6 +99,7 @@ interface MapQueryOverlayProps {
   hasGeometry: boolean;
   isDrawing: boolean;
   onClear: () => void;
+  onUndo?: () => void; // takes back the newest point or vertex, for geometry built up from them
   radiusLabel?: string;
   selection?: MapSelection; // what the query has from the map, listed once it has it
   location?: { name: string; onInfo: () => void }; // the selected location, and showing its information
@@ -101,7 +109,7 @@ interface MapQueryOverlayProps {
 // Everything about the query's map input, in one card: the prompt until the query has its geometry,
 // then what it has, and the clear button. The list collapses, and starts collapsed on phones, where
 // it would cover the map. The parent stacks the card along the map's bottom edge
-const MapQueryOverlay: React.FC<MapQueryOverlayProps> = ({ queryType, hasGeometry, isDrawing, onClear, radiusLabel = '', selection, location, children }) => {
+const MapQueryOverlay: React.FC<MapQueryOverlayProps> = ({ queryType, hasGeometry, isDrawing, onClear, onUndo, radiusLabel = '', selection, location, children }) => {
   const { isMobile } = useSidebar();
   const [listOpen, setListOpen] = useState(!isMobile);
   const listId = useId();
@@ -142,14 +150,17 @@ const MapQueryOverlay: React.FC<MapQueryOverlayProps> = ({ queryType, hasGeometr
           </ButtonBase>
         )}
         {showClear && (
-          <button
-            onClick={onClear}
-            style={clearButtonStyle}
-            onMouseOver={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255, 68, 68, 1)'; }}
-            onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255, 68, 68, 0.9)'; }}
-          >
-            {prompt.clear}
-          </button>
+          <div style={buttonsStyle}>
+            {onUndo && <button onClick={onUndo} style={undoButtonStyle}>Undo</button>}
+            <button
+              onClick={onClear}
+              style={clearButtonStyle}
+              onMouseOver={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255, 68, 68, 1)'; }}
+              onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255, 68, 68, 0.9)'; }}
+            >
+              {prompt.clear}
+            </button>
+          </div>
         )}
       </div>
       {showPrompt && <div style={{ marginTop: '4px' }}>{prompt.text?.replace('{radius}', radiusLabel)}</div>}

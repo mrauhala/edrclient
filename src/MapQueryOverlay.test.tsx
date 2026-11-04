@@ -11,11 +11,12 @@ interface Options {
   isMobile?: boolean;
   selection?: MapSelection;
   location?: { name: string; onInfo: () => void };
+  onUndo?: () => void;
 }
 
-const render = (queryType: string, { hasGeometry = false, isDrawing = false, isMobile = false, selection = points, location }: Options = {}) => renderToStaticMarkup(
+const render = (queryType: string, { hasGeometry = false, isDrawing = false, isMobile = false, selection = points, location, onUndo }: Options = {}) => renderToStaticMarkup(
   <SidebarProvider value={{ sidebarOpen: false, isMobile, toggleSidebar: () => {}, showMap: () => {} }}>
-    <MapQueryOverlay queryType={queryType} hasGeometry={hasGeometry} isDrawing={isDrawing} onClear={() => {}} radiusLabel="10 km" selection={selection} location={location}>
+    <MapQueryOverlay queryType={queryType} hasGeometry={hasGeometry} isDrawing={isDrawing} onClear={() => {}} onUndo={onUndo} radiusLabel="10 km" selection={selection} location={location}>
       <input aria-label="Radius" />
     </MapQueryOverlay>
   </SidebarProvider>
@@ -101,5 +102,26 @@ describe('MapQueryOverlay', () => {
   it('shows no location card until one is selected', () => {
     const location = { name: 'Savukoski Tulppio', onInfo: () => {} };
     expect(render('locations', { location })).toBe('');
+  });
+
+  it('offers undo beside clear once the query has geometry', () => {
+    const html = render('position', { hasGeometry: true, onUndo: () => {} });
+    expect(html).toMatch(/<button style="[^"]*">Undo<\/button><button[^>]*>Clear Points<\/button>/);
+  });
+
+  it('offers undo during a drawing, clickable while the prompt beside it lets clicks through', () => {
+    const html = render('area', { isDrawing: true, onUndo: () => {} });
+    expect(html).toContain('Draw Areas on Map');
+    expect(html).toMatch(/<button style="[^"]*pointer-events:auto[^"]*">Undo<\/button>/);
+  });
+
+  it('has nothing to undo before the first point', () => {
+    expect(render('position', { onUndo: () => {} })).not.toContain('Undo');
+  });
+
+  it('has no undo for geometry that is one gesture', () => {
+    const box = render('cube', { hasGeometry: true, selection: { title: 'Selected Points', items: [] } });
+    expect(box).toContain('Clear Box');
+    expect(box).not.toContain('Undo');
   });
 });

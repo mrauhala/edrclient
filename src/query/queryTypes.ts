@@ -27,6 +27,10 @@ export function geometryKindOf(queryType: string): GeometryKind {
   return GEOMETRY_KINDS[queryType] ?? 'none';
 }
 
+export function takesMapGeometry(queryType: string): boolean {
+  return geometryKindOf(queryType) !== 'none';
+}
+
 // Units a query offers, e.g. within_units for radius. Accepts FMI's hyphenated keys (width-units)
 export function unitsFor(variables: QueryVariables | undefined, kind: 'within' | 'width' | 'height'): string[] {
   const units = variables?.[`${kind}_units`] ?? variables?.[`${kind}-units`];

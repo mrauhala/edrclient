@@ -49,7 +49,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
   const { geoJsonMetadata } = useGeoJsonOverlays(map);
   useMapsOverlays(map);
 
-  const { abortDrawing, isDrawing } = useMapInteractions(map, markerLayer, areaLayer, radiusLayer);
+  const { abortDrawing, undoLast, isDrawing } = useMapInteractions(map, markerLayer, areaLayer, radiusLayer);
 
   useLayerManagerSync(
     vectorLayer, locationLayer, markerLayer, areaLayer, radiusLayer,
@@ -126,9 +126,12 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
             setSelectedBbox(null);
             setSelectedFeature(null);
           }}
+          // A box is one gesture and a location one pick: Clear takes those back
+          onUndo={geometryKind === 'bbox' || geometryKind === 'none' ? undefined : undoLast}
           radiusLabel={`${radius} ${radiusUnits}`}
           selection={geometryKind === 'polygon'
-            ? { title: 'Selected Polygons', items: selectedArea.map(polygon => `${polygon.length} vertices`) }
+            // The ring ends on its first vertex
+            ? { title: 'Selected Polygons', items: selectedArea.map(polygon => `${polygon.length - 1} vertices`) }
             : {
               title: 'Selected Points',
               items: clickedCoords.map(([lon, lat]) => `Lat: ${lat.toFixed(6)}°, Lon: ${lon.toFixed(6)}°`),
