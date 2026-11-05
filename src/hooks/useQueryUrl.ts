@@ -254,6 +254,11 @@ export function useQueryUrl(): UseQueryUrlReturn {
     return true;
   }, [instances.instances, featureFor, applyQueryDefaults, applySelections, setDataQuery, setSelectedFeature]);
 
+  // Whoever applied a URL hears how it went once the form has published the URL it now builds: until
+  // then other URLs can pass by, like the map panel's on opening a collection with a map. State, not
+  // a ref, so that it comes with the form's new values, however early the effect applying it ran.
+  const [applied, setApplied] = useState<{ onResult?: (followed: boolean) => void; followed: boolean } | null>(null);
+
   // A URL for an instance waits for the list of instances, which picking the instances query loads
   const urlAwaitingInstances = useRef<{ url: string; instanceId: string; hasQuery: boolean; onResult?: (followed: boolean) => void } | null>(null);
   useEffect(() => {
@@ -263,19 +268,19 @@ export function useQueryUrl(): UseQueryUrlReturn {
     const followed = instances.status === 'ready' && applyInstanceUrl(waiting.url, waiting.instanceId, waiting.hasQuery);
     // Moving to the list on the way there replaced the URL
     editUrl(waiting.url);
-    waiting.onResult?.(followed);
+    setApplied({ onResult: waiting.onResult, followed });
   }, [instances.status, applyInstanceUrl, editUrl]);
 
   const applyRequestUrl = useCallback((url: string, onResult?: (followed: boolean) => void) => {
     if (!selectedCollection) {
-      onResult?.(false);
+      setApplied({ onResult, followed: false });
       return;
     }
 
     const instance = matchInstance(url, selectedCollection);
     if (instance) {
       if (selectedDataQuery === instance.queryKey && instances.status === 'ready') {
-        onResult?.(applyInstanceUrl(url, instance.instanceId, instance.hasQuery));
+        setApplied({ onResult, followed: applyInstanceUrl(url, instance.instanceId, instance.hasQuery) });
       } else {
         urlAwaitingInstances.current = { url, instanceId: instance.instanceId, hasQuery: instance.hasQuery, onResult };
         selectDataQuery(selectedCollection, instance.queryKey);
@@ -286,13 +291,13 @@ export function useQueryUrl(): UseQueryUrlReturn {
     const target = matchDataQuery(url, selectedCollection);
     const feature = target ? featureFor(target.locationId) : undefined;
     if (!target || feature === undefined) {
-      onResult?.(false);
+      setApplied({ onResult, followed: false });
       return;
     }
     if (target.queryKey !== selectedDataQuery || selectedInstanceId) selectDataQuery(selectedCollection, target.queryKey);
     if (feature !== selectedFeature) setSelectedFeature(feature);
     applySelections(readQuerySelections(url, selectedCollection, target.queryKey), queryTypeOf(selectedCollection, target.queryKey), !!feature);
-    onResult?.(true);
+    setApplied({ onResult, followed: true });
   }, [selectedCollection, selectedDataQuery, selectedInstanceId, selectedFeature, instances.status, featureFor, selectDataQuery, setSelectedFeature, applyInstanceUrl, applySelections]);
 
   // Selecting a location (on the map, in the Location Features list or via search) switches the
@@ -398,6 +403,13 @@ export function useQueryUrl(): UseQueryUrlReturn {
       } : null,
     });
   }, [queryModel, instancesHref, selectedInstance, apiIndex, setCollectionUrl, setQueryValidation]);
+
+  // After the effect above, for the URL to be out by now
+  useEffect(() => {
+    if (!applied) return;
+    setApplied(null);
+    applied.onResult?.(applied.followed);
+  }, [applied]);
 
   return {
     selectedDataQuery, setSelectedDataQuery,

@@ -52,8 +52,23 @@ describe('apiRootOf', () => {
     ['https://api.test/edr/collections', 'https://api.test/edr'],
     ['https://api.test/collections/c', 'https://api.test'],
     ['https://api.test/edr/conformance?f=json', 'https://api.test/edr'],
-    ['https://api.test/edr/api', 'https://api.test/edr'],
+    ['https://api.test/edr/conformance/', 'https://api.test/edr'],
     ['https://api.test/edr/', 'https://api.test/edr'],
+    // Served from a path called /api, as pygeoapi often is, which isn't the end of anything
+    ['https://kralidis.ca/api/collections/msc-weather-forecast/position?coords=POINT(-119.227 72.565)', 'https://kralidis.ca/api'],
+    ['https://kralidis.ca/api/collections', 'https://kralidis.ca/api'],
+    ['https://kralidis.ca/api/conformance', 'https://kralidis.ca/api'],
+    ['https://kralidis.ca/api', 'https://kralidis.ca/api'],
+    ['https://kralidis.ca/api/', 'https://kralidis.ca/api'],
+    ['https://api.test/edr/api', 'https://api.test/edr/api'],
+    // Other names and depths
+    ['https://demo.test/oapi/v1/collections/c/items?limit=1', 'https://demo.test/oapi/v1'],
+    ['https://demo.test/conformance/collections/c', 'https://demo.test/conformance'],
+    // A collection may have any name, and the first /collections is the one that counts
+    ['https://api.test/edr/collections/api/position', 'https://api.test/edr'],
+    ['https://api.test/edr/collections/conformance', 'https://api.test/edr'],
+    ['https://api.test/edr/collections/collections/position', 'https://api.test/edr'],
+    ['https://api.test/collections/c/instances/run/position', 'https://api.test'],
     ['https://api.test/edr', 'https://api.test/edr'],
     ['http://localhost:5000/a/b/collections/c', 'http://localhost:5000/a/b'],
   ])('takes %s to %s', (url, root) => {
@@ -102,6 +117,11 @@ describe('requestRoute', () => {
   it('opens another collection on this API, whether or not its address ends in a slash', () => {
     expect(requestRoute('https://api.test/edr/collections/other/position?f=x', HERE)).toBe('collection');
     expect(requestRoute('https://api.test/edr/collections/other', 'https://api.test/edr')).toBe('collection');
+  });
+
+  it('knows an API served from a path called /api', () => {
+    expect(requestRoute('https://kralidis.ca/api/collections/c/position', 'https://kralidis.ca/api')).toBe('collection');
+    expect(requestRoute('https://kralidis.ca/api/collections/c/position', 'https://kralidis.ca')).toBe('api');
   });
 
   it('loads another API first', () => {
