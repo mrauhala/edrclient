@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { apiRootOf, collectionIdOf, curlCommand, isJustCollection, knownServiceUrl, requestFromHash, requestLink } from './requestLink';
+import { apiRootOf, collectionIdOf, curlCommand, isJustCollection, knownServiceUrl, requestFromHash, requestLink, requestRoute } from './requestLink';
 
 const PAGE = 'https://ogcbrowser.rauhala.app/';
 const REQUEST = 'https://api.test/edr/collections/c/position?coords=POINT(24.94 60.17)&f=a%2Bb&parameter-name=x,y';
@@ -93,6 +93,27 @@ describe('isJustCollection', () => {
   it('is not for one that goes on, or has none', () => {
     expect(isJustCollection('https://api.test/collections/c/position')).toBe(false);
     expect(isJustCollection('https://api.test/edr')).toBe(false);
+  });
+});
+
+describe('requestRoute', () => {
+  const HERE = 'https://api.test/edr/';
+
+  it('opens another collection on this API, whether or not its address ends in a slash', () => {
+    expect(requestRoute('https://api.test/edr/collections/other/position?f=x', HERE)).toBe('collection');
+    expect(requestRoute('https://api.test/edr/collections/other', 'https://api.test/edr')).toBe('collection');
+  });
+
+  it('loads another API first', () => {
+    expect(requestRoute('https://other.test/edr/collections/c/position', HERE)).toBe('api');
+    expect(requestRoute('https://api.test/other/collections/c', HERE)).toBe('api');
+    expect(requestRoute('https://api.test/edr/collections/c', null)).toBe('api');
+  });
+
+  it('leaves everything alone for a URL with no collection in it', () => {
+    expect(requestRoute('https://api.test/edr/conformance', HERE)).toBe('none');
+    expect(requestRoute('http://localhost:5000/echo?a=1', HERE)).toBe('none');
+    expect(requestRoute('not a url', HERE)).toBe('none');
   });
 });
 

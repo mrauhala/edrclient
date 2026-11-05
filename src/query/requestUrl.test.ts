@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { encodedUrl, isSendableUrl, mergeEditedUrl, readableUrl, shortUrl } from './requestUrl';
+import { encodedUrl, isSendableUrl, mergeEditedUrl, readableUrl, shortUrl, urlTokens } from './requestUrl';
 
 const BASE = 'https://api.test/edr/collections/c/position';
 
@@ -58,6 +58,78 @@ describe('encodedUrl', () => {
 
   it('returns what it can\'t parse as it came', () => {
     expect(encodedUrl('not a url')).toBe('not a url');
+  });
+});
+
+describe('urlTokens', () => {
+  it('tells apart where the API is, what is asked of it, and its parameters', () => {
+    expect(urlTokens('https://api.test/edr/collections/c/position?coords=POINT(1 2)&f=x')).toEqual([
+      { kind: 'base', text: 'https://api.test/edr' },
+      { kind: 'path', text: '/collections/c/position' },
+      { kind: 'punctuation', text: '?' },
+      { kind: 'name', text: 'coords' },
+      { kind: 'punctuation', text: '=' },
+      { kind: 'value', text: 'POINT(1 2)' },
+      { kind: 'punctuation', text: '&' },
+      { kind: 'name', text: 'f' },
+      { kind: 'punctuation', text: '=' },
+      { kind: 'value', text: 'x' },
+    ]);
+  });
+
+  it('takes the host as the base without a collection in the path', () => {
+    expect(urlTokens('https://api.test/edr/conformance')).toEqual([
+      { kind: 'base', text: 'https://api.test' },
+      { kind: 'path', text: '/edr/conformance' },
+    ]);
+  });
+
+  it('finds no base in what has no scheme', () => {
+    expect(urlTokens('…/c/position?f=x')[0]).toEqual({ kind: 'path', text: '…/c/position' });
+  });
+
+  it('finds collections only in the path, not in the host', () => {
+    expect(urlTokens('https://collections.test/x')[0]).toEqual({ kind: 'base', text: 'https://collections.test' });
+  });
+
+  it('takes a parameter without a value as a name', () => {
+    expect(urlTokens('/x?flag')).toEqual([{ kind: 'path', text: '/x' }, { kind: 'punctuation', text: '?' }, { kind: 'name', text: 'flag' }]);
+  });
+
+  it('keeps a second equals sign in the value', () => {
+    expect(urlTokens('/x?a=b=c').at(-1)).toEqual({ kind: 'value', text: 'b=c' });
+  });
+
+  it('dims a fragment', () => {
+    expect(urlTokens('/x?a=b#part').at(-1)).toEqual({ kind: 'punctuation', text: '#part' });
+    expect(urlTokens('/x#a?b=c')).toEqual([{ kind: 'path', text: '/x' }, { kind: 'punctuation', text: '#a?b=c' }]);
+  });
+
+  it('has nothing for nothing', () => {
+    expect(urlTokens('')).toEqual([]);
+  });
+
+  // The caret sits on top of these: one character out, and everything after it is misplaced
+  it.each([
+    'https://api.test/edr/collections/c/position?coords=POINT(1 2)&f=a%2Bb#x',
+    'https://api.test',
+    'https://',
+    'http://a?',
+    '?',
+    '&',
+    '=',
+    '#',
+    '?&=&=&#?&=',
+    'a=b',
+    '/collections',
+    'https://api.test/collections?a&&b==c&',
+    'not a url at all',
+    '  spaces  around  ',
+    '…/c/position?a=1',
+    'https://api.test/a%E0%A4%A?b=%',
+    'ÄÖ🙂?🙂=🙂&🙂#🙂',
+  ])('joins back up to exactly "%s"', text => {
+    expect(urlTokens(text).map(token => token.text).join('')).toBe(text);
   });
 });
 

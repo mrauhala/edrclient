@@ -31,7 +31,9 @@ import { ALL_PANES_WIDTH, MIN_MAP_WIDTH } from './panes';
 import FetchButton from './FetchButton';
 import RequestUrlField from './RequestUrlField';
 import { RequestUrlProvider, useRequestUrl } from './contexts/RequestUrlContext';
-import { QueryBuilderProvider, useQueryBuilder } from './contexts/QueryBuilderContext';
+import { QueryBuilderProvider } from './contexts/QueryBuilderContext';
+import { OpenRequestProvider, useOpenRequest } from './contexts/OpenRequestContext';
+import RequestNotice from './RequestNotice';
 import { useRequestIssues } from './hooks/useRequestIssues';
 import { isSendableUrl } from './query/requestUrl';
 import { requestLink } from './query/requestLink';
@@ -70,10 +72,12 @@ function App() {
                   <ValidationProvider>
                     <OpenApiProvider>
                       <QueryBuilderProvider>
-                        <AppContent
-                          customServices={customServices}
-                          setCustomServices={setCustomServices}
-                        />
+                        <OpenRequestProvider>
+                          <AppContent
+                            customServices={customServices}
+                            setCustomServices={setCustomServices}
+                          />
+                        </OpenRequestProvider>
                       </QueryBuilderProvider>
                     </OpenApiProvider>
                   </ValidationProvider>
@@ -105,8 +109,8 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
   const [settingsDrawerOpen, setSettingsDrawerOpen] = useState(false);
   const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false);
 
-  const { requestUrl } = useRequestUrl();
-  const { applyRequestUrl } = useQueryBuilder();
+  const { requestUrl, isEdited } = useRequestUrl();
+  const { openRequest, note: requestNote, clearNote } = useOpenRequest();
   const { issues: requestIssues, summary: requestSummary } = useRequestIssues();
   useCollectionKeyboardNav();
   const { setSelectedServiceUrl, getAuthCredentials } = useService();
@@ -250,10 +254,12 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
 
   const handleFetchData = useCallback(() => {
     if (!isSendableUrl(requestUrl)) return;
+    // What's sent is what's shown, so the app goes where an edited URL points
+    if (isEdited) openRequest(requestUrl, { switchApi: true });
     fetchQuery(requestUrl);
     // Reloading brings the request back, and the address can be passed on
     window.history.replaceState(null, '', requestLink(requestUrl, window.location.href));
-  }, [requestUrl, fetchQuery]);
+  }, [requestUrl, isEdited, openRequest, fetchQuery]);
 
   // Cmd+Enter (Mac) / Ctrl+Enter (Windows) to fetch data
   useEffect(() => {
@@ -281,7 +287,16 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
     }
   }, []);
 
-  const copyButton = <CopyMenu url={requestUrl} auth={requestUrl ? getAuthCredentials(requestUrl) : undefined} />;
+  // Leaving the field goes no further than this API: another one would replace all that's in the form
+  const followUrl = (url: string) => openRequest(url, { switchApi: false });
+  const copyButton = (
+    <CopyMenu
+      url={requestUrl}
+      auth={requestUrl ? getAuthCredentials(requestUrl) : undefined}
+      compact={narrowWindow || !urlInTopRow}
+      atBottom={!urlInTopRow}
+    />
+  );
   const fetchButton = (
     <FetchButton issues={requestIssues} summary={requestSummary} disabled={!isSendableUrl(requestUrl)} onFetch={handleFetchData} />
   );
@@ -308,7 +323,7 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1, py: isMobile ? 0.5 : 0.75 }}>
-              <RequestUrlField onSend={handleFetchData} onCommit={applyRequestUrl} compact={narrowWindow} />
+              <RequestUrlField onSend={handleFetchData} onCommit={followUrl} compact={narrowWindow} />
               {!isMobile && fetchButton}
               {copyButton}
               {!isMobile && !isOpen.response && (
@@ -387,12 +402,14 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
           {/* 56px with the border */}
           <Box sx={{ display: 'flex', alignItems: 'center', p: 1, gap: 1, height: 55 }}>
             <PaneToggles sx={{ '& .MuiToggleButton-root': { width: 40, height: 40 } }} />
-            {!urlInTopRow && <RequestUrlField onSend={handleFetchData} onCommit={applyRequestUrl} expandUp compact />}
+            {!urlInTopRow && <RequestUrlField onSend={handleFetchData} onCommit={followUrl} expandUp compact />}
             {!urlInTopRow && copyButton}
             <Box sx={{ ml: 'auto', flexShrink: 0 }}>{fetchButton}</Box>
           </Box>
         </Paper>
       )}
+
+      <RequestNotice message={requestNote} severity="info" onClose={clearNote} horizontal="center" atBottom={!urlInTopRow} />
 
       <Suspense fallback={null}>
         <SettingsDrawer

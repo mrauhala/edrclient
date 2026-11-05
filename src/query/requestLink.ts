@@ -40,6 +40,13 @@ export function isJustCollection(url: string): boolean {
   return !!path && (!path[3] || path[3] === '/');
 }
 
+// What it takes to get to a request not for the open collection: open another collection, load another
+// API first, or nothing, for a URL with no collection in it, which may not be an OGC API at all
+export function requestRoute(url: string, apiUrl: string | null): 'collection' | 'api' | 'none' {
+  if (collectionIdOf(url) === null) return 'none';
+  return apiRootOf(url) === apiUrl?.replace(/\/+$/, '') ? 'collection' : 'api';
+}
+
 // The entry of a list of services that is this API, whether or not they end in a slash
 export function knownServiceUrl(root: string, serviceUrls: string[]): string | undefined {
   return serviceUrls.find(url => url.replace(/\/+$/, '') === root);

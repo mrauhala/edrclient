@@ -24,6 +24,10 @@ describe('RequestUrlField', () => {
     expect(textareaOf(html)).not.toMatch(/readonly/i);
   });
 
+  it('is one line at rest', () => {
+    expect(textareaOf(render(URL_TEXT))).toContain('rows="1"');
+  });
+
   it('leaves autocorrect out of it', () => {
     const textarea = textareaOf(render(URL_TEXT));
     expect(textarea).toMatch(/spellcheck="false"/i);
@@ -62,7 +66,8 @@ describe('RequestUrlField', () => {
 
     it('shows the part that matters, with the full URL still there to edit', () => {
       const html = compact(URL_TEXT);
-      expect(html).toContain('>…/c/position?coords=POINT(1 2)</div>');
+      expect(html).toContain('<span class="url-path">…/c/position</span>');
+      expect(html).toContain('<span class="url-value">POINT(1 2)</span>');
       expect(html).toContain(`>${URL_TEXT}</textarea>`);
     });
 
@@ -72,7 +77,9 @@ describe('RequestUrlField', () => {
 
     it('keeps the short form out of the way of a tap and of a screen reader', () => {
       const html = compact(URL_TEXT);
-      const shortForm = html.match(/<div[^>]*aria-hidden="true"[^>]*>/)?.[0].match(/css-[a-z0-9]+/)?.[0];
+      const tag = html.match(/<div[^>]*data-url-short[^>]*>/)?.[0] ?? '';
+      expect(tag).toContain('aria-hidden="true"');
+      const shortForm = tag.match(/css-[a-z0-9]+/)?.[0];
       expect(shortForm).toBeTruthy();
       expect(html).toMatch(new RegExp(`\\.${shortForm}\\{[^}]*pointer-events:none`));
     });
@@ -83,9 +90,40 @@ describe('RequestUrlField', () => {
     });
 
     it('hides the field\'s own text at rest, so it isn\'t shown twice', () => {
-      const hidden = /textarea\{[^}]*color:transparent/;
-      expect(compact(URL_TEXT)).toMatch(hidden);
-      expect(render(URL_TEXT)).not.toMatch(hidden);
+      const hidden = (html: string) => html.match(/<div[^>]*data-url-copy[^>]*>/)?.[0].match(/css-[a-z0-9]+/)?.[0];
+      const isHidden = (html: string) => new RegExp(`\\.${hidden(html)}\\{[^}]*visibility:hidden`).test(html);
+      expect(isHidden(compact(URL_TEXT))).toBe(true);
+      expect(isHidden(render(URL_TEXT))).toBe(false);
+    });
+  });
+
+  describe('colours', () => {
+    const parts = (html: string, kind: string) => [...html.matchAll(new RegExp(`<span class="url-${kind}">([^<]*)</span>`, 'g'))].map(match => match[1]);
+
+    it('marks out the parts of the URL', () => {
+      const html = render(URL_TEXT);
+      expect(parts(html, 'base')).toEqual(['https://api.test/edr']);
+      expect(parts(html, 'path')).toEqual(['/collections/c/position']);
+      expect(parts(html, 'name')).toEqual(['coords']);
+      expect(parts(html, 'value')).toEqual(['POINT(1 2)']);
+      expect(parts(html, 'punctuation')).toEqual(['?', '=']);
+    });
+
+    it('keeps the coloured copy away from a screen reader, which has the textarea', () => {
+      expect(render(URL_TEXT)).toMatch(/<div[^>]*data-url-copy[^>]*aria-hidden="true"|<div[^>]*aria-hidden="true"[^>]*data-url-copy/);
+    });
+
+    it('has the textarea show its caret, over text of its own that is transparent', () => {
+      const html = render(URL_TEXT);
+      const textareaClass = textareaOf(html).match(/css-[A-Za-z0-9-]+/g)?.at(-1);
+      expect(html).toMatch(new RegExp(`\\.${textareaClass}\\{[^}]*[;{]color:transparent`));
+      expect(html).toMatch(new RegExp(`\\.${textareaClass}\\{[^}]*caret-color:`));
+    });
+
+    it('still shows the placeholder, which transparent text would otherwise take with it', () => {
+      const html = render('');
+      expect(html).toContain('placeholder="Select a collection and query, or paste a request URL"');
+      expect(html).toMatch(/::placeholder\{color:[^;}]*text-secondary|::placeholder\{color:rgba|::placeholder\{color:#/);
     });
   });
 

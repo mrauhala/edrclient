@@ -72,10 +72,14 @@ const ServiceSelector = ({
   // Effect to handle external service URL selection (from settings)
   useEffect(() => {
     if (onServiceUrlSelect) {
-      setSelectedService(onServiceUrlSelect);
-      setInputUrl(onServiceUrlSelect);
-      setApiUrl(onServiceUrlSelect);
+      // By the name it's listed under if it is, for a request's API worked out from its URL
+      const listed = knownServiceUrl(onServiceUrlSelect.replace(/\/+$/, ''), [...allServiceUrls]);
+      setSelectedService(listed ?? '');
+      setInputUrl(listed ?? onServiceUrlSelect);
+      setApiUrl(listed ?? onServiceUrlSelect);
     }
+    // Only on being asked: allServiceUrls changes as services are edited
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onServiceUrlSelect]);
 
   // Build typed custom service items

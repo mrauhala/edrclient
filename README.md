@@ -16,8 +16,9 @@ service follows the standards.
 - **EDR query builder:** every query type (position, radius, area, cube, trajectory, corridor, items,
   locations, instances) with parameters, time, vertical levels, custom dimensions and output formats.
   Geometry is drawn on the map, and the request URL updates as you go. Edit the URL, bad values included,
-  and what's in it is what's sent, with the form and map following what they can hold.
-- **Links to a request:** copy a link that reopens the request here, with its API, collection, form and
+  and what's in it is what's sent. The form and map follow what they can hold, and the app goes to
+  another collection or API if the URL points there.
+- **Links to a request:** share a link that reopens the request here, with its API, collection, form and
   map, or copy the request as a URL or a curl command. A link never sends anything by itself, and
   stored credentials stay out of both. A key typed into the URL by hand stays in it.
 - **Validation as you build:** what the query still misses or gets wrong, checked against EDR, the
