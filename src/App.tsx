@@ -18,9 +18,8 @@ import { LayerManagerProvider } from './contexts/LayerManagerContext';
 import { ValidationProvider } from './contexts/ValidationContext';
 import { OpenApiProvider } from './contexts/OpenApiContext';
 import { MapInteractionProvider } from './contexts/MapInteractionContext';
-import { CollectionProvider, useCollection } from './contexts/CollectionContext';
+import { CollectionProvider } from './contexts/CollectionContext';
 import { QueryValidationProvider } from './contexts/QueryValidationContext';
-import { useQueryValidation } from './hooks/useQueryValidation';
 import { useCollectionKeyboardNav } from './hooks/useCollectionKeyboardNav';
 import { useQueryResponse } from './hooks/useQueryResponse';
 import { ServiceProvider, useService } from './contexts/ServiceContext';
@@ -30,12 +29,14 @@ import ResponseDock from './ResponseDock';
 import ResponseStatusButton from './ResponseStatusButton';
 import { ALL_PANES_WIDTH, MIN_MAP_WIDTH } from './panes';
 import FetchButton from './FetchButton';
+import RequestUrlField from './RequestUrlField';
+import { RequestUrlProvider, useRequestUrl } from './contexts/RequestUrlContext';
+import { useRequestIssues } from './hooks/useRequestIssues';
+import { encodedUrl, isSendableUrl } from './query/requestUrl';
 import Paper from '@mui/material/Paper';
-import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import Tooltip from '@mui/material/Tooltip';
-import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 
 
@@ -60,6 +61,7 @@ function App() {
   return (
     <ServiceProvider customServices={customServices} selectedServiceUrl={selectedServiceUrl} setSelectedServiceUrl={setSelectedServiceUrl}>
       <CollectionProvider>
+        <RequestUrlProvider>
         <QueryValidationProvider>
           <MapInteractionProvider>
             <GeoJsonLayerProvider>
@@ -78,6 +80,7 @@ function App() {
             </GeoJsonLayerProvider>
           </MapInteractionProvider>
         </QueryValidationProvider>
+        </RequestUrlProvider>
       </CollectionProvider>
     </ServiceProvider>
   );
@@ -100,8 +103,8 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
   const [settingsDrawerOpen, setSettingsDrawerOpen] = useState(false);
   const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false);
 
-  const { collectionUrl } = useCollection();
-  const { issues: queryIssues, summary: querySummary } = useQueryValidation();
+  const { requestUrl } = useRequestUrl();
+  const { issues: requestIssues, summary: requestSummary } = useRequestIssues();
   useCollectionKeyboardNav();
   const { setSelectedServiceUrl } = useService();
 
@@ -161,6 +164,10 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
   const showResponse = useCallback(() => showPane('response'), [showPane]);
   const { fetchQuery, pane: responsePane } = useQueryResponse(showResponse);
   const mapHidden = !isMobile && !isOpen.map;
+  // A phone on its side has no height to spare for another row: the URL stays in the bottom bar
+  const shortWindow = useMediaQuery('(max-height:499.95px)', { noSsr: true });
+  const urlInTopRow = !isMobile || !shortWindow;
+  const narrowWindow = useMediaQuery(theme.breakpoints.down('sm'), { noSsr: true });
 
   const handleSettingsDrawerToggle = useCallback(() => {
     setSettingsDrawerOpen(prev => !prev);
@@ -239,14 +246,14 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
   };
 
   const handleCopyUrl = () => {
-    if (collectionUrl) {
-      navigator.clipboard.writeText(collectionUrl);
+    if (requestUrl) {
+      navigator.clipboard.writeText(encodedUrl(requestUrl));
     }
   };
 
   const handleFetchData = useCallback(() => {
-    if (collectionUrl) fetchQuery(collectionUrl);
-  }, [collectionUrl, fetchQuery]);
+    if (isSendableUrl(requestUrl)) fetchQuery(requestUrl);
+  }, [requestUrl, fetchQuery]);
 
   // Cmd+Enter (Mac) / Ctrl+Enter (Windows) to fetch data
   useEffect(() => {
@@ -274,6 +281,20 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
     }
   }, []);
 
+  const copyButton = (
+    <Tooltip title="Copy URL">
+      {/* A disabled button gives a tooltip no events */}
+      <Box component="span" sx={{ flexShrink: 0 }}>
+        <IconButton color="primary" aria-label="Copy URL" disabled={!requestUrl} onClick={handleCopyUrl}>
+          <ContentCopyIcon />
+        </IconButton>
+      </Box>
+    </Tooltip>
+  );
+  const fetchButton = (
+    <FetchButton issues={requestIssues} summary={requestSummary} disabled={!isSendableUrl(requestUrl)} onFetch={handleFetchData} />
+  );
+
   return (
     <ThemeProvider theme={theme}>
     <PanesProvider value={panes}>
@@ -282,7 +303,36 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
       <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', '@supports (height: 100dvh)': { height: '100dvh' }, overflow: 'hidden' }}>
         <TopMenu onSettingsClick={handleSettingsDrawerToggle} />
 
-      {/* Positioned, so that on phones the list and the response cover just this row, between the menu and the bottom bar */}
+        {/* The request as it will be sent. Above the panes, since the field opens over them while editing */}
+        {urlInTopRow && (
+          <Paper
+            elevation={2}
+            sx={{
+              flexShrink: 0,
+              position: 'relative',
+              zIndex: 1200,
+              borderRadius: 0,
+              pl: 'var(--safe-left)',
+              pr: 'var(--safe-right)',
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1, py: isMobile ? 0.5 : 0.75 }}>
+              <RequestUrlField onSend={handleFetchData} compact={narrowWindow} />
+              {!isMobile && fetchButton}
+              {copyButton}
+              {!isMobile && !isOpen.response && (
+                <ResponseStatusButton
+                  response={responsePane.response}
+                  isLoading={responsePane.isLoading}
+                  hasError={responsePane.error !== null}
+                  onClick={showResponse}
+                />
+              )}
+            </Box>
+          </Paper>
+        )}
+
+      {/* Positioned, so that on phones the list and the response cover just this row, between the bars */}
       <Box
         sx={{
           display: 'flex',
@@ -328,65 +378,30 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
         </ResponseDock>
       </Box>
 
-      {/* Bottom query bar, always visible. Above the panes that cover the map on phones, and clear of the home indicator */}
-      <Paper
-        elevation={8}
-        sx={{
-          flexShrink: 0,
-          position: 'relative',
-          zIndex: 1200,
-          borderRadius: 0,
-          borderTop: '1px solid rgba(0, 0, 0, 0.12)',
-          pb: 'var(--safe-bottom)',
-          pl: 'var(--safe-left)',
-          pr: 'var(--safe-right)',
-        }}
-      >
-        {/* 56px with the border */}
-        <Box sx={{ display: 'flex', alignItems: 'center', p: 1, gap: 1, height: 55 }}>
-          {isMobile && <PaneToggles sx={{ '& .MuiToggleButton-root': { width: 40, height: 40 } }} />}
-          {!isMobile && !isOpen.response && (
-            <ResponseStatusButton
-              response={responsePane.response}
-              isLoading={responsePane.isLoading}
-              hasError={responsePane.error !== null}
-              onClick={showResponse}
-            />
-          )}
-          {collectionUrl ? (
-            <>
-              <TextField
-                fullWidth
-                size="small"
-                value={collectionUrl}
-                variant="outlined"
-                // Too narrow to read on the smallest phones: Copy still has it, and the response pane shows what was sent
-                sx={{ '@media (max-width: 359px)': { display: 'none' } }}
-                slotProps={{
-                  input: {
-                    readOnly: true,
-                    sx: { fontFamily: 'monospace', fontSize: '0.875rem' }
-                  }
-                }}
-              />
-              <Tooltip title="Copy URL">
-                <IconButton
-                  color="primary"
-                  onClick={handleCopyUrl}
-                  sx={{ flexShrink: 0, ml: 'auto' }}
-                >
-                  <ContentCopyIcon />
-                </IconButton>
-              </Tooltip>
-              <FetchButton issues={queryIssues} summary={querySummary} onFetch={handleFetchData} />
-            </>
-          ) : (
-            <Typography variant="body2" noWrap sx={{ color: 'text.secondary', pl: 1 }}>
-              Select a collection and query to generate URL
-            </Typography>
-          )}
-        </Box>
-      </Paper>
+      {/* On phones: the panes and Fetch, within reach of a thumb. Above the panes that cover the map, and clear of the home indicator */}
+      {isMobile && (
+        <Paper
+          elevation={8}
+          sx={{
+            flexShrink: 0,
+            position: 'relative',
+            zIndex: 1200,
+            borderRadius: 0,
+            borderTop: '1px solid rgba(0, 0, 0, 0.12)',
+            pb: 'var(--safe-bottom)',
+            pl: 'var(--safe-left)',
+            pr: 'var(--safe-right)',
+          }}
+        >
+          {/* 56px with the border */}
+          <Box sx={{ display: 'flex', alignItems: 'center', p: 1, gap: 1, height: 55 }}>
+            <PaneToggles sx={{ '& .MuiToggleButton-root': { width: 40, height: 40 } }} />
+            {!urlInTopRow && <RequestUrlField onSend={handleFetchData} expandUp compact />}
+            {!urlInTopRow && copyButton}
+            <Box sx={{ ml: 'auto', flexShrink: 0 }}>{fetchButton}</Box>
+          </Box>
+        </Paper>
+      )}
 
       <Suspense fallback={null}>
         <SettingsDrawer

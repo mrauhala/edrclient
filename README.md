@@ -87,7 +87,9 @@ The key ends up in the browser, so it is public: restrict it to your sites in Ca
 | Key | Action |
 |---|---|
 | `PageDown` / `PageUp` | Next / previous collection |
-| `Cmd+Enter` / `Ctrl+Enter` | Fetch data from the query URL |
+| `Cmd+Enter` / `Ctrl+Enter` | Fetch data from the request URL |
+| `Enter` in the request URL | Fetch it |
+| `Esc` in the request URL | Undo your typing |
 | `B` | Toggle the Request pane |
 | `M` | Toggle the Map pane |
 | `R` | Toggle the Response pane |

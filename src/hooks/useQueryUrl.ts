@@ -7,6 +7,7 @@ import { useOpenApi } from '../contexts/OpenApiContext';
 import { buildQueryModel, emptyDim } from '../query/queryModel';
 import { EDR_QUERY_RULES } from '../query/edrRules';
 import { buildQueryUrl } from '../query/buildQueryUrl';
+import { readableUrl } from '../query/requestUrl';
 import { effectiveOutputFormats, queryTypeOf, queryVariables, unitsFor } from '../query/queryTypes';
 import { pickUnit } from '../query/units';
 import { addApiDocsIssues, validateQuery } from '../query/validateQuery';
@@ -279,6 +280,7 @@ export function useQueryUrl(): UseQueryUrlReturn {
       setQueryValidation(null);
       return;
     }
+    url = readableUrl(url);
     setCollectionUrl(url);
     const apiDocs = apiIndex ? checkQueryUrlAgainstOpenApi(url, apiIndex) : null;
     const operation = apiDocs?.operation?.entry;

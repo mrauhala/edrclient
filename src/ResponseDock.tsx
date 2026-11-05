@@ -18,7 +18,7 @@ export default function ResponseDock({ children }: { children: ReactNode }) {
 
   const open = isOpen.response;
   const placement = isMobile
-    // On phones it covers the map, within the row between the menu and the bottom bar
+    // On phones it covers the map, within the row between the bars
     ? { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, zIndex: 1100 } as const
     : !open ? { flex: '0 0 0px' }
       // Beside the map it gives way before the map does, down to its minimum; without the map it takes the room
