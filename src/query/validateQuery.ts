@@ -251,8 +251,10 @@ function checkDatetime(model: QueryModel, add: Add) {
     add('missing', 'metadata', 'datetime', 'range', `Pick ${start ? 'an end' : 'a start'} time for the range`, 'form');
     return;
   }
-  const times = filled.map(text => Date.parse(text));
-  filled.forEach((text, i) => {
+  // `..` is an open end of an interval, which only a typed URL has
+  const closed = filled.filter(text => text !== '..');
+  const times = closed.map(text => Date.parse(text));
+  closed.forEach((text, i) => {
     if (isNaN(times[i])) add('error', 'metadata', 'datetime', `parse-${i}`, `"${text}" isn't a valid date-time`, 'form');
   });
   if (times.some(isNaN)) return;

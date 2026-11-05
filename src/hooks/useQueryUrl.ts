@@ -1,11 +1,13 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Collection } from '../DataRetrievalAPI';
 import { useMapInteraction } from '../contexts/MapInteractionContext';
 import { useCollection } from '../contexts/CollectionContext';
 import { useQueryValidationContext } from '../contexts/QueryValidationContext';
 import { useOpenApi } from '../contexts/OpenApiContext';
+import { useRequestUrl } from '../contexts/RequestUrlContext';
 import { buildQueryModel, emptyDim, timeIsOnlyAFilter } from '../query/queryModel';
 import { buildQueryUrl } from '../query/buildQueryUrl';
+import { matchDataQuery, matchInstance, readQuerySelections, type QuerySelections } from '../query/parseQueryUrl';
 import { readableUrl } from '../query/requestUrl';
 import { effectiveOutputFormats, queryTypeOf, queryVariables, unitsFor } from '../query/queryTypes';
 import { pickUnit } from '../query/units';
@@ -15,6 +17,8 @@ import { useInstances, type InstancesState } from './useInstances';
 import { instanceStep, type Instance } from '../query/instances';
 import { normalizeHref } from '../utils/href';
 import type { DimSelection, QueryIssue } from '../query/types';
+
+const isChosen = ({ mode, value, start, end }: DimSelection) => (mode === 'range' ? !!start && !!end : !!value);
 
 export interface UseQueryUrlReturn {
   // Query states
@@ -68,11 +72,14 @@ export interface UseQueryUrlReturn {
   resetQueryState: () => void;
   getEffectiveOutputFormats: (collection: Collection, queryType: string) => string[];
   selectDataQuery: (collection: Collection, queryType: string) => void;
+  // Put a request URL's values into the form and map, if it's for the open collection
+  applyRequestUrl: (url: string) => void;
 }
 
 export function useQueryUrl(): UseQueryUrlReturn {
-  const { clickedCoords, selectedArea, selectedBbox, radius, radiusUnits, setRadiusUnits, setDataQuery } = useMapInteraction();
-  const { selectedCollection, selectedFeature, setCollectionUrl } = useCollection();
+  const { clickedCoords, setClickedCoords, selectedArea, setSelectedArea, selectedBbox, setSelectedBbox, radius, setRadius, radiusUnits, setRadiusUnits, setDataQuery } = useMapInteraction();
+  const { selectedCollection, selectedFeature, setSelectedFeature, locationFeatures, setCollectionUrl } = useCollection();
+  const { editUrl } = useRequestUrl();
   const { setQueryValidation } = useQueryValidationContext();
   const { index: apiIndex } = useOpenApi();
 
@@ -189,6 +196,94 @@ export function useQueryUrl(): UseQueryUrlReturn {
     if (selectedInstance && queryKey) applyQueryDefaults(selectedInstance, queryKey);
     else setDataQuery('instances');
   }, [selectedInstance, applyQueryDefaults, setDataQuery]);
+
+  // The form and map take on what a request URL says
+  const applySelections = useCallback((selections: QuerySelections, queryType: string, hasLocation: boolean) => {
+    const { format, parameters, datetime, vertical, customDims, points, polygons, bbox, bboxAsCoords: boxAsCoords } = selections;
+    setSelectedFormat(format);
+    setSelectedParameters(parameters);
+    setDatetimeMode(datetime.mode);
+    setSelectedDatetime(datetime.value);
+    setStartDatetime(datetime.start);
+    setEndDatetime(datetime.end);
+    if (timeIsOnlyAFilter(queryType, hasLocation)) setFilterByTime(isChosen(datetime));
+    setVerticalMode(vertical.mode);
+    setSelectedVertical(vertical.value);
+    setStartVertical(vertical.start);
+    setEndVertical(vertical.end);
+    const eachDim = <T,>(pick: (selection: DimSelection) => T) => Object.fromEntries(Object.entries(customDims).map(([id, selection]) => [id, pick(selection)]));
+    setCustomDimensionModes(eachDim(selection => selection.mode));
+    setSelectedCustomDimensions(eachDim(selection => selection.value));
+    setCustomDimensionStarts(eachDim(selection => selection.start));
+    setCustomDimensionEnds(eachDim(selection => selection.end));
+    setClickedCoords(points);
+    setSelectedArea(polygons);
+    setSelectedBbox(bbox);
+    setBboxAsCoords(boxAsCoords);
+    // The unit first: changing it converts the radius
+    if (selections.radiusUnits) setRadiusUnits(selections.radiusUnits);
+    if (selections.radius !== null) setRadius(selections.radius);
+    setQueryParams(params => ({ ...params, ...selections.queryParams }));
+  }, [setClickedCoords, setSelectedArea, setSelectedBbox, setRadius, setRadiusUnits]);
+
+  // A location in the URL has to be one of the collection's: undefined if it isn't
+  const featureFor = useCallback((locationId: string | undefined) => (
+    locationId === undefined ? null : locationFeatures?.find(feature => String(feature.id) === locationId)
+  ), [locationFeatures]);
+
+  // The picked instance and query, from a URL for one. A query or location the instance doesn't
+  // have leaves the form where it is, with the URL as typed.
+  const applyInstanceUrl = useCallback((url: string, instanceId: string, hasQuery: boolean) => {
+    const instance = instances.instances.find(candidate => String(candidate.id) === instanceId);
+    if (!instance) return;
+    if (!hasQuery) {
+      setSelectedInstanceId(instanceId);
+      setInstanceQueryKey('');
+      setDataQuery('instances');
+      return;
+    }
+    const target = matchDataQuery(url, instance);
+    const feature = target ? featureFor(target.locationId) : undefined;
+    if (!target || feature === undefined) return;
+    setSelectedInstanceId(instanceId);
+    setInstanceQueryKey(target.queryKey);
+    applyQueryDefaults(instance, target.queryKey);
+    setSelectedFeature(feature);
+    applySelections(readQuerySelections(url, instance, target.queryKey), queryTypeOf(instance, target.queryKey), !!feature);
+  }, [instances.instances, featureFor, applyQueryDefaults, applySelections, setDataQuery, setSelectedFeature]);
+
+  // A URL for an instance waits for the list of instances, which picking the instances query loads
+  const urlAwaitingInstances = useRef<{ url: string; instanceId: string; hasQuery: boolean } | null>(null);
+  useEffect(() => {
+    const waiting = urlAwaitingInstances.current;
+    if (!waiting || (instances.status !== 'ready' && instances.status !== 'error')) return;
+    urlAwaitingInstances.current = null;
+    if (instances.status === 'ready') applyInstanceUrl(waiting.url, waiting.instanceId, waiting.hasQuery);
+    // Moving to the list on the way there replaced the URL
+    editUrl(waiting.url);
+  }, [instances.status, applyInstanceUrl, editUrl]);
+
+  const applyRequestUrl = useCallback((url: string) => {
+    if (!selectedCollection) return;
+
+    const instance = matchInstance(url, selectedCollection);
+    if (instance) {
+      if (selectedDataQuery === instance.queryKey && instances.status === 'ready') {
+        applyInstanceUrl(url, instance.instanceId, instance.hasQuery);
+      } else {
+        urlAwaitingInstances.current = { url, instanceId: instance.instanceId, hasQuery: instance.hasQuery };
+        selectDataQuery(selectedCollection, instance.queryKey);
+      }
+      return;
+    }
+
+    const target = matchDataQuery(url, selectedCollection);
+    const feature = target ? featureFor(target.locationId) : undefined;
+    if (!target || feature === undefined) return;
+    if (target.queryKey !== selectedDataQuery || selectedInstanceId) selectDataQuery(selectedCollection, target.queryKey);
+    if (feature !== selectedFeature) setSelectedFeature(feature);
+    applySelections(readQuerySelections(url, selectedCollection, target.queryKey), queryTypeOf(selectedCollection, target.queryKey), !!feature);
+  }, [selectedCollection, selectedDataQuery, selectedInstanceId, selectedFeature, instances.status, featureFor, selectDataQuery, setSelectedFeature, applyInstanceUrl, applySelections]);
 
   // Selecting a location (on the map, in the Location Features list or via search) switches the
   // query to `locations`, so the request targets that location
@@ -318,5 +413,6 @@ export function useQueryUrl(): UseQueryUrlReturn {
     resetQueryState,
     getEffectiveOutputFormats,
     selectDataQuery,
+    applyRequestUrl,
   };
 }

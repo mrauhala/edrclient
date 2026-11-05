@@ -31,6 +31,7 @@ import { ALL_PANES_WIDTH, MIN_MAP_WIDTH } from './panes';
 import FetchButton from './FetchButton';
 import RequestUrlField from './RequestUrlField';
 import { RequestUrlProvider, useRequestUrl } from './contexts/RequestUrlContext';
+import { QueryBuilderProvider, useQueryBuilder } from './contexts/QueryBuilderContext';
 import { useRequestIssues } from './hooks/useRequestIssues';
 import { encodedUrl, isSendableUrl } from './query/requestUrl';
 import Paper from '@mui/material/Paper';
@@ -69,10 +70,12 @@ function App() {
                 <LayerManagerProvider>
                   <ValidationProvider>
                     <OpenApiProvider>
-                      <AppContent
-                        customServices={customServices}
-                        setCustomServices={setCustomServices}
-                      />
+                      <QueryBuilderProvider>
+                        <AppContent
+                          customServices={customServices}
+                          setCustomServices={setCustomServices}
+                        />
+                      </QueryBuilderProvider>
                     </OpenApiProvider>
                   </ValidationProvider>
                 </LayerManagerProvider>
@@ -104,6 +107,7 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
   const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false);
 
   const { requestUrl } = useRequestUrl();
+  const { applyRequestUrl } = useQueryBuilder();
   const { issues: requestIssues, summary: requestSummary } = useRequestIssues();
   useCollectionKeyboardNav();
   const { setSelectedServiceUrl } = useService();
@@ -317,7 +321,7 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1, py: isMobile ? 0.5 : 0.75 }}>
-              <RequestUrlField onSend={handleFetchData} compact={narrowWindow} />
+              <RequestUrlField onSend={handleFetchData} onCommit={applyRequestUrl} compact={narrowWindow} />
               {!isMobile && fetchButton}
               {copyButton}
               {!isMobile && !isOpen.response && (
@@ -396,7 +400,7 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
           {/* 56px with the border */}
           <Box sx={{ display: 'flex', alignItems: 'center', p: 1, gap: 1, height: 55 }}>
             <PaneToggles sx={{ '& .MuiToggleButton-root': { width: 40, height: 40 } }} />
-            {!urlInTopRow && <RequestUrlField onSend={handleFetchData} expandUp compact />}
+            {!urlInTopRow && <RequestUrlField onSend={handleFetchData} onCommit={applyRequestUrl} expandUp compact />}
             {!urlInTopRow && copyButton}
             <Box sx={{ ml: 'auto', flexShrink: 0 }}>{fetchButton}</Box>
           </Box>

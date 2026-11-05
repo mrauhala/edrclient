@@ -91,6 +91,10 @@ const QueryFields: React.FC<{ collection: Collection; queryKey: string; querySta
                   {format}
                 </MenuItem>
               ))}
+              {/* From a typed URL: flagged below, and shown so that the field doesn't look empty */}
+              {selectedFormat && !effectiveFormats.includes(selectedFormat) && (
+                <MenuItem value={selectedFormat}>{selectedFormat}</MenuItem>
+              )}
             </Select>
             <FieldIssueText issue={fieldIssue('f')} />
           </FormControl>

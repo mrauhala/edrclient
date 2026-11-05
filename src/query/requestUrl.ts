@@ -76,15 +76,34 @@ const nameOf = (pair: string) => decoded(pair.split('=', 1)[0]);
 const valueOf = (pair: string) => decoded(pair.slice(pair.indexOf('=') + 1));
 const paramsOf = (url: string) => new Map(splitUrl(url).pairs.map(pair => [nameOf(pair), valueOf(pair)]));
 
+const NUMBER = /[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?/g;
+const decimalsOf = (number: string) => number.split('.')[1]?.length ?? 0;
+
+// Whether what the form built says the same as what was typed, at the form's precision: it writes
+// 24.94123 as 24.941 and 24.94 as 24.940, and neither is a change worth overwriting the typed text for
+function sameAsTyped(built: string, typed: string): boolean {
+  const shape = (text: string) => text.replace(NUMBER, '#').replace(/\s+/g, '').toLowerCase();
+  if (shape(built) !== shape(typed)) return false;
+  const typedNumbers = typed.match(NUMBER) ?? [];
+  return (built.match(NUMBER) ?? []).every((number, i) => {
+    const decimals = decimalsOf(number);
+    return Number(number).toFixed(decimals) === Number(typedNumbers[i]).toFixed(decimals);
+  });
+}
+
 // The edited URL after the form went from building prevBuilt to nextBuilt: only the parameters the
 // form changed are written in, as text, so what was typed keeps its encoding and order. Another
-// query or collection starts again from the form (null: no edits left).
+// query or collection starts again from the form (null: no edits left), unless the form went there
+// because the URL says so.
 export function mergeEditedUrl(prevBuilt: string, nextBuilt: string, edited: string): string | null {
-  if (!edited.trim() || splitUrl(prevBuilt).base !== splitUrl(nextBuilt).base) return null;
+  if (!edited.trim()) return null;
+  const { base, hash, pairs: editedPairs } = splitUrl(edited);
+  const nextBase = splitUrl(nextBuilt).base;
+  // However each writes it: a server's links may have an instance's `:` where a typed URL has %3A
+  if (splitUrl(prevBuilt).base !== nextBase) return decoded(base) === decoded(nextBase) && edited !== nextBuilt ? edited : null;
 
   const prev = paramsOf(prevBuilt);
   const next = paramsOf(nextBuilt);
-  const { base, hash, pairs: editedPairs } = splitUrl(edited);
   let pairs = editedPairs;
 
   for (const name of new Set([...prev.keys(), ...next.keys()])) {
@@ -98,7 +117,7 @@ export function mergeEditedUrl(prevBuilt: string, nextBuilt: string, edited: str
       const at = pairs.findIndex(pair => nameOf(pair) === name);
       if (at < 0) {
         pairs = [...pairs, pairOf(name, after)];
-      } else {
+      } else if (!sameAsTyped(after, valueOf(pairs[at]))) {
         pairs = pairs
           .map((pair, index) => (index === at ? pairOf(name, after) : pair))
           .filter((pair, index) => index === at || nameOf(pair) !== name);

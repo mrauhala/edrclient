@@ -15,7 +15,8 @@ service follows the standards.
   with styles and time animation), fetched GeoJSON as layers, and a layer manager.
 - **EDR query builder:** every query type (position, radius, area, cube, trajectory, corridor, items,
   locations, instances) with parameters, time, vertical levels, custom dimensions and output formats.
-  Geometry is drawn on the map, and the request URL updates as you go.
+  Geometry is drawn on the map, and the request URL updates as you go. Edit the URL, bad values included,
+  and what's in it is what's sent, with the form and map following what they can hold.
 - **Validation as you build:** what the query still misses or gets wrong, checked against EDR, the
   collection's metadata and the server's OpenAPI definition. The service itself is validated
   against the OGC schemas (Common, Features, EDR 1.0–1.2, Records, Maps), and its OpenAPI document

@@ -131,6 +131,13 @@ describe('EDR geometry rules', () => {
     expect(issues.find(issue => issue.field === 'datetime')?.message).toBe('No time filter: all items are listed');
   });
 
+  it('takes an open-ended time interval', () => {
+    const range = (start: string, end: string) => problems(issuesFor(FMI, 'position', { points: [HELSINKI], datetime: { mode: 'range', value: '', start, end } })).filter(issue => issue.endsWith('datetime'));
+    expect(range('..', '2026-11-05T00:00:00Z').filter(issue => issue.startsWith('error'))).toEqual([]);
+    expect(range('2026-11-05T00:00:00Z', '..').filter(issue => issue.startsWith('error'))).toEqual([]);
+    expect(range('..', 'garbage')).toContain('error datetime');
+  });
+
   it('notes that a locations request without a location lists them all', () => {
     expect(ids(issuesFor(FMI, 'locations'))).toContain('edr:location:list');
     expect(ids(issuesFor(FMI, 'locations', { locationFeature: { id: '658225' } }))).not.toContain('edr:location:list');
