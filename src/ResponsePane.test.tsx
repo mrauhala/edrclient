@@ -31,9 +31,10 @@ const render = (props: Partial<ComponentProps<typeof ResponsePane>>, requestUrl 
 );
 
 // The tabs, by name, and the one that's selected
-const tabsOf = (html: string) => [...html.matchAll(/<button[^>]*role="tab"[^>]*>(.*?)<\/button>/g)].map(match => ({
-  name: match[1].replace(/<style.*?<\/style>/g, '').replace(/<[^>]+>/g, ''),
-  selected: match[0].includes('aria-selected="true"'),
+const TAB_NAMES = ['Data', 'Raw', 'Headers', 'Sizes', 'Checks'];
+const tabsOf = (html: string) => [...html.matchAll(/<button[^>]*role="tab"[^>]*>.*?<\/button>/g)].map(([tab]) => ({
+  name: TAB_NAMES.find(name => tab.includes(`>${name}<`)),
+  selected: tab.includes('aria-selected="true"'),
 }));
 const tabNames = (html: string) => tabsOf(html).map(tab => tab.name);
 const selectedTab = (html: string) => tabsOf(html).find(tab => tab.selected)?.name;
@@ -114,9 +115,7 @@ describe('ResponsePane', () => {
   it("offers the text's copy button beside the tabs, in no row of its own", () => {
     const html = render({ data: 'hello world', contentType: 'text/plain', response: OK });
     expect(html).toContain('aria-label="Copy the response"');
-    expect(html).not.toContain('flagged');
-    // An empty row, with only an empty space for flagged lines in it
-    expect(html.replace(/<style.*?<\/style>/g, '')).not.toMatch(/<div[^>]*><div[^>]*><\/div><\/div>/);
+    expect(html).not.toContain('role="toolbar"');
   });
 
   it('counts the findings on the Checks tab', () => {
@@ -127,7 +126,8 @@ describe('ResponsePane', () => {
       validationSchemaName: 'Thing',
       validationErrors: [{ path: '/a', message: 'bad', severity: 'warning' }, { path: '/a', message: 'odd', severity: 'info' }],
     });
-    expect(tabNames(html)).toContain('Checks1 issue');
+    expect(tabNames(html)).toContain('Checks');
+    expect(html).toContain('>1 issue<');
   });
 
   it('flags the lines in Raw, however bad they are, in words that fit them all', () => {
@@ -138,6 +138,7 @@ describe('ResponsePane', () => {
       validationSchemaName: 'Thing',
       validationErrors: [{ path: '/a', message: '/a: bad', severity: 'error' }, { path: '/b', message: '/b: odd', severity: 'info' }],
     });
+    expect(html).toContain('role="toolbar"');
     expect(html).toContain('2 lines flagged');
     expect(html).toContain('aria-label="Next flagged line"');
     expect(html).toContain('L2');
@@ -181,6 +182,7 @@ describe('ResponsePane', () => {
     expect(html).toContain('Content-Type: text/plain');
     expect(html).toContain('stored');
     expect(tabNames(html)).toEqual([]);
+    expect(html).toContain('role="toolbar"');
     expect(html).toContain('aria-label="Copy the response"');
   });
 

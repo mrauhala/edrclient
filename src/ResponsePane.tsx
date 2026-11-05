@@ -306,7 +306,7 @@ const ResponsePane: React.FC<ResponsePaneProps> = ({
         {!isLoading && tab === 'raw' && data && (
           <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
             {(errorLineList.length > 0 || tabs.length === 0) && (
-              <Box sx={{
+              <Box role="toolbar" aria-label="The response's text" sx={{
                 px: 1,
                 py: 0.25,
                 backgroundColor: 'background.default',
