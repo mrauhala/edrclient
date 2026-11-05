@@ -13,22 +13,20 @@ const OK: ResponseDetails = {
   contentType: 'application/vnd.cov+json',
 };
 
-const text = (html: string) => html.replace(/<style[^>]*>.*?<\/style>/g, '').replace(/<[^>]+>/g, '');
-
 describe('ResponseStatusLine', () => {
   it('shows the status, time, size and content type', () => {
     const html = renderToStaticMarkup(<ResponseStatusLine response={OK} />);
-    expect(text(html)).toBe('200 OK · 2.23 s · 7.6 KB · application/vnd.cov+json');
+    expect(html).toContain('>200 OK</span> · 2.23 s · 7.6 KB · application/vnd.cov+json</span>');
   });
 
   it('shows only the number when the server gives no reason phrase, as over HTTP/2', () => {
     const html = renderToStaticMarkup(<ResponseStatusLine response={{ ...OK, statusText: '' }} />);
-    expect(text(html)).toBe('200 · 2.23 s · 7.6 KB · application/vnd.cov+json');
+    expect(html).toContain('>200</span> · 2.23 s · 7.6 KB · application/vnd.cov+json</span>');
   });
 
   it('leaves out a missing content type', () => {
     const html = renderToStaticMarkup(<ResponseStatusLine response={{ ...OK, contentType: '' }} />);
-    expect(text(html)).toBe('200 OK · 2.23 s · 7.6 KB');
+    expect(html).toContain('>200 OK</span> · 2.23 s · 7.6 KB</span>');
   });
 
   it('colours a success and a failure', () => {
