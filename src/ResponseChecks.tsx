@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import Typography from '@mui/material/Typography';
-import { alpha, darken, lighten } from '@mui/material/styles';
+import { alpha, darken, lighten, type SxProps, type Theme } from '@mui/material/styles';
 import CheckIcon from '@mui/icons-material/Check';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutlined';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
@@ -29,6 +29,10 @@ const Item = ({ icon, children, line, onClick }: { icon: ReactNode; children: Re
       </Link>
     )}
   </Box>
+);
+
+const Heading = ({ children, sx }: { children: ReactNode; sx?: SxProps<Theme> }) => (
+  <Typography component="h3" variant="caption" sx={[{ display: 'block', color: 'text.secondary', fontWeight: 500, mb: 0.5 }, ...(Array.isArray(sx) ? sx : [sx])]}>{children}</Typography>
 );
 
 // The tab's name, with how many of the worst kind of finding there are
@@ -73,11 +77,14 @@ interface ResponseChecksProps {
   // Each line with findings on it, in the order Raw steps through them
   lines: { line: number; errors: ValidationError[] }[];
   onGoToLine: (lineIndex: number) => void;
+  // What's worth knowing about the data itself, each where it is in Raw
+  dataNotes?: { message: string; line: number }[];
+  onGoToNote?: (line: number) => void;
 }
 
 // What was checked about this response, and what that found
-export default function ResponseChecks({ schemaName, findings, lines, onGoToLine }: ResponseChecksProps) {
-  if (!schemaName && findings.length === 0) {
+export default function ResponseChecks({ schemaName, findings, lines, onGoToLine, dataNotes = [], onGoToNote }: ResponseChecksProps) {
+  if (!schemaName && findings.length === 0 && dataNotes.length === 0) {
     return (
       <Typography variant="body2" sx={{ color: 'text.secondary', p: 2 }}>
         No schema applies to this response, so there was nothing to check it against.
@@ -88,7 +95,7 @@ export default function ResponseChecks({ schemaName, findings, lines, onGoToLine
   const count = checksCount(findings);
   return (
     <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', p: 2 }}>
-      <Typography component="h3" variant="caption" sx={{ display: 'block', color: 'text.secondary', fontWeight: 500, mb: 0.5 }}>The format</Typography>
+      {(schemaName || findings.length > 0) && <Heading>The format</Heading>}
       <Box component="ul" sx={{ listStyle: 'none', m: 0, p: 0 }}>
         {schemaName && (
           <Item icon={count ? SEVERITY_ICON[count.color] : <CheckIcon fontSize="inherit" color="success" aria-label="Passed" />}>
@@ -114,6 +121,18 @@ export default function ResponseChecks({ schemaName, findings, lines, onGoToLine
         <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', mt: 1 }}>
           And {findings.length - MOST_SHOWN} more, flagged in Raw.
         </Typography>
+      )}
+      {dataNotes.length > 0 && (
+        <>
+          <Heading sx={{ mt: schemaName || findings.length > 0 ? 2 : 0 }}>The data</Heading>
+          <Box component="ul" sx={{ listStyle: 'none', m: 0, p: 0 }}>
+            {dataNotes.map(note => (
+              <Item key={note.message} icon={SEVERITY_ICON.info} line={note.line} onClick={() => onGoToNote?.(note.line)}>
+                {note.message}
+              </Item>
+            ))}
+          </Box>
+        </>
       )}
     </Box>
   );

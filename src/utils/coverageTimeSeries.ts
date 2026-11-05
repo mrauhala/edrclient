@@ -8,7 +8,7 @@ interface CoverageAxis {
   num?: number;
 }
 
-function axisLength(axis: CoverageAxis | undefined): number | undefined {
+export function axisLength(axis: CoverageAxis | undefined): number | undefined {
   if (Array.isArray(axis?.values)) return axis.values.length;
   if (typeof axis?.num === 'number') return axis.num;
   return undefined;
@@ -48,6 +48,14 @@ export function coverageParameters<P>(
 }
 
 type I18nText = { en?: string; fi?: string };
+
+// A parameter's unit as text, or '' if it has none. A symbol may be text or { value, type }, and
+// UCUM's "1" means no unit at all, which beside a value only reads as a mistake.
+export function parameterUnit(parameter?: { unit?: { symbol?: string | { value?: string }; label?: I18nText } }): string {
+  const symbol = parameter?.unit?.symbol;
+  const unit = (typeof symbol === 'string' ? symbol : symbol?.value) ?? parameter?.unit?.label?.en ?? parameter?.unit?.label?.fi ?? '';
+  return unit === '1' ? '' : unit;
+}
 
 // A series' name: the observed property's label, else the parameter's description, else its id.
 // Labels that are links are skipped: DMI labels each observed property with an ECMWF parameter

@@ -103,6 +103,51 @@ describe('ResponsePane', () => {
     expect(tabNames(html)).toEqual(['Data', 'Raw', 'Headers', 'Sizes', 'Checks']);
     expect(selectedTab(html)).toBe('Data');
     expect(html).not.toContain('NdArray');
+    expect(html).not.toContain('Transforming');
+    expect(html).toContain('1 point, 2 times, 1 parameter');
+  });
+
+  it('has a Data tab for an IWXXM preview', () => {
+    const iwxxm = '<iwxxm:METAR xmlns:iwxxm="http://icao.int/iwxxm/3.0"/>';
+    const html = render({ data: iwxxm, contentType: 'text/xml', response: OK });
+    expect(tabNames(html)).toEqual(['Data', 'Raw', 'Headers', 'Sizes', 'Checks']);
+    expect(selectedTab(html)).toBe('Data');
+  });
+
+  it('counts what the data is worth noting on the Checks tab', () => {
+    const nulls = JSON.parse(COVERAGE);
+    nulls.ranges.a.values = [1, null];
+    const html = render({ data: JSON.stringify(nulls), contentType: 'application/prs.coverage+json', response: OK });
+    expect(html).toContain('>1 note<');
+  });
+
+  it('adds what the data is worth noting to what the schema found', () => {
+    const nulls = JSON.parse(COVERAGE);
+    nulls.ranges.a.values = [1, null];
+    const html = render({
+      data: JSON.stringify(nulls),
+      contentType: 'application/prs.coverage+json',
+      response: OK,
+      validationSchemaName: 'CoverageJSON 1.0',
+      validationErrors: [{ path: '/a', message: 'bad', severity: 'error' }],
+    });
+    expect(html).toContain('>1 error<');
+  });
+
+  it("doesn't flag a note's line in Raw, since it isn't a fault", () => {
+    const nulls = JSON.parse(COVERAGE);
+    nulls.ranges.a.values = [1, null];
+    // With no tabs it opens on the text, where a flagged line would show
+    const html = render({ data: JSON.stringify(nulls), contentType: 'application/prs.coverage+json' });
+    expect(html).toContain('role="list"');
+    expect(html).not.toContain('flagged');
+  });
+
+  it('opens on the figures of what is not a time series', () => {
+    const grid = { type: 'Coverage', domain: { domainType: 'Grid', axes: { x: { values: [1, 2] }, y: { values: [3, 4] } } }, ranges: { a: { type: 'NdArray', values: [1, 2, 3, 4] } } };
+    const html = render({ data: JSON.stringify(grid), contentType: 'application/prs.coverage+json', response: OK });
+    expect(selectedTab(html)).toBe('Data');
+    expect(html).toContain('2 × 2 cells');
   });
 
   it('opens on the image, with no Raw for it', () => {

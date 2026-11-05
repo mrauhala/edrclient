@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { coverageParameters, getTimeSeriesError, isTimeSeriesCoverage, parameterLabel } from './coverageTimeSeries';
+import { coverageParameters, getTimeSeriesError, isTimeSeriesCoverage, parameterLabel, parameterUnit } from './coverageTimeSeries';
 import dwdPosition from './__fixtures__/dwd-position-multipolygonseries.json';
 import dwdArea from './__fixtures__/dwd-area-multipolygonseries.json';
 import fmiPosition from './__fixtures__/fmi-position-pointseries.json';
@@ -83,5 +83,24 @@ describe('parameterLabel', () => {
 
   it('skips blank labels', () => {
     expect(parameterLabel('x', { observedProperty: { label: { en: ' ' } }, description: { en: 'Wind speed' } })).toBe('Wind speed');
+  });
+});
+
+describe('parameterUnit', () => {
+  it('reads a symbol written either way', () => {
+    expect(parameterUnit({ unit: { symbol: 'K' } })).toBe('K');
+    expect(parameterUnit({ unit: { symbol: { value: 'K' } } })).toBe('K');
+  });
+
+  it('falls back on the label', () => {
+    expect(parameterUnit({ unit: { label: { en: 'kelvin' } } })).toBe('kelvin');
+    expect(parameterUnit({ unit: { label: { fi: 'kelviniä' } } })).toBe('kelviniä');
+    expect(parameterUnit({ unit: { symbol: {}, label: { en: 'kelvin' } } })).toBe('kelvin');
+  });
+
+  it('has none without one, or where UCUM says so', () => {
+    expect(parameterUnit(undefined)).toBe('');
+    expect(parameterUnit({})).toBe('');
+    expect(parameterUnit({ unit: { symbol: { value: '1' } } })).toBe('');
   });
 });

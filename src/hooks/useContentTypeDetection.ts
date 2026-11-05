@@ -1,12 +1,8 @@
 import { useCallback, useMemo } from 'react';
-import { isTimeSeriesCoverage } from '../utils/coverageTimeSeries';
 
 export interface UseContentTypeDetectionReturn {
   parsedJson: unknown;
   isIWXXM: () => boolean;
-  isCoverageJsonTimeSeries: boolean;
-  // Whether there's more to show than the text
-  hasDataView: boolean;
   language: 'json' | 'xml' | 'text';
   shouldUseCodeView: boolean;
   formattedData: string;
@@ -33,21 +29,6 @@ export function useContentTypeDetection(
 
   const isIWXXM = useCallback(() => isIwxxmXml(data, contentType), [data, contentType]);
 
-  // Check if data is CoverageJSON that can be charted as a time series
-  const isCoverageJsonTimeSeries = useMemo(() => {
-    if (!parsedJson || typeof parsedJson !== 'object') return false;
-    const parsed = parsedJson as { type?: unknown; coverages?: unknown };
-
-    if (parsed.type === 'CoverageCollection' && Array.isArray(parsed.coverages)) {
-      return parsed.coverages.some(isTimeSeriesCoverage);
-    }
-
-    return parsed.type === 'Coverage' && isTimeSeriesCoverage(parsed);
-  }, [parsedJson]);
-
-  const hasDataView = useMemo(() => {
-    return isIWXXM() || isCoverageJsonTimeSeries;
-  }, [isIWXXM, isCoverageJsonTimeSeries]);
 
   const language = useMemo<'json' | 'xml' | 'text'>(() => {
     if (!contentType) return 'text';
@@ -70,8 +51,6 @@ export function useContentTypeDetection(
   return {
     parsedJson,
     isIWXXM,
-    isCoverageJsonTimeSeries,
-    hasDataView,
     language,
     shouldUseCodeView,
     formattedData,

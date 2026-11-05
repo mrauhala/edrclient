@@ -25,8 +25,9 @@ service follows the standards.
   collection's metadata and the server's OpenAPI definition. The service itself is validated
   against the OGC schemas (Common, Features, EDR 1.0–1.2, Records, Maps), and its OpenAPI document
   for structure and EDR consistency.
-- **Responses:** a JSON viewer that jumps to validation errors, CoverageJSON time series charts,
-  IWXXM rendered for reading, images, and feature tables. Features items can be filtered by their
+- **Responses:** read through Data, Raw, Headers, Sizes and Checks tabs: a JSON viewer that jumps
+  to validation errors, CoverageJSON as a chart per parameter, a table or figures, IWXXM rendered
+  for reading, images, and feature tables. Features items can be filtered by their
   queryables.
 - **Search:** a command palette (`/`) across collections and items.
 
