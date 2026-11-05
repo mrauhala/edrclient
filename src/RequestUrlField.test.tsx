@@ -4,7 +4,7 @@ import RequestUrlField from './RequestUrlField';
 import { RequestUrlContext } from './contexts/RequestUrlContext';
 
 const render = (requestUrl: string, isEdited = false) => renderToStaticMarkup(
-  <RequestUrlContext.Provider value={{ requestUrl, isEdited, editUrl: () => {}, discardEdits: () => {} }}>
+  <RequestUrlContext.Provider value={{ requestUrl, isEdited, editUrl: () => {}, discardEdits: () => {}, pinUrl: () => {}, unpinUrl: () => {} }}>
     <RequestUrlField onSend={() => {}} />
   </RequestUrlContext.Provider>,
 );
@@ -55,7 +55,7 @@ describe('RequestUrlField', () => {
 
   describe('with little room', () => {
     const compact = (requestUrl: string, isEdited = false) => renderToStaticMarkup(
-      <RequestUrlContext.Provider value={{ requestUrl, isEdited, editUrl: () => {}, discardEdits: () => {} }}>
+      <RequestUrlContext.Provider value={{ requestUrl, isEdited, editUrl: () => {}, discardEdits: () => {}, pinUrl: () => {}, unpinUrl: () => {} }}>
         <RequestUrlField onSend={() => {}} compact />
       </RequestUrlContext.Provider>,
     );
@@ -91,7 +91,7 @@ describe('RequestUrlField', () => {
 
   it('opens downwards from a bar at the top, upwards from one at the bottom', () => {
     const at = (expandUp: boolean) => renderToStaticMarkup(
-      <RequestUrlContext.Provider value={{ requestUrl: URL_TEXT, isEdited: false, editUrl: () => {}, discardEdits: () => {} }}>
+      <RequestUrlContext.Provider value={{ requestUrl: URL_TEXT, isEdited: false, editUrl: () => {}, discardEdits: () => {}, pinUrl: () => {}, unpinUrl: () => {} }}>
         <RequestUrlField onSend={() => {}} expandUp={expandUp} />
       </RequestUrlContext.Provider>,
     );

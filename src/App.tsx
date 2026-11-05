@@ -33,11 +33,10 @@ import RequestUrlField from './RequestUrlField';
 import { RequestUrlProvider, useRequestUrl } from './contexts/RequestUrlContext';
 import { QueryBuilderProvider, useQueryBuilder } from './contexts/QueryBuilderContext';
 import { useRequestIssues } from './hooks/useRequestIssues';
-import { encodedUrl, isSendableUrl } from './query/requestUrl';
+import { isSendableUrl } from './query/requestUrl';
+import { requestLink } from './query/requestLink';
+import CopyMenu from './CopyMenu';
 import Paper from '@mui/material/Paper';
-import IconButton from '@mui/material/IconButton';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import Tooltip from '@mui/material/Tooltip';
 import useMediaQuery from '@mui/material/useMediaQuery';
 
 
@@ -110,7 +109,7 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
   const { applyRequestUrl } = useQueryBuilder();
   const { issues: requestIssues, summary: requestSummary } = useRequestIssues();
   useCollectionKeyboardNav();
-  const { setSelectedServiceUrl } = useService();
+  const { setSelectedServiceUrl, getAuthCredentials } = useService();
 
   // Detect system preference
   const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
@@ -249,14 +248,11 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
     setTimeout(() => setSelectedServiceUrl(null), 100);
   };
 
-  const handleCopyUrl = () => {
-    if (requestUrl) {
-      navigator.clipboard.writeText(encodedUrl(requestUrl));
-    }
-  };
-
   const handleFetchData = useCallback(() => {
-    if (isSendableUrl(requestUrl)) fetchQuery(requestUrl);
+    if (!isSendableUrl(requestUrl)) return;
+    fetchQuery(requestUrl);
+    // Reloading brings the request back, and the address can be passed on
+    window.history.replaceState(null, '', requestLink(requestUrl, window.location.href));
   }, [requestUrl, fetchQuery]);
 
   // Cmd+Enter (Mac) / Ctrl+Enter (Windows) to fetch data
@@ -285,16 +281,7 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
     }
   }, []);
 
-  const copyButton = (
-    <Tooltip title="Copy URL">
-      {/* A disabled button gives a tooltip no events */}
-      <Box component="span" sx={{ flexShrink: 0 }}>
-        <IconButton color="primary" aria-label="Copy URL" disabled={!requestUrl} onClick={handleCopyUrl}>
-          <ContentCopyIcon />
-        </IconButton>
-      </Box>
-    </Tooltip>
-  );
+  const copyButton = <CopyMenu url={requestUrl} auth={requestUrl ? getAuthCredentials(requestUrl) : undefined} />;
   const fetchButton = (
     <FetchButton issues={requestIssues} summary={requestSummary} disabled={!isSendableUrl(requestUrl)} onFetch={handleFetchData} />
   );

@@ -15,6 +15,7 @@ import SwaggerUIViewer from './SwaggerUIViewer';
 import ConformanceViewer from './ConformanceViewer';
 import { useService } from './contexts/ServiceContext';
 import systemServices from './config/services.json';
+import { apiRootOf, knownServiceUrl, requestFromHash } from './query/requestLink';
 import { ServiceType, ServiceDefinition } from './types/ServiceType';
 import { SERVICE_TYPE_CONFIG, SERVICE_TYPE_ORDER } from './config/serviceTypeConfig';
 
@@ -55,9 +56,17 @@ const ServiceSelector = ({
 }: ServiceSelectorProps) => {
   const { customServices, getAuthCredentials, selectedServiceUrl: onServiceUrlSelect, landingPageTitle, serviceDescUrl, setServiceDescUrl } = useService();
 
-  const [apiUrl, setApiUrl] = useState(DEFAULT_SERVICE_URL);
-  const [selectedService, setSelectedService] = useState(DEFAULT_SERVICE_URL);
-  const [inputUrl, setInputUrl] = useState(DEFAULT_SERVICE_URL);
+  // A link to a request opens on the request's API, by the name it's listed under if it is
+  const [startService] = useState(() => {
+    const link = requestFromHash(window.location.hash);
+    if (!link) return { url: DEFAULT_SERVICE_URL, listed: true };
+    const root = apiRootOf(link);
+    const listed = knownServiceUrl(root, [...typedSystemServices, ...customServices].map(service => service.url));
+    return { url: listed ?? root, listed: !!listed };
+  });
+  const [apiUrl, setApiUrl] = useState(startService.url);
+  const [selectedService, setSelectedService] = useState(startService.listed ? startService.url : '');
+  const [inputUrl, setInputUrl] = useState(startService.url);
   const [validationTrigger, setValidationTrigger] = useState(0);
 
   // Effect to handle external service URL selection (from settings)

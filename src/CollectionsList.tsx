@@ -355,9 +355,7 @@ const CollectionsList = ({
 
   // Register selection callback for keyboard navigation
   useEffect(() => {
-    selectCollectionByIndexRef.current = (index: number) => {
-      handleItemClick(index, collections[index].id);
-    };
+    selectCollectionByIndexRef.current = (index: number) => handleItemClick(index, collections[index].id);
     return () => { selectCollectionByIndexRef.current = null; };
   });
 

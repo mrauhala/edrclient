@@ -12,6 +12,8 @@ import { useMapInteraction } from './contexts/MapInteractionContext';
 import { useCollection } from './contexts/CollectionContext';
 import { useService } from './contexts/ServiceContext';
 import { useQueryBuilder } from './contexts/QueryBuilderContext';
+import { useRequestLink } from './hooks/useRequestLink';
+import Alert from '@mui/material/Alert';
 import { usePanes } from './contexts/PanesContext';
 import { REQUEST_WIDTH } from './panes';
 
@@ -25,6 +27,7 @@ const Sidebar = () => {
   const { collections, setCollections, setSelectedCollection, setSelectedFeature, setSelectedCollectionExtents, setLocationFeatures, setLandingPageLicense, setCollectionUrl } = useCollection();
   const { setLandingPageTitle, setActiveServiceUrl, conformsTo, setConformsTo } = useService();
   const queryState = useQueryBuilder();
+  const { note: linkNote, clearNote: clearLinkNote, apiFailed } = useRequestLink();
   const { resetQueryState } = queryState;
   const { validationResult, setValidationResult, setEndpointUrls, setRawResponses } = useValidation();
 
@@ -89,7 +92,8 @@ const Sidebar = () => {
     setLandingPageLinks(result.landingPageLinks || null);
     setCollectionsLinks(result.collectionsLinks || null);
     setLandingPageKeywords(result.landingPageKeywords || null);
-  }, [setCollections, setValidationResult, setEndpointUrls, setRawResponses, setLandingPageTitle, setConformsTo]);
+    if (!result.collections?.length) apiFailed();
+  }, [setCollections, setValidationResult, setEndpointUrls, setRawResponses, setLandingPageTitle, setConformsTo, apiFailed]);
 
   const handleLoadError = useCallback((error: Error) => {
     setCollections([]);
@@ -97,7 +101,8 @@ const Sidebar = () => {
       isValid: false,
       errors: [{ message: error.message }]
     });
-  }, [setCollections, setValidationResult]);
+    apiFailed();
+  }, [setCollections, setValidationResult, apiFailed]);
 
   return (
     <Box
@@ -131,6 +136,8 @@ const Sidebar = () => {
         }}
         className="sidebar-scrollable"
       >
+        {linkNote && <Alert severity="info" onClose={clearLinkNote} sx={{ m: 1 }}>{linkNote}</Alert>}
+
         <ServiceSelector
           isLoading={isLoading}
           setIsLoading={setIsLoading}
