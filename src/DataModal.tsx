@@ -22,11 +22,16 @@ import Typography from '@mui/material/Typography';
 import Tooltip from '@mui/material/Tooltip';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
+import Tab from '@mui/material/Tab';
+import Tabs from '@mui/material/Tabs';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import VirtualizedCodeView from './VirtualizedCodeView';
 import CoverageJsonChart from './CoverageJsonChart';
 import FetchErrorAlert from './FetchErrorAlert';
+import ResponseHeaders from './ResponseHeaders';
+import ResponseStatusLine from './ResponseStatusLine';
+import type { ResponseDetails } from './api/sendRequest';
 import type { ValidationError } from './DataRetrievalAPI';
 import { useContentTypeDetection } from './hooks/useContentTypeDetection';
 import { useXSLTTransform } from './hooks/useXSLTTransform';
@@ -39,6 +44,8 @@ interface DataModalProps {
   // For image/* responses: a blob: URL the modal renders via <img>. data stays null in that case.
   imageUrl?: string | null;
   contentType: string | null;
+  // Null without a response (a network failure) and for a stored response, which wasn't sent just now
+  response?: ResponseDetails | null;
   isLoading: boolean;
   error: string | null;
   // Sends the failed request again; only given when that may help
@@ -55,6 +62,7 @@ const DataModal: React.FC<DataModalProps> = ({
   data,
   imageUrl = null,
   contentType,
+  response = null,
   isLoading,
   error,
   onRetry,
@@ -66,6 +74,8 @@ const DataModal: React.FC<DataModalProps> = ({
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
   const [viewMode, setViewMode] = useState<'code' | 'preview'>('code');
+  const [section, setSection] = useState<'body' | 'headers'>('body');
+  const showHeaders = section === 'headers' && !isLoading && response !== null;
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [copiedData, setCopiedData] = useState(false);
   const copyUrlTimer = useRef<ReturnType<typeof setTimeout>>();
@@ -82,6 +92,7 @@ const DataModal: React.FC<DataModalProps> = ({
   useEffect(() => {
     if (open) {
       setViewMode('code');
+      setSection('body');
       setCopiedUrl(false);
       setCopiedData(false);
     }
@@ -158,7 +169,9 @@ const DataModal: React.FC<DataModalProps> = ({
               }}>
               {url}
             </Typography>
-            {contentType && (
+            {response ? (
+              <ResponseStatusLine response={response} />
+            ) : contentType && (
               <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
                 Content-Type: {contentType}
               </Typography>
@@ -198,9 +211,29 @@ const DataModal: React.FC<DataModalProps> = ({
 
         {error && <FetchErrorAlert message={error} onRetry={onRetry} />}
 
-        {!isLoading && !error && imageUrl && (
+        {!isLoading && response && (
+          <Tabs
+            value={section}
+            onChange={(_event, value) => setSection(value)}
+            sx={{ flexShrink: 0, minHeight: 36, borderBottom: '1px solid', borderColor: 'divider' }}
+          >
+            <Tab value="body" label="Body" sx={{ minHeight: 36, py: 0 }} />
+            <Tab value="headers" label={`Headers (${response.headers.length})`} sx={{ minHeight: 36, py: 0 }} />
+          </Tabs>
+        )}
+
+        {showHeaders && <ResponseHeaders headers={response.headers} />}
+
+        {!isLoading && !showHeaders && response && !data && !imageUrl && (
+          <Typography variant="body2" sx={{ color: 'text.secondary', p: 2 }}>
+            The response has no body.
+          </Typography>
+        )}
+
+        {!isLoading && !showHeaders && imageUrl && (
           <Box sx={{
             flex: 1,
+            minHeight: 0,
             display: 'flex',
             flexDirection: 'column',
             backgroundColor: 'background.default',
@@ -248,8 +281,8 @@ const DataModal: React.FC<DataModalProps> = ({
           </Box>
         )}
 
-        {!isLoading && !error && data && (
-          <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+        {!isLoading && !showHeaders && data && (
+          <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
             <Box sx={{
               p: 1,
               backgroundColor: 'background.default',

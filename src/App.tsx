@@ -33,9 +33,10 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
-import axios from 'axios';
 import { QueryResultValidator } from './QueryResultValidator';
-import { httpErrorMessage, isRetryableStatus, serverErrorDetail } from './api/httpErrors';
+import { httpFailure } from './api/httpErrors';
+import { sendRequest } from './api/sendRequest';
+import type { ResponseDetails } from './api/sendRequest';
 
 
 function App() {
@@ -114,6 +115,8 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
   const [modalImageUrl, setModalImageUrl] = useState<string | null>(null);
   const modalImageUrlRef = useRef<string | null>(null);
   const [modalContentType, setModalContentType] = useState<string | null>(null);
+  // Status, time, size and headers of what was fetched; null for a stored response, which wasn't sent just now
+  const [modalResponse, setModalResponse] = useState<ResponseDetails | null>(null);
   const [modalLoading, setModalLoading] = useState(false);
   const [modalError, setModalError] = useState<{ message: string; retryable: boolean } | null>(null);
   const [modalUrl, setModalUrl] = useState<string>('');
@@ -230,6 +233,7 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
     setModalError(null);
     setModalData(responseData);
     setModalContentType('application/json');
+    setModalResponse(null);
     setModalUrl(url);
     setModalValidationErrors(errors || []);
     setModalScrollToPath(scrollToPath);
@@ -286,6 +290,7 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
     setModalError(null);
     setModalData(null);
     setModalContentType(null);
+    setModalResponse(null);
     // Release any image blob URL from a previous fetch before starting a new one.
     if (modalImageUrlRef.current) {
       URL.revokeObjectURL(modalImageUrlRef.current);
@@ -294,49 +299,18 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
     setModalImageUrl(null);
 
     try {
-      const auth = getAuthCredentials(url);
-
-      // Add API key to URL if provided
-      let finalUrl = url;
-      if (auth && (auth as any).apiKey) {
-        const urlObj = new URL(url);
-        const paramName = (auth as any).apiKeyParam || 'api-key';
-        urlObj.searchParams.set(paramName, (auth as any).apiKey);
-        finalUrl = urlObj.toString();
-      }
-
-      const config: any = {
-        // Use arraybuffer so binary responses (image/png from OGC API Maps, etc.) survive intact;
-        // we decode to text manually for non-binary content types below.
-        responseType: 'arraybuffer',
-        signal: controller.signal,
-        headers: {
-          'Accept': '*/*'
-        }
-      };
-
-      // Add Bearer token if provided
-      if (auth && (auth as any).bearerToken) {
-        config.headers['Authorization'] = `Bearer ${(auth as any).bearerToken}`;
-      }
-      // Add basic auth if credentials are available
-      else if (auth && (auth as any).username) {
-        config.auth = {
-          username: (auth as any).username,
-          password: (auth as any).password
-        };
-      }
-
-      const response = await axios.get(finalUrl, config);
-
-      const contentTypeHeader = response.headers['content-type'];
-      const contentType = typeof contentTypeHeader === 'string' ? contentTypeHeader : '';
+      const { body, ...details } = await sendRequest(url, getAuthCredentials(url), controller.signal);
+      const { status, contentType } = details;
+      setModalResponse(details);
       setModalContentType(contentType);
+
+      const failure = httpFailure(status, body);
+      if (failure) setModalError(failure);
 
       // Binary image response (image/png, image/jpeg, image/webp, image/svg+xml, etc.):
       // wrap the arraybuffer in a blob URL so the modal can render it via <img>.
       if (contentType.startsWith('image/')) {
-        const blob = new Blob([response.data], { type: contentType });
+        const blob = new Blob([body], { type: contentType });
         const objectUrl = URL.createObjectURL(blob);
         modalImageUrlRef.current = objectUrl;
         setModalImageUrl(objectUrl);
@@ -344,9 +318,12 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
       }
 
       // Text-ish response: decode the arraybuffer and continue with the existing pipeline.
-      const decoded = new TextDecoder('utf-8').decode(response.data as ArrayBuffer);
+      const decoded = new TextDecoder('utf-8').decode(body);
       const responseData = decoded;
       setModalData(responseData);
+
+      // An error's body is shown as it came, but isn't data to check or map
+      if (failure) return;
 
       // Validate query result against registered schemas (e.g. CoverageJSON)
       try {
@@ -400,14 +377,10 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
 
       console.error('Error fetching data:', error);
 
-      // Classify error for actionable feedback, with what the server says went wrong
+      // Classify error for actionable feedback
       let message = error.message || 'Failed to fetch data';
-      const status: number | undefined = error.response?.status;
-      const httpMessage = status ? httpErrorMessage(status, serverErrorDetail(error.response.data)) : null;
 
-      if (httpMessage) {
-        message = httpMessage;
-      } else if (
+      if (
         error.message?.includes('CORS') ||
         error.message?.includes('Access-Control-Allow-Origin') ||
         error.message?.includes('cross-origin')
@@ -423,7 +396,7 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
 
       // Without a response (network failures, timeouts, CORS, which the browser can't tell apart),
       // the same request may well work next time
-      setModalError({ message, retryable: status ? isRetryableStatus(status) : true });
+      setModalError({ message, retryable: true });
     } finally {
       setModalLoading(false);
     }
@@ -594,6 +567,7 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
             data={modalData}
             imageUrl={modalImageUrl}
             contentType={modalContentType}
+            response={modalResponse}
             isLoading={modalLoading}
             error={modalError?.message ?? null}
             onRetry={modalError?.retryable ? handleRetryFetch : undefined}

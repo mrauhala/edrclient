@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { httpErrorMessage, isRetryableStatus, serverErrorDetail } from './httpErrors';
+import { httpErrorMessage, httpFailure, isRetryableStatus, isSuccessStatus, serverErrorDetail } from './httpErrors';
 
 const bytes = (text: string) => new TextEncoder().encode(text).buffer;
 
 describe('serverErrorDetail', () => {
+  it('has nothing to quote from a body that is not text, like an image', () => {
+    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0x0d, 0x49, 0x48, 0x44, 0x52]);
+    expect(serverErrorDetail(png.buffer)).toBeUndefined();
+  });
+
   it('reads detail from a FastAPI body, as the bytes the data fetch receives (Meteogate)', () => {
     expect(serverErrorDetail(bytes('{"detail":"The query returned no stations"}'))).toBe('The query returned no stations');
   });
@@ -72,5 +77,35 @@ describe('isRetryableStatus', () => {
 
   it("doesn't when the request itself is wrong, or the server can't do it", () => {
     for (const status of [400, 401, 403, 404, 405, 406, 413, 422, 501]) expect(isRetryableStatus(status), String(status)).toBe(false);
+  });
+});
+
+describe('isSuccessStatus', () => {
+  it('is true for 2xx only', () => {
+    expect([199, 200, 204, 299, 300, 304, 400, 500].filter(isSuccessStatus)).toEqual([200, 204, 299]);
+  });
+});
+
+describe('httpFailure', () => {
+  it('is null for a success', () => {
+    expect(httpFailure(200, bytes('{"detail":"ignored"}'))).toBeNull();
+  });
+
+  it("says what the server said, and that retrying won't help a bad request", () => {
+    expect(httpFailure(400, bytes('{"code":"BadRequest","description":"Unknown parameter nope"}'))).toEqual({
+      message: 'The server rejected the request (400): Unknown parameter nope.',
+      retryable: false,
+    });
+  });
+
+  it('offers a retry after a failure on the server side', () => {
+    expect(httpFailure(503, bytes(''))).toEqual({
+      message: 'Server error (503). The API returned an internal error.',
+      retryable: true,
+    });
+  });
+
+  it("names a status that is neither a success nor an error", () => {
+    expect(httpFailure(304, bytes(''))).toEqual({ message: 'The server answered with status 304.', retryable: false });
   });
 });

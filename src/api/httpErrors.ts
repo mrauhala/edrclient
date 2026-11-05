@@ -18,6 +18,8 @@ export function serverErrorDetail(data: unknown): string | undefined {
   if (data instanceof ArrayBuffer || ArrayBuffer.isView(data)) text = new TextDecoder().decode(data);
   else if (typeof data === 'string') text = data;
   if (text !== undefined) {
+    // Bytes that aren't text, like an image, have nothing to quote
+    if (text.includes('\0')) return undefined;
     try {
       body = JSON.parse(text);
     } catch {
@@ -64,3 +66,14 @@ export function httpErrorMessage(status: number, serverDetail?: string): string 
 const RETRYABLE_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504]);
 
 export const isRetryableStatus = (status: number) => RETRYABLE_STATUSES.has(status);
+
+export const isSuccessStatus = (status: number) => status >= 200 && status < 300;
+
+// What to say about a response that isn't a success, from its status and body. Null for a success.
+export function httpFailure(status: number, body: unknown): { message: string; retryable: boolean } | null {
+  if (isSuccessStatus(status)) return null;
+  return {
+    message: httpErrorMessage(status, serverErrorDetail(body)) ?? `The server answered with status ${status}.`,
+    retryable: isRetryableStatus(status),
+  };
+}
