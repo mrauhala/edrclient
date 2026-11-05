@@ -17,7 +17,8 @@ interface CollectionContextValue {
   setLandingPageLicense: (license: LicenseInfo | null) => void;
   collectionUrl: string;
   setCollectionUrl: (url: string) => void;
-  selectCollectionByIndexRef: React.MutableRefObject<((index: number) => void) | null>;
+  // Opens or closes a collection; resolves once its locations are in
+  selectCollectionByIndexRef: React.MutableRefObject<((index: number) => Promise<void>) | null>;
 }
 
 const CollectionContext = createContext<CollectionContextValue | null>(null);
@@ -30,7 +31,7 @@ export function CollectionProvider({ children }: { children: ReactNode }) {
   const [selectedFeature, setSelectedFeature] = useState<any | null>(null);
   const [landingPageLicense, setLandingPageLicense] = useState<LicenseInfo | null>(null);
   const [collectionUrl, setCollectionUrl] = useState<string>('');
-  const selectCollectionByIndexRef = useRef<((index: number) => void) | null>(null);
+  const selectCollectionByIndexRef = useRef<((index: number) => Promise<void>) | null>(null);
 
   const value = useMemo(() => ({
     collections,

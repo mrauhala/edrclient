@@ -54,6 +54,45 @@ export function shortUrl(url: string): string {
   }
 }
 
+export type UrlTokenKind = 'base' | 'path' | 'punctuation' | 'name' | 'value';
+
+// A URL's text in parts, for colouring it. Works on the text as typed, however broken, since joined
+// back up the parts have to be exactly that text: the field's caret sits on top of them.
+export function urlTokens(text: string): { text: string; kind: UrlTokenKind }[] {
+  const tokens: { text: string; kind: UrlTokenKind }[] = [];
+  const add = (kind: UrlTokenKind, part: string) => {
+    if (part) tokens.push({ text: part, kind });
+  };
+  const hashAt = text.indexOf('#');
+  const beforeHash = hashAt < 0 ? text : text.slice(0, hashAt);
+  const queryAt = beforeHash.indexOf('?');
+  const path = queryAt < 0 ? beforeHash : beforeHash.slice(0, queryAt);
+
+  // Where the API is, then what's being asked of it
+  const originEnd = /^[a-z][a-z0-9+.-]*:\/\/[^/]*/i.exec(path)?.[0].length ?? 0;
+  const collectionsAt = path.indexOf('/collections', originEnd);
+  const baseEnd = collectionsAt < 0 ? originEnd : collectionsAt;
+  add('base', path.slice(0, baseEnd));
+  add('path', path.slice(baseEnd));
+
+  if (queryAt >= 0) {
+    add('punctuation', '?');
+    beforeHash.slice(queryAt + 1).split('&').forEach((pair, index) => {
+      if (index > 0) add('punctuation', '&');
+      const equalsAt = pair.indexOf('=');
+      if (equalsAt < 0) {
+        add('name', pair);
+      } else {
+        add('name', pair.slice(0, equalsAt));
+        add('punctuation', '=');
+        add('value', pair.slice(equalsAt + 1));
+      }
+    });
+  }
+  if (hashAt >= 0) add('punctuation', text.slice(hashAt));
+  return tokens;
+}
+
 function splitUrl(url: string) {
   const hashAt = url.indexOf('#');
   const hash = hashAt < 0 ? '' : url.slice(hashAt);

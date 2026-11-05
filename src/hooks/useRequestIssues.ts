@@ -7,7 +7,7 @@ import { addApiDocsIssues, summarizeIssues } from '../query/validateQuery';
 import { checkQueryUrlAgainstOpenApi } from '../validation/openapi/checkQueryUrl';
 import { useQueryValidation } from './useQueryValidation';
 
-// What Fetch warns about: the form's issues, and for an edited URL what the API docs say of it. If
+// What the Send button warns about: the form's issues, and for an edited URL what the API docs say of it. If
 // the URL is for something other than the open collection, what the form holds has no bearing on it.
 export function useRequestIssues() {
   const form = useQueryValidation();

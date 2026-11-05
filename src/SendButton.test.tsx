@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import FetchButton, { QueryProblems, fetchTooltip } from './FetchButton';
+import SendButton, { QueryProblems, sendShortcut, sendTooltip } from './SendButton';
 import { summarizeIssues } from './query/validateQuery';
 import type { QueryIssue } from './query/types';
 
@@ -12,14 +12,14 @@ const warned = issue('warning', 'Point 1 is outside the extent');
 // MUI's stylesheet in the output names the class either way, so look at the badge's own classes
 const hiddenBadge = /class="[^"]*MuiBadge-badge[^"]*MuiBadge-invisible/;
 
-const render = (issues: QueryIssue[]) => renderToStaticMarkup(<FetchButton issues={issues} summary={summarizeIssues(issues)} onFetch={() => {}} />);
+const render = (issues: QueryIssue[]) => renderToStaticMarkup(<SendButton issues={issues} summary={summarizeIssues(issues)} onSend={() => {}} />);
 
-describe('FetchButton', () => {
+describe('SendButton', () => {
   it('is a plain button for a complete query', () => {
     const html = render([]);
-    expect(html).toContain('Fetch');
+    expect(html).toMatch(/<button[^>]*>Send/);
     expect(html).toContain('MuiButton-colorPrimary');
-    expect(html).toContain('CloudDownloadIcon');
+    expect(html).not.toContain('data-testid="WarningAmberIcon"');
     expect(html).toMatch(hiddenBadge);
   });
 
@@ -41,25 +41,39 @@ describe('FetchButton', () => {
     expect(render([missing])).not.toContain('Click a point on the map');
   });
 
+  it('shows its shortcut, out of what a screen reader says', () => {
+    expect(render([])).toMatch(/<span[^>]*aria-hidden="true"[^>]*>(⌘↵|Ctrl ↵)<\/span>/);
+  });
+
   it('can only be pressed when there is something to send', () => {
-    const markup = (disabled?: boolean) => renderToStaticMarkup(<FetchButton issues={[]} summary={summarizeIssues([])} disabled={disabled} onFetch={() => {}} />);
+    const markup = (disabled?: boolean) => renderToStaticMarkup(<SendButton issues={[]} summary={summarizeIssues([])} disabled={disabled} onSend={() => {}} />);
     expect(markup(true)).toMatch(/<button[^>]* disabled/);
     expect(markup()).not.toMatch(/<button[^>]* disabled/);
   });
 });
 
-describe('fetchTooltip', () => {
-  const tip = (issues: QueryIssue[]) => renderToStaticMarkup(<>{fetchTooltip(issues, summarizeIssues(issues))}</>);
+describe('sendShortcut', () => {
+  it.each(['MacIntel', 'iPhone', 'iPad'])('writes it the Apple way on %s', platform => {
+    expect(sendShortcut(platform)).toBe('⌘↵');
+  });
+
+  it.each(['Win32', 'Linux x86_64', ''])('writes it with Ctrl on "%s"', platform => {
+    expect(sendShortcut(platform)).toBe('Ctrl ↵');
+  });
+});
+
+describe('sendTooltip', () => {
+  const tip = (issues: QueryIssue[]) => renderToStaticMarkup(<>{sendTooltip(issues, summarizeIssues(issues))}</>);
   const warnings = (count: number) => Array.from({ length: count }, (_, index) => issue('warning', `warning ${index + 1}`));
   const noted = issue('info', "The API docs don't declare bogus");
 
   it('is plain for a complete query', () => {
-    expect(tip([])).toBe('Fetch Data');
+    expect(tip([])).toBe('Send the request');
   });
 
   it('says what a warning is, since a warning is all a bad parameter gets', () => {
     const html = tip([warned]);
-    expect(html).toContain('Fetch Data, but note:');
+    expect(html).toContain('Send the request, but note:');
     expect(html).toContain(warned.message);
   });
 
@@ -81,20 +95,20 @@ describe('fetchTooltip', () => {
 
   it('puts problems before warnings', () => {
     const html = tip([missing, warned]);
-    expect(html).toContain('Query incomplete, fetch anyway:');
+    expect(html).toContain('Query incomplete, send anyway:');
     expect(html).toContain(missing.message);
     expect(html).not.toContain(warned.message);
   });
 });
 
 describe('QueryProblems', () => {
-  const problemsHtml = (issues: QueryIssue[]) => renderToStaticMarkup(<QueryProblems titleId="title" issues={issues} summary={summarizeIssues(issues)} onFetch={() => {}} />);
+  const problemsHtml = (issues: QueryIssue[]) => renderToStaticMarkup(<QueryProblems titleId="title" issues={issues} summary={summarizeIssues(issues)} onSend={() => {}} />);
 
   it('lists every problem, more than the tooltip has room for, with a way to send anyway', () => {
     const problems = ['one', 'two', 'three', 'four', 'five'].map(message => issue('missing', message));
     const html = problemsHtml(problems);
     for (const problem of problems) expect(html).toContain(`<li>${problem.message}</li>`);
-    expect(html).toMatch(/<button[^>]*>Fetch anyway/);
+    expect(html).toMatch(/<button[^>]*>Send anyway/);
   });
 
   it('calls a query lacking something incomplete, even with errors too', () => {

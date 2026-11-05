@@ -28,16 +28,17 @@ import PaneToggles from './PaneToggles';
 import ResponseDock from './ResponseDock';
 import ResponseStatusButton from './ResponseStatusButton';
 import { ALL_PANES_WIDTH, MIN_MAP_WIDTH } from './panes';
-import FetchButton from './FetchButton';
+import SendButton from './SendButton';
 import RequestUrlField from './RequestUrlField';
 import { RequestUrlProvider, useRequestUrl } from './contexts/RequestUrlContext';
-import { QueryBuilderProvider, useQueryBuilder } from './contexts/QueryBuilderContext';
+import { QueryBuilderProvider } from './contexts/QueryBuilderContext';
+import { OpenRequestProvider, useOpenRequest } from './contexts/OpenRequestContext';
+import RequestNotice from './RequestNotice';
 import { useRequestIssues } from './hooks/useRequestIssues';
-import { encodedUrl, isSendableUrl } from './query/requestUrl';
+import { isSendableUrl } from './query/requestUrl';
+import { requestLink } from './query/requestLink';
+import CopyMenu from './CopyMenu';
 import Paper from '@mui/material/Paper';
-import IconButton from '@mui/material/IconButton';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import Tooltip from '@mui/material/Tooltip';
 import useMediaQuery from '@mui/material/useMediaQuery';
 
 
@@ -71,10 +72,12 @@ function App() {
                   <ValidationProvider>
                     <OpenApiProvider>
                       <QueryBuilderProvider>
-                        <AppContent
-                          customServices={customServices}
-                          setCustomServices={setCustomServices}
-                        />
+                        <OpenRequestProvider>
+                          <AppContent
+                            customServices={customServices}
+                            setCustomServices={setCustomServices}
+                          />
+                        </OpenRequestProvider>
                       </QueryBuilderProvider>
                     </OpenApiProvider>
                   </ValidationProvider>
@@ -106,11 +109,11 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
   const [settingsDrawerOpen, setSettingsDrawerOpen] = useState(false);
   const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false);
 
-  const { requestUrl } = useRequestUrl();
-  const { applyRequestUrl } = useQueryBuilder();
+  const { requestUrl, isEdited } = useRequestUrl();
+  const { openRequest, note: requestNote, clearNote } = useOpenRequest();
   const { issues: requestIssues, summary: requestSummary } = useRequestIssues();
   useCollectionKeyboardNav();
-  const { setSelectedServiceUrl } = useService();
+  const { setSelectedServiceUrl, getAuthCredentials } = useService();
 
   // Detect system preference
   const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
@@ -249,28 +252,27 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
     setTimeout(() => setSelectedServiceUrl(null), 100);
   };
 
-  const handleCopyUrl = () => {
-    if (requestUrl) {
-      navigator.clipboard.writeText(encodedUrl(requestUrl));
-    }
-  };
+  const handleSend = useCallback(() => {
+    if (!isSendableUrl(requestUrl)) return;
+    // What's sent is what's shown, so the app goes where an edited URL points
+    if (isEdited) openRequest(requestUrl, { switchApi: true });
+    fetchQuery(requestUrl);
+    // Reloading brings the request back, and the address can be passed on
+    window.history.replaceState(null, '', requestLink(requestUrl, window.location.href));
+  }, [requestUrl, isEdited, openRequest, fetchQuery]);
 
-  const handleFetchData = useCallback(() => {
-    if (isSendableUrl(requestUrl)) fetchQuery(requestUrl);
-  }, [requestUrl, fetchQuery]);
-
-  // Cmd+Enter (Mac) / Ctrl+Enter (Windows) to fetch data
+  // Cmd+Enter (Mac) / Ctrl+Enter (Windows) to send the request
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         e.stopPropagation();
-        handleFetchData();
+        handleSend();
       }
     };
     document.addEventListener('keydown', handleKeyDown, true);
     return () => document.removeEventListener('keydown', handleKeyDown, true);
-  }, [handleFetchData]);
+  }, [handleSend]);
 
   // Update document data-theme attribute when theme changes
   useEffect(() => {
@@ -285,18 +287,18 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
     }
   }, []);
 
+  // Leaving the field goes no further than this API: another one would replace all that's in the form
+  const followUrl = (url: string) => openRequest(url, { switchApi: false });
   const copyButton = (
-    <Tooltip title="Copy URL">
-      {/* A disabled button gives a tooltip no events */}
-      <Box component="span" sx={{ flexShrink: 0 }}>
-        <IconButton color="primary" aria-label="Copy URL" disabled={!requestUrl} onClick={handleCopyUrl}>
-          <ContentCopyIcon />
-        </IconButton>
-      </Box>
-    </Tooltip>
+    <CopyMenu
+      url={requestUrl}
+      auth={requestUrl ? getAuthCredentials(requestUrl) : undefined}
+      compact={narrowWindow || !urlInTopRow}
+      atBottom={!urlInTopRow}
+    />
   );
-  const fetchButton = (
-    <FetchButton issues={requestIssues} summary={requestSummary} disabled={!isSendableUrl(requestUrl)} onFetch={handleFetchData} />
+  const sendButton = (
+    <SendButton issues={requestIssues} summary={requestSummary} disabled={!isSendableUrl(requestUrl)} onSend={handleSend} />
   );
 
   return (
@@ -321,8 +323,8 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1, py: isMobile ? 0.5 : 0.75 }}>
-              <RequestUrlField onSend={handleFetchData} onCommit={applyRequestUrl} compact={narrowWindow} />
-              {!isMobile && fetchButton}
+              <RequestUrlField onSend={handleSend} onCommit={followUrl} compact={narrowWindow} />
+              {!isMobile && sendButton}
               {copyButton}
               {!isMobile && !isOpen.response && (
                 <ResponseStatusButton
@@ -382,7 +384,7 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
         </ResponseDock>
       </Box>
 
-      {/* On phones: the panes and Fetch, within reach of a thumb. Above the panes that cover the map, and clear of the home indicator */}
+      {/* On phones: the panes and Send, within reach of a thumb. Above the panes that cover the map, and clear of the home indicator */}
       {isMobile && (
         <Paper
           elevation={8}
@@ -400,12 +402,14 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
           {/* 56px with the border */}
           <Box sx={{ display: 'flex', alignItems: 'center', p: 1, gap: 1, height: 55 }}>
             <PaneToggles sx={{ '& .MuiToggleButton-root': { width: 40, height: 40 } }} />
-            {!urlInTopRow && <RequestUrlField onSend={handleFetchData} onCommit={applyRequestUrl} expandUp compact />}
+            {!urlInTopRow && <RequestUrlField onSend={handleSend} onCommit={followUrl} expandUp compact />}
             {!urlInTopRow && copyButton}
-            <Box sx={{ ml: 'auto', flexShrink: 0 }}>{fetchButton}</Box>
+            <Box sx={{ ml: 'auto', flexShrink: 0 }}>{sendButton}</Box>
           </Box>
         </Paper>
       )}
+
+      <RequestNotice message={requestNote} severity="info" onClose={clearNote} horizontal="center" atBottom={!urlInTopRow} />
 
       <Suspense fallback={null}>
         <SettingsDrawer

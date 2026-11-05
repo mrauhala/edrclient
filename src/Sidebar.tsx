@@ -12,6 +12,7 @@ import { useMapInteraction } from './contexts/MapInteractionContext';
 import { useCollection } from './contexts/CollectionContext';
 import { useService } from './contexts/ServiceContext';
 import { useQueryBuilder } from './contexts/QueryBuilderContext';
+import { useOpenRequest } from './contexts/OpenRequestContext';
 import { usePanes } from './contexts/PanesContext';
 import { REQUEST_WIDTH } from './panes';
 
@@ -25,6 +26,7 @@ const Sidebar = () => {
   const { collections, setCollections, setSelectedCollection, setSelectedFeature, setSelectedCollectionExtents, setLocationFeatures, setLandingPageLicense, setCollectionUrl } = useCollection();
   const { setLandingPageTitle, setActiveServiceUrl, conformsTo, setConformsTo } = useService();
   const queryState = useQueryBuilder();
+  const { apiLoaded } = useOpenRequest();
   const { resetQueryState } = queryState;
   const { validationResult, setValidationResult, setEndpointUrls, setRawResponses } = useValidation();
 
@@ -89,7 +91,8 @@ const Sidebar = () => {
     setLandingPageLinks(result.landingPageLinks || null);
     setCollectionsLinks(result.collectionsLinks || null);
     setLandingPageKeywords(result.landingPageKeywords || null);
-  }, [setCollections, setValidationResult, setEndpointUrls, setRawResponses, setLandingPageTitle, setConformsTo]);
+    apiLoaded(!!result.collections?.length);
+  }, [setCollections, setValidationResult, setEndpointUrls, setRawResponses, setLandingPageTitle, setConformsTo, apiLoaded]);
 
   const handleLoadError = useCallback((error: Error) => {
     setCollections([]);
@@ -97,7 +100,8 @@ const Sidebar = () => {
       isValid: false,
       errors: [{ message: error.message }]
     });
-  }, [setCollections, setValidationResult]);
+    apiLoaded(false);
+  }, [setCollections, setValidationResult, apiLoaded]);
 
   return (
     <Box

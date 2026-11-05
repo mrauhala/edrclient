@@ -181,7 +181,7 @@ const ResponsePane: React.FC<ResponsePaneProps> = ({
       <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         {!url && !isLoading && (
           <Typography variant="body2" sx={{ color: 'text.secondary', p: 2 }}>
-            Nothing sent yet. Choose a query and press Fetch, and its response shows here.
+            Nothing sent yet. Choose a query and press Send, and its response shows here.
           </Typography>
         )}
 

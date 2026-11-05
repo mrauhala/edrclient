@@ -16,7 +16,11 @@ service follows the standards.
 - **EDR query builder:** every query type (position, radius, area, cube, trajectory, corridor, items,
   locations, instances) with parameters, time, vertical levels, custom dimensions and output formats.
   Geometry is drawn on the map, and the request URL updates as you go. Edit the URL, bad values included,
-  and what's in it is what's sent, with the form and map following what they can hold.
+  and what's in it is what's sent. The form and map follow what they can hold, and the app goes to
+  another collection or API if the URL points there.
+- **Links to a request:** share a link that reopens the request here, with its API, collection, form and
+  map, or copy the request as a URL or a curl command. A link never sends anything by itself, and
+  stored credentials stay out of both. A key typed into the URL by hand stays in it.
 - **Validation as you build:** what the query still misses or gets wrong, checked against EDR, the
   collection's metadata and the server's OpenAPI definition. The service itself is validated
   against the OGC schemas (Common, Features, EDR 1.0–1.2, Records, Maps), and its OpenAPI document
@@ -88,8 +92,8 @@ The key ends up in the browser, so it is public: restrict it to your sites in Ca
 | Key | Action |
 |---|---|
 | `PageDown` / `PageUp` | Next / previous collection |
-| `Cmd+Enter` / `Ctrl+Enter` | Fetch data from the request URL |
-| `Enter` in the request URL | Fetch it |
+| `Cmd+Enter` / `Ctrl+Enter` | Send the request |
+| `Enter` in the request URL | Send it |
 | `Esc` in the request URL | Undo your typing |
 | `B` | Toggle the Request pane |
 | `M` | Toggle the Map pane |

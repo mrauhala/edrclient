@@ -166,6 +166,13 @@ const CollectionsList = ({
   const [openCollectionIndex, setOpenCollectionIndex] = useState<number | null>(null);
   const openCollectionIndexRef = useRef(openCollectionIndex);
   openCollectionIndexRef.current = openCollectionIndex;
+
+  // A new list, from another API or the same one again, has nothing open in it. Otherwise the position
+  // stays, and asking for the collection now there would close it instead of opening it.
+  useEffect(() => {
+    openCollectionIndexRef.current = null;
+    setOpenCollectionIndex(null);
+  }, [collections]);
   const [currentLocationCollection, setCurrentLocationCollection] = useState<string | null>(null);
   const [showCollectionValidation, setShowCollectionValidation] = useState<{[key: string]: boolean}>({});
 
@@ -355,9 +362,7 @@ const CollectionsList = ({
 
   // Register selection callback for keyboard navigation
   useEffect(() => {
-    selectCollectionByIndexRef.current = (index: number) => {
-      handleItemClick(index, collections[index].id);
-    };
+    selectCollectionByIndexRef.current = (index: number) => handleItemClick(index, collections[index].id);
     return () => { selectCollectionByIndexRef.current = null; };
   });
 

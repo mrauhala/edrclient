@@ -72,8 +72,9 @@ export interface UseQueryUrlReturn {
   resetQueryState: () => void;
   getEffectiveOutputFormats: (collection: Collection, queryType: string) => string[];
   selectDataQuery: (collection: Collection, queryType: string) => void;
-  // Put a request URL's values into the form and map, if it's for the open collection
-  applyRequestUrl: (url: string) => void;
+  // Put a request URL's values into the form and map, if it's for the open collection. Says after
+  // whether they could follow it, which for an instance has to wait for the list of instances.
+  applyRequestUrl: (url: string, onResult?: (followed: boolean) => void) => void;
 }
 
 export function useQueryUrl(): UseQueryUrlReturn {
@@ -233,45 +234,50 @@ export function useQueryUrl(): UseQueryUrlReturn {
 
   // The picked instance and query, from a URL for one. A query or location the instance doesn't
   // have leaves the form where it is, with the URL as typed.
-  const applyInstanceUrl = useCallback((url: string, instanceId: string, hasQuery: boolean) => {
+  const applyInstanceUrl = useCallback((url: string, instanceId: string, hasQuery: boolean): boolean => {
     const instance = instances.instances.find(candidate => String(candidate.id) === instanceId);
-    if (!instance) return;
+    if (!instance) return false;
     if (!hasQuery) {
       setSelectedInstanceId(instanceId);
       setInstanceQueryKey('');
       setDataQuery('instances');
-      return;
+      return true;
     }
     const target = matchDataQuery(url, instance);
     const feature = target ? featureFor(target.locationId) : undefined;
-    if (!target || feature === undefined) return;
+    if (!target || feature === undefined) return false;
     setSelectedInstanceId(instanceId);
     setInstanceQueryKey(target.queryKey);
     applyQueryDefaults(instance, target.queryKey);
     setSelectedFeature(feature);
     applySelections(readQuerySelections(url, instance, target.queryKey), queryTypeOf(instance, target.queryKey), !!feature);
+    return true;
   }, [instances.instances, featureFor, applyQueryDefaults, applySelections, setDataQuery, setSelectedFeature]);
 
   // A URL for an instance waits for the list of instances, which picking the instances query loads
-  const urlAwaitingInstances = useRef<{ url: string; instanceId: string; hasQuery: boolean } | null>(null);
+  const urlAwaitingInstances = useRef<{ url: string; instanceId: string; hasQuery: boolean; onResult?: (followed: boolean) => void } | null>(null);
   useEffect(() => {
     const waiting = urlAwaitingInstances.current;
     if (!waiting || (instances.status !== 'ready' && instances.status !== 'error')) return;
     urlAwaitingInstances.current = null;
-    if (instances.status === 'ready') applyInstanceUrl(waiting.url, waiting.instanceId, waiting.hasQuery);
+    const followed = instances.status === 'ready' && applyInstanceUrl(waiting.url, waiting.instanceId, waiting.hasQuery);
     // Moving to the list on the way there replaced the URL
     editUrl(waiting.url);
+    waiting.onResult?.(followed);
   }, [instances.status, applyInstanceUrl, editUrl]);
 
-  const applyRequestUrl = useCallback((url: string) => {
-    if (!selectedCollection) return;
+  const applyRequestUrl = useCallback((url: string, onResult?: (followed: boolean) => void) => {
+    if (!selectedCollection) {
+      onResult?.(false);
+      return;
+    }
 
     const instance = matchInstance(url, selectedCollection);
     if (instance) {
       if (selectedDataQuery === instance.queryKey && instances.status === 'ready') {
-        applyInstanceUrl(url, instance.instanceId, instance.hasQuery);
+        onResult?.(applyInstanceUrl(url, instance.instanceId, instance.hasQuery));
       } else {
-        urlAwaitingInstances.current = { url, instanceId: instance.instanceId, hasQuery: instance.hasQuery };
+        urlAwaitingInstances.current = { url, instanceId: instance.instanceId, hasQuery: instance.hasQuery, onResult };
         selectDataQuery(selectedCollection, instance.queryKey);
       }
       return;
@@ -279,10 +285,14 @@ export function useQueryUrl(): UseQueryUrlReturn {
 
     const target = matchDataQuery(url, selectedCollection);
     const feature = target ? featureFor(target.locationId) : undefined;
-    if (!target || feature === undefined) return;
+    if (!target || feature === undefined) {
+      onResult?.(false);
+      return;
+    }
     if (target.queryKey !== selectedDataQuery || selectedInstanceId) selectDataQuery(selectedCollection, target.queryKey);
     if (feature !== selectedFeature) setSelectedFeature(feature);
     applySelections(readQuerySelections(url, selectedCollection, target.queryKey), queryTypeOf(selectedCollection, target.queryKey), !!feature);
+    onResult?.(true);
   }, [selectedCollection, selectedDataQuery, selectedInstanceId, selectedFeature, instances.status, featureFor, selectDataQuery, setSelectedFeature, applyInstanceUrl, applySelections]);
 
   // Selecting a location (on the map, in the Location Features list or via search) switches the

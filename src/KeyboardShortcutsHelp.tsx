@@ -21,8 +21,8 @@ const shortcuts = [
   { key: '?', description: 'Show this help' },
   { key: 'PageUp', description: 'Previous collection' },
   { key: 'PageDown', description: 'Next collection' },
-  { key: 'Cmd/Ctrl + Enter', description: 'Fetch data' },
-  { key: 'Enter', description: 'In the request URL: fetch it' },
+  { key: 'Cmd/Ctrl + Enter', description: 'Send the request' },
+  { key: 'Enter', description: 'In the request URL: send it' },
   { key: 'Esc', description: 'In the request URL: undo your typing' },
 ];
 
