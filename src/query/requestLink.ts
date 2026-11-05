@@ -26,10 +26,14 @@ function parsedPath(url: string): RegExpExecArray | null {
   }
 }
 
-// The API a request belongs to: all that comes before /collections, /conformance or /api
+// The API a request belongs to: all that comes before /collections, however deep that is. Without
+// collections in the URL it's the URL itself, less a /conformance at the end. An API can be served
+// from a path of any name, /api included, so the name of a path says nothing about where its root is.
 export function apiRootOf(url: string): string {
   const { origin, pathname } = new URL(url);
-  return `${origin}${pathname.replace(/\/(collections|conformance|api)(\/.*)?$/, '').replace(/\/+$/, '')}`;
+  const path = pathname.replace(/\/+$/, '');
+  const beforeCollections = /^(.*?)\/collections(\/.*)?$/.exec(path);
+  return `${origin}${beforeCollections ? beforeCollections[1] : path.replace(/\/conformance$/, '')}`;
 }
 
 export const collectionIdOf = (url: string): string | null => parsedPath(url)?.[2] ?? null;

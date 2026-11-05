@@ -133,13 +133,15 @@ function sameAsTyped(built: string, typed: string): boolean {
 // The edited URL after the form went from building prevBuilt to nextBuilt: only the parameters the
 // form changed are written in, as text, so what was typed keeps its encoding and order. Another
 // query or collection starts again from the form (null: no edits left), unless the form went there
-// because the URL says so.
+// because the URL says so. A URL for something other than what the form was building is left alone:
+// the form's changes aren't about it, like the bbox of the map panel's URL on panning the map.
 export function mergeEditedUrl(prevBuilt: string, nextBuilt: string, edited: string): string | null {
   if (!edited.trim()) return null;
   const { base, hash, pairs: editedPairs } = splitUrl(edited);
   const nextBase = splitUrl(nextBuilt).base;
   // However each writes it: a server's links may have an instance's `:` where a typed URL has %3A
   if (splitUrl(prevBuilt).base !== nextBase) return decoded(base) === decoded(nextBase) && edited !== nextBuilt ? edited : null;
+  if (decoded(base) !== decoded(nextBase)) return edited;
 
   const prev = paramsOf(prevBuilt);
   const next = paramsOf(nextBuilt);

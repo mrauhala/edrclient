@@ -259,9 +259,21 @@ describe('mergeEditedUrl', () => {
     )).toBe(built('f=%78&a=1+2&b=%20&coords=POINT(3 4)'));
   });
 
-  it('keeps a path that was typed', () => {
-    expect(mergeEditedUrl(built('f=x'), built('f=y'), 'https://other.test/typed?f=x&a=b'))
-      .toBe('https://other.test/typed?f=y&a=b');
+  it('leaves a URL for something else alone when the form changes what it was building', () => {
+    const elsewhere = 'https://other.test/typed?f=x&a=b';
+    expect(mergeEditedUrl(built('f=x'), built('f=y'), elsewhere)).toBe(elsewhere);
+  });
+
+  it("keeps the map panel's URL out of one for a query, when the map is panned", () => {
+    const map = 'https://api.test/edr/collections/c/map';
+    const typed = 'https://api.test/edr/collections/c/nonsense?f=x';
+    expect(mergeEditedUrl(`${map}?bbox=1,2,3,4`, `${map}?bbox=5,6,7,8`, typed)).toBe(typed);
+  });
+
+  it('still writes in what changed when only the encoding of the path differs', () => {
+    const coded = 'https://api.test/instances/2026-11-05T00%3A00%3A00Z/position';
+    const plain = 'https://api.test/instances/2026-11-05T00:00:00Z/position';
+    expect(mergeEditedUrl(`${plain}?f=x`, `${plain}?f=y`, `${coded}?f=x&a=b`)).toBe(`${coded}?f=y&a=b`);
   });
 
   it('collapses a parameter repeated by hand when the form sets it', () => {
@@ -280,8 +292,8 @@ describe('mergeEditedUrl', () => {
     expect(mergeEditedUrl(built('f=x'), built('f=y'), built('f=x'))).toBeNull();
   });
 
-  it('copes with text that isn\'t a URL', () => {
-    expect(mergeEditedUrl(built('f=x'), built('f=y'), 'typo')).toBe('typo?f=y');
+  it('leaves text that isn\'t a URL alone', () => {
+    expect(mergeEditedUrl(built('f=x'), built('f=y'), 'typo')).toBe('typo');
   });
 
   it('copes with broken encoding', () => {
