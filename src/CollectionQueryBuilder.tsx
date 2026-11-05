@@ -21,6 +21,8 @@ import QueryTypeInputs from './QueryTypeInputs';
 import InstancePicker from './InstancePicker';
 import { queryTypeOf, queryVariables, unitsFor } from './query/queryTypes';
 import { EDR_QUERY_RULES, mapInputRequired } from './query/edrRules';
+import { timeIsOnlyAFilter } from './query/queryModel';
+import { useCollection } from './contexts/CollectionContext';
 import { usePanes } from './contexts/PanesContext';
 import { useQueryValidation } from './hooks/useQueryValidation';
 
@@ -53,6 +55,9 @@ const QueryFields: React.FC<{ collection: Collection; queryKey: string; querySta
   const fieldIssue = (field: string) => issues.find(issue => issue.field === field && issue.severity !== 'info');
   // A feature list (items) takes no parameters, levels or custom dimensions
   const selectsData = !(queryKey && EDR_QUERY_RULES[queryTypeOf(collection, queryKey)]?.featureList);
+  const { selectedFeature } = useCollection();
+  const queryType = queryKey ? queryTypeOf(collection, queryKey) : '';
+  const timeIsFilter = timeIsOnlyAFilter(queryType, !!selectedFeature);
   // Units of z a query declares (cube height_units); a corridor's height units belong to its height
   const zUnits = queryKey && queryTypeOf(collection, queryKey) !== 'corridor'
     ? unitsFor(queryVariables(collection, queryKey), 'height')
@@ -130,17 +135,17 @@ const QueryFields: React.FC<{ collection: Collection; queryKey: string; querySta
         </FormControl>
       )}
 
-      {/* Items are listed from any time unless filtered by time */}
-      {!selectsData && collection.extent?.temporal && (
+      {/* A list has everything in it unless filtered by time */}
+      {timeIsFilter && collection.extent?.temporal && (
         <FormControlLabel
           sx={{ mb: 1 }}
           control={<Checkbox size="small" checked={filterByTime} onChange={event => setFilterByTime(event.target.checked)} />}
-          label={<Typography variant="body2">Filter items by time</Typography>}
+          label={<Typography variant="body2">Filter {queryType === 'locations' ? 'locations' : 'items'} by time</Typography>}
         />
       )}
 
       {/* Datetime Selector — TimeControl with slider + transport buttons */}
-      {collection.extent?.temporal && (selectsData || filterByTime) && (
+      {collection.extent?.temporal && (!timeIsFilter || filterByTime) && (
         <Box id="query-field-datetime">
           <TimeControl temporal={collection.extent.temporal} queryState={queryState} />
           <FieldIssueText issue={fieldIssue('datetime')} />

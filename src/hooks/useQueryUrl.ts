@@ -4,8 +4,7 @@ import { useMapInteraction } from '../contexts/MapInteractionContext';
 import { useCollection } from '../contexts/CollectionContext';
 import { useQueryValidationContext } from '../contexts/QueryValidationContext';
 import { useOpenApi } from '../contexts/OpenApiContext';
-import { buildQueryModel, emptyDim } from '../query/queryModel';
-import { EDR_QUERY_RULES } from '../query/edrRules';
+import { buildQueryModel, emptyDim, timeIsOnlyAFilter } from '../query/queryModel';
 import { buildQueryUrl } from '../query/buildQueryUrl';
 import { effectiveOutputFormats, queryTypeOf, queryVariables, unitsFor } from '../query/queryTypes';
 import { pickUnit } from '../query/units';
@@ -54,7 +53,7 @@ export interface UseQueryUrlReturn {
   // Cube: also send the box as coords, for servers whose API docs require coords
   bboxAsCoords: boolean;
   setBboxAsCoords: (value: boolean) => void;
-  // Feature lists (items): the time is an optional filter, off unless chosen
+  // Lists (items, a locations query with no location): the time is an optional filter, off unless chosen
   filterByTime: boolean;
   setFilterByTime: (value: boolean) => void;
   // Instances queries: the collection's instances (loaded on demand), the one picked and the query
@@ -169,7 +168,7 @@ export function useQueryUrl(): UseQueryUrlReturn {
   const selectedInstance = instances.instances.find(instance => String(instance.id) === selectedInstanceId) ?? null;
 
   // Pick an instance, keeping the query if it has one too. A time from another run may lie outside
-  // this one, so the time control picks one again.
+  // this one, so it goes.
   const selectInstance = useCallback((id: string) => {
     setSelectedInstanceId(id);
     setSelectedDatetime('');
@@ -234,8 +233,8 @@ export function useQueryUrl(): UseQueryUrlReturn {
   const queryModel = useMemo(() => {
     if (!target) return null;
     const queryType = queryTypeOf(target.collection, target.queryKey);
-    // Items are listed from any time unless the time filter is on (the time control always holds a time)
-    const timeIsFilter = !!EDR_QUERY_RULES[queryType]?.featureList;
+    // A time chosen for another query doesn't carry over to a list, unless it's filtered by time
+    const timeIsFilter = timeIsOnlyAFilter(queryType, !!selectedFeature);
     // A location's href points at the collection's locations; an instance's is addressed by id
     const locationFeature = queryType !== 'locations' || !selectedFeature ? null
       : instancesHref ? { id: selectedFeature.id } : selectedFeature;

@@ -128,6 +128,12 @@ const TimeControl: React.FC<TimeControlProps> = ({ temporal, queryState }) => {
     );
   }, [temporal, setStartDatetime, setEndDatetime]);
 
+  const clearButton = tc.hasTime && (
+    <Button size="small" onClick={tc.clearTime} sx={{ textTransform: 'none', fontSize: '0.8rem' }}>
+      Clear time
+    </Button>
+  );
+
   // Fallback: DateTimePicker
   if (tc.timeMode === 'fallback') {
     return (
@@ -142,16 +148,18 @@ const TimeControl: React.FC<TimeControlProps> = ({ temporal, queryState }) => {
           </Alert>
         )}
 
-        <ToggleButtonGroup
-          size="small"
-          exclusive
-          value={datetimeMode}
-          onChange={handleModeChange}
-          sx={{ mb: 1.5 }}
-        >
-          <ToggleButton value="individual" sx={{ textTransform: 'none', fontSize: '0.8rem', py: 0.5 }}>Single</ToggleButton>
-          <ToggleButton value="range" sx={{ textTransform: 'none', fontSize: '0.8rem', py: 0.5 }}>Range</ToggleButton>
-        </ToggleButtonGroup>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            value={datetimeMode}
+            onChange={handleModeChange}
+          >
+            <ToggleButton value="individual" sx={{ textTransform: 'none', fontSize: '0.8rem', py: 0.5 }}>Single</ToggleButton>
+            <ToggleButton value="range" sx={{ textTransform: 'none', fontSize: '0.8rem', py: 0.5 }}>Range</ToggleButton>
+          </ToggleButtonGroup>
+          {clearButton}
+        </Box>
 
         {datetimeMode === 'range' && renderPresets()}
 
@@ -199,16 +207,18 @@ const TimeControl: React.FC<TimeControlProps> = ({ temporal, queryState }) => {
       <FormLabel component="legend" sx={{ fontSize: '0.875rem', mb: 1 }}>Date/Time Selection</FormLabel>
 
       {/* Mode toggle */}
-      <ToggleButtonGroup
-        size="small"
-        exclusive
-        value={datetimeMode}
-        onChange={handleModeChange}
-        sx={{ mb: 1.5 }}
-      >
-        <ToggleButton value="individual" sx={{ textTransform: 'none', fontSize: '0.8rem', py: 0.5 }}>Single</ToggleButton>
-        <ToggleButton value="range" sx={{ textTransform: 'none', fontSize: '0.8rem', py: 0.5 }}>Range</ToggleButton>
-      </ToggleButtonGroup>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+        <ToggleButtonGroup
+          size="small"
+          exclusive
+          value={datetimeMode}
+          onChange={handleModeChange}
+        >
+          <ToggleButton value="individual" sx={{ textTransform: 'none', fontSize: '0.8rem', py: 0.5 }}>Single</ToggleButton>
+          <ToggleButton value="range" sx={{ textTransform: 'none', fontSize: '0.8rem', py: 0.5 }}>Range</ToggleButton>
+        </ToggleButtonGroup>
+        {clearButton}
+      </Box>
 
       {/* Quick presets (range mode only) */}
       {datetimeMode === 'range' && renderPresets()}
@@ -220,7 +230,7 @@ const TimeControl: React.FC<TimeControlProps> = ({ temporal, queryState }) => {
           fontFamily: 'monospace',
           fontSize: '0.8rem',
           fontWeight: 500,
-          color: 'primary.main',
+          color: tc.hasTime ? 'primary.main' : 'text.secondary',
           px: 1,
           py: 0.5,
           mb: 0.5,
@@ -338,6 +348,8 @@ const TimeControl: React.FC<TimeControlProps> = ({ temporal, queryState }) => {
         <Slider
           size="small"
           value={tc.sliderValue}
+          // With no time chosen, it only waits to be moved
+          track={tc.hasTime ? 'normal' : false}
           min={tc.viewMin}
           max={tc.viewMax}
           step={tc.timeMode === 'discrete' ? null : tc.stepMs}
@@ -348,7 +360,7 @@ const TimeControl: React.FC<TimeControlProps> = ({ temporal, queryState }) => {
           onChangeCommitted={(_, value) => tc.onSliderChangeCommitted(value as number | number[])}
           aria-label="Temporal extent slider"
           sx={{
-            '& .MuiSlider-thumb': { width: 14, height: 14, zIndex: 2 },
+            '& .MuiSlider-thumb': { width: 14, height: 14, zIndex: 2, opacity: tc.hasTime ? 1 : 0.5 },
             '& .MuiSlider-rail': { opacity: 0.3 },
             // Show/hide marks: always present for snapping, but only visible when showMarkDots
             '& .MuiSlider-mark': showMarkDots

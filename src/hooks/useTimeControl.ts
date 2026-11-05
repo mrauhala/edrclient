@@ -11,6 +11,8 @@ import {
 
 export type TimeMode = 'discrete' | 'continuous' | 'fallback';
 
+export const NO_TIME_LABEL = 'Not set: left out of the request';
+
 export interface StepOption {
   label: string;
   shortLabel: string;
@@ -43,6 +45,8 @@ export interface UseTimeControlReturn {
   startLabel: string;
   endLabel: string;
   currentTimeLabel: string;
+  hasTime: boolean;
+  clearTime: () => void;
   stepForward: () => void;
   stepBackward: () => void;
   jumpToStart: () => void;
@@ -321,18 +325,6 @@ export function useTimeControl(
   const startLabel = rawBounds ? formatDateString(fromEpoch(effectiveViewMin)) : '';
   const endLabel = rawBounds ? formatDateString(fromEpoch(effectiveViewMax)) : '';
 
-  // ── Default to latest time ──
-  useEffect(() => {
-    if (!rawBounds || timeMode === 'fallback') return;
-    if (datetimeMode === 'individual' && !selectedDatetime) {
-      if (timeMode === 'discrete' && timeValues.length > 0) {
-        setSelectedDatetime(timeValues[timeValues.length - 1]);
-      } else {
-        setSelectedDatetime(fromEpoch(snapFloor(rawBounds.max, stepMs)));
-      }
-    }
-  }, [rawBounds, timeMode, datetimeMode, selectedDatetime, stepMs, timeValues, setSelectedDatetime]);
-
   // ── Re-snap on step change ──
   const prevStepRef = useRef(stepMs);
   useEffect(() => {
@@ -377,14 +369,24 @@ export function useTimeControl(
   // The value the slider actually renders — local drag state if dragging, committed otherwise
   const sliderValue = isDragging ? dragValue : committedValue;
 
+  // A time is only ever one the user chose: until then none is sent, and the server decides
+  const hasTime = datetimeMode === 'range' ? !!(startDatetime || endDatetime) : !!selectedDatetime;
+
+  const clearTime = useCallback(() => {
+    setSelectedDatetime('');
+    setStartDatetime('');
+    setEndDatetime('');
+  }, [setSelectedDatetime, setStartDatetime, setEndDatetime]);
+
   const currentTimeLabel = useMemo(() => {
+    if (!hasTime) return NO_TIME_LABEL;
     if (datetimeMode === 'range') {
       const s = startDatetime ? formatDateString(startDatetime) : 'Start';
       const e = endDatetime ? formatDateString(endDatetime) : 'End';
       return `${s} \u2013 ${e}`;
     }
-    return selectedDatetime ? formatDateString(selectedDatetime) : 'Latest';
-  }, [datetimeMode, selectedDatetime, startDatetime, endDatetime]);
+    return formatDateString(selectedDatetime);
+  }, [hasTime, datetimeMode, selectedDatetime, startDatetime, endDatetime]);
 
   const findNearestValue = useCallback((epoch: number): string => {
     if (timeValues.length === 0) return fromEpoch(epoch);
@@ -550,6 +552,8 @@ export function useTimeControl(
     startLabel,
     endLabel,
     currentTimeLabel,
+    hasTime,
+    clearTime,
     stepForward,
     stepBackward,
     jumpToStart,

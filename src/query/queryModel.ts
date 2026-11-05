@@ -49,4 +49,10 @@ export function buildQueryModel(input: QueryModelInput): QueryModel | null {
   };
 }
 
+// The time selects a query's data, but only filters a list: items, or a locations query with no
+// location picked. A list is complete without one, so it takes a time only if asked to.
+export function timeIsOnlyAFilter(queryType: string, hasLocation: boolean): boolean {
+  return !!EDR_QUERY_RULES[queryType]?.featureList || (queryType === 'locations' && !hasLocation);
+}
+
 export const emptyDim = (mode: DimSelection['mode'] = 'individual'): DimSelection => ({ mode, value: '', start: '', end: '' });

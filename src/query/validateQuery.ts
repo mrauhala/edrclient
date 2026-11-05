@@ -3,7 +3,7 @@ import { normalizeTemporal, getOverallTemporalExtent, expandTemporalValues } fro
 import { normalizeVertical, expandVerticalValues } from '../utils/extents/vertical';
 import { normalizeBbox } from '../utils/extents/bbox';
 import { effectiveOutputFormats, parameterIdsOf, unitsFor } from './queryTypes';
-import type { QueryModel } from './queryModel';
+import { timeIsOnlyAFilter, type QueryModel } from './queryModel';
 import type { BBox, DimSelection, IssueSeverity, IssueSource, QueryIssue } from './types';
 import { SEVERITY_ORDER } from './types';
 import type { ApiDocsCheck } from '../validation/openapi/checkQueryUrl';
@@ -240,7 +240,11 @@ function checkDatetime(model: QueryModel, add: Add) {
   const filled = chosen.filter(Boolean);
 
   if (filled.length === 0) {
-    add('info', 'metadata', 'datetime', 'unset', 'No time selected: the server decides which times to return');
+    if (timeIsOnlyAFilter(model.queryType, !!model.locationFeature)) {
+      add('info', 'edr', 'datetime', 'no-filter', `No time filter: all ${model.queryType === 'locations' ? 'locations' : 'items'} are listed`);
+    } else {
+      add('info', 'metadata', 'datetime', 'unset', 'No time selected: the server decides which times to return');
+    }
     return;
   }
   if (mode === 'range' && filled.length === 1) {
