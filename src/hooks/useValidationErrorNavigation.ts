@@ -11,6 +11,7 @@ export interface UseValidationErrorNavigationReturn {
   scrollLine: number | undefined; // the current error's line, else the line scrollToPath points at
   handlePrevError: () => void;
   handleNextError: () => void;
+  goToError: (index: number) => void;
 }
 
 export function useValidationErrorNavigation(
@@ -111,5 +112,6 @@ export function useValidationErrorNavigation(
     scrollLine: currentError?.line ?? (targetLine || undefined),
     handlePrevError,
     handleNextError,
+    goToError: setCurrentErrorIdx,
   };
 }

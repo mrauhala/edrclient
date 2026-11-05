@@ -5,8 +5,8 @@ export interface UseContentTypeDetectionReturn {
   parsedJson: unknown;
   isIWXXM: () => boolean;
   isCoverageJsonTimeSeries: boolean;
-  shouldShowToggle: boolean;
-  contentTypeLabel: string;
+  // Whether there's more to show than the text
+  hasDataView: boolean;
   language: 'json' | 'xml' | 'text';
   shouldUseCodeView: boolean;
   formattedData: string;
@@ -45,17 +45,9 @@ export function useContentTypeDetection(
     return parsed.type === 'Coverage' && isTimeSeriesCoverage(parsed);
   }, [parsedJson]);
 
-  const shouldShowToggle = useMemo(() => {
+  const hasDataView = useMemo(() => {
     return isIWXXM() || isCoverageJsonTimeSeries;
   }, [isIWXXM, isCoverageJsonTimeSeries]);
-
-  const contentTypeLabel = useMemo(() => {
-    if (!contentType) return 'Unknown';
-    if (contentType.includes('json')) return 'JSON';
-    if (contentType.includes('xml')) return 'XML';
-    if (contentType.includes('text')) return 'Text';
-    return contentType;
-  }, [contentType]);
 
   const language = useMemo<'json' | 'xml' | 'text'>(() => {
     if (!contentType) return 'text';
@@ -79,8 +71,7 @@ export function useContentTypeDetection(
     parsedJson,
     isIWXXM,
     isCoverageJsonTimeSeries,
-    shouldShowToggle,
-    contentTypeLabel,
+    hasDataView,
     language,
     shouldUseCodeView,
     formattedData,

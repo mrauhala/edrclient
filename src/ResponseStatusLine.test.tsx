@@ -11,6 +11,8 @@ const OK: ResponseDetails = {
   sizeBytes: 7600,
   headers: [],
   contentType: 'application/vnd.cov+json',
+  requestUrlBytes: 50,
+  timing: null,
 };
 
 describe('ResponseStatusLine', () => {

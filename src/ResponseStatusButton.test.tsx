@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import ResponseStatusButton from './ResponseStatusButton';
 import type { ResponseDetails } from './api/sendRequest';
 
-const OK: ResponseDetails = { status: 200, statusText: 'OK', timeMs: 2230, sizeBytes: 7600, headers: [], contentType: 'application/json' };
+const OK: ResponseDetails = { status: 200, statusText: 'OK', timeMs: 2230, sizeBytes: 7600, headers: [], contentType: 'application/json', requestUrlBytes: 50, timing: null };
 
 const render = (props: Partial<ComponentProps<typeof ResponseStatusButton>>) => renderToStaticMarkup(
   <ResponseStatusButton response={null} isLoading={false} hasError={false} onClick={() => {}} {...props} />,
