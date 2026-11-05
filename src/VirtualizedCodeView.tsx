@@ -1,4 +1,5 @@
 import React, { useMemo, useEffect, useRef, useCallback, useState } from 'react';
+import { alpha } from '@mui/material/styles';
 import { List } from 'react-window';
 import type { ListImperativeAPI } from 'react-window';
 import Prism from 'prismjs';
@@ -153,7 +154,7 @@ function createRowComponent(
     };
 
     if (isError) {
-      lineStyle.backgroundColor = isDark ? 'rgba(244, 67, 54, 0.2)' : 'rgba(244, 67, 54, 0.12)';
+      lineStyle.backgroundColor = alpha(errorColor, isDark ? 0.2 : 0.12);
       lineStyle.borderLeft = `3px solid ${errorColor}`;
     } else if (isInGutter) {
       lineStyle.borderLeft = `3px solid ${isDark ? 'rgba(255, 152, 0, 0.4)' : 'rgba(255, 152, 0, 0.5)'}`;

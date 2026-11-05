@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, it } from 'vitest';
-import { scaleTime } from '@mui/x-charts-vendor/d3-scale';
+import { scaleUtc } from '@mui/x-charts-vendor/d3-scale';
 import type { AxisValueFormatterContext } from '@mui/x-charts/models';
-import { formatTimeTick } from './timeAxisTicks';
+import { formatTimeTick, labelledTickIndexes } from './timeAxisTicks';
 
 const originalTz = process.env.TZ;
 afterAll(() => {
@@ -20,10 +20,10 @@ const TIME_ZONES = ['Europe/Helsinki', 'UTC', 'America/New_York', 'Asia/Kolkata'
 
 // The axis MUI would draw: d3 time ticks with MUI's default tick count for the width
 function axis(from: string, to: string, width: number) {
-  const scale = scaleTime().domain([new Date(from), new Date(to)]).range([0, width]);
+  const scale = scaleUtc().domain([new Date(from), new Date(to)]).range([0, width]);
   const tickNumber = Math.floor(width / 50);
   const ticks = scale.ticks(tickNumber);
-  const context = { location: 'tick', scale, tickNumber, defaultTickLabel: '' } as unknown as AxisValueFormatterContext<'time'>;
+  const context = { location: 'tick', scale, tickNumber, defaultTickLabel: '' } as unknown as AxisValueFormatterContext<'utc'>;
   return { scale, ticks, labels: ticks.map(tick => formatTimeTick(tick, context)) };
 }
 
@@ -59,7 +59,7 @@ describe.each(TIME_ZONES)('formatTimeTick in %s', timeZone => {
       // The date line appears on exactly the first labelled tick and wherever the day changed
       shown.forEach((i, k) => {
         const previous = k > 0 ? ticks[shown[k - 1]] : undefined;
-        const newDay = !previous || previous.toDateString() !== ticks[i].toDateString();
+        const newDay = !previous || previous.toISOString().slice(0, 10) !== ticks[i].toISOString().slice(0, 10);
         expect(labels[i].includes('\n'), `${labels[i]} at ${ticks[i].toISOString()}`).toBe(newDay);
       });
 
@@ -69,7 +69,7 @@ describe.each(TIME_ZONES)('formatTimeTick in %s', timeZone => {
       // With sub-day steps, every midnight tick is labelled
       if (ticks.length > 1 && ticks[1].getTime() - ticks[0].getTime() < 24 * 3600 * 1000) {
         ticks.forEach((tick, i) => {
-          if (tick.getHours() === 0 && tick.getMinutes() === 0) {
+          if (tick.getUTCHours() === 0 && tick.getUTCMinutes() === 0) {
             expect(labels[i], tick.toISOString()).not.toBe('');
           }
         });
@@ -78,12 +78,31 @@ describe.each(TIME_ZONES)('formatTimeTick in %s', timeZone => {
   });
 });
 
+describe('formatTimeTick is in UTC', () => {
+  it('counts from midnight in UTC when it has to skip labels, wherever the browser is', () => {
+    const SIX_HOURS = 6 * 3600 * 1000;
+    const start = Date.UTC(2026, 9, 5);
+    const ticks = Array.from({ length: 8 }, (_, i) => new Date(start + i * SIX_HOURS));
+    // Too close together to label them all
+    const position = (tick: Date) => ((tick.getTime() - start) / SIX_HOURS) * 30;
+    process.env.TZ = 'Asia/Kolkata';
+    expect(labelledTickIndexes(ticks, position)).toEqual([0, 2, 4, 6]);
+  });
+
+  it.each(RANGES)('labels %s the same in every time zone', (_name, from, to) => {
+    process.env.TZ = 'UTC';
+    const inUtc = WIDTHS.map(width => axis(from, to, width).labels);
+    for (const timeZone of TIME_ZONES) {
+      process.env.TZ = timeZone;
+      expect(WIDTHS.map(width => axis(from, to, width).labels)).toEqual(inUtc);
+    }
+  });
+});
+
 describe('formatTimeTick outside the axis', () => {
   it('shows the full date and time in tooltips', () => {
-    process.env.TZ = 'UTC';
     const { scale } = axis('2026-10-05T00:00:00Z', '2026-10-06T00:00:00Z', 600);
-    const context = { location: 'tooltip', scale } as unknown as AxisValueFormatterContext<'time'>;
-    const date = new Date('2026-10-05T12:00:00Z');
-    expect(formatTimeTick(date, context)).toBe(date.toLocaleString());
+    const context = { location: 'tooltip', scale } as unknown as AxisValueFormatterContext<'utc'>;
+    expect(formatTimeTick(new Date('2026-10-05T12:00:00Z'), context)).toBe('Oct 5 12:00');
   });
 });

@@ -1,4 +1,5 @@
 import type { AxisValueFormatterContext } from '@mui/x-charts/models';
+import { utcClock, utcDay, utcMoment } from './utcTime';
 
 // Time axis tick labels show the time, with the date added on the first labelled tick and
 // wherever the day changes. MUI hides tick labels that would overlap, which can drop exactly the
@@ -36,10 +37,10 @@ function textWidth(text: string): number {
   return width;
 }
 
-const formatClock = (date: Date) => date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-const formatDay = (date: Date) => date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+const formatClock = utcClock;
+const formatDay = utcDay;
 
-const startOfDay = (date: Date) => new Date(date).setHours(0, 0, 0, 0);
+const startOfDay = (date: Date) => new Date(date).setUTCHours(0, 0, 0, 0);
 
 // Indexes of the ticks to label: enough apart for their labels not to overlap and, for sub-day
 // steps, aligned to midnight
@@ -56,10 +57,10 @@ export function labelledTickIndexes(ticks: Date[], position: (tick: Date) => num
   return ticks.flatMap((tick, i) => (stepsFromMidnight(tick, i) % every === 0 ? [i] : []));
 }
 
-export function formatTimeTick(value: Date | number, context: AxisValueFormatterContext<'time'>): string {
+export function formatTimeTick(value: Date | number, context: AxisValueFormatterContext<'utc'>): string {
   const date = new Date(value);
   if (context.location !== 'tick') {
-    return date.toLocaleString();
+    return utcMoment(date);
   }
   const ticks = context.scale.ticks(context.tickNumber);
   const index = ticks.findIndex(tick => tick.getTime() === date.getTime());
@@ -69,6 +70,6 @@ export function formatTimeTick(value: Date | number, context: AxisValueFormatter
     return '';
   }
   const previous = order > 0 ? ticks[labelled[order - 1]] : undefined;
-  const isNewDay = !previous || previous.toDateString() !== date.toDateString();
+  const isNewDay = !previous || utcDay(previous) !== utcDay(date);
   return isNewDay ? `${formatClock(date)}\n${formatDay(date)}` : formatClock(date);
 }

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
@@ -16,7 +16,8 @@ import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import { useTheme } from '@mui/material/styles';
 import VirtualizedCodeView from './VirtualizedCodeView';
-import CoverageJsonChart from './CoverageJsonChart';
+import CoverageData, { type CoverageView } from './CoverageData';
+import { summarizeCoverage } from './coverage/coverageSummary';
 import FetchErrorAlert from './FetchErrorAlert';
 import ResponseChecks, { ChecksTabLabel, findingMessage } from './ResponseChecks';
 import ResponseHeaders from './ResponseHeaders';
@@ -30,6 +31,7 @@ import type { ValidationError } from './DataRetrievalAPI';
 import { useContentTypeDetection } from './hooks/useContentTypeDetection';
 import { useXSLTTransform } from './hooks/useXSLTTransform';
 import { useValidationErrorNavigation } from './hooks/useValidationErrorNavigation';
+import { findLineForJsonPointer } from './utils/jsonPointerToLine';
 
 interface ResponsePaneProps {
   // Whether the pane is showing: its keyboard shortcuts are only for then
@@ -88,23 +90,29 @@ const ResponsePane: React.FC<ResponsePaneProps> = ({
   const copyDataTimer = useRef<ReturnType<typeof setTimeout>>();
 
   const {
-    parsedJson, isIWXXM, isCoverageJsonTimeSeries, hasDataView,
-    language, shouldUseCodeView, formattedData,
+    parsedJson, isIWXXM, language, shouldUseCodeView, formattedData,
   } = useContentTypeDetection(data, contentType);
+
+  const coverage = useMemo(() => summarizeCoverage(parsedJson), [parsedJson]);
+  const [coverageView, setCoverageView] = useState<CoverageView>('chart');
 
   const tabs = responseTabs({
     hasResponse: response !== null && !isLoading,
-    hasDataView: hasDataView || imageUrl !== null,
+    hasDataView: coverage !== null || isIWXXM() || imageUrl !== null,
     hasImage: imageUrl !== null,
   });
   const tab = shownTab(preferredTab, tabs);
 
   const { transformedHtml, transformError, isTransforming } = useXSLTTransform(data, tab === 'data', isIWXXM, showRaw);
 
+  // A line a note in Checks sent the reader to. Not a flagged line: a note isn't a fault in the response
+  const [noteLine, setNoteLine] = useState<number | null>(null);
+
   // Closing and reopening the pane leaves it as it was
   useEffect(() => {
     setCopiedUrl(false);
     setCopiedData(false);
+    setNoteLine(null);
   }, [data]);
 
   const {
@@ -112,7 +120,18 @@ const ResponsePane: React.FC<ResponsePaneProps> = ({
     currentErrorIdx, currentError, scrollLine, handlePrevError, handleNextError, goToError,
   } = useValidationErrorNavigation(validationErrors, formattedData, contentType, scrollToPath, open && tab === 'raw');
 
+  // Stepping through the flagged lines leaves the note's behind
+  useEffect(() => setNoteLine(null), [currentErrorIdx]);
+
   const flaggedColor = checksCount(errorLineList.flatMap(entry => entry.errors))?.color ?? 'info';
+
+  const allFindings = useMemo(() => [...validationErrors, ...(coverage?.notes ?? [])], [validationErrors, coverage]);
+  // Only when they're asked for: each is a walk through the whole of the text
+  const showingChecks = tab === 'checks';
+  const dataNotes = useMemo(() => (showingChecks && coverage
+    ? coverage.notes.map(note => ({ message: note.message, line: findLineForJsonPointer(formattedData, note.path ?? '') }))
+    : []), [showingChecks, coverage, formattedData]);
+  const markedLines = useMemo(() => (noteLine === null ? errorLines : new Set(errorLines).add(noteLine)), [errorLines, noteLine]);
   const modifier = navigator.platform?.includes('Mac') ? '⌘' : 'Ctrl';
 
   const handleCopyData = useCallback(() => {
@@ -213,7 +232,7 @@ const ResponsePane: React.FC<ResponsePaneProps> = ({
                 <Tab
                   key={name}
                   value={name}
-                  label={name === 'checks' ? <ChecksTabLabel findings={validationErrors} /> : TAB_NAMES[name]}
+                  label={name === 'checks' ? <ChecksTabLabel findings={allFindings} /> : TAB_NAMES[name]}
                   sx={{ minHeight: 36, minWidth: 0, px: 1.5, py: 0, textTransform: 'none' }}
                 />
               ))}
@@ -232,7 +251,13 @@ const ResponsePane: React.FC<ResponsePaneProps> = ({
             findings={validationErrors}
             lines={errorLineList}
             onGoToLine={index => {
+              setNoteLine(null);
               goToError(index);
+              setPreferredTab('raw');
+            }}
+            dataNotes={dataNotes}
+            onGoToNote={line => {
+              setNoteLine(line);
               setPreferredTab('raw');
             }}
           />
@@ -269,11 +294,13 @@ const ResponsePane: React.FC<ResponsePaneProps> = ({
           </Box>
         )}
 
-        {!isLoading && tab === 'data' && data && (
+        {!isLoading && tab === 'data' && coverage && (
+          <CoverageData summary={coverage} view={coverageView} onViewChange={setCoverageView} />
+        )}
+
+        {!isLoading && tab === 'data' && data && !coverage && (
           <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', backgroundColor: 'background.paper' }}>
-            {isCoverageJsonTimeSeries ? (
-              <CoverageJsonChart data={parsedJson} />
-            ) : transformedHtml && !isTransforming ? (
+            {transformedHtml && !isTransforming ? (
               <iframe
                 srcDoc={transformedHtml}
                 // The stylesheet's output from the API's XML: no scripts, and not the app's origin
@@ -414,10 +441,10 @@ const ResponsePane: React.FC<ResponsePaneProps> = ({
                   code={formattedData}
                   language={language}
                   isDark={theme.palette.mode === 'dark'}
-                  errorLines={errorLines}
+                  errorLines={markedLines}
                   gutterRanges={gutterRanges}
                   errorColor={theme.palette[flaggedColor].main}
-                  scrollToLine={scrollLine}
+                  scrollToLine={noteLine ?? scrollLine}
                 />
               ) : (
                 <pre style={{

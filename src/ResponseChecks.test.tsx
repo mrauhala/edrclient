@@ -66,6 +66,31 @@ describe('ResponseChecks', () => {
     expect(html).toContain('CoverageJSON 1.0 schema: 2 notes');
   });
 
+  describe('the data', () => {
+    const NOTE = { message: '1 null in t2m, at Nov 5 00:00', line: 234 };
+
+    it('lists what is worth knowing, with its line', () => {
+      const html = render({ schemaName: 'CoverageJSON 1.0', dataNotes: [NOTE, { message: 'Time step changes', line: 97 }] });
+      expect(html).toContain('>The format<');
+      expect(html).toContain('>The data<');
+      expect(html).toContain('1 null in t2m, at Nov 5 00:00');
+      expect(html).toMatch(/<button[^>]*>line 234<\/button>/);
+      expect(html).toMatch(/<button[^>]*>line 97<\/button>/);
+      expect(html).toContain('aria-label="Note"');
+    });
+
+    it('stands alone with no schema', () => {
+      const html = render({ dataNotes: [NOTE] });
+      expect(html).toContain('>The data<');
+      expect(html).not.toContain('>The format<');
+      expect(html).not.toContain('No schema applies');
+    });
+
+    it('has no heading with nothing to say', () => {
+      expect(render({ schemaName: 'CoverageJSON 1.0' })).not.toContain('>The data<');
+    });
+  });
+
   it('keeps a long list short', () => {
     const findings = Array.from({ length: 103 }, (_, i) => ({ message: `finding ${i}` }));
     const html = render({ findings });
