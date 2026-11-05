@@ -11,7 +11,7 @@ interface ResponseStatusButtonProps {
   onClick: () => void;
 }
 
-// In the bottom bar while the response pane is closed: how the last request went, and the way back to its response
+// In the request line while the response pane is closed: how the last request went, and the way back to its response
 export default function ResponseStatusButton({ response, isLoading, hasError, onClick }: ResponseStatusButtonProps) {
   if (!isLoading && !response && !hasError) return null;
 

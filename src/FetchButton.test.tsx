@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import FetchButton, { QueryProblems } from './FetchButton';
+import FetchButton, { QueryProblems, fetchTooltip } from './FetchButton';
 import { summarizeIssues } from './query/validateQuery';
 import type { QueryIssue } from './query/types';
 
@@ -39,6 +39,51 @@ describe('FetchButton', () => {
 
   it('keeps its problems out of the way until asked', () => {
     expect(render([missing])).not.toContain('Click a point on the map');
+  });
+
+  it('can only be pressed when there is something to send', () => {
+    const markup = (disabled?: boolean) => renderToStaticMarkup(<FetchButton issues={[]} summary={summarizeIssues([])} disabled={disabled} onFetch={() => {}} />);
+    expect(markup(true)).toMatch(/<button[^>]* disabled/);
+    expect(markup()).not.toMatch(/<button[^>]* disabled/);
+  });
+});
+
+describe('fetchTooltip', () => {
+  const tip = (issues: QueryIssue[]) => renderToStaticMarkup(<>{fetchTooltip(issues, summarizeIssues(issues))}</>);
+  const warnings = (count: number) => Array.from({ length: count }, (_, index) => issue('warning', `warning ${index + 1}`));
+  const noted = issue('info', "The API docs don't declare bogus");
+
+  it('is plain for a complete query', () => {
+    expect(tip([])).toBe('Fetch Data');
+  });
+
+  it('says what a warning is, since a warning is all a bad parameter gets', () => {
+    const html = tip([warned]);
+    expect(html).toContain('Fetch Data, but note:');
+    expect(html).toContain(warned.message);
+  });
+
+  it('passes on a note too, like a parameter the API docs lack', () => {
+    expect(tip([noted])).toContain('The API docs don&#x27;t declare bogus');
+  });
+
+  it('puts warnings before notes', () => {
+    const html = tip([noted, warned]);
+    expect(html.indexOf(warned.message)).toBeLessThan(html.indexOf('declare bogus'));
+  });
+
+  it('keeps a long list short', () => {
+    const html = tip(warnings(5));
+    expect(html).toContain('warning 3');
+    expect(html).not.toContain('warning 4');
+    expect(html).toContain('+2 more');
+  });
+
+  it('puts problems before warnings', () => {
+    const html = tip([missing, warned]);
+    expect(html).toContain('Query incomplete, fetch anyway:');
+    expect(html).toContain(missing.message);
+    expect(html).not.toContain(warned.message);
   });
 });
 

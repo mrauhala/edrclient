@@ -6,6 +6,7 @@ import { useQueryValidationContext } from '../contexts/QueryValidationContext';
 import { useOpenApi } from '../contexts/OpenApiContext';
 import { buildQueryModel, emptyDim, timeIsOnlyAFilter } from '../query/queryModel';
 import { buildQueryUrl } from '../query/buildQueryUrl';
+import { readableUrl } from '../query/requestUrl';
 import { effectiveOutputFormats, queryTypeOf, queryVariables, unitsFor } from '../query/queryTypes';
 import { pickUnit } from '../query/units';
 import { addApiDocsIssues, validateQuery } from '../query/validateQuery';
@@ -278,6 +279,7 @@ export function useQueryUrl(): UseQueryUrlReturn {
       setQueryValidation(null);
       return;
     }
+    url = readableUrl(url);
     setCollectionUrl(url);
     const apiDocs = apiIndex ? checkQueryUrlAgainstOpenApi(url, apiIndex) : null;
     const operation = apiDocs?.operation?.entry;

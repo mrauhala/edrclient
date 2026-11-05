@@ -110,7 +110,7 @@ const Sidebar = () => {
         transition: 'width 225ms cubic-bezier(0, 0, 0.2, 1) 0ms, visibility 225ms',
         overflow: 'hidden',
         height: '100%',
-        // On phones it covers the map, within the row between the menu and the bottom bar
+        // On phones it covers the map, within the row between the bars
         ...(isMobile ? { position: 'absolute', top: 0, bottom: 0, left: 0, zIndex: 1100 } : { position: 'relative' }),
       }}
     >

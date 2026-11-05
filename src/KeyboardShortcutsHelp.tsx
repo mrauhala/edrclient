@@ -22,6 +22,8 @@ const shortcuts = [
   { key: 'PageUp', description: 'Previous collection' },
   { key: 'PageDown', description: 'Next collection' },
   { key: 'Cmd/Ctrl + Enter', description: 'Fetch data' },
+  { key: 'Enter', description: 'In the request URL: fetch it' },
+  { key: 'Esc', description: 'In the request URL: undo your typing' },
 ];
 
 interface KeyboardShortcutsHelpProps {

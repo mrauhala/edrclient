@@ -18,11 +18,28 @@ const problemsOf = (issues: QueryIssue[]) => issues.filter(issue => issue.severi
 interface FetchButtonProps {
   issues: QueryIssue[];
   summary: IssueSummary;
+  disabled?: boolean;
   onFetch: () => void;
 }
 
+const issueLines = (issues: QueryIssue[]) => (
+  <>
+    {issues.slice(0, 3).map(issue => <div key={issue.id}>• {issue.message}</div>)}
+    {issues.length > 3 && <div>+{issues.length - 3} more</div>}
+  </>
+);
+
+// The button's tooltip: what's wrong, or else what the checks noticed. For a URL typed by hand this
+// is the only place that says so, like a parameter the API docs don't declare.
+export function fetchTooltip(issues: QueryIssue[], summary: IssueSummary): React.ReactNode {
+  if (summary.needsAttention) return <>{titleOf(summary)}, fetch anyway:{issueLines(problemsOf(issues))}</>;
+  const noticed = [...issues.filter(issue => issue.severity === 'warning'), ...issues.filter(issue => issue.severity === 'info')];
+  if (noticed.length === 0) return 'Fetch Data';
+  return <>Fetch Data, but note:{issueLines(noticed)}</>;
+}
+
 // What the query lacks, and sending it anyway: a server's error can be what's being tested
-export const QueryProblems: React.FC<FetchButtonProps & { titleId?: string }> = ({ issues, summary, onFetch, titleId }) => (
+export const QueryProblems: React.FC<Omit<FetchButtonProps, 'disabled'> & { titleId?: string }> = ({ issues, summary, onFetch, titleId }) => (
   <Box sx={{ p: 2, maxWidth: 320 }}>
     <Typography id={titleId} variant="subtitle2">{titleOf(summary)}</Typography>
     <Box component="ul" sx={{ m: 0, mt: 0.5, pl: 2.5, typography: 'body2' }}>
@@ -36,24 +53,18 @@ export const QueryProblems: React.FC<FetchButtonProps & { titleId?: string }> = 
 
 // An incomplete query can still be sent (e.g. to see the server's error), but says so: in a tooltip
 // for a mouse, one click from sending, and on the tap for a finger, which can't hover
-const FetchButton: React.FC<FetchButtonProps> = ({ issues, summary, onFetch }) => {
+const FetchButton: React.FC<FetchButtonProps> = ({ issues, summary, disabled = false, onFetch }) => {
   const touch = useMediaQuery('(pointer: coarse)', { noSsr: true });
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const titleId = useId();
   const problems = problemsOf(issues);
-  const tooltip = summary.needsAttention ? (
-    <>
-      {titleOf(summary)}, fetch anyway:
-      {problems.slice(0, 3).map(issue => <div key={issue.id}>• {issue.message}</div>)}
-      {problems.length > 3 && <div>+{problems.length - 3} more</div>}
-    </>
-  ) : summary.warning > 0 ? `Fetch Data (${summary.warning} warning${summary.warning > 1 ? 's' : ''})` : 'Fetch Data';
   return (
     <>
-      <Tooltip title={tooltip}>
+      <Tooltip title={fetchTooltip(issues, summary)}>
         <Badge badgeContent={problems.length} color="warning" overlap="rectangular">
           <Button
             variant="contained"
+            disabled={disabled}
             color={summary.needsAttention ? 'warning' : 'primary'}
             onClick={(event) => {
               if (touch && summary.needsAttention) setAnchor(event.currentTarget);
