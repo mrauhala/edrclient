@@ -12,6 +12,11 @@ export interface UseContentTypeDetectionReturn {
   formattedData: string;
 }
 
+// By the namespace of its elements, in any IWXXM version. The words METAR or TAF prove nothing: "STAFF" has TAF in it
+export function isIwxxmXml(data: string | null, contentType: string | null): boolean {
+  return !!data && !!contentType?.includes('xml') && data.includes('icao.int/iwxxm/');
+}
+
 export function useContentTypeDetection(
   data: string | null,
   contentType: string | null,
@@ -26,13 +31,7 @@ export function useContentTypeDetection(
     }
   }, [data, contentType]);
 
-  // Check if data is IWXXM XML
-  const isIWXXM = useCallback(() => {
-    if (!data || !contentType) return false;
-    return contentType.includes('xml') &&
-           (data.includes('iwxxm/3.0') || data.includes('iwxxm/2.1') ||
-            data.includes('METAR') || data.includes('TAF') || data.includes('SIGMET'));
-  }, [data, contentType]);
+  const isIWXXM = useCallback(() => isIwxxmXml(data, contentType), [data, contentType]);
 
   // Check if data is CoverageJSON that can be charted as a time series
   const isCoverageJsonTimeSeries = useMemo(() => {

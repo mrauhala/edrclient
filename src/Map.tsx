@@ -1,5 +1,5 @@
 // ...existing imports...
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import 'ol/ol.css';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
@@ -10,7 +10,7 @@ import MapsAnimationBar from './MapsAnimationBar';
 import { useGeoJsonLayers } from './contexts/GeoJsonLayerContext';
 import { useMapInteraction } from './contexts/MapInteractionContext';
 import { useCollection } from './contexts/CollectionContext';
-import { useSidebar } from './contexts/SidebarContext';
+import { usePanes } from './contexts/PanesContext';
 import { useMapSetup } from './hooks/useMapSetup';
 import { useCollectionExtents } from './hooks/useCollectionExtents';
 import { useLocationFeatures } from './hooks/useLocationFeatures';
@@ -51,7 +51,8 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
   const geometryKind = geometryKindOf(dataQuery);
   const radiusRange = rangeFor(radiusUnits);
   const { selectedCollection, selectedCollectionExtents, selectedFeature, setSelectedFeature, landingPageLicense } = useCollection();
-  const { isMobile } = useSidebar();
+  const { isMobile, isOpen } = usePanes();
+  const mapShown = isMobile || isOpen.map;
 
   // The selected location's information. Closing it leaves the selection, which the query uses. On
   // desktop it opens beside the map with each selection; on a phone it would cover the map and the
@@ -62,6 +63,20 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
   // Hook composition
   const { map, vectorLayer, locationLayer, markerLayer, areaLayer, radiusLayer, tooltipRef } =
     useMapSetup(zoomLevel);
+
+  // A collection chosen while the map was hidden was framed for the hidden map's size, not the one it returns at
+  const collectionWhenHidden = useRef<string | undefined | null>(null);
+  useEffect(() => {
+    if (!mapShown) {
+      if (collectionWhenHidden.current === null) collectionWhenHidden.current = selectedCollection?.id;
+      return;
+    }
+    if (map && collectionWhenHidden.current !== null && collectionWhenHidden.current !== selectedCollection?.id) {
+      map.updateSize();
+      zoomToOverview(map.getView(), selectedCollectionExtents, locationLayer?.getSource()?.getExtent());
+    }
+    collectionWhenHidden.current = null;
+  }, [mapShown, map, selectedCollection?.id, selectedCollectionExtents, locationLayer]);
 
   useCollectionExtents(map, vectorLayer);
   useLocationFeatures(map, locationLayer);

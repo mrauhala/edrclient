@@ -1,9 +1,4 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import Dialog from '@mui/material/Dialog';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
-import DialogActions from '@mui/material/DialogActions';
-import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
@@ -25,7 +20,6 @@ import Alert from '@mui/material/Alert';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import { useTheme } from '@mui/material/styles';
-import useMediaQuery from '@mui/material/useMediaQuery';
 import VirtualizedCodeView from './VirtualizedCodeView';
 import CoverageJsonChart from './CoverageJsonChart';
 import FetchErrorAlert from './FetchErrorAlert';
@@ -37,11 +31,12 @@ import { useContentTypeDetection } from './hooks/useContentTypeDetection';
 import { useXSLTTransform } from './hooks/useXSLTTransform';
 import { useValidationErrorNavigation } from './hooks/useValidationErrorNavigation';
 
-interface DataModalProps {
+interface ResponsePaneProps {
+  // Whether the pane is showing: its keyboard shortcuts are only for then
   open: boolean;
   onClose: () => void;
   data: string | null;
-  // For image/* responses: a blob: URL the modal renders via <img>. data stays null in that case.
+  // For image/* responses: a blob: URL the pane renders via <img>. data stays null in that case.
   imageUrl?: string | null;
   contentType: string | null;
   // Null without a response (a network failure) and for a stored response, which wasn't sent just now
@@ -56,7 +51,7 @@ interface DataModalProps {
   scrollToPath?: string;
 }
 
-const DataModal: React.FC<DataModalProps> = ({
+const ResponsePane: React.FC<ResponsePaneProps> = ({
   open,
   onClose,
   data,
@@ -72,7 +67,6 @@ const DataModal: React.FC<DataModalProps> = ({
   scrollToPath,
 }) => {
   const theme = useTheme();
-  const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
   const [viewMode, setViewMode] = useState<'code' | 'preview'>('code');
   const [section, setSection] = useState<'body' | 'headers'>('body');
   const showHeaders = section === 'headers' && !isLoading && response !== null;
@@ -88,15 +82,13 @@ const DataModal: React.FC<DataModalProps> = ({
 
   const { transformedHtml, transformError, isTransforming } = useXSLTTransform(data, viewMode, isIWXXM, setViewMode);
 
-  // Reset local state when modal opens with new data
+  // Reset local state for a new response. Closing and reopening the pane leaves it as it was
   useEffect(() => {
-    if (open) {
-      setViewMode('code');
-      setSection('body');
-      setCopiedUrl(false);
-      setCopiedData(false);
-    }
-  }, [open, data]);
+    setViewMode('code');
+    setSection('body');
+    setCopiedUrl(false);
+    setCopiedData(false);
+  }, [data]);
 
   const {
     errorLineList, errorLines, gutterRanges,
@@ -138,71 +130,61 @@ const DataModal: React.FC<DataModalProps> = ({
   }, [url]);
 
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      maxWidth="xl"
-      fullWidth
-      // Full screen on phones, where the theme keeps it clear of the notch and home indicator
-      fullScreen={fullScreen}
-      slotProps={{
-        paper: {
-          sx: fullScreen ? undefined : { height: '90vh', maxHeight: '90vh', m: 4 },
-        }
-      }}
-    >
-      {/* Positioned for the close button, which then stays below a notch's inset */}
-      <DialogTitle sx={{ m: 0, p: 2, pr: 6, position: 'relative' }}>
-        <Typography variant="h6" component="div" noWrap>
-          API Response
-        </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
-          <Box sx={{ flex: 1, minWidth: 0 }}>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5, flexShrink: 0, px: 1.5, py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          {url ? (
             <Typography
               variant="caption"
+              title={url}
               sx={{
                 color: 'text.secondary',
-                display: 'block',
+                display: '-webkit-box',
+                WebkitBoxOrient: 'vertical',
+                WebkitLineClamp: 3,
                 overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap'
+                wordBreak: 'break-all',
               }}>
               {url}
             </Typography>
-            {response ? (
-              <ResponseStatusLine response={response} />
-            ) : contentType && (
-              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
-                Content-Type: {contentType}
-              </Typography>
-            )}
-          </Box>
+          ) : (
+            <Typography variant="subtitle2" component="div">Response</Typography>
+          )}
+          {response ? (
+            <ResponseStatusLine response={response} />
+          ) : contentType && (
+            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
+              Content-Type: {contentType}
+            </Typography>
+          )}
+        </Box>
+        {url && (
           <Tooltip title={copiedUrl ? "Copied!" : "Copy URL"}>
             <IconButton
               size="small"
+              aria-label="Copy URL"
               onClick={handleCopyUrl}
               color={copiedUrl ? "success" : "default"}
-              sx={{ ml: 1, flexShrink: 0 }}
+              sx={{ flexShrink: 0 }}
             >
               {copiedUrl ? <CheckIcon fontSize="small" /> : <ContentCopyIcon fontSize="small" />}
             </IconButton>
           </Tooltip>
-        </Box>
-        <IconButton
-          aria-label="close"
-          onClick={onClose}
-          sx={{
-            position: 'absolute',
-            right: 8,
-            top: 8,
-            color: (theme) => theme.palette.grey[500],
-          }}
-        >
-          <CloseIcon />
-        </IconButton>
-      </DialogTitle>
+        )}
+        <Tooltip title="Close (R)">
+          <IconButton size="small" aria-label="Close the response pane" onClick={onClose} sx={{ flexShrink: 0 }}>
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      </Box>
 
-      <DialogContent dividers sx={{ p: 0, display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        {!url && !isLoading && (
+          <Typography variant="body2" sx={{ color: 'text.secondary', p: 2 }}>
+            Nothing sent yet. Choose a query and press Fetch, and its response shows here.
+          </Typography>
+        )}
+
         {isLoading && (
           <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
             <CircularProgress />
@@ -457,7 +439,8 @@ const DataModal: React.FC<DataModalProps> = ({
               ) : viewMode === 'preview' && isIWXXM() && transformedHtml ? (
                 <iframe
                   srcDoc={transformedHtml}
-                  sandbox="allow-same-origin"
+                  // The stylesheet's output from the API's XML: no scripts, and not the app's origin
+                  sandbox=""
                   style={{
                     width: '100%',
                     height: '100%',
@@ -495,13 +478,9 @@ const DataModal: React.FC<DataModalProps> = ({
             </Box>
           </Box>
         )}
-      </DialogContent>
-
-      <DialogActions>
-        <Button onClick={onClose}>Close</Button>
-      </DialogActions>
-    </Dialog>
+      </Box>
+    </Box>
   );
 };
 
-export default DataModal;
+export default ResponsePane;

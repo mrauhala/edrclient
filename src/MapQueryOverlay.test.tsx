@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import MapQueryOverlay, { type MapSelection } from './MapQueryOverlay';
-import { SidebarProvider } from './contexts/SidebarContext';
+import { PanesProvider } from './contexts/PanesContext';
 
 const points: MapSelection = { title: 'Selected Points', items: ['Lat: 60°, Lon: 25°', 'Lat: 61°, Lon: 24°'] };
 
@@ -15,11 +15,11 @@ interface Options {
 }
 
 const render = (queryType: string, { hasGeometry = false, isDrawing = false, isMobile = false, selection = points, location, onUndo }: Options = {}) => renderToStaticMarkup(
-  <SidebarProvider value={{ sidebarOpen: false, isMobile, toggleSidebar: () => {}, showMap: () => {} }}>
+  <PanesProvider value={{ isOpen: { request: false, map: true, response: false }, isMobile, togglePane: () => {}, showPane: () => {}, showMap: () => {} }}>
     <MapQueryOverlay queryType={queryType} hasGeometry={hasGeometry} isDrawing={isDrawing} onClear={() => {}} onUndo={onUndo} radiusLabel="10 km" selection={selection} location={location}>
       <input aria-label="Radius" />
     </MapQueryOverlay>
-  </SidebarProvider>
+  </PanesProvider>
 );
 
 describe('MapQueryOverlay', () => {

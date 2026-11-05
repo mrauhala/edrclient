@@ -10,7 +10,9 @@ import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
 
 const shortcuts = [
-  { key: 'B', description: 'Toggle sidebar' },
+  { key: 'B', description: 'Toggle the Request pane' },
+  { key: 'M', description: 'Toggle the Map pane' },
+  { key: 'R', description: 'Toggle the Response pane' },
   { key: 'S', description: 'Toggle settings drawer' },
   { key: 'L', description: 'Toggle layers popover' },
   { key: 'V', description: 'Toggle validation popover' },

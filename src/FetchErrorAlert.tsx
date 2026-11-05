@@ -11,7 +11,7 @@ interface FetchErrorAlertProps {
   onRetry?: () => void;
 }
 
-// The result window's error, with a way to send the request again without closing the window
+// The response pane's error, with a way to send the request again
 export default function FetchErrorAlert({ message, onRetry }: FetchErrorAlertProps) {
   const modifier = navigator.platform?.includes('Mac') ? '⌘' : 'Ctrl';
   return (

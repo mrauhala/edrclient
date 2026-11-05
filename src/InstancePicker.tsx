@@ -12,7 +12,7 @@ import type { UseQueryUrlReturn } from './hooks/useQueryUrl';
 import type { Instance } from './query/instances';
 import { queryTypeOf } from './query/queryTypes';
 import { mapInputRequired } from './query/edrRules';
-import { useSidebar } from './contexts/SidebarContext';
+import { usePanes } from './contexts/PanesContext';
 
 const idOf = (instance: Instance) => String(instance.id);
 
@@ -20,7 +20,7 @@ const idOf = (instance: Instance) => String(instance.id);
 // and the query to run on it
 const InstancePicker: React.FC<{ queryState: UseQueryUrlReturn }> = ({ queryState }) => {
   const { instances, selectedInstance, selectInstance, instanceQueryKey, selectInstanceQuery } = queryState;
-  const { showMap } = useSidebar();
+  const { showMap } = usePanes();
   const count = instances.status === 'ready' ? ` (${instances.instances.length}, latest first)` : '';
 
   return (

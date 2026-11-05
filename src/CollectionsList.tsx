@@ -25,7 +25,7 @@ import { useMapInteraction } from './contexts/MapInteractionContext';
 import { useCollection } from './contexts/CollectionContext';
 import { useService } from './contexts/ServiceContext';
 import { useValidation } from './contexts/ValidationContext';
-import { useSidebar } from './contexts/SidebarContext';
+import { usePanes } from './contexts/PanesContext';
 import { detectEdrVersion, validateLocationsResponse } from './validation/locationsValidator';
 import { allSectionsValid, isProblem } from './validation/severity';
 import { UseQueryUrlReturn } from './hooks/useQueryUrl';
@@ -151,7 +151,7 @@ const CollectionsList = ({
 }: CollectionsListProps) => {
   const { geoJsonLayers, setGeoJsonLayers } = useGeoJsonLayers();
   const { setClickedCoords, setDataQuery } = useMapInteraction();
-  const { showMap } = useSidebar();
+  const { showMap } = usePanes();
   const { selectedCollection, setSelectedCollection, setSelectedCollectionExtents, locationFeatures, setLocationFeatures, setSelectedFeature, setCollectionUrl, selectCollectionByIndexRef } = useCollection();
   const { getAuthCredentials, conformsTo } = useService();
   const { setValidationResult, setEndpointUrls, setRawResponses } = useValidation();

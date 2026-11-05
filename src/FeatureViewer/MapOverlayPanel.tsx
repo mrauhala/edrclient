@@ -26,6 +26,8 @@ const MapOverlayPanel: React.FC<MapOverlayPanelProps> = ({ open, onClose, childr
             top: 16,
             right: 16,
             width: { md: 420, lg: 460 },
+            // The map can be narrower than this beside a pane
+            maxWidth: 'calc(100% - 32px)',
             maxHeight: '70vh',
             overflow: 'auto',
             p: 2,

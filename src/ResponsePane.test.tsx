@@ -1,11 +1,8 @@
-import type { ComponentProps, ReactNode } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import type { ComponentProps } from 'react';
+import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import DataModal from './DataModal';
+import ResponsePane from './ResponsePane';
 import type { ResponseDetails } from './api/sendRequest';
-
-// A dialog renders through a portal, which is empty on the server
-vi.mock('@mui/material/Dialog', () => ({ default: ({ children }: { children: ReactNode }) => <div>{children}</div> }));
 
 const URL_ = 'https://api.example.com/collections/a/position';
 const OK: ResponseDetails = {
@@ -18,11 +15,25 @@ const OK: ResponseDetails = {
 };
 const BAD_REQUEST: ResponseDetails = { ...OK, status: 400, statusText: 'Bad Request' };
 
-const render = (props: Partial<ComponentProps<typeof DataModal>>) => renderToStaticMarkup(
-  <DataModal open onClose={() => {}} url={URL_} data={null} contentType={null} isLoading={false} error={null} {...props} />,
+const render = (props: Partial<ComponentProps<typeof ResponsePane>>) => renderToStaticMarkup(
+  <ResponsePane open onClose={() => {}} url={URL_} data={null} contentType={null} isLoading={false} error={null} {...props} />,
 );
 
-describe('DataModal', () => {
+describe('ResponsePane', () => {
+  it('says what to do before anything has been sent', () => {
+    const html = render({ url: '' });
+    expect(html).toContain('Nothing sent yet');
+    expect(html).not.toContain('Copy URL');
+    expect(html).toContain('aria-label="Close the response pane"');
+  });
+
+  it('shows the URL that was sent, with a way to copy it', () => {
+    const html = render({ data: 'hello world', contentType: 'text/plain', response: OK });
+    expect(html).toContain(`>${URL_}<`);
+    expect(html).toContain('aria-label="Copy URL"');
+    expect(html).not.toContain('Nothing sent yet');
+  });
+
   it('shows a response with its status line, and Body and Headers tabs', () => {
     const html = render({ data: 'hello world', contentType: 'text/plain', response: OK });
     expect(html).toContain('200 OK');

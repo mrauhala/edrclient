@@ -88,7 +88,9 @@ The key ends up in the browser, so it is public: restrict it to your sites in Ca
 |---|---|
 | `PageDown` / `PageUp` | Next / previous collection |
 | `Cmd+Enter` / `Ctrl+Enter` | Fetch data from the query URL |
-| `B` | Toggle sidebar |
+| `B` | Toggle the Request pane |
+| `M` | Toggle the Map pane |
+| `R` | Toggle the Response pane |
 | `S` | Toggle settings |
 | `L` | Toggle layers |
 | `V` | Toggle validation results |

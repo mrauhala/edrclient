@@ -44,6 +44,18 @@ export default function DraggableMapPanel({ collection, fallbackLicense }: Dragg
     };
   }, []);
 
+  // Back inside when the map narrows beside a pane
+  useEffect(() => {
+    const parent = panelRef.current?.parentElement;
+    if (!parent) return;
+    const observer = new ResizeObserver(() => setPos(current => {
+      const next = constrainPosition(current.x, current.y);
+      return next.x === current.x && next.y === current.y ? current : next;
+    }));
+    observer.observe(parent);
+    return () => observer.disconnect();
+  }, [constrainPosition]);
+
   const onPointerDown = useCallback((e: React.PointerEvent) => {
     if ((e.target as HTMLElement).closest('button')) return;
     setDragging(true);

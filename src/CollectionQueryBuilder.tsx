@@ -21,7 +21,7 @@ import QueryTypeInputs from './QueryTypeInputs';
 import InstancePicker from './InstancePicker';
 import { queryTypeOf, queryVariables, unitsFor } from './query/queryTypes';
 import { EDR_QUERY_RULES, mapInputRequired } from './query/edrRules';
-import { useSidebar } from './contexts/SidebarContext';
+import { usePanes } from './contexts/PanesContext';
 import { useQueryValidation } from './hooks/useQueryValidation';
 
 interface CollectionQueryBuilderProps {
@@ -574,7 +574,7 @@ const QueryFields: React.FC<{ collection: Collection; queryKey: string; querySta
 
 const CollectionQueryBuilder: React.FC<CollectionQueryBuilderProps> = ({ collection, queryState }) => {
   const { selectedDataQuery, selectDataQuery, selectedInstance, instanceQueryKey } = queryState;
-  const { showMap } = useSidebar();
+  const { showMap } = usePanes();
   const instanceMode = !!selectedDataQuery && queryTypeOf(collection, selectedDataQuery) === 'instances';
   // What the fields describe: the collection's query, or the picked instance's
   const target = instanceMode
