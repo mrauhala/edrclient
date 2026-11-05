@@ -12,9 +12,10 @@ let cachedXsltText: string | null = null;
 
 export function useXSLTTransform(
   data: string | null,
-  viewMode: 'code' | 'preview',
+  // Whether the result is being looked at: it's only worked out then
+  active: boolean,
   isIWXXM: () => boolean,
-  setViewMode: (mode: 'code' | 'preview') => void,
+  onFailed: () => void,
 ): UseXSLTTransformReturn {
   const [transformedHtml, setTransformedHtml] = useState<string | null>(null);
   const [transformError, setTransformError] = useState<string | null>(null);
@@ -87,17 +88,21 @@ export function useXSLTTransform(
       console.error('XSLT transformation error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setTransformError(`Failed to transform XML: ${errorMessage}`);
-      setViewMode('code');
+      onFailed();
     } finally {
       if (!signal.aborted) {
         setIsTransforming(false);
       }
     }
-  }, [data, setViewMode]);
+  }, [data, onFailed]);
 
-  // Trigger transformation when switching to preview mode
+  // A failure is about the response it happened on
   useEffect(() => {
-    if (viewMode === 'preview' && isIWXXM() && data) {
+    setTransformError(null);
+  }, [data]);
+
+  useEffect(() => {
+    if (active && isIWXXM() && data) {
       // Abort previous transform if still in-flight
       abortControllerRef.current?.abort();
       const controller = new AbortController();
@@ -107,7 +112,7 @@ export function useXSLTTransform(
     return () => {
       abortControllerRef.current?.abort();
     };
-  }, [viewMode, data, isIWXXM, performXSLTransform]);
+  }, [active, data, isIWXXM, performXSLTransform]);
 
   return { transformedHtml, transformError, isTransforming };
 }

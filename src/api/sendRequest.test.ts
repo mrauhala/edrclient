@@ -24,6 +24,8 @@ describe('sendRequest', () => {
     const { body, ...details } = await sendRequest(URL_);
 
     expect(details).toEqual({
+      requestUrlBytes: new TextEncoder().encode(URL_).length,
+      timing: null,
       status: 200,
       statusText: 'OK',
       timeMs: 2230,

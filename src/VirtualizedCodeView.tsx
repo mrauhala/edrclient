@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useRef, useCallback } from 'react';
+import React, { useMemo, useEffect, useRef, useCallback, useState } from 'react';
 import { List } from 'react-window';
 import type { ListImperativeAPI } from 'react-window';
 import Prism from 'prismjs';
@@ -203,27 +203,16 @@ const VirtualizedCodeView: React.FC<VirtualizedCodeViewProps> = ({
     [highlightedLines, errorLines, gutterRanges, isDark, errorColor]
   );
 
-  // Scroll to the target line. A list opened in a dialog has no height until the dialog is laid
-  // out, and scrolling then does nothing, so the line waits for the list's first resize.
-  const pendingLineRef = useRef<number | null>(null);
-  useEffect(() => {
-    if (!scrollToLine) return;
-    const list = listRef.current;
-    if (list && (list.element?.clientHeight ?? 0) > 0) {
-      pendingLineRef.current = null;
-      list.scrollToRow({ index: scrollToLine - 1, align: 'center' });
-    } else {
-      pendingLineRef.current = scrollToLine;
-    }
-  }, [scrollToLine, listRef]);
-
+  // Scroll to the target line. Until the list has measured itself it takes its height to be 0, and
+  // would put the line half out of sight at the top. It has a new height to work with only after
+  // it has reported it, so that's state, and the scrolling an effect of that.
+  const [measured, setMeasured] = useState(false);
   const handleResize = useCallback(({ height }: { height: number }) => {
-    const line = pendingLineRef.current;
-    if (line && height > 0) {
-      pendingLineRef.current = null;
-      listRef.current?.scrollToRow({ index: line - 1, align: 'center' });
-    }
+    if (height > 0) setMeasured(true);
   }, []);
+  useEffect(() => {
+    if (measured && scrollToLine) listRef.current?.scrollToRow({ index: scrollToLine - 1, align: 'center' });
+  }, [measured, scrollToLine]);
 
   return (
     <List<Record<string, never>>

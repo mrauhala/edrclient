@@ -3,12 +3,7 @@ import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import CheckIcon from '@mui/icons-material/Check';
-import ToggleButton from '@mui/material/ToggleButton';
-import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
-import CodeIcon from '@mui/icons-material/Code';
-import PreviewIcon from '@mui/icons-material/Preview';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutlined';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutlined';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import Box from '@mui/material/Box';
@@ -23,8 +18,13 @@ import { useTheme } from '@mui/material/styles';
 import VirtualizedCodeView from './VirtualizedCodeView';
 import CoverageJsonChart from './CoverageJsonChart';
 import FetchErrorAlert from './FetchErrorAlert';
+import ResponseChecks, { ChecksTabLabel, findingMessage } from './ResponseChecks';
 import ResponseHeaders from './ResponseHeaders';
+import ResponseSizes from './ResponseSizes';
 import ResponseStatusLine from './ResponseStatusLine';
+import { useRequestUrl } from './contexts/RequestUrlContext';
+import { shortUrl } from './query/requestUrl';
+import { checksCount, responseTabs, shownTab, type ResponseTab } from './responseTabs';
 import type { ResponseDetails } from './api/sendRequest';
 import type { ValidationError } from './DataRetrievalAPI';
 import { useContentTypeDetection } from './hooks/useContentTypeDetection';
@@ -51,6 +51,13 @@ interface ResponsePaneProps {
   scrollToPath?: string;
 }
 
+const TAB_NAMES: Record<Exclude<ResponseTab, 'checks'>, string> = {
+  data: 'Data',
+  raw: 'Raw',
+  headers: 'Headers',
+  sizes: 'Sizes',
+};
+
 const ResponsePane: React.FC<ResponsePaneProps> = ({
   open,
   onClose,
@@ -67,45 +74,46 @@ const ResponsePane: React.FC<ResponsePaneProps> = ({
   scrollToPath,
 }) => {
   const theme = useTheme();
-  const [viewMode, setViewMode] = useState<'code' | 'preview'>('code');
-  const [section, setSection] = useState<'body' | 'headers'>('body');
-  const showHeaders = section === 'headers' && !isLoading && response !== null;
+  // The request line above says what was sent, until it moves on or this isn't what it holds
+  const { requestUrl } = useRequestUrl();
+  const notTheRequestLine = url !== '' && url !== requestUrl;
+  const isStored = response === null && data !== null;
+
+  // Kept across sends, for the next response that has the tab
+  const [preferredTab, setPreferredTab] = useState<ResponseTab | null>(null);
+  const showRaw = useCallback(() => setPreferredTab('raw'), []);
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [copiedData, setCopiedData] = useState(false);
   const copyUrlTimer = useRef<ReturnType<typeof setTimeout>>();
   const copyDataTimer = useRef<ReturnType<typeof setTimeout>>();
 
   const {
-    parsedJson, isIWXXM, isCoverageJsonTimeSeries, shouldShowToggle,
-    contentTypeLabel, language, shouldUseCodeView, formattedData,
+    parsedJson, isIWXXM, isCoverageJsonTimeSeries, hasDataView,
+    language, shouldUseCodeView, formattedData,
   } = useContentTypeDetection(data, contentType);
 
-  const { transformedHtml, transformError, isTransforming } = useXSLTTransform(data, viewMode, isIWXXM, setViewMode);
+  const tabs = responseTabs({
+    hasResponse: response !== null && !isLoading,
+    hasDataView: hasDataView || imageUrl !== null,
+    hasImage: imageUrl !== null,
+  });
+  const tab = shownTab(preferredTab, tabs);
 
-  // Reset local state for a new response. Closing and reopening the pane leaves it as it was
+  const { transformedHtml, transformError, isTransforming } = useXSLTTransform(data, tab === 'data', isIWXXM, showRaw);
+
+  // Closing and reopening the pane leaves it as it was
   useEffect(() => {
-    setViewMode('code');
-    setSection('body');
     setCopiedUrl(false);
     setCopiedData(false);
   }, [data]);
 
   const {
     errorLineList, errorLines, gutterRanges,
-    currentErrorIdx, currentError, scrollLine, handlePrevError, handleNextError,
-  } = useValidationErrorNavigation(validationErrors, formattedData, contentType, scrollToPath, open);
+    currentErrorIdx, currentError, scrollLine, handlePrevError, handleNextError, goToError,
+  } = useValidationErrorNavigation(validationErrors, formattedData, contentType, scrollToPath, open && tab === 'raw');
 
-  // Name the flagged lines after their worst severity: API definition findings are often only notes
-  const flagged = errorLineList.flatMap(entry => entry.errors.map(error => error.severity ?? 'error'));
-  const flaggedKind = flagged.includes('error') ? { noun: 'error', color: 'error' as const }
-    : flagged.includes('warning') ? { noun: 'issue', color: 'warning' as const }
-      : { noun: 'note', color: 'info' as const };
-
-  const handleViewModeChange = (_event: React.MouseEvent<HTMLElement>, newMode: 'code' | 'preview' | null) => {
-    if (newMode !== null) {
-      setViewMode(newMode);
-    }
-  };
+  const flaggedColor = checksCount(errorLineList.flatMap(entry => entry.errors))?.color ?? 'info';
+  const modifier = navigator.platform?.includes('Mac') ? '⌘' : 'Ctrl';
 
   const handleCopyData = useCallback(() => {
     if (!data) return;
@@ -129,36 +137,34 @@ const ResponsePane: React.FC<ResponsePaneProps> = ({
     });
   }, [url]);
 
+  const copyBody = (
+    <Tooltip title={copiedData ? "Copied!" : "Copy to clipboard"}>
+      <IconButton size="small" aria-label="Copy the response" onClick={handleCopyData} color={copiedData ? "success" : "default"} sx={{ flexShrink: 0, mx: 0.5 }}>
+        {copiedData ? <CheckIcon fontSize="small" /> : <ContentCopyIcon fontSize="small" />}
+      </IconButton>
+    </Tooltip>
+  );
+
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5, flexShrink: 0, px: 1.5, py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0, minHeight: 40, px: 1.5, py: 0.25, borderBottom: '1px solid', borderColor: 'divider' }}>
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          {url ? (
-            <Typography
-              variant="caption"
-              title={url}
-              sx={{
-                color: 'text.secondary',
-                display: '-webkit-box',
-                WebkitBoxOrient: 'vertical',
-                WebkitLineClamp: 3,
-                overflow: 'hidden',
-                wordBreak: 'break-all',
-              }}>
-              {url}
-            </Typography>
-          ) : (
-            <Typography variant="subtitle2" component="div">Response</Typography>
-          )}
           {response ? (
             <ResponseStatusLine response={response} />
-          ) : contentType && (
-            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
+          ) : contentType ? (
+            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
               Content-Type: {contentType}
+            </Typography>
+          ) : !notTheRequestLine && (
+            <Typography variant="subtitle2" component="div">Response</Typography>
+          )}
+          {notTheRequestLine && (
+            <Typography variant="caption" noWrap title={url} sx={{ color: 'text.secondary', display: 'block' }}>
+              {isStored ? '' : 'Sent: '}{shortUrl(url)}
             </Typography>
           )}
         </Box>
-        {url && (
+        {notTheRequestLine && (
           <Tooltip title={copiedUrl ? "Copied!" : "Copy URL"}>
             <IconButton
               size="small"
@@ -193,187 +199,168 @@ const ResponsePane: React.FC<ResponsePaneProps> = ({
 
         {error && <FetchErrorAlert message={error} onRetry={onRetry} />}
 
-        {!isLoading && response && (
-          <Tabs
-            value={section}
-            onChange={(_event, value) => setSection(value)}
-            sx={{ flexShrink: 0, minHeight: 36, borderBottom: '1px solid', borderColor: 'divider' }}
-          >
-            <Tab value="body" label="Body" sx={{ minHeight: 36, py: 0 }} />
-            <Tab value="headers" label={`Headers (${response.headers.length})`} sx={{ minHeight: 36, py: 0 }} />
-          </Tabs>
+        {tabs.length > 0 && (
+          <Box sx={{ display: 'flex', alignItems: 'center', flexShrink: 0, borderBottom: '1px solid', borderColor: 'divider' }}>
+            <Tabs
+              value={tab}
+              onChange={(_event, value: ResponseTab) => setPreferredTab(value)}
+              variant="scrollable"
+              scrollButtons="auto"
+              aria-label="Ways to read this response"
+              sx={{ flex: 1, minWidth: 0, minHeight: 36 }}
+            >
+              {tabs.map(name => (
+                <Tab
+                  key={name}
+                  value={name}
+                  label={name === 'checks' ? <ChecksTabLabel findings={validationErrors} /> : TAB_NAMES[name]}
+                  sx={{ minHeight: 36, minWidth: 0, px: 1.5, py: 0, textTransform: 'none' }}
+                />
+              ))}
+            </Tabs>
+            {tab === 'raw' && data && copyBody}
+          </Box>
         )}
 
-        {showHeaders && <ResponseHeaders headers={response.headers} />}
+        {!isLoading && response && tab === 'headers' && <ResponseHeaders headers={response.headers} />}
 
-        {!isLoading && !showHeaders && response && !data && !imageUrl && (
+        {!isLoading && response && tab === 'sizes' && <ResponseSizes response={response} />}
+
+        {!isLoading && response && tab === 'checks' && (
+          <ResponseChecks
+            schemaName={validationSchemaName}
+            findings={validationErrors}
+            lines={errorLineList}
+            onGoToLine={index => {
+              goToError(index);
+              setPreferredTab('raw');
+            }}
+          />
+        )}
+
+        {!isLoading && tab === 'data' && imageUrl && (
+          <Box sx={{
+            flex: 1,
+            minHeight: 0,
+            overflow: 'auto',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'background.default',
+            backgroundImage:
+              'linear-gradient(45deg, rgba(127,127,127,0.15) 25%, transparent 25%),' +
+              'linear-gradient(-45deg, rgba(127,127,127,0.15) 25%, transparent 25%),' +
+              'linear-gradient(45deg, transparent 75%, rgba(127,127,127,0.15) 75%),' +
+              'linear-gradient(-45deg, transparent 75%, rgba(127,127,127,0.15) 75%)',
+            backgroundSize: '16px 16px',
+            backgroundPosition: '0 0, 0 8px, 8px -8px, -8px 0',
+            p: 2,
+          }}>
+            <img
+              src={imageUrl}
+              alt="API response"
+              style={{
+                maxWidth: '100%',
+                maxHeight: '100%',
+                objectFit: 'contain',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+              }}
+            />
+          </Box>
+        )}
+
+        {!isLoading && tab === 'data' && data && (
+          <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', backgroundColor: 'background.paper' }}>
+            {isCoverageJsonTimeSeries ? (
+              <CoverageJsonChart data={parsedJson} />
+            ) : transformedHtml && !isTransforming ? (
+              <iframe
+                srcDoc={transformedHtml}
+                // The stylesheet's output from the API's XML: no scripts, and not the app's origin
+                sandbox=""
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  border: 'none',
+                  display: 'block'
+                }}
+                title="IWXXM Preview"
+              />
+            ) : (
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                <CircularProgress size={32} />
+                <Typography variant="body2" sx={{ color: 'text.secondary', ml: 1.5 }}>
+                  Transforming XSLT...
+                </Typography>
+              </Box>
+            )}
+          </Box>
+        )}
+
+        {!isLoading && tab === 'raw' && response && !data && (
           <Typography variant="body2" sx={{ color: 'text.secondary', p: 2 }}>
             The response has no body.
           </Typography>
         )}
 
-        {!isLoading && !showHeaders && imageUrl && (
-          <Box sx={{
-            flex: 1,
-            minHeight: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            backgroundColor: 'background.default',
-          }}>
-            <Box sx={{
-              p: 1,
-              backgroundColor: 'background.default',
-              borderBottom: '1px solid',
-              borderColor: 'divider',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1,
-            }}>
-              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                Image preview ({contentType})
-              </Typography>
-            </Box>
-            <Box sx={{
-              flex: 1,
-              minHeight: 0,
-              overflow: 'auto',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundImage:
-                'linear-gradient(45deg, rgba(127,127,127,0.15) 25%, transparent 25%),' +
-                'linear-gradient(-45deg, rgba(127,127,127,0.15) 25%, transparent 25%),' +
-                'linear-gradient(45deg, transparent 75%, rgba(127,127,127,0.15) 75%),' +
-                'linear-gradient(-45deg, transparent 75%, rgba(127,127,127,0.15) 75%)',
-              backgroundSize: '16px 16px',
-              backgroundPosition: '0 0, 0 8px, 8px -8px, -8px 0',
-              p: 2,
-            }}>
-              <img
-                src={imageUrl}
-                alt="API response"
-                style={{
-                  maxWidth: '100%',
-                  maxHeight: '100%',
-                  objectFit: 'contain',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
-                }}
-              />
-            </Box>
-          </Box>
-        )}
-
-        {!isLoading && !showHeaders && data && (
+        {!isLoading && tab === 'raw' && data && (
           <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-            <Box sx={{
-              p: 1,
-              backgroundColor: 'background.default',
-              borderBottom: '1px solid',
-              borderColor: 'divider',
-              display: 'flex',
-              flexWrap: 'wrap',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              gap: 0.5,
-            }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                  Content Type: {contentTypeLabel}
-                </Typography>
-
-                {validationSchemaName && errorLineList.length === 0 && (
-                  <Chip
-                    icon={<CheckCircleOutlineIcon />}
-                    label={`${validationSchemaName}: Valid`}
-                    color="success"
-                    size="small"
-                    variant="outlined"
-                    sx={{ ml: 1 }}
-                  />
-                )}
-
-                {errorLineList.length > 0 && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25, ml: 1 }}>
-                    <Chip
-                      icon={<ErrorOutlineIcon />}
-                      label={`${errorLineList.length} ${flaggedKind.noun}${errorLineList.length === 1 ? '' : 's'}`}
-                      color={flaggedKind.color}
-                      size="small"
-                      variant="outlined"
-                      onClick={viewMode === 'preview' ? () => setViewMode('code') : undefined}
-                      sx={viewMode === 'preview' ? { cursor: 'pointer' } : undefined}
-                    />
-                    {viewMode === 'code' && (
-                      <>
-                        <Tooltip title={`Previous error (${navigator.platform?.includes('Mac') ? '⌘' : 'Ctrl'}+↑)`}>
-                          <span>
-                            <IconButton
-                              size="small"
-                              onClick={handlePrevError}
-                              disabled={currentErrorIdx <= 0}
-                              aria-label="Previous error"
-                            >
-                              <KeyboardArrowUpIcon fontSize="small" />
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-                        <Typography variant="caption" sx={{ minWidth: 32, textAlign: 'center', userSelect: 'none' }}>
-                          {currentErrorIdx + 1}/{errorLineList.length}
-                        </Typography>
-                        <Tooltip title={`Next error (${navigator.platform?.includes('Mac') ? '⌘' : 'Ctrl'}+↓)`}>
-                          <span>
-                            <IconButton
-                              size="small"
-                              onClick={handleNextError}
-                              disabled={currentErrorIdx >= errorLineList.length - 1}
-                              aria-label="Next error"
-                            >
-                              <KeyboardArrowDownIcon fontSize="small" />
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-                      </>
-                    )}
-                    {viewMode === 'preview' && (
-                      <Tooltip title="Switch to Code view to navigate errors">
-                        <Typography variant="caption" sx={{ color: 'text.secondary', ml: 0.5 }}>
-                          Click to view in code
-                        </Typography>
+            {(errorLineList.length > 0 || tabs.length === 0) && (
+              <Box sx={{
+                px: 1,
+                py: 0.25,
+                backgroundColor: 'background.default',
+                borderBottom: '1px solid',
+                borderColor: 'divider',
+                display: 'flex',
+                flexWrap: 'wrap',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: 0.5,
+              }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+                  {errorLineList.length > 0 && (
+                    <>
+                      <Chip
+                        icon={<ErrorOutlineIcon />}
+                        label={`${errorLineList.length} line${errorLineList.length === 1 ? '' : 's'} flagged`}
+                        color={flaggedColor}
+                        size="small"
+                        variant="outlined"
+                      />
+                      <Tooltip title={`Previous flagged line (${modifier}+↑)`}>
+                        <span>
+                          <IconButton
+                            size="small"
+                            onClick={handlePrevError}
+                            disabled={currentErrorIdx <= 0}
+                            aria-label="Previous flagged line"
+                          >
+                            <KeyboardArrowUpIcon fontSize="small" />
+                          </IconButton>
+                        </span>
                       </Tooltip>
-                    )}
-                  </Box>
-                )}
-
-                {shouldShowToggle && (
-                  <ToggleButtonGroup
-                    value={viewMode}
-                    exclusive
-                    onChange={handleViewModeChange}
-                    size="small"
-                    color="primary"
-                  >
-                    <ToggleButton value="code">
-                      <Tooltip title="View raw code">
-                        <CodeIcon fontSize="small" sx={{ mr: 0.5 }} />
+                      <Typography variant="caption" sx={{ minWidth: 32, textAlign: 'center', userSelect: 'none' }}>
+                        {currentErrorIdx + 1}/{errorLineList.length}
+                      </Typography>
+                      <Tooltip title={`Next flagged line (${modifier}+↓)`}>
+                        <span>
+                          <IconButton
+                            size="small"
+                            onClick={handleNextError}
+                            disabled={currentErrorIdx >= errorLineList.length - 1}
+                            aria-label="Next flagged line"
+                          >
+                            <KeyboardArrowDownIcon fontSize="small" />
+                          </IconButton>
+                        </span>
                       </Tooltip>
-                      Code
-                    </ToggleButton>
-                    <ToggleButton value="preview">
-                      <Tooltip title="View formatted preview">
-                        <PreviewIcon fontSize="small" sx={{ mr: 0.5 }} />
-                      </Tooltip>
-                      Preview
-                    </ToggleButton>
-                  </ToggleButtonGroup>
-                )}
+                    </>
+                  )}
+                </Box>
+                {tabs.length === 0 && copyBody}
               </Box>
-
-              <Tooltip title={copiedData ? "Copied!" : "Copy to clipboard"}>
-                <IconButton size="small" onClick={handleCopyData} color={copiedData ? "success" : "default"}>
-                  {copiedData ? <CheckIcon fontSize="small" /> : <ContentCopyIcon fontSize="small" />}
-                </IconButton>
-              </Tooltip>
-            </Box>
+            )}
 
             {transformError && (
               <Alert severity="warning" sx={{ m: 1 }}>
@@ -387,7 +374,7 @@ const ResponsePane: React.FC<ResponsePaneProps> = ({
                 py: 0.75,
                 backgroundColor: 'background.default',
                 borderBottom: '1px solid',
-                borderLeft: `3px solid ${theme.palette[flaggedKind.color].main}`,
+                borderLeft: `3px solid ${theme.palette[flaggedColor].main}`,
                 borderColor: 'divider',
                 display: 'flex',
                 alignItems: 'baseline',
@@ -395,29 +382,22 @@ const ResponsePane: React.FC<ResponsePaneProps> = ({
                 flexWrap: 'wrap',
                 minHeight: 32,
               }}>
-                {viewMode === 'code' && (
-                  <Typography variant="caption" sx={{ fontFamily: 'monospace', fontSize: '0.7rem', color: 'text.secondary', flexShrink: 0 }}>
-                    L{currentError.line}
-                  </Typography>
-                )}
-                {currentError.errors.map((err, i) => {
-                  const msg = err.path && err.message.startsWith(err.path)
-                    ? err.message.slice(err.path.length).replace(/^:\s*/, '')
-                    : err.message;
-                  return (
-                    <Box key={i} sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
-                      {err.path && (
-                        <Typography variant="caption" sx={{ fontFamily: 'monospace', fontSize: '0.7rem', color: 'text.secondary' }}>
-                          {err.path}
-                        </Typography>
-                      )}
-                      {err.keyword && (
-                        <Chip label={err.keyword} size="small" variant="outlined" sx={{ fontSize: '0.6rem', height: 16 }} />
-                      )}
-                      <Typography variant="caption" sx={{ color: 'text.primary' }}>{msg}</Typography>
-                    </Box>
-                  );
-                })}
+                <Typography variant="caption" sx={{ fontFamily: 'monospace', fontSize: '0.7rem', color: 'text.secondary', flexShrink: 0 }}>
+                  L{currentError.line}
+                </Typography>
+                {currentError.errors.map((err, i) => (
+                  <Box key={i} sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
+                    {err.path && (
+                      <Typography variant="caption" sx={{ fontFamily: 'monospace', fontSize: '0.7rem', color: 'text.secondary' }}>
+                        {err.path}
+                      </Typography>
+                    )}
+                    {err.keyword && (
+                      <Chip label={err.keyword} size="small" variant="outlined" sx={{ fontSize: '0.6rem', height: 16 }} />
+                    )}
+                    <Typography variant="caption" sx={{ color: 'text.primary' }}>{findingMessage(err)}</Typography>
+                  </Box>
+                ))}
               </Box>
             )}
 
@@ -429,51 +409,27 @@ const ResponsePane: React.FC<ResponsePaneProps> = ({
                 backgroundColor: 'background.paper',
               }}
             >
-              {viewMode === 'preview' && isIWXXM() && isTransforming ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-                  <CircularProgress size={32} />
-                  <Typography variant="body2" sx={{ color: 'text.secondary', ml: 1.5 }}>
-                    Transforming XSLT...
-                  </Typography>
-                </Box>
-              ) : viewMode === 'preview' && isIWXXM() && transformedHtml ? (
-                <iframe
-                  srcDoc={transformedHtml}
-                  // The stylesheet's output from the API's XML: no scripts, and not the app's origin
-                  sandbox=""
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    border: 'none',
-                    display: 'block'
-                  }}
-                  title="IWXXM Preview"
+              {shouldUseCodeView ? (
+                <VirtualizedCodeView
+                  code={formattedData}
+                  language={language}
+                  isDark={theme.palette.mode === 'dark'}
+                  errorLines={errorLines}
+                  gutterRanges={gutterRanges}
+                  errorColor={theme.palette[flaggedColor].main}
+                  scrollToLine={scrollLine}
                 />
-              ) : viewMode === 'preview' && isCoverageJsonTimeSeries ? (
-                <CoverageJsonChart data={parsedJson} />
               ) : (
-                shouldUseCodeView ? (
-                  <VirtualizedCodeView
-                    code={formattedData}
-                    language={language}
-                    isDark={theme.palette.mode === 'dark'}
-                    errorLines={errorLines}
-                    gutterRanges={gutterRanges}
-                    errorColor={theme.palette[flaggedKind.color].main}
-                    scrollToLine={scrollLine}
-                  />
-                ) : (
-                  <pre style={{
-                    margin: 0,
-                    padding: '16px',
-                    fontFamily: 'monospace',
-                    fontSize: '0.875rem',
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word'
-                  }}>
-                    {formattedData}
-                  </pre>
-                )
+                <pre style={{
+                  margin: 0,
+                  padding: '16px',
+                  fontFamily: 'monospace',
+                  fontSize: '0.875rem',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word'
+                }}>
+                  {formattedData}
+                </pre>
               )}
             </Box>
           </Box>

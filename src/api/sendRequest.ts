@@ -1,6 +1,7 @@
 import axios from 'axios';
 import type { AuthCredentials } from '../types/api';
 import { addApiKeyToUrl, getAxiosConfig } from './auth';
+import { makeRoomForWireTiming, readWireTiming, type WireTiming } from './responseSizes';
 
 export interface ResponseHeader {
   name: string;
@@ -19,6 +20,10 @@ export interface ResponseDetails {
   // Only the headers the server exposes through CORS: the browser hides the rest
   headers: ResponseHeader[];
   contentType: string;
+  // The request's URL as sent, in bytes
+  requestUrlBytes: number;
+  // The browser's own record of the sizes; null if it keeps that from this page
+  timing: WireTiming | null;
 }
 
 export interface ApiResponse extends ResponseDetails {
@@ -29,8 +34,10 @@ export interface ApiResponse extends ResponseDetails {
 // success. This rejects only when no response came: a network failure, CORS or an abort.
 export async function sendRequest(url: string, auth?: AuthCredentials, signal?: AbortSignal): Promise<ApiResponse> {
   const config = getAxiosConfig(auth, signal);
+  const target = addApiKeyToUrl(url, auth);
+  makeRoomForWireTiming();
   const started = performance.now();
-  const response = await axios.get<ArrayBuffer>(addApiKeyToUrl(url, auth), {
+  const response = await axios.get<ArrayBuffer>(target, {
     ...config,
     // Bytes, so that binary responses (image/png from OGC API Maps, etc.) survive intact
     responseType: 'arraybuffer',
@@ -51,6 +58,8 @@ export async function sendRequest(url: string, auth?: AuthCredentials, signal?: 
     sizeBytes: response.data.byteLength,
     headers,
     contentType: headers.find(header => header.name === 'content-type')?.value ?? '',
+    requestUrlBytes: new TextEncoder().encode(new URL(target).href).length,
+    timing: readWireTiming(target),
     body: response.data,
   };
 }

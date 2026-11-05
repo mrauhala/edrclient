@@ -12,21 +12,22 @@ export default function ResponseHeaders({ headers }: { headers: ResponseHeader[]
         sx={{
           display: 'grid',
           gridTemplateColumns: 'minmax(0, 1fr)',
-          columnGap: 2,
-          rowGap: 0.5,
+          columnGap: 1,
           m: 0,
           fontFamily: 'monospace',
-          fontSize: '0.875rem',
+          fontSize: '0.75rem',
+          lineHeight: '18px',
+          '& dt': { overflowWrap: 'anywhere' },
           '& dd': { m: 0, mb: 1, overflowWrap: 'anywhere' },
           '@container (min-width: 440px)': {
-            gridTemplateColumns: 'max-content minmax(0, 1fr)',
+            gridTemplateColumns: 'minmax(0, 214px) minmax(0, 1fr)',
             '& dd': { mb: 0 },
           },
         }}
       >
         {headers.map(({ name, value }) => (
           <Fragment key={name}>
-            <Box component="dt" sx={{ color: 'text.secondary' }}>{name}</Box>
+            <Box component="dt" sx={{ color: 'primary.main' }}>{name}</Box>
             <Box component="dd">{value}</Box>
           </Fragment>
         ))}
