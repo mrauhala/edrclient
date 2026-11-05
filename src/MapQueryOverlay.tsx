@@ -3,7 +3,7 @@ import ButtonBase from '@mui/material/ButtonBase';
 import ExpandMore from '@mui/icons-material/ExpandMore';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import InfoOutlined from '@mui/icons-material/InfoOutlined';
-import { useSidebar } from './contexts/SidebarContext';
+import { usePanes } from './contexts/PanesContext';
 
 // What the map asks for in each query type, and the button that clears it. An optional input
 // (an items box, a location) gets no prompt, only the clear button.
@@ -110,7 +110,7 @@ interface MapQueryOverlayProps {
 // then what it has, and the clear button. The list collapses, and starts collapsed on phones, where
 // it would cover the map. The parent stacks the card along the map's bottom edge
 const MapQueryOverlay: React.FC<MapQueryOverlayProps> = ({ queryType, hasGeometry, isDrawing, onClear, onUndo, radiusLabel = '', selection, location, children }) => {
-  const { isMobile } = useSidebar();
+  const { isMobile } = usePanes();
   const [listOpen, setListOpen] = useState(!isMobile);
   const listId = useId();
 

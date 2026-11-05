@@ -1,7 +1,7 @@
 import Sidebar from './Sidebar';
 import TopMenu from './TopMenu';
 import { CustomService } from './types/CustomService';
-import React, { lazy, Suspense, useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import React, { lazy, Suspense, useState, useMemo, useEffect, useCallback } from 'react';
 import KeyboardShortcutsHelp from './KeyboardShortcutsHelp';
 import Box from '@mui/material/Box';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
@@ -10,9 +10,9 @@ import CssBaseline from '@mui/material/CssBaseline';
 // Lazy-loaded components (not needed for first paint)
 const OpenLayersMap = lazy(() => import('./Map'));
 const SettingsDrawer = lazy(() => import('./SettingsDrawer'));
-const DataModal = lazy(() => import('./DataModal'));
+const ResponsePane = lazy(() => import('./ResponsePane'));
 import ErrorBoundary from './ErrorBoundary';
-import { GeoJsonLayerProvider, useGeoJsonLayers } from './contexts/GeoJsonLayerContext';
+import { GeoJsonLayerProvider } from './contexts/GeoJsonLayerContext';
 import { MapsLayerProvider } from './contexts/MapsLayerContext';
 import { LayerManagerProvider } from './contexts/LayerManagerContext';
 import { ValidationProvider } from './contexts/ValidationContext';
@@ -22,9 +22,13 @@ import { CollectionProvider, useCollection } from './contexts/CollectionContext'
 import { QueryValidationProvider } from './contexts/QueryValidationContext';
 import { useQueryValidation } from './hooks/useQueryValidation';
 import { useCollectionKeyboardNav } from './hooks/useCollectionKeyboardNav';
+import { useQueryResponse } from './hooks/useQueryResponse';
 import { ServiceProvider, useService } from './contexts/ServiceContext';
-import { SidebarProvider, useSidebarState } from './contexts/SidebarContext';
-import MapListToggle from './MapListToggle';
+import { PanesProvider, usePanesState } from './contexts/PanesContext';
+import PaneToggles from './PaneToggles';
+import ResponseDock from './ResponseDock';
+import ResponseStatusButton from './ResponseStatusButton';
+import { ALL_PANES_WIDTH, MIN_MAP_WIDTH } from './panes';
 import FetchButton from './FetchButton';
 import Paper from '@mui/material/Paper';
 import TextField from '@mui/material/TextField';
@@ -33,10 +37,6 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
-import { QueryResultValidator } from './QueryResultValidator';
-import { httpFailure } from './api/httpErrors';
-import { sendRequest } from './api/sendRequest';
-import type { ResponseDetails } from './api/sendRequest';
 
 
 function App() {
@@ -100,29 +100,10 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
   const [settingsDrawerOpen, setSettingsDrawerOpen] = useState(false);
   const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false);
 
-  const { setGeoJsonLayers } = useGeoJsonLayers();
   const { collectionUrl } = useCollection();
   const { issues: queryIssues, summary: querySummary } = useQueryValidation();
   useCollectionKeyboardNav();
-  const { getAuthCredentials, setSelectedServiceUrl } = useService();
-
-  // Abort controller for in-flight data fetches
-  const fetchControllerRef = useRef<AbortController | null>(null);
-
-  // Modal state
-  const [modalOpen, setModalOpen] = useState(false);
-  const [modalData, setModalData] = useState<string | null>(null);
-  const [modalImageUrl, setModalImageUrl] = useState<string | null>(null);
-  const modalImageUrlRef = useRef<string | null>(null);
-  const [modalContentType, setModalContentType] = useState<string | null>(null);
-  // Status, time, size and headers of what was fetched; null for a stored response, which wasn't sent just now
-  const [modalResponse, setModalResponse] = useState<ResponseDetails | null>(null);
-  const [modalLoading, setModalLoading] = useState(false);
-  const [modalError, setModalError] = useState<{ message: string; retryable: boolean } | null>(null);
-  const [modalUrl, setModalUrl] = useState<string>('');
-  const [modalValidationErrors, setModalValidationErrors] = useState<import('./types/api').ValidationError[]>([]);
-  const [modalValidationSchemaName, setModalValidationSchemaName] = useState<string | null>(null);
-  const [modalScrollToPath, setModalScrollToPath] = useState<string | undefined>();
+  const { setSelectedServiceUrl } = useService();
 
   // Detect system preference
   const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
@@ -172,16 +153,20 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
     [actualMode]
   );
 
-  // Phones show the sidebar over the map, so the two take turns
+  // Phones show one pane at a time, with the list and the response covering the map
   const isMobile = useMediaQuery(theme.breakpoints.down('md'), { noSsr: true });
-  const sidebar = useSidebarState(isMobile);
-  const { sidebarOpen, toggleSidebar } = sidebar;
+  const allPanesFit = useMediaQuery(`(min-width:${ALL_PANES_WIDTH}px)`, { noSsr: true });
+  const panes = usePanesState(isMobile, allPanesFit);
+  const { isOpen, togglePane, showPane } = panes;
+  const showResponse = useCallback(() => showPane('response'), [showPane]);
+  const { fetchQuery, pane: responsePane } = useQueryResponse(showResponse);
+  const mapHidden = !isMobile && !isOpen.map;
 
   const handleSettingsDrawerToggle = useCallback(() => {
     setSettingsDrawerOpen(prev => !prev);
   }, []);
 
-  // Single-letter keyboard shortcuts: B=sidebar, S=settings, L=layers, V=validation
+  // Single-letter keyboard shortcuts: B=request, M=map, R=response, S=settings, L=layers, V=validation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -190,7 +175,13 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
 
       switch (e.key.toLowerCase()) {
         case 'b':
-          toggleSidebar();
+          togglePane('request');
+          break;
+        case 'm':
+          togglePane('map');
+          break;
+        case 'r':
+          togglePane('response');
           break;
         case 's':
           handleSettingsDrawerToggle();
@@ -221,28 +212,7 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [toggleSidebar, handleSettingsDrawerToggle]);
-
-  // Listen for validation error clicks to open API response viewer with stored data
-  const handleOpenValidationResponse = useCallback((e: Event) => {
-    const { url, errors, scrollToPath, data: responseData } = (e as CustomEvent).detail;
-    if (!url || !responseData) return;
-
-    setModalOpen(true);
-    setModalLoading(false);
-    setModalError(null);
-    setModalData(responseData);
-    setModalContentType('application/json');
-    setModalResponse(null);
-    setModalUrl(url);
-    setModalValidationErrors(errors || []);
-    setModalScrollToPath(scrollToPath);
-  }, []);
-
-  useEffect(() => {
-    document.addEventListener('open-validation-response', handleOpenValidationResponse);
-    return () => document.removeEventListener('open-validation-response', handleOpenValidationResponse);
-  }, [handleOpenValidationResponse]);
+  }, [togglePane, handleSettingsDrawerToggle]);
 
   const handleThemeModeChange = (mode: 'light' | 'dark' | 'system') => {
     setThemeMode(mode);
@@ -253,7 +223,7 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
   };
 
   const handleUpdateService = (service: CustomService) => {
-    setCustomServices((prev) => 
+    setCustomServices((prev) =>
       prev.map((s) => (s.id === service.id ? service : s))
     );
   };
@@ -274,142 +244,9 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
     }
   };
 
-  // Fetches a query into the result window
-  const fetchQuery = useCallback(async (url: string) => {
-    // Cancel any in-flight fetch
-    fetchControllerRef.current?.abort();
-    const controller = new AbortController();
-    fetchControllerRef.current = controller;
-
-    setModalOpen(true);
-    setModalUrl(url);
-    setModalValidationErrors([]);
-    setModalValidationSchemaName(null);
-    setModalScrollToPath(undefined);
-    setModalLoading(true);
-    setModalError(null);
-    setModalData(null);
-    setModalContentType(null);
-    setModalResponse(null);
-    // Release any image blob URL from a previous fetch before starting a new one.
-    if (modalImageUrlRef.current) {
-      URL.revokeObjectURL(modalImageUrlRef.current);
-      modalImageUrlRef.current = null;
-    }
-    setModalImageUrl(null);
-
-    try {
-      const { body, ...details } = await sendRequest(url, getAuthCredentials(url), controller.signal);
-      const { status, contentType } = details;
-      setModalResponse(details);
-      setModalContentType(contentType);
-
-      const failure = httpFailure(status, body);
-      if (failure) setModalError(failure);
-
-      // Binary image response (image/png, image/jpeg, image/webp, image/svg+xml, etc.):
-      // wrap the arraybuffer in a blob URL so the modal can render it via <img>.
-      if (contentType.startsWith('image/')) {
-        const blob = new Blob([body], { type: contentType });
-        const objectUrl = URL.createObjectURL(blob);
-        modalImageUrlRef.current = objectUrl;
-        setModalImageUrl(objectUrl);
-        return;
-      }
-
-      // Text-ish response: decode the arraybuffer and continue with the existing pipeline.
-      const decoded = new TextDecoder('utf-8').decode(body);
-      const responseData = decoded;
-      setModalData(responseData);
-
-      // An error's body is shown as it came, but isn't data to check or map
-      if (failure) return;
-
-      // Validate query result against registered schemas (e.g. CoverageJSON)
-      try {
-        const validation = await QueryResultValidator.getInstance().validate(responseData, contentType, url);
-        if (validation.matched) {
-          setModalValidationSchemaName(validation.schemaName || null);
-          setModalValidationErrors(validation.errors || []);
-        }
-      } catch (e) {
-        console.error('Query result validation failed:', e);
-      }
-
-      // GeoJSON becomes a map layer, whatever the request's f: a server may serve it as plain
-      // application/json (Met Office) or by default without f (items). CoverageJSON parses too,
-      // but isn't a Feature(Collection).
-      if (contentType.includes('json')) {
-        try {
-          const geoJsonData = JSON.parse(responseData);
-          
-          if (geoJsonData.type === 'FeatureCollection' || geoJsonData.type === 'Feature') {
-            // Generate a title from the URL or use a default
-            const urlParts = url.split('/');
-            const collectionName = urlParts.find(part => part.includes('collections'))
-              ? urlParts[urlParts.indexOf(urlParts.find(part => part.includes('collections'))!) + 1]
-              : 'Fetched Data';
-            
-            const newLayer = {
-              url,
-              title: `${collectionName} (Fetched)`,
-              visible: true,
-              labelProperty: 'name',
-              data: geoJsonData  // Pass the pre-fetched data
-            };
-
-            // Add layer if it doesn't already exist
-            setGeoJsonLayers(prev => {
-              const exists = prev.some(layer => layer.url === url);
-              if (exists) {
-                return prev;
-              }
-              return [...prev, newLayer];
-            });
-          }
-        } catch (e) {
-          console.error('Error parsing GeoJSON:', e);
-        }
-      }
-    } catch (error: any) {
-      // Ignore aborted requests (user started a new fetch or closed modal)
-      if (controller.signal.aborted) return;
-
-      console.error('Error fetching data:', error);
-
-      // Classify error for actionable feedback
-      let message = error.message || 'Failed to fetch data';
-
-      if (
-        error.message?.includes('CORS') ||
-        error.message?.includes('Access-Control-Allow-Origin') ||
-        error.message?.includes('cross-origin')
-      ) {
-        message = 'CORS blocked. Your API must include the Access-Control-Allow-Origin header for this origin.';
-      } else if (
-        error.code === 'ERR_NETWORK' ||
-        error.message?.includes('Network Error') ||
-        error.message?.includes('Failed to fetch')
-      ) {
-        message = 'Network error. The API may be unreachable or blocking cross-origin requests (CORS).';
-      }
-
-      // Without a response (network failures, timeouts, CORS, which the browser can't tell apart),
-      // the same request may well work next time
-      setModalError({ message, retryable: true });
-    } finally {
-      setModalLoading(false);
-    }
-  }, [getAuthCredentials, setGeoJsonLayers]);
-
   const handleFetchData = useCallback(() => {
     if (collectionUrl) fetchQuery(collectionUrl);
   }, [collectionUrl, fetchQuery]);
-
-  // The result window's Try again: the request that failed, even if the query builder has moved on
-  const handleRetryFetch = useCallback(() => {
-    if (modalUrl) fetchQuery(modalUrl);
-  }, [modalUrl, fetchQuery]);
 
   // Cmd+Enter (Mac) / Ctrl+Enter (Windows) to fetch data
   useEffect(() => {
@@ -423,18 +260,6 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
     document.addEventListener('keydown', handleKeyDown, true);
     return () => document.removeEventListener('keydown', handleKeyDown, true);
   }, [handleFetchData]);
-
-  const handleCloseModal = () => {
-    setModalOpen(false);
-    setModalValidationErrors([]);
-    setModalValidationSchemaName(null);
-    setModalScrollToPath(undefined);
-    if (modalImageUrlRef.current) {
-      URL.revokeObjectURL(modalImageUrlRef.current);
-      modalImageUrlRef.current = null;
-    }
-    setModalImageUrl(null);
-  };
 
   // Update document data-theme attribute when theme changes
   useEffect(() => {
@@ -451,17 +276,17 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
 
   return (
     <ThemeProvider theme={theme}>
-    <SidebarProvider value={sidebar}>
+    <PanesProvider value={panes}>
       <CssBaseline />
       {/* The visible viewport (dvh), not the one with the browser's toolbars hidden (vh), which is taller on phones */}
       <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', '@supports (height: 100dvh)': { height: '100dvh' }, overflow: 'hidden' }}>
         <TopMenu onSettingsClick={handleSettingsDrawerToggle} />
-      
-      {/* Positioned, so that on phones the sidebar covers just this row, between the menu and the bottom bar */}
-      <Box 
-        sx={{ 
-          display: 'flex', 
-          flex: 1, 
+
+      {/* Positioned, so that on phones the list and the response cover just this row, between the menu and the bottom bar */}
+      <Box
+        sx={{
+          display: 'flex',
+          flex: 1,
           minHeight: 0,
           position: 'relative',
           overflow: 'hidden',
@@ -470,17 +295,19 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
         <ErrorBoundary fallbackMessage="Sidebar crashed. Click Retry to recover.">
           <Sidebar />
         </ErrorBoundary>
-        
-        {/* Clear of a notch on the sides in landscape, unless the sidebar is between */}
-        <Box 
-          component="main" 
-          sx={{ 
-            flexGrow: 1, 
+
+        {/* Clear of a notch on the sides in landscape, unless a pane is between. Hidden, it stays loaded and
+            at the row's size, since OpenLayers can't frame anything for a map with no size */}
+        <Box
+          component="main"
+          sx={{
             height: '100%',
-            position: 'relative',
             overflow: 'hidden',
-            pl: sidebarOpen && !isMobile ? 0 : 'var(--safe-left)',
-            pr: 'var(--safe-right)',
+            pl: isOpen.request && !isMobile ? 0 : 'var(--safe-left)',
+            pr: isOpen.response && !isMobile ? 0 : 'var(--safe-right)',
+            ...(mapHidden
+              ? { position: 'absolute', inset: 0, visibility: 'hidden' }
+              : { position: 'relative', flex: '1 1 0', minWidth: isMobile ? 0 : MIN_MAP_WIDTH }),
           }}
         >
           <ErrorBoundary fallbackMessage="Map crashed. Click Retry to recover.">
@@ -491,12 +318,20 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
             </Suspense>
           </ErrorBoundary>
         </Box>
+
+        <ResponseDock>
+          <ErrorBoundary fallbackMessage="Response pane crashed. Click Retry to recover.">
+            <Suspense fallback={null}>
+              <ResponsePane open={isOpen.response} onClose={() => togglePane('response')} {...responsePane} />
+            </Suspense>
+          </ErrorBoundary>
+        </ResponseDock>
       </Box>
-      
-      {/* Bottom query bar, always visible. Above the sidebar, which covers the map on phones, and clear of the home indicator */}
-      <Paper 
+
+      {/* Bottom query bar, always visible. Above the panes that cover the map on phones, and clear of the home indicator */}
+      <Paper
         elevation={8}
-        sx={{ 
+        sx={{
           flexShrink: 0,
           position: 'relative',
           zIndex: 1200,
@@ -509,7 +344,15 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
       >
         {/* 56px with the border */}
         <Box sx={{ display: 'flex', alignItems: 'center', p: 1, gap: 1, height: 55 }}>
-          <MapListToggle />
+          {isMobile && <PaneToggles sx={{ '& .MuiToggleButton-root': { width: 40, height: 40 } }} />}
+          {!isMobile && !isOpen.response && (
+            <ResponseStatusButton
+              response={responsePane.response}
+              isLoading={responsePane.isLoading}
+              hasError={responsePane.error !== null}
+              onClick={showResponse}
+            />
+          )}
           {collectionUrl ? (
             <>
               <TextField
@@ -517,6 +360,8 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
                 size="small"
                 value={collectionUrl}
                 variant="outlined"
+                // Too narrow to read on the smallest phones: Copy still has it, and the response pane shows what was sent
+                sx={{ '@media (max-width: 359px)': { display: 'none' } }}
                 slotProps={{
                   input: {
                     readOnly: true,
@@ -525,10 +370,10 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
                 }}
               />
               <Tooltip title="Copy URL">
-                <IconButton 
-                  color="primary" 
+                <IconButton
+                  color="primary"
                   onClick={handleCopyUrl}
-                  sx={{ flexShrink: 0 }}
+                  sx={{ flexShrink: 0, ml: 'auto' }}
                 >
                   <ContentCopyIcon />
                 </IconButton>
@@ -542,7 +387,7 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
           )}
         </Box>
       </Paper>
-      
+
       <Suspense fallback={null}>
         <SettingsDrawer
           open={settingsDrawerOpen}
@@ -559,27 +404,8 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
 
       <KeyboardShortcutsHelp open={shortcutsHelpOpen} onClose={() => setShortcutsHelpOpen(false)} />
 
-      <ErrorBoundary fallbackMessage="Data viewer crashed. Click Retry to recover.">
-        <Suspense fallback={null}>
-          <DataModal
-            open={modalOpen}
-            onClose={handleCloseModal}
-            data={modalData}
-            imageUrl={modalImageUrl}
-            contentType={modalContentType}
-            response={modalResponse}
-            isLoading={modalLoading}
-            error={modalError?.message ?? null}
-            onRetry={modalError?.retryable ? handleRetryFetch : undefined}
-            url={modalUrl || collectionUrl}
-            validationErrors={modalValidationErrors}
-            validationSchemaName={modalValidationSchemaName}
-            scrollToPath={modalScrollToPath}
-          />
-        </Suspense>
-      </ErrorBoundary>
     </Box>
-    </SidebarProvider>
+    </PanesProvider>
     </ThemeProvider>
   );
 }

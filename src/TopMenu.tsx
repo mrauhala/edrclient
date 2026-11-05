@@ -16,7 +16,8 @@ import LayerManager from './LayerManager';
 import ValidationPopover from './ValidationPopover';
 import { useService } from './contexts/ServiceContext';
 import { useCollection } from './contexts/CollectionContext';
-import { useSidebar } from './contexts/SidebarContext';
+import { usePanes } from './contexts/PanesContext';
+import PaneToggles from './PaneToggles';
 import systemServices from './config/services.json';
 import { ServiceDefinition } from './types/ServiceType';
 
@@ -24,6 +25,19 @@ const typedSystemServices: ServiceDefinition[] = systemServices as ServiceDefini
 
 // MUI's default for an AppBar
 const BAR_ELEVATION = 4;
+
+// The bar's own colours, whatever the theme's mode: it's blue in the light one
+const paneTogglesOnBarSx = {
+  mr: 2,
+  '& .MuiToggleButton-root': {
+    py: 0.25,
+    px: 0.75,
+    color: 'rgba(255,255,255,0.6)',
+    borderColor: 'rgba(255,255,255,0.3)',
+    '&:hover': { backgroundColor: 'rgba(255,255,255,0.12)' },
+    '&.Mui-selected, &.Mui-selected:hover': { color: 'white', backgroundColor: 'rgba(255,255,255,0.24)' },
+  },
+};
 
 interface TopMenuProps {
   onSettingsClick: () => void;
@@ -34,7 +48,7 @@ const TopMenu: React.FC<TopMenuProps> = ({ onSettingsClick }) => {
   const showBreadcrumb = useMediaQuery(theme.breakpoints.up('md'));
   const { activeServiceUrl, customServices, landingPageTitle } = useService();
   const { selectedCollection } = useCollection();
-  const { sidebarOpen, toggleSidebar } = useSidebar();
+  const { isOpen, isMobile, togglePane } = usePanes();
 
   const systemService = typedSystemServices.find(s => s.url === activeServiceUrl);
   const customService = customServices.find(s => s.url === activeServiceUrl);
@@ -61,18 +75,22 @@ const TopMenu: React.FC<TopMenuProps> = ({ onSettingsClick }) => {
       }}
     >
       <Toolbar variant="dense">
-        <IconButton
-          size="small"
-          edge="start"
-          color="inherit"
-          aria-label="Side panel"
-          aria-controls="sidebar"
-          aria-expanded={sidebarOpen}
-          sx={{ mr: 2 }}
-          onClick={toggleSidebar}
-        >
-          <MenuIcon />
-        </IconButton>
+        {isMobile ? (
+          <IconButton
+            size="small"
+            edge="start"
+            color="inherit"
+            aria-label="Side panel"
+            aria-controls="sidebar"
+            aria-expanded={isOpen.request}
+            sx={{ mr: 2 }}
+            onClick={() => togglePane('request')}
+          >
+            <MenuIcon />
+          </IconButton>
+        ) : (
+          <PaneToggles sx={paneTogglesOnBarSx} />
+        )}
         <Typography variant="h6" component="div" sx={{ fontSize: '1.1rem', flexShrink: 0 }}>
           OGC API Browser
         </Typography>

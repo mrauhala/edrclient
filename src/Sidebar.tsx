@@ -12,11 +12,14 @@ import { useMapInteraction } from './contexts/MapInteractionContext';
 import { useCollection } from './contexts/CollectionContext';
 import { useService } from './contexts/ServiceContext';
 import { useQueryUrl } from './hooks/useQueryUrl';
-import { useSidebar } from './contexts/SidebarContext';
+import { usePanes } from './contexts/PanesContext';
+import { REQUEST_WIDTH } from './panes';
 
 const Sidebar = () => {
-  const { sidebarOpen: open, isMobile } = useSidebar();
-  const sidebarWidth = isMobile ? '100%' : 480;
+  const { isOpen, isMobile } = usePanes();
+  const open = isOpen.request;
+  // Alone it takes the room, since nothing else is showing
+  const sidebarWidth = isMobile || (!isOpen.map && !isOpen.response) ? '100%' : REQUEST_WIDTH;
   const { setGeoJsonLayers } = useGeoJsonLayers();
   const { setClickedCoords, setDataQuery } = useMapInteraction();
   const { collections, setCollections, setSelectedCollection, setSelectedFeature, setSelectedCollectionExtents, setLocationFeatures, setLandingPageLicense, setCollectionUrl } = useCollection();
@@ -114,7 +117,7 @@ const Sidebar = () => {
       <Paper
         elevation={3}
         sx={{
-          minWidth: isMobile ? '100vw' : 480,
+          minWidth: isMobile ? '100vw' : REQUEST_WIDTH,
           width: sidebarWidth,
           height: '100%',
           overflowY: 'scroll',

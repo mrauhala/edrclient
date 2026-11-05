@@ -17,7 +17,7 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 import { useCollection } from './contexts/CollectionContext';
 import { useService } from './contexts/ServiceContext';
 import { useGeoJsonLayers } from './contexts/GeoJsonLayerContext';
-import { useSidebar } from './contexts/SidebarContext';
+import { usePanes } from './contexts/PanesContext';
 import systemServices from './config/services.json';
 import { ServiceDefinition } from './types/ServiceType';
 import { SERVICE_TYPE_ORDER } from './config/serviceTypeConfig';
@@ -37,7 +37,7 @@ const CommandPalette: React.FC = () => {
   const { collections, selectedCollection, selectCollectionByIndexRef, locationFeatures, setSelectedFeature } = useCollection();
   const { activeServiceUrl, customServices, setSelectedServiceUrl } = useService();
   const { geoJsonLayers, setGeoJsonLayers } = useGeoJsonLayers();
-  const { showMap } = useSidebar();
+  const { showMap } = usePanes();
 
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
