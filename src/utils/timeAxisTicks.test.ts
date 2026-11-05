@@ -96,6 +96,15 @@ describe('labelledTickIndexes near the ends of the axis', () => {
     expect(labelledTickIndexes(ticks, at([1, 2, 3, 4]), [0, 5])).not.toEqual([]);
   });
 
+  it('leaves such a tick without a label on the axis', () => {
+    const scale = scaleUtc().domain([new Date('2026-10-05T00:00:00Z'), new Date('2026-10-09T01:00:00Z')]).range([0, 300]);
+    const context = { location: 'tick', scale, tickNumber: 4 } as unknown as AxisValueFormatterContext<'utc'>;
+    const labels = scale.ticks(4).map(tick => formatTimeTick(tick, context));
+    expect(labels[0]).toBe('');
+    expect(labels[labels.length - 1]).toBe('');
+    expect(labels.slice(1, -1).every(Boolean)).toBe(true);
+  });
+
   it('gives the first label left the date line', () => {
     const scale = scaleUtc().domain([new Date('2026-10-05T01:00:00Z'), new Date('2026-10-09T00:00:00Z')]).range([0, 300]);
     const context = { location: 'tick', scale, tickNumber: 4 } as unknown as AxisValueFormatterContext<'utc'>;
