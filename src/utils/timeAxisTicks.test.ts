@@ -66,15 +66,41 @@ describe.each(TIME_ZONES)('formatTimeTick in %s', timeZone => {
       // MUI's own overlap check keeps every label the formatter chose, so no date gets hidden
       expect(visibleUnderMui(labels, ticks.map(tick => scale(tick)))).toEqual(shown);
 
-      // With sub-day steps, every midnight tick is labelled
+      // With sub-day steps, every midnight tick is labelled, unless it's too close to an end for its label
       if (ticks.length > 1 && ticks[1].getTime() - ticks[0].getTime() < 24 * 3600 * 1000) {
         ticks.forEach((tick, i) => {
-          if (tick.getUTCHours() === 0 && tick.getUTCMinutes() === 0) {
+          const clearOfTheEnds = scale(tick) >= 14 && scale(tick) <= width - 14;
+          if (clearOfTheEnds && tick.getUTCHours() === 0 && tick.getUTCMinutes() === 0) {
             expect(labels[i], tick.toISOString()).not.toBe('');
           }
         });
       }
     });
+  });
+});
+
+describe('labelledTickIndexes near the ends of the axis', () => {
+  const start = Date.UTC(2026, 9, 5);
+  const ticks = [0, 1, 2, 3].map(i => new Date(start + i * 24 * 3600 * 1000));
+  const at = (positions: number[]) => (tick: Date) => positions[ticks.indexOf(tick)];
+
+  it('skips a tick too close to either end', () => {
+    expect(labelledTickIndexes(ticks, at([10, 100, 200, 290]), [0, 300])).toEqual([1, 2]);
+  });
+
+  it('keeps one just far enough', () => {
+    expect(labelledTickIndexes(ticks, at([14, 100, 200, 286]), [0, 300])).toEqual([0, 1, 2, 3]);
+  });
+
+  it('labels something, whatever the room', () => {
+    expect(labelledTickIndexes(ticks, at([1, 2, 3, 4]), [0, 5])).not.toEqual([]);
+  });
+
+  it('gives the first label left the date line', () => {
+    const scale = scaleUtc().domain([new Date('2026-10-05T01:00:00Z'), new Date('2026-10-09T00:00:00Z')]).range([0, 300]);
+    const context = { location: 'tick', scale, tickNumber: 4 } as unknown as AxisValueFormatterContext<'utc'>;
+    const labels = scale.ticks(4).map(tick => formatTimeTick(tick, context)).filter(Boolean);
+    expect(labels[0]).toContain('\n');
   });
 });
 
