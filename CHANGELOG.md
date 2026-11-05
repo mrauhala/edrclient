@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.3.0](https://github.com/mrauhala/ogcapi-browser/compare/v0.2.1...v0.3.0) (2026-11-05)
+
+
+### Features
+
+* add links that reopen a request, and copy it as curl ([#161](https://github.com/mrauhala/ogcapi-browser/issues/161)) ([6b6a4b7](https://github.com/mrauhala/ogcapi-browser/commit/6b6a4b7cf105ea180fd8454f8f7c4384a3033d81))
+* dock the response in a pane, and let every pane resize or close ([#157](https://github.com/mrauhala/ogcapi-browser/issues/157)) ([dec8b8f](https://github.com/mrauhala/ogcapi-browser/commit/dec8b8f04c54d5da1d08ed150a672372e5de2228))
+* mobile layout with a Map/List toggle, safe areas and a page that stays put ([#146](https://github.com/mrauhala/ogcapi-browser/issues/146)) ([c818a6e](https://github.com/mrauhala/ogcapi-browser/commit/c818a6e4abbfade7b1d7d958336f5037bafa1ada))
+* move the request URL under the menu and make it editable ([#158](https://github.com/mrauhala/ogcapi-browser/issues/158)) ([c98c4a8](https://github.com/mrauhala/ogcapi-browser/commit/c98c4a8cdf87b0d890f202924c835f5fa94d6cea))
+* pick locations on a phone without zooming, with a way back to the overview ([#155](https://github.com/mrauhala/ogcapi-browser/issues/155)) ([0840076](https://github.com/mrauhala/ogcapi-browser/commit/08400761f2f01d4c8e547695d007170584fffe84)), closes [#153](https://github.com/mrauhala/ogcapi-browser/issues/153)
+* read a response through Data, Raw, Headers, Sizes and Checks tabs ([#163](https://github.com/mrauhala/ogcapi-browser/issues/163)) ([38c5bd7](https://github.com/mrauhala/ogcapi-browser/commit/38c5bd74d07397a8e6bdc80bf2a325363d9b6336))
+* show a response's status, time, size and headers, and a failure's body ([#156](https://github.com/mrauhala/ogcapi-browser/issues/156)) ([2dc3a97](https://github.com/mrauhala/ogcapi-browser/commit/2dc3a9791d91edc1b8991859a7d61d65decf16e7))
+* try a failed query again from the result window ([#144](https://github.com/mrauhala/ogcapi-browser/issues/144)) ([7d26b8f](https://github.com/mrauhala/ogcapi-browser/commit/7d26b8f3dbf7b280434f876cc1d4172afd2f01da))
+
+
+### Bug Fixes
+
+* find an API's root when it's served from /api, and keep typed URLs on collections with a map ([#162](https://github.com/mrauhala/ogcapi-browser/issues/162)) ([5c7ab6b](https://github.com/mrauhala/ogcapi-browser/commit/5c7ab6b5befc0f77be5fbb1f996479fe91e92b00))
+* keep a query's points when a marker is tapped, and add undo ([#154](https://github.com/mrauhala/ogcapi-browser/issues/154)) ([c79e1b6](https://github.com/mrauhala/ogcapi-browser/commit/c79e1b6e9857897ede66bc5a0ab4f152aabe7d4a))
+* make the map's query input work on phones ([#147](https://github.com/mrauhala/ogcapi-browser/issues/147)) ([683f709](https://github.com/mrauhala/ogcapi-browser/commit/683f7098f4df36aa2fb989d41041dd7d7cec10ca))
+* only send a time the user chose, and keep it off lists ([#159](https://github.com/mrauhala/ogcapi-browser/issues/159)) ([fcc798d](https://github.com/mrauhala/ogcapi-browser/commit/fcc798d7e188c4a6e8c977934bc59b1fbbc9b298))
+
 ## [0.2.1](https://github.com/mrauhala/ogcapi-browser/compare/v0.2.0...v0.2.1) (2026-11-03)
 
 
