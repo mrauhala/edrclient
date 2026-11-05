@@ -120,6 +120,17 @@ describe('EDR geometry rules', () => {
     expect(problems(items({ datetime: { mode: 'range', value: '', start: '2026-10-06T06:00:00Z', end: '' } }))).toEqual(['missing datetime']);
   });
 
+  it('calls a time left off a locations list no filter, and off a location the server\'s choice', () => {
+    const noted = (overrides: Partial<QueryModelInput>) => issuesFor(FMI, 'locations', overrides).find(issue => issue.field === 'datetime');
+    expect(noted({})).toMatchObject({ id: 'edr:datetime:no-filter', severity: 'info', message: 'No time filter: all locations are listed' });
+    expect(noted({ locationFeature: { id: '658225' } })).toMatchObject({ id: 'metadata:datetime:unset', severity: 'info' });
+  });
+
+  it('says items, not locations, for a time range left empty on items', () => {
+    const issues = issuesFor(METEOCORE, 'items', { format: 'GeoJSON', datetime: { mode: 'range', value: '', start: '', end: '' } });
+    expect(issues.find(issue => issue.field === 'datetime')?.message).toBe('No time filter: all items are listed');
+  });
+
   it('notes that a locations request without a location lists them all', () => {
     expect(ids(issuesFor(FMI, 'locations'))).toContain('edr:location:list');
     expect(ids(issuesFor(FMI, 'locations', { locationFeature: { id: '658225' } }))).not.toContain('edr:location:list');
