@@ -17,6 +17,8 @@ const TEXT_LEFT = 48;
 
 interface RequestUrlFieldProps {
   onSend: () => void;
+  // Editing is done: on Enter, or on leaving the field with something changed
+  onCommit?: (url: string) => void;
   // In a bar at the bottom of the window it opens upwards
   expandUp?: boolean;
   // On a phone one line holds little more than the host, so at rest it shows the part that matters
@@ -25,23 +27,32 @@ interface RequestUrlFieldProps {
 
 // The request as it will be sent, for reading and editing. One line at rest; while editing it opens
 // over what's below, so the panes keep their size and a point clicked on the map lands where aimed.
-const RequestUrlField: React.FC<RequestUrlFieldProps> = ({ onSend, expandUp = false, compact = false }) => {
+const RequestUrlField: React.FC<RequestUrlFieldProps> = ({ onSend, onCommit, expandUp = false, compact = false }) => {
   const { requestUrl, isEdited, editUrl, discardEdits } = useRequestUrl();
   const touch = useMediaQuery('(pointer: coarse)', { noSsr: true });
   const [editing, setEditing] = useState(false);
   const textBeforeEditing = useRef('');
+  const undoing = useRef(false);
   const refused = !!requestUrl.trim() && !isSendableUrl(requestUrl);
   const showShort = compact && !editing;
+
+  const commit = () => {
+    if (requestUrl === textBeforeEditing.current) return;
+    textBeforeEditing.current = requestUrl;
+    onCommit?.(requestUrl);
+  };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement | HTMLInputElement | HTMLDivElement>) => {
     const field = event.target as HTMLElement;
     if (event.key === 'Escape') {
+      undoing.current = true;
       editUrl(textBeforeEditing.current);
       field.blur();
     } else if (event.key === 'Enter') {
       // Always the one line, whatever wrapping shows
       event.preventDefault();
       if (!isSendableUrl(requestUrl)) return;
+      commit();
       onSend();
       // Puts the keyboard away, so the response can be seen
       if (touch) field.blur();
@@ -68,6 +79,8 @@ const RequestUrlField: React.FC<RequestUrlFieldProps> = ({ onSend, expandUp = fa
         }}
         onBlur={event => {
           setEditing(false);
+          if (undoing.current) undoing.current = false;
+          else commit();
           // Back to reading from the start
           event.target.scrollLeft = 0;
         }}

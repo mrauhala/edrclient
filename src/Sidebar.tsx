@@ -11,7 +11,7 @@ import { useGeoJsonLayers } from './contexts/GeoJsonLayerContext';
 import { useMapInteraction } from './contexts/MapInteractionContext';
 import { useCollection } from './contexts/CollectionContext';
 import { useService } from './contexts/ServiceContext';
-import { useQueryUrl } from './hooks/useQueryUrl';
+import { useQueryBuilder } from './contexts/QueryBuilderContext';
 import { usePanes } from './contexts/PanesContext';
 import { REQUEST_WIDTH } from './panes';
 
@@ -24,7 +24,7 @@ const Sidebar = () => {
   const { setClickedCoords, setDataQuery } = useMapInteraction();
   const { collections, setCollections, setSelectedCollection, setSelectedFeature, setSelectedCollectionExtents, setLocationFeatures, setLandingPageLicense, setCollectionUrl } = useCollection();
   const { setLandingPageTitle, setActiveServiceUrl, conformsTo, setConformsTo } = useService();
-  const queryState = useQueryUrl();
+  const queryState = useQueryBuilder();
   const { resetQueryState } = queryState;
   const { validationResult, setValidationResult, setEndpointUrls, setRawResponses } = useValidation();
 

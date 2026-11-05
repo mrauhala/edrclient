@@ -106,6 +106,49 @@ describe('mergeEditedUrl', () => {
     )).toBeNull();
   });
 
+  describe('when the form takes its values from the URL', () => {
+    const AREA = 'https://api.test/edr/collections/c/area';
+
+    it('keeps coordinates finer than the form writes them', () => {
+      expect(mergeEditedUrl(built('f=x'), built('f=x&coords=POINT(24.941 60.170)'), built('f=x&coords=POINT(24.94123 60.17)')))
+        .toBe(built('f=x&coords=POINT(24.94123 60.17)'));
+    });
+
+    it('keeps coordinates written with other spacing or case', () => {
+      expect(mergeEditedUrl(built('f=x'), built('f=x&coords=LINESTRING(1.000 2.000, 3.000 4.000)'), built('f=x&coords=linestring(1 2,3 4)')))
+        .toBe(built('f=x&coords=linestring(1 2,3 4)'));
+    });
+
+    it('keeps a polygon at the form\'s coarser precision', () => {
+      expect(mergeEditedUrl(built('f=x'), built('f=x&coords=POLYGON((1.12 2.00,3.00 4.00))'), built('f=x&coords=POLYGON((1.123 2,3 4))')))
+        .toBe(built('f=x&coords=POLYGON((1.123 2,3 4))'));
+    });
+
+    it('still writes in a point that really moved', () => {
+      expect(mergeEditedUrl(built('coords=POINT(1.000 2.000)'), built('coords=POINT(1.000 2.500)'), built('coords=POINT(1 2)&a=b')))
+        .toBe(built('coords=POINT(1.000 2.500)&a=b'));
+    });
+
+    it('still writes in a different kind of geometry', () => {
+      expect(mergeEditedUrl(built('coords=POINT(1.000 2.000)'), built('coords=MULTIPOINT((1.000 2.000),(3.000 4.000))'), built('coords=POINT(1 2)&a=b')))
+        .toBe(built('coords=MULTIPOINT((1.000 2.000),(3.000 4.000))&a=b'));
+    });
+
+    it('keeps what was typed when the form moves to the query the URL is for', () => {
+      const typed = `${AREA}?coords=garbage&a=b`;
+      expect(mergeEditedUrl(built('f=x'), `${AREA}?f=x`, typed)).toBe(typed);
+    });
+
+    it('recognises that query however its path is encoded', () => {
+      const typed = 'https://api.test/instances/2026-11-05T00%3A00%3A00Z/position?coords=POINT(1 2)';
+      expect(mergeEditedUrl(built('f=x'), 'https://api.test/instances/2026-11-05T00:00:00Z/position?f=x', typed)).toBe(typed);
+    });
+
+    it('has no edits left if the form builds exactly that', () => {
+      expect(mergeEditedUrl(built('f=x'), `${AREA}?f=x`, `${AREA}?f=x`)).toBeNull();
+    });
+  });
+
   it('starts again from the form for another query', () => {
     expect(mergeEditedUrl(built('f=x'), 'https://api.test/edr/collections/c/area?f=x', built('f=x&a=b'))).toBeNull();
   });
