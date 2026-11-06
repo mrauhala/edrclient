@@ -13,6 +13,7 @@ import { defaults as defaultInteractions } from 'ol/interaction';
 import { useGeoJsonLayers } from '../contexts/GeoJsonLayerContext';
 import { useCollection } from '../contexts/CollectionContext';
 import { useMapInteraction } from '../contexts/MapInteractionContext';
+import { extentStyle } from '../extentStyle';
 import { locationHitTolerance, locationStyle } from '../locationStyle';
 import { zoomToPoint } from '../mapView';
 import { takesMapGeometry } from '../query/queryTypes';
@@ -88,15 +89,7 @@ export function useMapSetup(zoomLevel: number): UseMapSetupReturn {
     const vectorSource = new VectorSource();
     const newVectorLayer = new VectorLayer({
       source: vectorSource,
-      style: new Style({
-        stroke: new Stroke({
-          color: '#ff0000',
-          width: 2,
-        }),
-        fill: new Fill({
-          color: 'rgba(255, 0, 0, 0.05)',
-        }),
-      }),
+      style: extentStyle,
     });
 
     // Create vector source and layer for location features
