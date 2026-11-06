@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { adjacentCollection } from '../collections/openingCollection';
 import { useCollection } from '../contexts/CollectionContext';
 import { useOpenCollection } from '../contexts/OpenCollectionContext';
 
@@ -23,23 +24,10 @@ export function useCollectionKeyboardNav(listShowing: boolean) {
         return;
       }
 
-      if (collections.length === 0) return;
-
-      // By the collection itself, since two can share an ID
-      const currentIndex = selectedCollection ? collections.indexOf(selectedCollection) : -1;
-
-      let newIndex: number;
-      if (e.key === 'PageDown') {
-        if (currentIndex >= collections.length - 1) return;
-        newIndex = currentIndex + 1;
-      } else {
-        // PageUp
-        if (currentIndex <= 0) return;
-        newIndex = currentIndex - 1;
-      }
-
+      const target = adjacentCollection(collections, selectedCollection, e.key === 'PageDown' ? 1 : -1);
+      if (!target) return;
       e.preventDefault();
-      openCollection(collections[newIndex]);
+      openCollection(target);
     };
 
     document.addEventListener('keydown', handleKeyDown);

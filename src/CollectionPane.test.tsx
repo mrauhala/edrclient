@@ -8,13 +8,27 @@ const state = vi.hoisted(() => ({
   locations: null as unknown,
   validation: {} as unknown,
   license: null as unknown,
+  collections: [] as unknown[],
+  isMobile: false,
+  open: vi.fn(),
+  clicks: {} as Record<string, () => void>,
 }));
 vi.mock('./contexts/ApiContext', () => ({ useApi: () => ({ apiUrl: 'https://a.example', license: state.license }) }));
-vi.mock('./contexts/CollectionContext', () => ({ useCollection: () => ({ selectedCollection: state.selected, locationFeatures: state.locations, setSelectedFeature: () => {} }) }));
+vi.mock('./contexts/CollectionContext', () => ({ useCollection: () => ({ collections: state.collections, selectedCollection: state.selected, locationFeatures: state.locations, setSelectedFeature: () => {} }) }));
 vi.mock('./contexts/GeoJsonLayerContext', () => ({ useGeoJsonLayers: () => ({ geoJsonLayers: [], setGeoJsonLayers: () => {} }) }));
-vi.mock('./contexts/OpenCollectionContext', () => ({ useOpenCollection: () => ({ openSerial: 1 }) }));
-vi.mock('./contexts/PanesContext', () => ({ usePanes: () => ({ showMap: () => {}, showPane: () => {} }) }));
+vi.mock('./contexts/OpenCollectionContext', () => ({ useOpenCollection: () => ({ openSerial: 1, openCollection: state.open }) }));
+vi.mock('./contexts/PanesContext', () => ({ usePanes: () => ({ isMobile: state.isMobile, showMap: () => {}, showPane: () => {} }) }));
 vi.mock('./contexts/QueryBuilderContext', () => ({ useQueryBuilder: () => ({}) }));
+// As it is, but keeping what a labelled button does when pressed, which the server renderer leaves out
+vi.mock('@mui/material/Button', async importOriginal => {
+  const { default: Button } = await importOriginal<typeof import('@mui/material/Button')>();
+  return {
+    default: (props: { 'aria-label'?: string; onClick?: () => void }) => {
+      if (props['aria-label']) state.clicks[props['aria-label']] = props.onClick!;
+      return <Button {...props} />;
+    },
+  };
+});
 vi.mock('./contexts/ValidationContext', () => ({ useValidation: () => ({ validationResult: state.validation }) }));
 // Each has its own tests, or needs a server: here it's only whether they're there
 vi.mock('./CollectionQueryBuilder', () => ({ default: () => <i>the query builder</i> }));
@@ -34,6 +48,10 @@ describe('CollectionPane', () => {
   beforeEach(() => {
     state.locations = null;
     state.license = null;
+    state.collections = [];
+    state.isMobile = false;
+    state.open.mockClear();
+    state.clicks = {};
   });
 
   it('says when nothing is open, with a way back', () => {
@@ -41,6 +59,74 @@ describe('CollectionPane', () => {
     expect(html).toContain('No collection is open.');
     expect(html).toContain("Choose one from the API&#x27;s list");
     expect(html).not.toContain('All collections');
+    expect(html).not.toContain('Next collection');
+  });
+
+  describe('going through the collections', () => {
+    const before = { ...edr, id: 'before', title: 'Before' };
+    const after = { ...edr, id: 'after', title: 'After' };
+    const button = (html: string, label: string) => new RegExp(`<button[^>]*aria-label="${label}"[^>]*>`).exec(html)?.[0] ?? '';
+
+    it('goes to the one before and the one after, in the order of the list', () => {
+      state.collections = [before, edr, after];
+      render(edr);
+      state.clicks['Previous collection']();
+      expect(state.open).toHaveBeenLastCalledWith(before);
+      state.clicks['Next collection']();
+      expect(state.open).toHaveBeenLastCalledWith(after);
+      expect(state.open).toHaveBeenCalledTimes(2);
+    });
+
+    it('stops at either end', () => {
+      state.collections = [edr, after];
+      const first = render(edr);
+      expect(button(first, 'Previous collection')).toContain('disabled');
+      expect(button(first, 'Next collection')).not.toContain('disabled');
+      state.clicks['Previous collection']();
+      expect(state.open).not.toHaveBeenCalled();
+
+      state.collections = [before, edr];
+      const last = render(edr);
+      expect(button(last, 'Previous collection')).not.toContain('disabled');
+      expect(button(last, 'Next collection')).toContain('disabled');
+    });
+
+    it('has nowhere to go with only one', () => {
+      state.collections = [edr];
+      const html = render(edr);
+      expect(button(html, 'Previous collection')).toContain('disabled');
+      expect(button(html, 'Next collection')).toContain('disabled');
+    });
+
+    it('shows the keys, in the order of the buttons', () => {
+      state.collections = [before, edr, after];
+      const html = render(edr);
+      expect(button(html, 'Previous collection')).toContain('aria-keyshortcuts="PageUp"');
+      expect(button(html, 'Next collection')).toContain('aria-keyshortcuts="PageDown"');
+      expect(html).toContain('aria-label="Previous collection (PageUp)"');
+      expect(html).toContain('aria-label="Next collection (PageDown)"');
+      expect(html).toMatch(/<kbd[^>]*>PgUp<\/kbd>/);
+      expect(html).toMatch(/<kbd[^>]*>PgDn<\/kbd>/);
+      expect(html.indexOf('PgUp')).toBeLessThan(html.indexOf('PgDn'));
+    });
+
+    it('leaves the keys out on a phone, with a target big enough for a finger', () => {
+      state.collections = [before, edr, after];
+      expect(render(edr)).not.toContain('min-width:44px');
+      state.isMobile = true;
+      const html = render(edr);
+      expect(html).not.toContain('<kbd');
+      expect(html).not.toContain('(PageDown)');
+      expect(html).toContain('aria-label="Next collection"');
+      expect(html).toContain('min-width:44px');
+      expect(html).toContain('min-height:40px');
+    });
+
+    it('comes before the name, whose length would move it', () => {
+      state.collections = [before, edr, after];
+      const html = render(edr);
+      expect(html.indexOf('Next collection')).toBeLessThan(html.indexOf('First collection'));
+    });
   });
 
   it('heads it with name, ID and description, and a way back', () => {

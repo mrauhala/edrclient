@@ -92,10 +92,11 @@ The key ends up in the browser, so it is public: restrict it to your sites in Ca
 
 | Key | Action |
 |---|---|
-| `PageDown` / `PageUp` | Next / previous collection |
+| `PageDown` / `PageUp` | Next / previous collection, or scroll the API's list while it's showing |
 | `Cmd+Enter` / `Ctrl+Enter` | Send the request |
 | `Enter` in the request URL | Send it |
 | `Esc` in the request URL | Undo your typing |
+| `A` | The API's list, or back to the open collection |
 | `B` | Toggle the Request pane |
 | `M` | Toggle the Map pane |
 | `R` | Toggle the Response pane |

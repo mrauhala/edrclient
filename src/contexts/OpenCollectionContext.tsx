@@ -22,7 +22,7 @@ interface OpenCollectionContextValue {
 
 const OpenCollectionContext = createContext<OpenCollectionContextValue | null>(null);
 
-// Opening and closing a collection, for everything that can: the list, a link, the palette, the keyboard
+// Opening and closing a collection, for everything that can: the list, a link, the palette, the keyboard, the buttons
 export function OpenCollectionProvider({ children }: { children: ReactNode }) {
   const { selectedCollection, setSelectedCollection, setSelectedFeature, setCollectionUrl, setSelectedCollectionExtents, setLocationFeatures } = useCollection();
   const { geoJsonLayers, setGeoJsonLayers } = useGeoJsonLayers();
