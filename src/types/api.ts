@@ -1,3 +1,5 @@
+import type { CapturedLoad } from '../api/capture';
+
 // OGC API link relation values. A server can use the full URI, the CURIE form, or — in practice
 // for OGC API Maps/Tiles/Styles servers like pygeoapi and MeteoCore — the unqualified short name.
 export const OGC_REL = {
@@ -181,6 +183,8 @@ export interface GetCollectionsResult {
   landingPageLinks?: Link[]; // Links from the landing page
   landingPageKeywords?: string[]; // Keywords from the landing page
   collectionsLinks?: Link[]; // Top-level links from the /collections endpoint response
+  // What the load's requests got back, as it came. On a failed load, as far as it got
+  captured?: CapturedLoad;
   // Raw API responses for validation error inspection
   rawResponses?: {
     landingPage?: unknown;

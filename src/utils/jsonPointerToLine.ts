@@ -1,3 +1,15 @@
+// The document's lines, kept for the one being looked through: finding the lines of a thousand findings would otherwise
+// split a whole document a thousand times
+let splitText: string | null = null;
+let splitLines: string[] = [];
+function linesOf(text: string): string[] {
+  if (text !== splitText) {
+    splitText = text;
+    splitLines = text.split('\n');
+  }
+  return splitLines;
+}
+
 /**
  * Resolves a JSON pointer (e.g. "/collections/0/extent/spatial") to a 1-based
  * line number in a pretty-printed JSON string (2-space indent).
@@ -12,7 +24,7 @@ export function findLineForJsonPointer(prettyJson: string, pointer: string): num
   const segments = pointer.replace(/^\//, '').split('/').map(segment => segment.replace(/~1/g, '/').replace(/~0/g, '~'));
   if (segments.length === 0) return 1;
 
-  const lines = prettyJson.split('\n');
+  const lines = linesOf(prettyJson);
   let segIdx = 0;
   let arrayItemCount = -1; // -1 means not tracking array items
   let lastMatchLine = 1;
@@ -77,7 +89,7 @@ export function findCollectionRange(
   prettyJson: string,
   collectionIndex: number
 ): { start: number; end: number } | null {
-  const lines = prettyJson.split('\n');
+  const lines = linesOf(prettyJson);
 
   // Find "collections": [ line
   let arrayStartLine = -1;

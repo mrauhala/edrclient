@@ -21,3 +21,16 @@ describe('findLineForJsonPointer', () => {
       .toBe(lineOf('"name": "f"') - 1);
   });
 });
+
+describe('with one document after another', () => {
+  it('reads each as it is, though it keeps the lines of the last one', () => {
+    const first = '{\n  "a": 1,\n  "b": 2\n}';
+    const second = '{\n  "b": 1,\n  "c": 2,\n  "a": 3\n}';
+    expect(findLineForJsonPointer(first, '/b')).toBe(3);
+    expect(findLineForJsonPointer(first, '/a')).toBe(2);
+    expect(findLineForJsonPointer(second, '/b')).toBe(2);
+    expect(findLineForJsonPointer(second, '/a')).toBe(4);
+    expect(findLineForJsonPointer(first, '/a')).toBe(2);
+  });
+});
+

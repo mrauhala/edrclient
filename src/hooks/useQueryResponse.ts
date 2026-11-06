@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { QueryResultValidator } from '../QueryResultValidator';
-import { httpFailure } from '../api/httpErrors';
+import { httpFailure, networkFailureMessage } from '../api/httpErrors';
 import { sendRequest } from '../api/sendRequest';
 import type { ResponseDetails } from '../api/sendRequest';
 import { useGeoJsonLayers } from '../contexts/GeoJsonLayerContext';
@@ -20,7 +20,7 @@ export function useQueryResponse(showResponse: () => void) {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const imageUrlRef = useRef<string | null>(null);
   const [contentType, setContentType] = useState<string | null>(null);
-  // Status, time, size and headers of what was fetched; null for a stored response, which wasn't sent just now
+  // Status, time, size and headers of what was fetched; null for a stored copy, which has none of them
   const [response, setResponse] = useState<ResponseDetails | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<{ message: string; retryable: boolean } | null>(null);
@@ -41,8 +41,8 @@ export function useQueryResponse(showResponse: () => void) {
   // Listen for validation error clicks to open API response viewer with stored data
   useEffect(() => {
     const handleOpenValidationResponse = (e: Event) => {
-      const { url: storedUrl, errors, scrollToPath: path, data: storedData } = (e as CustomEvent).detail;
-      if (!storedUrl || !storedData) return;
+      const { url: storedUrl, errors, scrollToPath: path, data: storedData, response: details, schemaName, failure } = (e as CustomEvent).detail;
+      if (!storedUrl || (!storedData && !details && !failure)) return;
 
       // Replaces whatever the pane had, so a fetch still on its way mustn't arrive over it
       fetchControllerRef.current?.abort();
@@ -50,13 +50,14 @@ export function useQueryResponse(showResponse: () => void) {
       releaseImage();
       showResponse();
       setIsLoading(false);
-      setError(null);
-      setData(storedData);
-      setContentType('application/json');
-      setResponse(null);
+      // A response of the API's own load comes with its details and is shown like one just sent. If none came, it may next time
+      setError(failure ? { message: failure, retryable: true } : details ? httpFailure(details.status, storedData) : null);
+      setData(storedData ?? null);
+      setContentType(details ? details.contentType : failure ? null : 'application/json');
+      setResponse(details ?? null);
       setUrl(storedUrl);
       setValidationErrors(errors || []);
-      setValidationSchemaName(null);
+      setValidationSchemaName(schemaName ?? null);
       setScrollToPath(path);
     };
     document.addEventListener('open-validation-response', handleOpenValidationResponse);
@@ -162,26 +163,9 @@ export function useQueryResponse(showResponse: () => void) {
 
       console.error('Error fetching data:', error);
 
-      // Classify error for actionable feedback
-      let message = error.message || 'Failed to fetch data';
-
-      if (
-        error.message?.includes('CORS') ||
-        error.message?.includes('Access-Control-Allow-Origin') ||
-        error.message?.includes('cross-origin')
-      ) {
-        message = 'CORS blocked. Your API must include the Access-Control-Allow-Origin header for this origin.';
-      } else if (
-        error.code === 'ERR_NETWORK' ||
-        error.message?.includes('Network Error') ||
-        error.message?.includes('Failed to fetch')
-      ) {
-        message = 'Network error. The API may be unreachable or blocking cross-origin requests (CORS).';
-      }
-
       // Without a response (network failures, timeouts, CORS, which the browser can't tell apart),
       // the same request may well work next time
-      setError({ message, retryable: true });
+      setError({ message: networkFailureMessage(error), retryable: true });
     } finally {
       // Not when a newer request took over: its spinner stays until it's done
       if (fetchControllerRef.current === controller) setIsLoading(false);

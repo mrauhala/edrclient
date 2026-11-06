@@ -77,3 +77,16 @@ export function httpFailure(status: number, body: unknown): { message: string; r
     retryable: isRetryableStatus(status),
   };
 }
+
+// What to say when no response came: a browser can't tell a network failure from CORS
+export function networkFailureMessage(error: { message?: string; code?: string }): string {
+  const message = error.message ?? '';
+  if (message.includes('CORS') || message.includes('Access-Control-Allow-Origin') || message.includes('cross-origin')) {
+    return 'CORS blocked. Your API must include the Access-Control-Allow-Origin header for this origin.';
+  }
+  if (error.code === 'ERR_NETWORK' || message.includes('Network Error') || message.includes('Failed to fetch')) {
+    return 'Network error. The API may be unreachable or blocking cross-origin requests (CORS).';
+  }
+  return message || 'Failed to fetch data';
+}
+

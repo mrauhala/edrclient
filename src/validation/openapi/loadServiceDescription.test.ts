@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import axios from 'axios';
-import { loadServiceDescription, parseServiceDescription, pickOpenApiLink, WebPageError } from './loadServiceDescription';
+import { capturedOfFailure, forgetServiceDescription, loadServiceDescription, parseServiceDescription, pickOpenApiLink, WebPageError } from './loadServiceDescription';
 import { fixtureText } from './__fixtures__/servers';
 
 vi.mock('axios', () => ({ default: { get: vi.fn() } }));
@@ -93,3 +93,60 @@ describe('loadServiceDescription', () => {
     expect(get.mock.calls[0][1]).toMatchObject({ headers: { Authorization: 'Bearer t' } });
   });
 });
+
+describe('what a service description keeps of its request', () => {
+  beforeEach(() => get.mockReset());
+
+  it('keeps the text as it came, with its status and size', async () => {
+    const text = '{ "openapi":   "3.0.3", "paths": {} }';
+    get.mockResolvedValueOnce({ data: text, status: 200, statusText: 'OK', headers: { 'content-type': 'application/json' }, request: { responseText: text } });
+    const { captured } = await loadServiceDescription('https://capture.example/api');
+    expect(captured.text).toBe(text);
+    expect(captured.url).toBe('https://capture.example/api');
+    expect(captured.response?.status).toBe(200);
+    expect(captured.response?.sizeBytes).toBe(text.length);
+    expect(captured.response?.contentType).toBe('application/json');
+  });
+
+  it('keeps what came back when it was an error', async () => {
+    const answer = { data: 'Nope', status: 500, statusText: 'Oops', headers: {}, request: { responseText: 'Nope' } };
+    get.mockRejectedValueOnce(Object.assign(new Error('Request failed with status code 500'), { response: answer }));
+    const failure = await loadServiceDescription('https://capture.example/broken').catch((error: unknown) => error);
+    expect(capturedOfFailure(failure)?.response?.status).toBe(500);
+    expect(capturedOfFailure(failure)?.text).toBe('Nope');
+  });
+
+  it('keeps what came back when it was a web page, and it stays out of logs', async () => {
+    const page = '<!doctype html><html></html>';
+    get.mockResolvedValueOnce({ data: page, status: 200, statusText: 'OK', headers: { 'content-type': 'text/html' }, request: { responseText: page } });
+    const failure = await loadServiceDescription('https://capture.example/page').catch((error: unknown) => error);
+    expect(failure).toBeInstanceOf(WebPageError);
+    expect(capturedOfFailure(failure)?.text).toBe(page);
+    expect(Object.keys(failure as object)).not.toContain('captured');
+  });
+
+  it('says when no response came', async () => {
+    get.mockRejectedValueOnce(Object.assign(new Error('Network Error'), { code: 'ERR_NETWORK' }));
+    const failure = await loadServiceDescription('https://capture.example/gone').catch((error: unknown) => error);
+    expect(capturedOfFailure(failure)?.response).toBeNull();
+    expect(capturedOfFailure(failure)?.failure).toMatch(/^Network error/);
+  });
+
+  it('has nothing for an error that is not from it', () => {
+    expect(capturedOfFailure(new Error('x'))).toBeNull();
+    expect(capturedOfFailure(null)).toBeNull();
+  });
+
+  it('asks again once it is forgotten, and not before', async () => {
+    const text = '{"openapi":"3.0.3","paths":{}}';
+    get.mockResolvedValue({ data: text, status: 200, statusText: 'OK', headers: {}, request: { responseText: text } });
+    const url = 'https://capture.example/again';
+    await loadServiceDescription(url);
+    await loadServiceDescription(url);
+    expect(get).toHaveBeenCalledTimes(1);
+    forgetServiceDescription(url);
+    await loadServiceDescription(url);
+    expect(get).toHaveBeenCalledTimes(2);
+  });
+});
+

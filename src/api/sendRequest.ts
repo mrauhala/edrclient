@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { type AxiosResponse } from 'axios';
 import type { AuthCredentials } from '../types/api';
 import { addApiKeyToUrl, getAxiosConfig } from './auth';
 import { makeRoomForWireTiming, readWireTiming, type WireTiming } from './responseSizes';
@@ -30,6 +30,25 @@ export interface ApiResponse extends ResponseDetails {
   body: ArrayBuffer;
 }
 
+// What axios got back, apart from the body, whose size depends on how it was asked for
+export function responseDetails(response: AxiosResponse<unknown>, target: string, sizeBytes: number, timeMs: number): ResponseDetails {
+  const headers = Object.entries(response.headers)
+    .filter(([, value]) => value != null)
+    .map(([name, value]) => ({ name, value: Array.isArray(value) ? value.join(', ') : String(value) }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  return {
+    status: response.status,
+    statusText: response.statusText,
+    timeMs,
+    sizeBytes,
+    headers,
+    contentType: headers.find(header => header.name === 'content-type')?.value ?? '',
+    requestUrlBytes: new TextEncoder().encode(new URL(target).href).length,
+    timing: readWireTiming(target),
+  };
+}
+
 // Sends a query. Any status the server answers with is a response, so a failure can be shown like a
 // success. This rejects only when no response came: a network failure, CORS or an abort.
 export async function sendRequest(url: string, auth?: AuthCredentials, signal?: AbortSignal): Promise<ApiResponse> {
@@ -46,20 +65,5 @@ export async function sendRequest(url: string, auth?: AuthCredentials, signal?: 
   });
   const timeMs = performance.now() - started;
 
-  const headers = Object.entries(response.headers)
-    .filter(([, value]) => value != null)
-    .map(([name, value]) => ({ name, value: Array.isArray(value) ? value.join(', ') : String(value) }))
-    .sort((a, b) => a.name.localeCompare(b.name));
-
-  return {
-    status: response.status,
-    statusText: response.statusText,
-    timeMs,
-    sizeBytes: response.data.byteLength,
-    headers,
-    contentType: headers.find(header => header.name === 'content-type')?.value ?? '',
-    requestUrlBytes: new TextEncoder().encode(new URL(target).href).length,
-    timing: readWireTiming(target),
-    body: response.data,
-  };
+  return { ...responseDetails(response, target, response.data.byteLength, timeMs), body: response.data };
 }

@@ -5,6 +5,7 @@ import { PanesProvider } from './contexts/PanesContext';
 import { DEFAULT_REQUEST_WIDTH, MIN_REQUEST_WIDTH, PINNED_ROW_ROOM, type OpenPanes } from './panes';
 
 vi.mock('./ServiceSelector', () => ({ default: () => <i>the form</i> }));
+vi.mock('./overview/ApiResourceStrip', () => ({ default: () => <i>the strip</i> }));
 vi.mock('./ServiceInfoPanel', () => ({ default: () => <i>the details</i> }));
 vi.mock('./CollectionsList', () => ({ default: () => <i>the list</i> }));
 vi.mock('./CollectionPane', () => ({ default: () => <i>the request</i> }));
@@ -41,7 +42,8 @@ describe('Sidebar', () => {
     const [api, request] = [html.indexOf('id="api-pane"'), html.indexOf('id="request-pane"')];
     expect(api).toBeGreaterThan(-1);
     expect(api).toBeLessThan(html.indexOf('the form'));
-    expect(html.indexOf('the form')).toBeLessThan(html.indexOf('the details'));
+    expect(html.indexOf('the form')).toBeLessThan(html.indexOf('the strip'));
+    expect(html.indexOf('the strip')).toBeLessThan(html.indexOf('the details'));
     expect(html.indexOf('the details')).toBeLessThan(html.indexOf('the list'));
     expect(html.indexOf('the list')).toBeLessThan(request);
     expect(request).toBeLessThan(html.indexOf('the request'));
