@@ -2,6 +2,9 @@ export type Pane = 'api' | 'request' | 'map' | 'response';
 export type OpenPanes = Record<Pane, boolean>;
 
 export const REQUEST_WIDTH = 480;
+// Room the browser leaves at the top of the request pane when it scrolls a field into view, so that it's not left under the
+// row pinned there: that row at its tallest, on a phone, and a little more
+export const PINNED_ROW_ROOM = 56;
 export const MIN_MAP_WIDTH = 360;
 export const MIN_RESPONSE_WIDTH = 320;
 export const DEFAULT_RESPONSE_WIDTH = 520;

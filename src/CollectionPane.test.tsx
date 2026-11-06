@@ -122,6 +122,28 @@ describe('CollectionPane', () => {
       expect(html).toContain('min-height:40px');
     });
 
+    it('stays at the top of the pane, above the form going under it, on a phone too', () => {
+      state.collections = [before, edr, after];
+      for (const isMobile of [false, true]) {
+        state.isMobile = isMobile;
+        // The row's own styles, since the page has others like them
+        const row = [...render(edr).matchAll(/<style[^>]*>(.*?)<\/style>/g)].map(match => match[1]).find(css => css.includes('position:sticky')) ?? '';
+        expect(row).toContain('top:0');
+        expect(row).toContain('z-index:1');
+        expect(row).toContain('background-color:inherit');
+        expect(row).toContain('background-image:inherit');
+        expect(row).toContain('border-bottom:1px solid');
+      }
+    });
+
+    it('keeps the form in a stacking context of its own, so that nothing in it can draw over the row', () => {
+      state.collections = [before, edr, after];
+      const html = render(edr);
+      const isolated = html.indexOf('isolation:isolate');
+      expect(isolated).toBeGreaterThan(html.indexOf('Next collection'));
+      expect(isolated).toBeLessThan(html.indexOf('First collection'));
+    });
+
     it('comes before the name, whose length would move it', () => {
       state.collections = [before, edr, after];
       const html = render(edr);
