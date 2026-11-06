@@ -1,7 +1,8 @@
 export type Pane = 'api' | 'request' | 'map' | 'response';
 export type OpenPanes = Record<Pane, boolean>;
 
-export const REQUEST_WIDTH = 480;
+export const MIN_REQUEST_WIDTH = 320;
+export const DEFAULT_REQUEST_WIDTH = 480;
 // Room the browser leaves at the top of the request pane when it scrolls a field into view, so that it's not left under the
 // row pinned there: that row at its tallest, on a phone, and a little more
 export const PINNED_ROW_ROOM = 56;
@@ -9,8 +10,9 @@ export const MIN_MAP_WIDTH = 360;
 export const MIN_RESPONSE_WIDTH = 320;
 export const DEFAULT_RESPONSE_WIDTH = 520;
 export const DIVIDER_WIDTH = 6;
-// Below this the three don't fit side by side. Any two do, down to the md breakpoint, where phones' one at a time begins
-export const ALL_PANES_WIDTH = REQUEST_WIDTH + MIN_MAP_WIDTH + DIVIDER_WIDTH + MIN_RESPONSE_WIDTH;
+// Widths are preferences, and only the minimums decide what fits. Below this the three don't fit side by side. Any two
+// do, down to the md breakpoint, where phones' one at a time begins
+export const ALL_PANES_WIDTH = MIN_REQUEST_WIDTH + DIVIDER_WIDTH + MIN_MAP_WIDTH + DIVIDER_WIDTH + MIN_RESPONSE_WIDTH;
 
 export const INITIAL_PANES: OpenPanes = { api: true, request: false, map: true, response: false };
 
@@ -63,13 +65,27 @@ export function phonePaneToggled(current: Pane, pane: Pane, hasCollection: boole
   return pane === 'api' && hasCollection ? 'request' : 'map';
 }
 
-// Keeps the map at its minimum, given the room the map and the response share
-export function clampResponseWidth(width: number, available: number): number {
-  return Math.max(MIN_RESPONSE_WIDTH, Math.min(width, available - DIVIDER_WIDTH - MIN_MAP_WIDTH));
+// Keeps a pane at its minimum or more, and the pane beside it at that one's, given the room the two share
+export function clampPaneWidth(width: number, available: number, minWidth: number, minBeside: number): number {
+  return Math.max(minWidth, Math.min(width, available - DIVIDER_WIDTH - minBeside));
+}
+
+// What's left of the row beside the left pane at its narrowest. Widening the left pane takes from the map and then from
+// the response, which gets the room back once the left pane narrows: without that, narrowing it gave the room to the
+// response, and it couldn't be widened again
+export function minBesideLeftPane(open: OpenPanes): number {
+  if (open.map && open.response) return MIN_MAP_WIDTH + DIVIDER_WIDTH + MIN_RESPONSE_WIDTH;
+  return open.map ? MIN_MAP_WIDTH : MIN_RESPONSE_WIDTH;
+}
+
+// What an arrow key does to the width of the pane on that side of a divider: it moves the divider that way
+export function widthStep(side: 'left' | 'right', key: string, step: number): number {
+  if (key !== 'ArrowLeft' && key !== 'ArrowRight') return 0;
+  return (key === 'ArrowRight') === (side === 'left') ? step : -step;
 }
 
 // The width remembered in the browser, if it's usable
-export function parseResponseWidth(saved: string | null): number {
+export function parsePaneWidth(saved: string | null, minWidth: number, fallback: number): number {
   const width = Number(saved);
-  return saved && Number.isFinite(width) && width >= MIN_RESPONSE_WIDTH ? width : DEFAULT_RESPONSE_WIDTH;
+  return Number.isFinite(width) && width >= minWidth ? width : fallback;
 }
