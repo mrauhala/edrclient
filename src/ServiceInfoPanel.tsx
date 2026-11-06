@@ -15,30 +15,18 @@ import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import Tooltip from '@mui/material/Tooltip';
-import { ValidationResult, formatConformanceClass, Link as ApiLink, normalizeHref } from './DataRetrievalAPI';
+import { formatConformanceClass, normalizeHref } from './DataRetrievalAPI';
+import ConformanceViewer from './ConformanceViewer';
 import ValidationResults from './ValidationResult';
 import KeywordChips from './KeywordChips';
-import { useService } from './contexts/ServiceContext';
+import { useApi } from './contexts/ApiContext';
+import { useValidation } from './contexts/ValidationContext';
 import { problemCount } from './validation/severity';
 
-interface ServiceInfoPanelProps {
-  landingPageDescription: string | null;
-  landingPageKeywords: string[] | null;
-  conformsTo: string[] | null;
-  landingPageLinks: ApiLink[] | null;
-  validationResult: ValidationResult;
-  onConformanceClick: (url: string) => void;
-}
-
-const ServiceInfoPanel = ({
-  landingPageDescription,
-  landingPageKeywords,
-  conformsTo,
-  landingPageLinks,
-  validationResult,
-  onConformanceClick,
-}: ServiceInfoPanelProps) => {
-  const { landingPageTitle } = useService();
+const ServiceInfoPanel = () => {
+  const { title: landingPageTitle, description: landingPageDescription, keywords: landingPageKeywords, conformsTo, links: landingPageLinks } = useApi();
+  const { validationResult } = useValidation();
+  const [selectedConformanceUrl, setSelectedConformanceUrl] = useState<string | null>(null);
   const [showConformanceClasses, setShowConformanceClasses] = useState(false);
   const [showServiceLinks, setShowServiceLinks] = useState(false);
   const [showValidation, setShowValidation] = useState(false);
@@ -111,7 +99,7 @@ const ServiceInfoPanel = ({
                           size="small"
                           color="success"
                           variant="outlined"
-                          onClick={() => onConformanceClick(item.url)}
+                          onClick={() => setSelectedConformanceUrl(item.url)}
                           clickable
                           sx={{
                             fontSize: '0.7rem',
@@ -285,6 +273,10 @@ const ServiceInfoPanel = ({
           </Collapse>
         </Box>
       </CardContent>
+      <ConformanceViewer
+        conformanceUrl={selectedConformanceUrl}
+        onClose={() => setSelectedConformanceUrl(null)}
+      />
     </Card>
   );
 };

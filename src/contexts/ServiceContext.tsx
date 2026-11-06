@@ -5,15 +5,9 @@ import { AuthCredentials } from '../DataRetrievalAPI';
 interface ServiceContextValue {
   customServices: CustomService[];
   getAuthCredentials: (url: string) => AuthCredentials | undefined;
-  selectedServiceUrl: string | null;
-  setSelectedServiceUrl: (url: string | null) => void;
-  landingPageTitle: string | null;
-  setLandingPageTitle: (title: string | null) => void;
-  activeServiceUrl: string | null;
-  setActiveServiceUrl: (url: string | null) => void;
-  conformsTo: string[] | null;
-  setConformsTo: (conformsTo: string[] | null) => void;
-  serviceDescUrl: string | null; // the service's OpenAPI document (service-desc)
+  // The loaded API's OpenAPI document (service-desc). Here rather than in ApiContext because of the order
+  // of the providers: loading resets the query builder, which uses the document through OpenApiProvider.
+  serviceDescUrl: string | null;
   setServiceDescUrl: (url: string | null) => void;
 }
 
@@ -22,14 +16,9 @@ const ServiceContext = createContext<ServiceContextValue | null>(null);
 interface ServiceProviderProps {
   children: ReactNode;
   customServices: CustomService[];
-  selectedServiceUrl: string | null;
-  setSelectedServiceUrl: (url: string | null) => void;
 }
 
-export function ServiceProvider({ children, customServices, selectedServiceUrl, setSelectedServiceUrl }: ServiceProviderProps) {
-  const [landingPageTitle, setLandingPageTitle] = useState<string | null>(null);
-  const [activeServiceUrl, setActiveServiceUrl] = useState<string | null>(null);
-  const [conformsTo, setConformsTo] = useState<string[] | null>(null);
+export function ServiceProvider({ children, customServices }: ServiceProviderProps) {
   const [serviceDescUrl, setServiceDescUrl] = useState<string | null>(null);
   const getAuthCredentials = useMemo(() => {
     return (url: string): AuthCredentials | undefined => {
@@ -63,17 +52,9 @@ export function ServiceProvider({ children, customServices, selectedServiceUrl, 
   const value = useMemo(() => ({
     customServices,
     getAuthCredentials,
-    selectedServiceUrl,
-    setSelectedServiceUrl,
-    landingPageTitle,
-    setLandingPageTitle,
-    activeServiceUrl,
-    setActiveServiceUrl,
-    conformsTo,
-    setConformsTo,
     serviceDescUrl,
     setServiceDescUrl,
-  }), [customServices, getAuthCredentials, selectedServiceUrl, setSelectedServiceUrl, landingPageTitle, activeServiceUrl, conformsTo, serviceDescUrl]);
+  }), [customServices, getAuthCredentials, serviceDescUrl]);
 
   return (
     <ServiceContext.Provider value={value}>

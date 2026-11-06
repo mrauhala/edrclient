@@ -14,6 +14,7 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 import CommandPalette from './CommandPalette';
 import LayerManager from './LayerManager';
 import ValidationPopover from './ValidationPopover';
+import { useApi } from './contexts/ApiContext';
 import { useService } from './contexts/ServiceContext';
 import { useCollection } from './contexts/CollectionContext';
 import { usePanes } from './contexts/PanesContext';
@@ -46,7 +47,8 @@ interface TopMenuProps {
 const TopMenu: React.FC<TopMenuProps> = ({ onSettingsClick }) => {
   const theme = useTheme();
   const showBreadcrumb = useMediaQuery(theme.breakpoints.up('md'));
-  const { activeServiceUrl, customServices, landingPageTitle } = useService();
+  const { customServices } = useService();
+  const { apiUrl: activeServiceUrl, title: landingPageTitle } = useApi();
   const { selectedCollection } = useCollection();
   const { isOpen, isMobile, togglePane } = usePanes();
 

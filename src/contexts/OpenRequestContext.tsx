@@ -1,11 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { isForCollection } from '../query/parseQueryUrl';
-import { apiRootOf, collectionIdOf, isJustCollection, requestFromHash, requestRoute } from '../query/requestLink';
+import { collectionIdOf, isJustCollection, requestFromHash, requestRoute } from '../query/requestLink';
+import { useApi } from './ApiContext';
 import { useCollection } from './CollectionContext';
 import { useOpenCollection } from './OpenCollectionContext';
 import { useQueryBuilder } from './QueryBuilderContext';
 import { useRequestUrl } from './RequestUrlContext';
-import { useService } from './ServiceContext';
 
 const STILL_THERE = 'The request is still here to send.';
 const CANT_FOLLOW = `The form can't show all of this request, since the collection has no such query, instance or location. ${STILL_THERE}`;
@@ -15,8 +15,6 @@ interface OpenRequestContextValue {
   // Take the app to where a request URL points, as a browser's address bar does: the form and map,
   // and another collection if need be. Another API replaces everything in the form, so only if asked to.
   openRequest: (url: string, options: { switchApi: boolean }) => void;
-  // How loading the API went, which a request being opened waits for
-  apiLoaded: (hasCollections: boolean) => void;
   // Why the form couldn't follow, if it couldn't
   note: string | null;
   clearNote: () => void;
@@ -26,14 +24,14 @@ const OpenRequestContext = createContext<OpenRequestContextValue | null>(null);
 
 // A request on its way into the form, by the steps it needs: its API loads, its collection opens with
 // its locations, and then the form and map take on the URL. A link in the address starts at the API,
-// which ServiceSelector starts on. None of this sends anything: a link can't, since it could come from
+// which ApiProvider starts on. None of this sends anything: a link can't, since it could come from
 // anyone and requests go out with stored credentials.
-type Stage = 'api' | 'api-failed' | 'collection' | 'opening' | 'query' | 'applying';
+type Stage = 'api' | 'collection' | 'opening' | 'query' | 'applying';
 
 export function OpenRequestProvider({ children }: { children: ReactNode }) {
   const { collections, selectedCollection } = useCollection();
   const { openCollection } = useOpenCollection();
-  const { activeServiceUrl, setSelectedServiceUrl } = useService();
+  const { apiUrl, status: apiStatus, loadApiOf } = useApi();
   const { applyRequestUrl } = useQueryBuilder();
   const { pinUrl, unpinUrl, editUrl } = useRequestUrl();
   const [link] = useState(() => requestFromHash(window.location.hash));
@@ -54,8 +52,10 @@ export function OpenRequestProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!opening) return;
     const { url, stage } = opening;
-    if (stage === 'api-failed') {
-      finish(NO_API);
+    if (stage === 'api') {
+      if (apiStatus === 'loading') return;
+      if (collections.length) setOpening({ url, stage: 'collection' });
+      else finish(NO_API);
     } else if (stage === 'collection') {
       const id = collectionIdOf(url);
       if (id === null) {
@@ -82,7 +82,7 @@ export function OpenRequestProvider({ children }: { children: ReactNode }) {
         applyRequestUrl(url, followed => finish(followed ? null : CANT_FOLLOW));
       }
     }
-  }, [opening, collections, selectedCollection, openCollection, editUrl, applyRequestUrl, finish]);
+  }, [opening, apiStatus, collections, selectedCollection, openCollection, editUrl, applyRequestUrl, finish]);
 
   const openRequest = useCallback((url: string, { switchApi }: { switchApi: boolean }) => {
     if (opening?.url === url) return;
@@ -92,23 +92,17 @@ export function OpenRequestProvider({ children }: { children: ReactNode }) {
       applyRequestUrl(url, followed => setNote(followed ? null : CANT_FOLLOW));
       return;
     }
-    const route = requestRoute(url, activeServiceUrl);
+    const route = requestRoute(url, apiUrl);
     if (route === 'none' || (route === 'api' && !switchApi)) return;
     setNote(null);
     pinUrl(url);
     if (route === 'api') {
       setOpening({ url, stage: 'api' });
-      setSelectedServiceUrl(apiRootOf(url));
-      // So that the same API can be asked for again
-      setTimeout(() => setSelectedServiceUrl(null), 100);
+      loadApiOf(url);
     } else {
       setOpening({ url, stage: 'collection' });
     }
-  }, [opening, selectedCollection, activeServiceUrl, applyRequestUrl, pinUrl, unpinUrl, setSelectedServiceUrl]);
-
-  const apiLoaded = useCallback((hasCollections: boolean) => {
-    setOpening(current => (current?.stage === 'api' ? { url: current.url, stage: hasCollections ? 'collection' : 'api-failed' } : current));
-  }, []);
+  }, [opening, selectedCollection, apiUrl, loadApiOf, applyRequestUrl, pinUrl, unpinUrl]);
 
   // A link pasted into this tab only changes the fragment. The address bar's own updates don't count.
   useEffect(() => {
@@ -120,7 +114,7 @@ export function OpenRequestProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const clearNote = useCallback(() => setNote(null), []);
-  const value = useMemo(() => ({ openRequest, apiLoaded, note, clearNote }), [openRequest, apiLoaded, note, clearNote]);
+  const value = useMemo(() => ({ openRequest, note, clearNote }), [openRequest, note, clearNote]);
   return <OpenRequestContext.Provider value={value}>{children}</OpenRequestContext.Provider>;
 }
 
