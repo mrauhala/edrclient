@@ -60,7 +60,8 @@ describe('ApiResourceStrip', () => {
     expect(html).toContain('>/conformance<');
     expect(html).toContain('>/collections<');
     expect(html).toContain('>200<');
-    const flat = html.replace(/<style[^>]*>.*?<\/style>/g, '').replace(/<[^>]+>/g, '');
+    // The text between the tags, leaving out the styles that come with it
+    const flat = [...html.matchAll(/>([^<>]+)</g)].map(match => match[1]).filter(text => !text.includes('{')).join('');
     expect(flat).toContain('200 · 76 ms · 1.1 KB');
     expect(flat).toContain('200 · 76 ms · 2 classes');
     expect(flat).toContain('200 · 76 ms · 3 · 0 issues');
