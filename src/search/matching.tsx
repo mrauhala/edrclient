@@ -3,7 +3,11 @@ import Box from '@mui/material/Box';
 import type { Collection } from '../types/api';
 import type { FilterField, ItemResult, LocationResult } from './types';
 
-export function highlightMatch(text: string, query: string): ReactNode {
+// An API's own data, whatever its schema says: a collection's ID can be a number, or missing
+const lowered = (value: unknown) => (value === null || value === undefined ? '' : String(value).toLowerCase());
+
+export function highlightMatch(value: string, query: string): ReactNode {
+  const text = value === null || value === undefined ? '' : String(value);
   if (!query) return text;
   const lowerText = text.toLowerCase();
   const lowerQuery = query.toLowerCase();
@@ -24,15 +28,15 @@ export function matchCollection(c: Collection, query: string, filters: Set<Filte
   const lq = query.toLowerCase();
   const matchedKeywords: string[] = [];
 
-  if (filters.has('title') && c.title?.toLowerCase().includes(lq)) {
+  if (filters.has('title') && lowered(c.title).includes(lq)) {
     return { matches: true, matchedKeywords };
   }
-  if (filters.has('description') && c.description?.toLowerCase().includes(lq)) {
+  if (filters.has('description') && lowered(c.description).includes(lq)) {
     return { matches: true, matchedKeywords };
   }
-  if (filters.has('keywords') && c.keywords) {
+  if (filters.has('keywords') && Array.isArray(c.keywords)) {
     for (const kw of c.keywords) {
-      if (kw.toLowerCase().includes(lq)) {
+      if (lowered(kw).includes(lq)) {
         matchedKeywords.push(kw);
       }
     }
@@ -40,7 +44,7 @@ export function matchCollection(c: Collection, query: string, filters: Set<Filte
       return { matches: true, matchedKeywords };
     }
   }
-  if (filters.has('id') && c.id.toLowerCase().includes(lq)) {
+  if (filters.has('id') && lowered(c.id).includes(lq)) {
     return { matches: true, matchedKeywords };
   }
   return { matches: false, matchedKeywords: [] };

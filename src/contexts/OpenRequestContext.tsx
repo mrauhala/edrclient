@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { isForCollection } from '../query/parseQueryUrl';
 import { apiRootOf, collectionIdOf, isJustCollection, requestFromHash, requestRoute } from '../query/requestLink';
 import { useCollection } from './CollectionContext';
+import { useOpenCollection } from './OpenCollectionContext';
 import { useQueryBuilder } from './QueryBuilderContext';
 import { useRequestUrl } from './RequestUrlContext';
 import { useService } from './ServiceContext';
@@ -30,7 +31,8 @@ const OpenRequestContext = createContext<OpenRequestContextValue | null>(null);
 type Stage = 'api' | 'api-failed' | 'collection' | 'opening' | 'query' | 'applying';
 
 export function OpenRequestProvider({ children }: { children: ReactNode }) {
-  const { collections, selectedCollection, selectCollectionByIndexRef } = useCollection();
+  const { collections, selectedCollection } = useCollection();
+  const { openCollection } = useOpenCollection();
   const { activeServiceUrl, setSelectedServiceUrl } = useService();
   const { applyRequestUrl } = useQueryBuilder();
   const { pinUrl, unpinUrl, editUrl } = useRequestUrl();
@@ -61,12 +63,12 @@ export function OpenRequestProvider({ children }: { children: ReactNode }) {
       } else if (String(selectedCollection?.id) === id) {
         setOpening({ url, stage: 'query' });
       } else {
-        const index = collections.findIndex(collection => String(collection.id) === id);
-        if (index < 0) {
+        const collection = collections.find(candidate => String(candidate.id) === id);
+        if (!collection) {
           finish(`This API has no collection "${id}". ${STILL_THERE}`);
         } else {
           setOpening({ url, stage: 'opening' });
-          Promise.resolve(selectCollectionByIndexRef.current?.(index)).finally(() => {
+          openCollection(collection).finally(() => {
             setOpening(current => (current?.url === url && current.stage === 'opening' ? { url, stage: 'query' } : current));
           });
         }
@@ -80,7 +82,7 @@ export function OpenRequestProvider({ children }: { children: ReactNode }) {
         applyRequestUrl(url, followed => finish(followed ? null : CANT_FOLLOW));
       }
     }
-  }, [opening, collections, selectedCollection, selectCollectionByIndexRef, editUrl, applyRequestUrl, finish]);
+  }, [opening, collections, selectedCollection, openCollection, editUrl, applyRequestUrl, finish]);
 
   const openRequest = useCallback((url: string, { switchApi }: { switchApi: boolean }) => {
     if (opening?.url === url) return;

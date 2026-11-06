@@ -32,6 +32,7 @@ import SendButton from './SendButton';
 import RequestUrlField from './RequestUrlField';
 import { RequestUrlProvider, useRequestUrl } from './contexts/RequestUrlContext';
 import { QueryBuilderProvider } from './contexts/QueryBuilderContext';
+import { OpenCollectionProvider } from './contexts/OpenCollectionContext';
 import { OpenRequestProvider, useOpenRequest } from './contexts/OpenRequestContext';
 import RequestNotice from './RequestNotice';
 import { useRequestIssues } from './hooks/useRequestIssues';
@@ -72,12 +73,14 @@ function App() {
                   <ValidationProvider>
                     <OpenApiProvider>
                       <QueryBuilderProvider>
-                        <OpenRequestProvider>
-                          <AppContent
-                            customServices={customServices}
-                            setCustomServices={setCustomServices}
-                          />
-                        </OpenRequestProvider>
+                        <OpenCollectionProvider>
+                          <OpenRequestProvider>
+                            <AppContent
+                              customServices={customServices}
+                              setCustomServices={setCustomServices}
+                            />
+                          </OpenRequestProvider>
+                        </OpenCollectionProvider>
                       </QueryBuilderProvider>
                     </OpenApiProvider>
                   </ValidationProvider>
