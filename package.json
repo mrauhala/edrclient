@@ -71,7 +71,13 @@
     "schemas": "node scripts/download-schemas.js"
   },
   "overrides": {
-    "dompurify": "^3.3.3"
+    "dompurify": "^3.3.3",
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "^11.0.1"
+    },
+    "@swagger-api/apidom-reference": {
+      "minimatch": "^11.0.1"
+    }
   },
   "engines": {
     "node": ">=24.0.0"
