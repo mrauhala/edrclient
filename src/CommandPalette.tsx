@@ -15,6 +15,7 @@ import FilterListIcon from '@mui/icons-material/FilterList';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useCollection } from './contexts/CollectionContext';
+import { useOpenCollection } from './contexts/OpenCollectionContext';
 import { useService } from './contexts/ServiceContext';
 import { useGeoJsonLayers } from './contexts/GeoJsonLayerContext';
 import { usePanes } from './contexts/PanesContext';
@@ -34,7 +35,7 @@ const typedSystemServices: ServiceDefinition[] = systemServices as ServiceDefini
 const CommandPalette: React.FC = () => {
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
-  const { collections, selectedCollection, selectCollectionByIndexRef, locationFeatures, setSelectedFeature } = useCollection();
+  const { collections, selectedCollection, locationFeatures, setSelectedFeature } = useCollection();
   const { activeServiceUrl, customServices, setSelectedServiceUrl } = useService();
   const { geoJsonLayers, setGeoJsonLayers } = useGeoJsonLayers();
   const { showMap } = usePanes();
@@ -46,6 +47,7 @@ const CommandPalette: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false);
 
   const [anchorEl, setAnchorEl] = useState<HTMLDivElement | null>(null);
+  const { openCollection } = useOpenCollection();
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const virtualListRef = useRef<ListImperativeAPI>(null);
@@ -204,10 +206,7 @@ const CommandPalette: React.FC = () => {
     } else if (activeTab === 'collections') {
       const result = filteredCollections[index];
       if (!result) return;
-      // Skip if already the active collection (would toggle it off)
-      if (result.collection.id !== selectedCollection?.id) {
-        selectCollectionByIndexRef.current?.(result.originalIndex);
-      }
+      openCollection(result.collection);
       // Don't close — auto-switch to best available tab
       const col = result.collection;
       if (hasLocationQuery(col)) {
@@ -246,7 +245,7 @@ const CommandPalette: React.FC = () => {
       showMap();
     }
     handleClose();
-  }, [activeTab, filteredServices, filteredCollections, filteredItems, filteredLocations, selectedCollection?.id, setSelectedServiceUrl, selectCollectionByIndexRef, geoJsonLayers, setGeoJsonLayers, setSelectedFeature, handleClose, showMap]);
+  }, [activeTab, filteredServices, filteredCollections, filteredItems, filteredLocations, selectedCollection?.id, setSelectedServiceUrl, openCollection, geoJsonLayers, setGeoJsonLayers, setSelectedFeature, handleClose, showMap]);
 
   // Keyboard navigation
   const {

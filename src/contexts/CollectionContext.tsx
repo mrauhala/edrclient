@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useRef, useMemo, type ReactNode } from 'react';
+import React, { createContext, useContext, useState, useMemo, type ReactNode } from 'react';
 import { Collection } from '../DataRetrievalAPI';
 import { LicenseInfo } from '../CollectionInfo';
 
@@ -17,8 +17,6 @@ interface CollectionContextValue {
   setLandingPageLicense: (license: LicenseInfo | null) => void;
   collectionUrl: string;
   setCollectionUrl: (url: string) => void;
-  // Opens or closes a collection; resolves once its locations are in
-  selectCollectionByIndexRef: React.MutableRefObject<((index: number) => Promise<void>) | null>;
 }
 
 const CollectionContext = createContext<CollectionContextValue | null>(null);
@@ -31,7 +29,6 @@ export function CollectionProvider({ children }: { children: ReactNode }) {
   const [selectedFeature, setSelectedFeature] = useState<any | null>(null);
   const [landingPageLicense, setLandingPageLicense] = useState<LicenseInfo | null>(null);
   const [collectionUrl, setCollectionUrl] = useState<string>('');
-  const selectCollectionByIndexRef = useRef<((index: number) => Promise<void>) | null>(null);
 
   const value = useMemo(() => ({
     collections,
@@ -48,7 +45,6 @@ export function CollectionProvider({ children }: { children: ReactNode }) {
     setLandingPageLicense,
     collectionUrl,
     setCollectionUrl,
-    selectCollectionByIndexRef,
   }), [collections, selectedCollection, selectedCollectionExtents, locationFeatures, selectedFeature, landingPageLicense, collectionUrl]);
 
   return (

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef, memo } from 'react';
+import { useEffect, useState, useCallback, memo } from 'react';
 import List from '@mui/material/List';
 import ListItemText from '@mui/material/ListItemText';
 import ListItemButton from '@mui/material/ListItemButton';
@@ -10,7 +10,7 @@ import Link from '@mui/material/Link';
 import Alert from '@mui/material/Alert';
 import AlertTitle from '@mui/material/AlertTitle';
 import Button from '@mui/material/Button';
-import { Collection, ValidationResult, normalizeBbox, hasLocationQuery, getLocationQueryUrl, executeLocationQuery, normalizeHref } from './DataRetrievalAPI';
+import { Collection, ValidationResult, hasLocationQuery, normalizeHref } from './DataRetrievalAPI';
 import CollectionInfo, { LicenseInfo } from './CollectionInfo';
 import LocationFeatureList from './LocationFeatureList';
 import TemporalExtent from './TemporalExtent';
@@ -21,21 +21,15 @@ import CollectionQueryBuilder from './CollectionQueryBuilder';
 import MapsPanel from './MapsPanel';
 import { hasMapsSupport } from './api/maps';
 import { useGeoJsonLayers } from './contexts/GeoJsonLayerContext';
-import { useMapInteraction } from './contexts/MapInteractionContext';
 import { useCollection } from './contexts/CollectionContext';
-import { useService } from './contexts/ServiceContext';
-import { useValidation } from './contexts/ValidationContext';
+import { useOpenCollection } from './contexts/OpenCollectionContext';
 import { usePanes } from './contexts/PanesContext';
-import { detectEdrVersion, validateLocationsResponse } from './validation/locationsValidator';
-import { allSectionsValid, isProblem } from './validation/severity';
 import { UseQueryUrlReturn } from './hooks/useQueryUrl';
-import { collectionBaseUrl } from './query/buildQueryUrl';
 
 interface CollectionListItemHeaderProps {
   collection: Collection;
-  index: number;
   isOpen: boolean;
-  onToggle: (index: number, id: string) => void;
+  onToggle: (collection: Collection) => void;
   validationErrors?: import('./DataRetrievalAPI').ValidationError[];
   hasErrors: boolean;
   fallbackLicense: LicenseInfo | null;
@@ -43,7 +37,6 @@ interface CollectionListItemHeaderProps {
 
 const CollectionListItemHeader = memo(function CollectionListItemHeader({
   collection,
-  index,
   isOpen,
   onToggle,
   validationErrors,
@@ -52,7 +45,7 @@ const CollectionListItemHeader = memo(function CollectionListItemHeader({
 }: CollectionListItemHeaderProps) {
   return (
     <ListItemButton
-      onClick={() => onToggle(index, collection.id)}
+      onClick={() => onToggle(collection)}
       sx={{
         borderLeft: '3px solid',
         borderColor: validationErrors === undefined
@@ -91,56 +84,6 @@ interface CollectionsListProps {
   queryState: UseQueryUrlReturn;
 }
 
-// Helper function to extract GeoJSON links from a collection
-const getGeoJsonLinks = (
-  collection: Collection,
-  datetime?: string,
-  mode?: 'individual' | 'range',
-  startDt?: string,
-  endDt?: string
-): {url: string, title: string}[] => {
-  if (!collection || !collection.links || !Array.isArray(collection.links)) {
-    return [];
-  }
-
-  // Check if collection has temporal extent
-  const hasTemporal = collection.extent?.temporal &&
-                      (collection.extent.temporal.interval || collection.extent.temporal.values);
-
-  return collection.links
-    .filter(link => link.type === 'application/geo+json')
-    .map(link => {
-      const normalizedHref = normalizeHref(link.href);
-      if (!normalizedHref) return null;
-
-      let url = normalizedHref;
-
-      // NOTE: Do NOT add bbox here - OpenLayers will handle it dynamically with bboxStrategy
-
-      // Add datetime parameter if collection has temporal extent AND user has selected a datetime
-      if (hasTemporal) {
-        let datetimeParam = '';
-
-        if (mode === 'range' && startDt && endDt) {
-          datetimeParam = `${startDt}/${endDt}`;
-        } else if (datetime) {
-          datetimeParam = datetime;
-        }
-
-        if (datetimeParam) {
-          const separator = url.includes('?') ? '&' : '?';
-          url = `${url}${separator}datetime=${datetimeParam}`;
-        }
-      }
-
-      return {
-        url: url,
-        title: link.title || link.rel || 'GeoJSON Layer'
-      };
-    })
-    .filter(item => item !== null) as {url: string, title: string}[];
-};
-
 const CollectionsList = ({
   collections,
   validationResult,
@@ -150,221 +93,27 @@ const CollectionsList = ({
   queryState,
 }: CollectionsListProps) => {
   const { geoJsonLayers, setGeoJsonLayers } = useGeoJsonLayers();
-  const { setClickedCoords, setDataQuery } = useMapInteraction();
   const { showMap } = usePanes();
-  const { selectedCollection, setSelectedCollection, setSelectedCollectionExtents, locationFeatures, setLocationFeatures, setSelectedFeature, setCollectionUrl, selectCollectionByIndexRef } = useCollection();
-  const { getAuthCredentials, conformsTo } = useService();
-  const { setValidationResult, setEndpointUrls, setRawResponses } = useValidation();
-  const {
-    selectedDatetime,
-    datetimeMode,
-    startDatetime,
-    endDatetime,
-    resetQueryState,
-  } = queryState;
-
-  const [openCollectionIndex, setOpenCollectionIndex] = useState<number | null>(null);
-  const openCollectionIndexRef = useRef(openCollectionIndex);
-  openCollectionIndexRef.current = openCollectionIndex;
-
-  // A new list, from another API or the same one again, has nothing open in it. Otherwise the position
-  // stays, and asking for the collection now there would close it instead of opening it.
-  useEffect(() => {
-    openCollectionIndexRef.current = null;
-    setOpenCollectionIndex(null);
-  }, [collections]);
-  const [currentLocationCollection, setCurrentLocationCollection] = useState<string | null>(null);
+  const { selectedCollection, locationFeatures, setSelectedFeature } = useCollection();
+  const { openCollection, closeCollection } = useOpenCollection();
   const [showCollectionValidation, setShowCollectionValidation] = useState<{[key: string]: boolean}>({});
+
+  const openIndex = selectedCollection ? collections.indexOf(selectedCollection) : -1;
 
   // Scroll selected collection into view after collapse/expand animations settle
   useEffect(() => {
-    if (openCollectionIndex !== null) {
-      const timer = setTimeout(() => {
-        const el = document.querySelector(`[data-collection-index="${openCollectionIndex}"]`);
-        el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [openCollectionIndex]);
+    if (openIndex < 0) return;
+    const timer = setTimeout(() => {
+      const el = document.querySelector(`[data-collection-index="${openIndex}"]`);
+      el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [openIndex]);
 
-  // Effect to update GeoJSON layers when datetime values change
-  useEffect(() => {
-    if (selectedCollection && geoJsonLayers.length > 0) {
-      const geoJsonLinks = getGeoJsonLinks(selectedCollection, selectedDatetime, datetimeMode, startDatetime, endDatetime);
-      const auth = getAuthCredentials(currentApiUrl);
-      const updatedLayers = geoJsonLinks.map((link, index) => {
-        const existingLayer = geoJsonLayers[index];
-        return {
-          url: link.url,
-          title: link.title,
-          visible: existingLayer?.visible ?? false,
-          labelProperty: existingLayer?.labelProperty,
-          data: existingLayer?.data,
-          apiKey: auth?.apiKey,
-          apiKeyParam: auth?.apiKeyParam
-        };
-      });
-      setGeoJsonLayers(updatedLayers);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDatetime, datetimeMode, startDatetime, endDatetime]);
-
-  const handleItemClick = useCallback(async (index: number, key: string) => {
-    const newIndex = openCollectionIndexRef.current === index ? null : index;
-    setOpenCollectionIndex(newIndex);
-
-    const collection = collections[index];
-    const selectedColl = newIndex !== null ? collection : null;
-    setSelectedCollection(selectedColl);
-    // Its locations belong to the collection that's closing
-    setSelectedFeature(null);
-
-    // Initialize GeoJSON layers for the selected collection
-    if (selectedColl) {
-      const geoJsonLinks = getGeoJsonLinks(selectedColl, selectedDatetime, datetimeMode, startDatetime, endDatetime);
-      const auth = getAuthCredentials(currentApiUrl);
-      const initialLayers = geoJsonLinks.map(link => ({
-        url: link.url,
-        title: link.title,
-        visible: false,
-        apiKey: auth?.apiKey,
-        apiKeyParam: auth?.apiKeyParam
-      }));
-      setGeoJsonLayers(initialLayers);
-    } else {
-      setGeoJsonLayers([]);
-    }
-
-    // Find the "data" link from collection links
-    if (selectedColl) {
-      const dataLink = selectedColl.links.find(link => link.rel === 'data');
-      let baseUrl = '';
-      if (dataLink?.href) {
-        const normalizedHref = normalizeHref(dataLink.href);
-        if (normalizedHref) {
-          baseUrl = normalizedHref;
-        }
-      }
-
-      if (!baseUrl) {
-        baseUrl = currentApiUrl + "/collections/" + key;
-      }
-      setCollectionUrl(collectionBaseUrl(baseUrl));
-      resetQueryState();
-      setClickedCoords([]);
-      setDataQuery('');
-    } else {
-      setCollectionUrl('');
-      resetQueryState();
-      setClickedCoords([]);
-    }
-
-    setSelectedCollection(selectedColl);
-
-    if (newIndex !== null) {
-      // Collection is being opened - show extent and location data
-      if (collection &&
-          collection.extent &&
-          typeof collection.extent === 'object' &&
-          collection.extent.spatial &&
-          typeof collection.extent.spatial === 'object' &&
-          collection.extent.spatial.bbox &&
-          Array.isArray(collection.extent.spatial.bbox) &&
-          collection.extent.spatial.bbox.length > 0) {
-
-        try {
-          const normalizedBboxes = normalizeBbox(collection.extent.spatial.bbox);
-          if (normalizedBboxes) {
-            setSelectedCollectionExtents(normalizedBboxes);
-          } else {
-            setSelectedCollectionExtents(null);
-          }
-        } catch (error) {
-          console.warn('Error normalizing bbox:', error);
-          setSelectedCollectionExtents(null);
-        }
-      } else {
-        setSelectedCollectionExtents(null);
-      }
-
-      // Check for location query support and execute if available
-      if (collection && hasLocationQuery(collection)) {
-        const locationQueryUrl = getLocationQueryUrl(collection);
-
-        if (locationQueryUrl) {
-          try {
-            const locationResult = await executeLocationQuery(locationQueryUrl, getAuthCredentials(currentApiUrl));
-            if (locationResult && locationResult.features) {
-              setLocationFeatures(locationResult.features);
-              setCurrentLocationCollection(collection.id);
-
-              // Validate locations response against EDR schema (non-blocking)
-              const edrVersion = detectEdrVersion(conformsTo);
-              if (edrVersion) {
-                validateLocationsResponse(locationResult, edrVersion).then(locValidation => {
-                  setValidationResult(prev => {
-                    const mergedErrors = [
-                      ...(prev.errors || []).filter(e => e.section !== 'Locations'),
-                      ...locValidation.errors,
-                    ];
-                    return {
-                      ...prev,
-                      locationsValidation: {
-                        isValid: locValidation.isValid,
-                        errors: locValidation.errors.length > 0 ? locValidation.errors : null,
-                        schemaResults: [{ schema: `EDR ${edrVersion} Locations`, isValid: locValidation.isValid }],
-                      },
-                      errors: mergedErrors.length > 0 ? mergedErrors : null,
-                      isValid: prev.isValid && locValidation.isValid,
-                    };
-                  });
-                  setEndpointUrls(prev => ({ ...prev, locations: locationQueryUrl }));
-                  setRawResponses(prev => ({ ...prev, locations: locationResult }));
-                });
-              }
-            } else {
-              setLocationFeatures(null);
-              setCurrentLocationCollection(null);
-            }
-          } catch (error) {
-            console.error('Error executing location query:', error);
-            setLocationFeatures(null);
-            setCurrentLocationCollection(null);
-          }
-        }
-      } else {
-        setLocationFeatures(null);
-        setCurrentLocationCollection(null);
-      }
-    } else {
-      // Collection is being closed - clear all map data
-      console.log('Collection being closed, clearing map data');
-      setSelectedCollectionExtents(null);
-      setLocationFeatures(null);
-      setCurrentLocationCollection(null);
-      setGeoJsonLayers([]);
-      // Clear locations validation
-      setValidationResult(prev => {
-        const filteredErrors = (prev.errors || []).filter(e => e.section !== 'Locations');
-        const { locationsValidation: _, ...rest } = prev;
-        return {
-          ...rest,
-          errors: filteredErrors.length > 0 ? filteredErrors : null,
-          // Notes, such as the API definition's, don't make the service invalid
-          isValid: allSectionsValid(rest) && !filteredErrors.some(isProblem),
-        };
-      });
-      setEndpointUrls(prev => ({ ...prev, locations: undefined }));
-      setRawResponses(prev => ({ ...prev, locations: undefined }));
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [collections, currentApiUrl, selectedDatetime, datetimeMode, startDatetime, endDatetime]);
-
-  // Register selection callback for keyboard navigation
-  useEffect(() => {
-    selectCollectionByIndexRef.current = (index: number) => handleItemClick(index, collections[index].id);
-    return () => { selectCollectionByIndexRef.current = null; };
-  });
+  const handleToggle = useCallback((collection: Collection) => {
+    if (collection === selectedCollection) closeCollection();
+    else openCollection(collection);
+  }, [selectedCollection, openCollection, closeCollection]);
 
   return (
     <List component="nav">
@@ -422,7 +171,7 @@ const CollectionsList = ({
       }
       {collections.map((collection, index) => (
         <Box
-          key={collection.id || index}
+          key={index}
           data-collection-index={index}
           sx={{
             border: '1px solid',
@@ -434,9 +183,8 @@ const CollectionsList = ({
         >
           <CollectionListItemHeader
             collection={collection}
-            index={index}
-            isOpen={openCollectionIndex === index}
-            onToggle={handleItemClick}
+            isOpen={openIndex === index}
+            onToggle={handleToggle}
             validationErrors={
               validationResult.collectionErrors
                 ? (validationResult.collectionErrors[collection.id] ?? [])
@@ -446,7 +194,7 @@ const CollectionsList = ({
             fallbackLicense={topLevelLicense}
           />
 
-          <Collapse in={openCollectionIndex === index} timeout="auto" unmountOnExit>
+          <Collapse in={openIndex === index} timeout="auto" unmountOnExit>
             {/* Dropdowns Section - Always Visible */}
             <Box sx={{ p: 2 }}>
               <CollectionQueryBuilder collection={collection} queryState={queryState} />
@@ -499,7 +247,7 @@ const CollectionsList = ({
               {/* Location Query Info */}
               {hasLocationQuery(collection) && (
                 <>
-                  {currentLocationCollection === collection.id && locationFeatures && (
+                  {openIndex === index && locationFeatures && (
                     <Box sx={{ mt: 1 }}>
                       <LocationFeatureList
                         features={locationFeatures}

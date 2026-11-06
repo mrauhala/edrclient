@@ -1,8 +1,10 @@
 import { useEffect } from 'react';
 import { useCollection } from '../contexts/CollectionContext';
+import { useOpenCollection } from '../contexts/OpenCollectionContext';
 
 export function useCollectionKeyboardNav() {
-  const { collections, selectedCollection, selectCollectionByIndexRef } = useCollection();
+  const { collections, selectedCollection } = useCollection();
+  const { openCollection } = useOpenCollection();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -14,9 +16,8 @@ export function useCollectionKeyboardNav() {
 
       if (collections.length === 0) return;
 
-      const currentIndex = selectedCollection
-        ? collections.findIndex(c => c.id === selectedCollection.id)
-        : -1;
+      // By the collection itself, since two can share an ID
+      const currentIndex = selectedCollection ? collections.indexOf(selectedCollection) : -1;
 
       let newIndex: number;
       if (e.key === 'PageDown') {
@@ -29,10 +30,10 @@ export function useCollectionKeyboardNav() {
       }
 
       e.preventDefault();
-      selectCollectionByIndexRef.current?.(newIndex);
+      openCollection(collections[newIndex]);
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [collections, selectedCollection, selectCollectionByIndexRef]);
+  }, [collections, selectedCollection, openCollection]);
 }
