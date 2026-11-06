@@ -15,7 +15,7 @@
     "geospatial",
     "meteorology"
   ],
-  "homepage": "https://ogcbrowser.rauhala.app",
+  "homepage": "https://ogcapi-browser.meteo.fi",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mrauhala/ogcapi-browser.git"
