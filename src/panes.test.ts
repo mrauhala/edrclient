@@ -1,12 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import {
   ALL_PANES_WIDTH,
-  DEFAULT_RESPONSE_WIDTH,
+  DEFAULT_REQUEST_WIDTH,
+  DIVIDER_WIDTH,
   INITIAL_PANES,
+  MIN_MAP_WIDTH,
+  MIN_REQUEST_WIDTH,
   MIN_RESPONSE_WIDTH,
-  clampResponseWidth,
+  clampPaneWidth,
+  minBesideLeftPane,
   leftPaneOpen,
-  parseResponseWidth,
+  parsePaneWidth,
+  widthStep,
   phonePaneFollowingCollection,
   phonePaneToggled,
   withCollectionFollowed,
@@ -195,34 +200,89 @@ describe('phonePaneToggled', () => {
   });
 });
 
-describe('clampResponseWidth', () => {
-  const available = 1000;
-
-  it('keeps a width that fits', () => {
-    expect(clampResponseWidth(520, available)).toBe(520);
-  });
-
-  it('leaves the map its minimum', () => {
-    expect(clampResponseWidth(900, available)).toBe(634);
-  });
-
-  it('never goes below the minimum', () => {
-    expect(clampResponseWidth(100, available)).toBe(MIN_RESPONSE_WIDTH);
-    expect(clampResponseWidth(500, 500)).toBe(MIN_RESPONSE_WIDTH);
+describe('the left pane', () => {
+  it('would like 480 px, and can go down to 320', () => {
+    expect(DEFAULT_REQUEST_WIDTH).toBe(480);
+    expect(MIN_REQUEST_WIDTH).toBe(320);
   });
 });
 
-describe('parseResponseWidth', () => {
-  it('uses a saved width', () => {
-    expect(parseResponseWidth('700')).toBe(700);
+describe('clampPaneWidth', () => {
+  const available = 1000;
+  const clamp = (width: number, room = available) => clampPaneWidth(width, room, MIN_RESPONSE_WIDTH, MIN_MAP_WIDTH);
+
+  it('keeps a width that fits', () => {
+    expect(clamp(520)).toBe(520);
   });
 
-  it.each([[null], [''], ['abc'], ['100'], ['Infinity']])('falls back to the default for %s', saved => {
-    expect(parseResponseWidth(saved)).toBe(DEFAULT_RESPONSE_WIDTH);
+  it('leaves what is beside it its minimum, past the divider', () => {
+    expect(clamp(900)).toBe(1000 - DIVIDER_WIDTH - MIN_MAP_WIDTH);
+    expect(clamp(1000 - DIVIDER_WIDTH - MIN_MAP_WIDTH)).toBe(634);
+  });
+
+  it('never goes below its own minimum, even with no room', () => {
+    expect(clamp(100)).toBe(MIN_RESPONSE_WIDTH);
+    expect(clamp(500, 500)).toBe(MIN_RESPONSE_WIDTH);
+  });
+
+  it('uses the minimums it is given', () => {
+    expect(clampPaneWidth(10, 1000, 200, 100)).toBe(200);
+    expect(clampPaneWidth(5000, 1000, 200, 100)).toBe(894);
+  });
+});
+
+describe('minBesideLeftPane', () => {
+  const panes = (map: boolean, response: boolean) => ({ api: false, request: true, map, response });
+
+  it('leaves the map its minimum', () => {
+    expect(minBesideLeftPane(panes(true, false))).toBe(MIN_MAP_WIDTH);
+  });
+
+  it('leaves the response its minimum, with the map closed', () => {
+    expect(minBesideLeftPane(panes(false, true))).toBe(MIN_RESPONSE_WIDTH);
+  });
+
+  it('leaves both their minimums and the divider between them', () => {
+    expect(minBesideLeftPane(panes(true, true))).toBe(MIN_MAP_WIDTH + DIVIDER_WIDTH + MIN_RESPONSE_WIDTH);
+  });
+});
+
+describe('widthStep', () => {
+  it('moves the divider the way of the arrow, for a pane on its left', () => {
+    expect(widthStep('left', 'ArrowRight', 20)).toBe(20);
+    expect(widthStep('left', 'ArrowLeft', 20)).toBe(-20);
+  });
+
+  it('moves the divider the way of the arrow, for a pane on its right', () => {
+    expect(widthStep('right', 'ArrowLeft', 20)).toBe(20);
+    expect(widthStep('right', 'ArrowRight', 20)).toBe(-20);
+  });
+
+  it('ignores other keys', () => {
+    for (const key of ['ArrowUp', 'ArrowDown', 'Enter', 'a']) {
+      expect(widthStep('left', key, 20)).toBe(0);
+      expect(widthStep('right', key, 20)).toBe(0);
+    }
+  });
+});
+
+describe('parsePaneWidth', () => {
+  it('uses a saved width', () => {
+    expect(parsePaneWidth('700', 320, 520)).toBe(700);
+    expect(parsePaneWidth('320', 320, 520)).toBe(320);
+  });
+
+  it.each([[null], [''], ['abc'], ['100'], ['-5'], ['Infinity']])('falls back to the default for %s', saved => {
+    expect(parsePaneWidth(saved, 320, 520)).toBe(520);
   });
 });
 
 describe('ALL_PANES_WIDTH', () => {
+  it('is what their minimums and the two dividers need, since only those decide what fits', () => {
+    expect(ALL_PANES_WIDTH).toBe(MIN_REQUEST_WIDTH + MIN_MAP_WIDTH + MIN_RESPONSE_WIDTH + 2 * DIVIDER_WIDTH);
+    expect(ALL_PANES_WIDTH).toBe(1012);
+  });
+
   it('is above the md breakpoint, so two panes always fit beside each other there', () => {
     expect(ALL_PANES_WIDTH).toBeGreaterThan(900);
   });

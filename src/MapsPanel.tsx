@@ -355,8 +355,9 @@ export default function MapsPanel({ collection, apiUrl, queryState }: MapsPanelP
     <Box sx={{ mb: 2 }}>
       <Typography variant="subtitle2" sx={{ mb: 1 }}>Map layers</Typography>
 
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mb: 1 }}>
-        <FormControl fullWidth size="small">
+      {/* In a narrow pane Add layer goes on a line of its own, leaving the choices wide enough to read */}
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} useFlexGap sx={{ mb: 1, flexWrap: 'wrap' }}>
+        <FormControl fullWidth size="small" sx={{ flex: { sm: '1 1 110px' } }}>
           <InputLabel id={`maps-style-label-${collection.id}`}>Style</InputLabel>
           <Select
             labelId={`maps-style-label-${collection.id}`}
@@ -376,7 +377,7 @@ export default function MapsPanel({ collection, apiUrl, queryState }: MapsPanelP
           </Select>
         </FormControl>
 
-        <FormControl fullWidth size="small">
+        <FormControl fullWidth size="small" sx={{ flex: { sm: '1 1 110px' } }}>
           <InputLabel id={`maps-format-label-${collection.id}`}>Format</InputLabel>
           <Select
             labelId={`maps-format-label-${collection.id}`}

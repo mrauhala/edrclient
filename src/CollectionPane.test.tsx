@@ -110,6 +110,13 @@ describe('CollectionPane', () => {
       expect(html.indexOf('PgUp')).toBeLessThan(html.indexOf('PgDn'));
     });
 
+    it('hides the keys when the pane itself is too narrow for them', () => {
+      state.collections = [before, edr, after];
+      const html = render(edr);
+      expect(html).toContain('container-type:inline-size');
+      expect(html).toMatch(/@container \(max-width: ?319px\)\s*\{[^}]*display:none/);
+    });
+
     it('leaves the keys out on a phone, with a target big enough for a finger', () => {
       state.collections = [before, edr, after];
       expect(render(edr)).not.toContain('min-width:44px');

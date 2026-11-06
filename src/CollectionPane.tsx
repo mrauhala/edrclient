@@ -54,6 +54,8 @@ function StepButton({ label, keyName, hint, Icon, target }: {
             <Box
               component="kbd"
               sx={{
+                // The row has room for them unless the pane is at its narrowest. The tooltip still names the key
+                '@container (max-width: 319px)': { display: 'none' },
                 px: 0.5,
                 borderRadius: 0.5,
                 border: 1,
@@ -90,6 +92,7 @@ function CollectionNav({ collection }: { collection: Collection }) {
         px: 2,
         py: 0.5,
         mb: 1.5,
+        containerType: 'inline-size',
         // In reach on a long form, which goes under it, with the pane's own surface, which in dark mode has an overlay
         // as well as a colour
         position: 'sticky',
