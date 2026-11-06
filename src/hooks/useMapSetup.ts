@@ -6,12 +6,14 @@ import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
 import XYZ from 'ol/source/XYZ';
 import Overlay from 'ol/Overlay';
+import type { Pixel } from 'ol/pixel';
 import { Style, Stroke, Fill, Circle } from 'ol/style';
 import { defaults as defaultControls } from 'ol/control';
 import { defaults as defaultInteractions } from 'ol/interaction';
 import { useGeoJsonLayers } from '../contexts/GeoJsonLayerContext';
 import { useCollection } from '../contexts/CollectionContext';
 import { useMapInteraction } from '../contexts/MapInteractionContext';
+import { locationHitTolerance, locationStyle } from '../locationStyle';
 import { zoomToPoint } from '../mapView';
 import { takesMapGeometry } from '../query/queryTypes';
 
@@ -105,7 +107,6 @@ export function useMapSetup(zoomLevel: number): UseMapSetupReturn {
         const geometry = feature.getGeometry();
         if (!geometry) return new Style();
 
-        const geometryType = geometry.getType();
         const originalFeature = feature.get('originalFeature');
         const featureId = feature.get('featureId');
 
@@ -116,48 +117,7 @@ export function useMapSetup(zoomLevel: number): UseMapSetupReturn {
           (featureId && currentSelectedFeature.id === featureId)
         );
 
-        if (geometryType === 'Point') {
-          return new Style({
-            image: new Circle({
-              radius: isSelected ? 12 : 8,
-              fill: new Fill({
-                color: isSelected ? '#FF9800' : '#2196F3',
-              }),
-              stroke: new Stroke({
-                color: isSelected ? '#F57C00' : '#ffffff',
-                width: isSelected ? 4 : 3,
-              }),
-            }),
-          });
-        } else if (geometryType === 'LineString' || geometryType === 'MultiLineString') {
-          return new Style({
-            stroke: new Stroke({
-              color: isSelected ? '#FF9800' : '#2196F3',
-              width: isSelected ? 6 : 4,
-            }),
-          });
-        } else if (geometryType === 'Polygon' || geometryType === 'MultiPolygon') {
-          return new Style({
-            stroke: new Stroke({
-              color: isSelected ? '#FF9800' : '#2196F3',
-              width: isSelected ? 4 : 3,
-            }),
-            fill: new Fill({
-              color: isSelected ? 'rgba(255, 152, 0, 0.4)' : 'rgba(33, 150, 243, 0.3)',
-            }),
-          });
-        }
-
-        // Default style
-        return new Style({
-          stroke: new Stroke({
-            color: isSelected ? '#FF9800' : '#2196F3',
-            width: isSelected ? 3 : 2,
-          }),
-          fill: new Fill({
-            color: isSelected ? 'rgba(255, 152, 0, 0.3)' : 'rgba(33, 150, 243, 0.2)',
-          }),
-        });
+        return locationStyle(geometry.getType(), !!isSelected);
       },
     });
 
@@ -210,6 +170,7 @@ export function useMapSetup(zoomLevel: number): UseMapSetupReturn {
       }),
     });
 
+    const coarsePointer = window.matchMedia('(pointer: coarse)').matches;
     const openLayersMap = new Map({
       target: 'map',
       controls: defaultControls({
@@ -225,7 +186,7 @@ export function useMapSetup(zoomLevel: number): UseMapSetupReturn {
       }),
       // A finger moves a few pixels during a tap, and past the default 1 px OpenLayers takes it for a
       // drag: on a phone most taps added no point
-      moveTolerance: window.matchMedia('(pointer: coarse)').matches ? 10 : 1,
+      moveTolerance: coarsePointer ? 10 : 1,
       layers: [
         ...basemapLayers(),
         newVectorLayer,
@@ -267,39 +228,28 @@ export function useMapSetup(zoomLevel: number): UseMapSetupReturn {
     openLayersMap.on('moveend', publishView);
     openLayersMap.once('postrender', publishView);
 
+    // A marker is small, so near one counts as on it, and the nearest wins
+    const locationAt = (pixel: Pixel) => openLayersMap.getFeaturesAtPixel(pixel, {
+      layerFilter: layer => layer === newLocationLayer,
+      hitTolerance: locationHitTolerance(coarsePointer),
+    })[0];
+
     // Add click interaction for location features and GeoJSON features
     openLayersMap.on('click', (event) => {
-      const features = openLayersMap.getFeaturesAtPixel(event.pixel);
-      if (features && features.length > 0) {
-        // First, check for GeoJSON layer features
-        const geoJsonFeature = features.find(feature => {
-          const layer = feature.get('layer');
-          return layer === 'geojson';
-        });
+      const geoJsonFeature = openLayersMap.getFeaturesAtPixel(event.pixel).find(feature => feature.get('layer') === 'geojson');
+      if (geoJsonFeature) {
+        setSelectedGeoJsonFeature(geoJsonFeature);
+        return;
+      }
 
-        if (geoJsonFeature) {
-          setSelectedGeoJsonFeature(geoJsonFeature);
-          return;
-        }
-
-        // Look for location features. A query that takes its geometry from the map gets the tap like
-        // any other: selecting a location would switch it to `locations` and drop what it has
-        const locationFeature = !takesMapGeometry(dataQueryRef.current) && features.find(feature => {
-          const layer = feature.get('layer');
-          return layer === 'location' || feature.get('featureIndex') !== undefined;
-        });
-
-        if (locationFeature) {
-          const featureIndex = locationFeature.get('featureIndex');
-          const originalFeature = locationFeaturesRef.current?.[featureIndex];
-
-          if (originalFeature) {
-            pickedOnMapRef.current = originalFeature;
-            onFeatureSelectRef.current?.(originalFeature);
-          }
-        } else {
-          onFeatureSelectRef.current?.(null);
-          setSelectedGeoJsonFeature(null);
+      // A query that takes its geometry from the map gets the tap like any other: selecting a location
+      // would switch it to `locations` and drop what it has
+      const locationFeature = !takesMapGeometry(dataQueryRef.current) && locationAt(event.pixel);
+      if (locationFeature) {
+        const originalFeature = locationFeaturesRef.current?.[locationFeature.get('featureIndex')];
+        if (originalFeature) {
+          pickedOnMapRef.current = originalFeature;
+          onFeatureSelectRef.current?.(originalFeature);
         }
       } else {
         onFeatureSelectRef.current?.(null);
@@ -332,10 +282,7 @@ export function useMapSetup(zoomLevel: number): UseMapSetupReturn {
       }
 
       // Check for location features
-      const locationFeature = features && features.find(feature => {
-        const layer = feature.get('layer');
-        return layer === 'location' || feature.get('featureIndex') !== undefined;
-      });
+      const locationFeature = locationAt(event.pixel);
 
       if (locationFeature && tooltip) {
         const featureIndex = locationFeature.get('featureIndex');
