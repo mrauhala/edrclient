@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
 import CollectionPane from './CollectionPane';
+import ApiResourceStrip from './overview/ApiResourceStrip';
 import ServiceInfoPanel from './ServiceInfoPanel';
 import ServiceSelector from './ServiceSelector';
 import CollectionsList from './CollectionsList';
@@ -73,6 +74,7 @@ const Sidebar = () => {
       >
         <LeftPane id="api-pane" label="API" shown={isOpen.api}>
           <ServiceSelector />
+          <ApiResourceStrip />
           <ServiceInfoPanel />
           <CollectionsList />
         </LeftPane>

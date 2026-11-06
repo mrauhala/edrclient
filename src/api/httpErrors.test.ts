@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { httpErrorMessage, httpFailure, isRetryableStatus, isSuccessStatus, serverErrorDetail } from './httpErrors';
+import { httpErrorMessage, networkFailureMessage, httpFailure, isRetryableStatus, isSuccessStatus, serverErrorDetail } from './httpErrors';
 
 const bytes = (text: string) => new TextEncoder().encode(text).buffer;
 
@@ -109,3 +109,23 @@ describe('httpFailure', () => {
     expect(httpFailure(304, bytes(''))).toEqual({ message: 'The server answered with status 304.', retryable: false });
   });
 });
+
+describe('networkFailureMessage', () => {
+  it('says what to do about CORS, however the browser words it', () => {
+    for (const message of ['CORS error', 'No Access-Control-Allow-Origin header', 'blocked cross-origin']) {
+      expect(networkFailureMessage({ message })).toMatch(/^CORS blocked/);
+    }
+  });
+
+  it('says a network failure may be either, since a browser cannot tell them apart', () => {
+    expect(networkFailureMessage({ message: 'Network Error' })).toMatch(/^Network error.*CORS/);
+    expect(networkFailureMessage({ message: 'Failed to fetch' })).toMatch(/^Network error/);
+    expect(networkFailureMessage({ message: 'something', code: 'ERR_NETWORK' })).toMatch(/^Network error/);
+  });
+
+  it('passes on anything else', () => {
+    expect(networkFailureMessage({ message: 'timeout of 100ms exceeded' })).toBe('timeout of 100ms exceeded');
+    expect(networkFailureMessage({})).toBe('Failed to fetch data');
+  });
+});
+

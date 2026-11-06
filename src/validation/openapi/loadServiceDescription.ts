@@ -1,6 +1,5 @@
-import axios from 'axios';
+import { capturedGet, type CapturedResponse } from '../../api/capture';
 import type { AuthCredentials, Link } from '../../types/api';
-import { getAxiosConfig, addApiKeyToUrl } from '../../api/auth';
 
 // The server's API definition (service-desc), parsed
 export interface ServiceDescription {
@@ -9,6 +8,8 @@ export interface ServiceDescription {
   format: 'json' | 'yaml';
   bytes: number;
   version: string; // the document's `openapi` field, '' if missing
+  // What its request got back, as it came
+  captured: CapturedResponse;
 }
 
 const SERVICE_DESC_RELS = ['service-desc', 'http://www.opengis.net/def/rel/ogc/1.0/service-desc'];
@@ -61,24 +62,28 @@ const MAX_CACHED = 4;
 const cache = new Map<string, Promise<ServiceDescription>>();
 
 async function fetchServiceDescription(url: string, auth?: AuthCredentials): Promise<ServiceDescription> {
-  const config = getAxiosConfig(auth);
-  const response = await axios.get<string>(addApiKeyToUrl(url, auth), {
-    ...config,
-    responseType: 'text',
-    transformResponse: data => data,
-    headers: {
-      ...(config.headers ?? {}),
-      Accept: 'application/vnd.oai.openapi+json, application/json;q=0.9, application/yaml;q=0.8, */*;q=0.5',
-    },
-  });
-  const text = String(response.data ?? '');
-  const contentType = String(response.headers['content-type'] ?? '');
-  if (/text\/html/i.test(contentType) || /^\s*<(!doctype html|html)/i.test(text)) {
-    throw new WebPageError(`${url} is a web page, not an OpenAPI document`);
+  const asked: { capture: CapturedResponse | null } = { capture: null };
+  try {
+    const response = await capturedGet<string>(url, auth, undefined, capture => { asked.capture = capture; }, {
+      responseType: 'text',
+      transformResponse: data => data,
+      headers: { Accept: 'application/vnd.oai.openapi+json, application/json;q=0.9, application/yaml;q=0.8, */*;q=0.5' },
+    });
+    const text = String(response.data ?? '');
+    const contentType = String(response.headers['content-type'] ?? '');
+    if (/text\/html/i.test(contentType) || /^\s*<(!doctype html|html)/i.test(text)) {
+      throw new WebPageError(`${url} is a web page, not an OpenAPI document`);
+    }
+    const { doc, format } = await parseServiceDescription(text, contentType);
+    return { url, doc, format, bytes: text.length, version: typeof doc.openapi === 'string' ? doc.openapi : '', captured: asked.capture! };
+  } catch (error) {
+    // Whatever came back is still worth showing, also when it isn't a document. Not enumerable, so that it stays out of logs
+    throw Object.defineProperty(error as object, 'captured', { value: asked.capture });
   }
-  const { doc, format } = await parseServiceDescription(text, contentType);
-  return { url, doc, format, bytes: text.length, version: typeof doc.openapi === 'string' ? doc.openapi : '' };
 }
+
+// What came back for a description that couldn't be loaded
+export const capturedOfFailure = (error: unknown): CapturedResponse | null => (error as { captured?: CapturedResponse | null } | null)?.captured ?? null;
 
 // Fetch and parse a service description, cached per URL (documents reach 1 MB). Concurrent
 // requests for the same URL share one fetch, so it takes no abort signal: a caller that no longer
@@ -92,3 +97,9 @@ export function loadServiceDescription(url: string, auth?: AuthCredentials): Pro
   while (cache.size > MAX_CACHED) cache.delete(cache.keys().next().value as string);
   return pending;
 }
+
+// So that the next load asks again: the document may have changed
+export function forgetServiceDescription(url: string): void {
+  cache.delete(url);
+}
+

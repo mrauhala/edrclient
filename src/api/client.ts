@@ -3,7 +3,9 @@ import SchemaValidator from '../SchemaValidator';
 import type { AuthCredentials, Collection, CollectionsResponse, GetCollectionsResult, LandingPage, Link, ValidationError, ValidationResult } from '../types/api';
 import { normalizeHref, resolveCollectionHrefs, resolveHref } from '../utils/href';
 import { sanitizeUrl } from '../utils/sanitizeUrl';
-import { getAxiosConfig, addApiKeyToUrl } from './auth';
+import { addApiKeyToUrl } from './auth';
+import { capturedGet, type CapturedLoad, type CapturedResponse } from './capture';
+import { makeRoomForWireTiming } from './responseSizes';
 import { pickOpenApiLink } from '../validation/openapi/loadServiceDescription';
 import { classifyDataLinks, dataLinkUrls, hasCollectionsList } from './landingPageLinks';
 
@@ -14,9 +16,11 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials, sig
   let landingPageData: LandingPage | undefined;
   let serviceDescUrl: string | null = null;
   let conformanceError: ValidationError | null = null;
+  let conformsTo: string[] | undefined;
   let dataLinkError: ValidationError | null = null;
   // Problems with the landing page's links that the client worked around
   const linkWarnings: ValidationError[] = [];
+  const captured: CapturedLoad = {};
 
   try {
     console.log('=== Starting getCollections for:', sanitizeUrl(apiUrl), '===');
@@ -30,10 +34,8 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials, sig
       landingPageUrl.searchParams.set('f', 'json');
     }
 
-    // Add API key if provided
-    const finalLandingPageUrl = addApiKeyToUrl(landingPageUrl.toString(), auth);
-
-    const landingPageResponse = await axios.get<LandingPage>(finalLandingPageUrl, getAxiosConfig(auth, signal));
+    makeRoomForWireTiming();
+    const landingPageResponse = await capturedGet<LandingPage>(landingPageUrl.toString(), auth, signal, capture => { captured.landingPage = capture; });
     landingPageData = landingPageResponse.data;
 
     // Step 2: Extract the collections URL and conformance URL from landing page links
@@ -126,8 +128,7 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials, sig
       if (!conformanceUrlWithFormat.searchParams.has('f')) {
         conformanceUrlWithFormat.searchParams.set('f', 'json');
       }
-      const finalConformanceUrl = addApiKeyToUrl(conformanceUrlWithFormat.toString(), auth);
-      const conformanceResponse = await axios.get<{ conformsTo: string[] }>(finalConformanceUrl, getAxiosConfig(auth, signal));
+      const conformanceResponse = await capturedGet<{ conformsTo: string[] }>(conformanceUrlWithFormat.toString(), auth, signal, capture => { captured.conformance = capture; });
       return conformanceResponse.data?.conformsTo;
     })();
 
@@ -141,12 +142,13 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials, sig
     // The first candidate answering with a collections list wins. If none does, the first answer is
     // used anyway, so its validation shows what came back instead.
     const collectionsPromise = (async () => {
-      type Answer = { result: Awaited<ReturnType<typeof axios.get<CollectionsResponse>>>; candidate: string; requestUrl: string };
+      type Answer = { result: Awaited<ReturnType<typeof axios.get<CollectionsResponse>>>; candidate: string; requestUrl: string; capture: CapturedResponse | undefined };
       let firstAnswer: Answer | null = null;
       let lastErr: unknown = null;
-      const accept = ({ result, candidate, requestUrl }: Answer) => {
+      const accept = ({ result, candidate, requestUrl, capture }: Answer) => {
         collectionsUrl = candidate;
         collectionsRequestUrl = requestUrl;
+        captured.collections = capture;
         return result;
       };
       for (const candidate of collectionsUrlCandidates) {
@@ -156,9 +158,13 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials, sig
           if (!urlWithFormat.searchParams.has('f')) {
             urlWithFormat.searchParams.set('f', 'json');
           }
-          const finalUrl = addApiKeyToUrl(urlWithFormat.toString(), auth);
-          const result = await axios.get<CollectionsResponse>(finalUrl, getAxiosConfig(auth, signal));
-          const answer = { result, candidate, requestUrl: (result.request as XMLHttpRequest | undefined)?.responseURL || finalUrl };
+          let capture: CapturedResponse | undefined;
+          const result = await capturedGet<CollectionsResponse>(urlWithFormat.toString(), auth, signal, answer => {
+            capture = answer;
+            // Until one's accepted, the latest is what there is to show
+            captured.collections = answer;
+          });
+          const answer = { result, candidate, requestUrl: (result.request as XMLHttpRequest | undefined)?.responseURL || addApiKeyToUrl(urlWithFormat.toString(), auth), capture };
           if (hasCollectionsList(result.data)) {
             console.log('Collections fetch succeeded from:', sanitizeUrl(candidate), 'status:', result.status);
             return accept(answer);
@@ -181,7 +187,6 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials, sig
     ]);
 
     // --- Process conformance result ---
-    let conformsTo: string[] | undefined = undefined;
     if (conformanceResult.status === 'fulfilled' && conformanceResult.value) {
       conformsTo = conformanceResult.value;
       console.log(`Found ${conformsTo.length} conformance classes:`, conformsTo);
@@ -414,6 +419,7 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials, sig
       landingPageLinks: landingPageData?.links,
       landingPageKeywords: landingPageData?.keywords,
       collectionsLinks,
+      captured,
       rawResponses: {
         landingPage: landingPageData,
         collections: data,
@@ -513,6 +519,8 @@ export async function getCollections(apiUrl: string, auth?: AuthCredentials, sig
       landingPageLinks: landingPageData?.links,
       landingPageKeywords: landingPageData?.keywords,
       serviceDescUrl: serviceDescUrl || undefined,
+      conformsTo,
+      captured,
     };
   }
 }

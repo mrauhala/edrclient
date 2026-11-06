@@ -1,9 +1,10 @@
 import { createContext, useContext, useEffect, useState, type ReactNode, type SetStateAction } from 'react';
 import axios from 'axios';
+import type { CapturedResponse } from '../api/capture';
 import { useService } from './ServiceContext';
 import { useCollection } from './CollectionContext';
 import { useValidation } from './ValidationContext';
-import { loadServiceDescription, WebPageError, type ServiceDescription } from '../validation/openapi/loadServiceDescription';
+import { capturedOfFailure, loadServiceDescription, WebPageError, type ServiceDescription } from '../validation/openapi/loadServiceDescription';
 import { buildOperationIndex, type OperationIndex } from '../validation/openapi/operationIndex';
 import { validateOpenApiStructure } from '../validation/openapi/validateStructure';
 import { lintOpenApiForEdr } from '../validation/openapi/lintEdr';
@@ -18,9 +19,11 @@ export interface OpenApiState {
   description: ServiceDescription | null;
   index: OperationIndex | null;
   error: string | null;
+  // What its request got back, also when that wasn't a document
+  captured: CapturedResponse | null;
 }
 
-const NONE: OpenApiState = { status: 'none', url: null, description: null, index: null, error: null };
+const NONE: OpenApiState = { status: 'none', url: null, description: null, index: null, error: null, captured: null };
 
 const OpenApiContext = createContext<OpenApiState>(NONE);
 
@@ -76,11 +79,11 @@ export function OpenApiProvider({ children }: { children: ReactNode }) {
     loadServiceDescription(serviceDescUrl, getAuthCredentials(serviceDescUrl))
       .then(description => {
         if (cancelled) return;
-        setState({ status: 'ready', url: serviceDescUrl, description, index: buildOperationIndex(description), error: null });
+        setState({ status: 'ready', url: serviceDescUrl, description, index: buildOperationIndex(description), error: null, captured: description.captured });
       })
       .catch(error => {
         if (cancelled) return;
-        setState({ ...NONE, status: 'error', url: serviceDescUrl, error: error instanceof Error ? error.message : String(error) });
+        setState({ ...NONE, status: 'error', url: serviceDescUrl, error: error instanceof Error ? error.message : String(error), captured: capturedOfFailure(error) });
         const problem = unavailable(error);
         mergeSection(setValidationResult, { isValid: !isProblem(problem), errors: [problem], schemaResults: [] });
       });
@@ -111,7 +114,16 @@ export function OpenApiProvider({ children }: { children: ReactNode }) {
           setEndpointUrls(prev => ({ ...prev, openApi: description.url }));
           setRawResponses(prev => ({ ...prev, openApi: description.doc }));
         })
-        .catch(error => console.error('API definition validation failed:', error));
+        .catch(error => {
+          console.error('API definition validation failed:', error);
+          if (cancelled) return;
+          // A check that couldn't run says so, rather than looking as if it's still running
+          mergeSection(setValidationResult, {
+            isValid: true,
+            errors: [{ message: `The API definition could not be checked (${error instanceof Error ? error.message : 'unknown error'})`, section: 'OpenAPI', schema: 'OpenAPI', severity: 'info', type: 'unknown' }],
+            schemaResults: [],
+          });
+        });
     });
     return () => {
       cancelled = true;

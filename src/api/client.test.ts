@@ -10,7 +10,7 @@ type Responses = Record<string, unknown>;
 
 // Serve the given responses by URL; anything else is a 404
 const serve = (responses: Responses) => vi.spyOn(axios, 'get').mockImplementation(async (url: string) => {
-  if (!(url in responses)) throw Object.assign(new Error(`Request failed with status code 404: ${url}`), { response: { status: 404 } });
+  if (!(url in responses)) throw Object.assign(new Error(`Request failed with status code 404: ${url}`), { response: { headers: {}, statusText: 'Not Found', status: 404 } });
   return { data: responses[url], status: 200, headers: {}, request: { responseURL: url } };
 });
 
@@ -101,6 +101,112 @@ describe('getCollections when a request fails', () => {
       title: 'Connection Failed',
       type: 'network',
       message: `Unable to connect to landing page. The service may be unreachable or blocking cross-origin requests. URL: ${LANDING}`,
+    });
+  });
+
+  describe('what it keeps of its requests', () => {
+    const API = 'https://capture.example/edr';
+    const LANDING = {
+      title: 'Captured',
+      links: [
+        { href: `${API}/collections`, rel: 'data', type: 'application/json' },
+        { href: `${API}/conformance`, rel: 'conformance', type: 'application/json' },
+      ],
+    };
+    const responses = {
+      [`${API}?f=json`]: LANDING,
+      [`${API}/conformance?f=json`]: { conformsTo: ['a', 'b'] },
+      [`${API}/collections?f=json`]: { links: [], collections: [{ id: 'one', links: [], extent: {} }] },
+    };
+
+    it('keeps each answer, with the URL as asked for', async () => {
+      serve(responses);
+      const { captured } = await getCollections(API);
+      expect(captured?.landingPage?.url).toBe(`${API}?f=json`);
+      expect(captured?.landingPage?.response?.status).toBe(200);
+      expect(captured?.conformance?.url).toBe(`${API}/conformance?f=json`);
+      expect(captured?.collections?.url).toBe(`${API}/collections?f=json`);
+      expect(captured?.collections?.response?.status).toBe(200);
+    });
+
+    it('adds no requests', async () => {
+      const get = serve(responses);
+      await getCollections(API);
+      expect(get).toHaveBeenCalledTimes(3);
+    });
+
+    it('asks with the API key, and keeps the URL without it', async () => {
+      const keyed = Object.fromEntries(Object.entries(responses).map(([url, body]) => [`${url}&api-key=sekret1`, body]));
+      const get = serve(keyed);
+      const { captured } = await getCollections(API, { apiKey: 'sekret1', apiKeyParam: 'api-key' });
+      expect(get.mock.calls.every(([url]) => String(url).includes('api-key=sekret1'))).toBe(true);
+      for (const capture of [captured?.landingPage, captured?.conformance, captured?.collections]) {
+        expect(capture?.url).not.toContain('sekret1');
+        expect(capture?.response?.status).toBe(200);
+      }
+    });
+
+    it('keeps what came back from a failed conformance request, and carries on', async () => {
+      serve({ [`${API}?f=json`]: LANDING, [`${API}/collections?f=json`]: responses[`${API}/collections?f=json`] });
+      const { captured, collections } = await getCollections(API);
+      expect(captured?.conformance?.response?.status).toBe(404);
+      expect(captured?.collections?.response?.status).toBe(200);
+      expect(collections).toHaveLength(1);
+    });
+
+    it('keeps what it got when the load fails at the list', async () => {
+      serve({ [`${API}?f=json`]: LANDING, [`${API}/conformance?f=json`]: { conformsTo: ['a'] } });
+      const { captured, collections } = await getCollections(API);
+      expect(collections).toEqual([]);
+      expect(captured?.landingPage?.response?.status).toBe(200);
+      expect(captured?.collections?.response?.status).toBe(404);
+    });
+
+    it('still says what conformance declares when the load fails at the list', async () => {
+      serve({ [`${API}?f=json`]: LANDING, [`${API}/conformance?f=json`]: { conformsTo: ['a'] } });
+      const { conformsTo } = await getCollections(API);
+      expect(conformsTo).toEqual(['a']);
+    });
+
+    it('keeps what it got when the load fails at the landing page, and asks for nothing more', async () => {
+      const get = serve({});
+      const { captured } = await getCollections(API);
+      expect(captured?.landingPage?.response?.status).toBe(404);
+      expect(captured?.conformance).toBeUndefined();
+      expect(captured?.collections).toBeUndefined();
+      expect(get).toHaveBeenCalledTimes(1);
+    });
+
+    it('says when no response came', async () => {
+      vi.spyOn(axios, 'get').mockRejectedValue(Object.assign(new Error('Network Error'), { code: 'ERR_NETWORK' }));
+      const { captured } = await getCollections(API);
+      expect(captured?.landingPage?.response).toBeNull();
+      expect(captured?.landingPage?.failure).toMatch(/^Network error/);
+    });
+
+    it('keeps the answer it used, with several links to try', async () => {
+      const second = `${API}/second`;
+      serve({
+        [`${API}?f=json`]: { links: [...LANDING.links, { href: second, rel: 'data', type: 'application/json' }] },
+        [`${API}/conformance?f=json`]: { conformsTo: [] },
+        [`${API}/collections?f=json`]: { nothing: 'here' },
+        [`${second}?f=json`]: { links: [], collections: [{ id: 'one', links: [], extent: {} }] },
+      });
+      const { captured, collections } = await getCollections(API);
+      expect(collections).toHaveLength(1);
+      expect(captured?.collections?.url).toBe(`${second}?f=json`);
+    });
+
+    it('keeps the first answer when none has a list, as it does for the validation', async () => {
+      const second = `${API}/second`;
+      serve({
+        [`${API}?f=json`]: { links: [...LANDING.links, { href: second, rel: 'data', type: 'application/json' }] },
+        [`${API}/conformance?f=json`]: { conformsTo: [] },
+        [`${API}/collections?f=json`]: { first: true },
+        [`${second}?f=json`]: { second: true },
+      });
+      const { captured } = await getCollections(API);
+      expect(captured?.collections?.url).toBe(`${API}/collections?f=json`);
     });
   });
 });

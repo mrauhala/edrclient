@@ -4,6 +4,7 @@ import type { LicenseInfo } from '../CollectionInfo';
 import systemServices from '../config/services.json';
 import { getCollections } from '../DataRetrievalAPI';
 import { ServiceType, type ServiceDefinition } from '../types/ServiceType';
+import { forgetServiceDescription } from '../validation/openapi/loadServiceDescription';
 import { useCollection } from './CollectionContext';
 import { useGeoJsonLayers } from './GeoJsonLayerContext';
 import { useMapInteraction } from './MapInteractionContext';
@@ -33,7 +34,7 @@ const ApiContext = createContext<ApiContextValue | null>(null);
 // The API being looked at, for everything that can change it: the form, a link, the palette, settings
 export function ApiProvider({ children }: { children: ReactNode }) {
   const { setCollections, setSelectedCollection, setSelectedFeature, setCollectionUrl, setSelectedCollectionExtents, setLocationFeatures } = useCollection();
-  const { customServices, getAuthCredentials, setServiceDescUrl } = useService();
+  const { customServices, getAuthCredentials, serviceDescUrl, setServiceDescUrl } = useService();
   const { setGeoJsonLayers } = useGeoJsonLayers();
   const { setClickedCoords, setDataQuery } = useMapInteraction();
   const { setValidationResult, setEndpointUrls, setRawResponses } = useValidation();
@@ -77,9 +78,11 @@ export function ApiProvider({ children }: { children: ReactNode }) {
   const loadApiOf = useCallback((requestUrl: string) => loadApi(apiOfRequest(requestUrl, serviceUrls)), [loadApi, serviceUrls]);
 
   const reloadApi = useCallback(() => {
+    // Or it would check the document as it was, however it's changed since
+    if (serviceDescUrl) forgetServiceDescription(serviceDescUrl);
     clearApi();
     setRequest({ url: request.url });
-  }, [request.url, clearApi]);
+  }, [request.url, clearApi, serviceDescUrl]);
 
   // In an effect, not in loadApi, for the credentials: settings add a service and select it in one go
   useEffect(() => {

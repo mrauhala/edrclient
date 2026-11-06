@@ -20,7 +20,9 @@ describe('loadedApiOf', () => {
       landingPageLinks: links,
       collectionsLinks,
       conformsTo: ['conf'],
+      captured: { landingPage: { url: 'https://a.example/?f=json', response: null, text: null, failure: 'x' } },
     } as GetCollectionsResult)).toEqual({
+      captured: { landingPage: { url: 'https://a.example/?f=json', response: null, text: null, failure: 'x' } },
       title: 'Title',
       description: 'Description',
       keywords: ['one'],

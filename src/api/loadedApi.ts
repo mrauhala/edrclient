@@ -1,4 +1,5 @@
 import { parseLicense, type LicenseInfo } from '../CollectionInfo';
+import type { CapturedLoad } from './capture';
 import { apiRootOf, knownServiceUrl, requestFromHash } from '../query/requestLink';
 import type { GetCollectionsResult, Link } from '../types/api';
 
@@ -10,6 +11,7 @@ export interface LoadedApi {
   links: Link[] | null;
   collectionsLinks: Link[] | null;
   conformsTo: string[] | null;
+  captured: CapturedLoad;
 }
 
 export const NOTHING_LOADED: LoadedApi = {
@@ -19,6 +21,7 @@ export const NOTHING_LOADED: LoadedApi = {
   links: null,
   collectionsLinks: null,
   conformsTo: null,
+  captured: {},
 };
 
 export function loadedApiOf(result: GetCollectionsResult): LoadedApi {
@@ -29,6 +32,7 @@ export function loadedApiOf(result: GetCollectionsResult): LoadedApi {
     links: result.landingPageLinks || null,
     collectionsLinks: result.collectionsLinks || null,
     conformsTo: result.conformsTo || null,
+    captured: result.captured ?? {},
   };
 }
 
