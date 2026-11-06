@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import Sidebar from './Sidebar';
 import { PanesProvider } from './contexts/PanesContext';
-import { REQUEST_WIDTH, type OpenPanes } from './panes';
+import { PINNED_ROW_ROOM, REQUEST_WIDTH, type OpenPanes } from './panes';
 
 vi.mock('./ServiceSelector', () => ({ default: () => <i>the form</i> }));
 vi.mock('./ServiceInfoPanel', () => ({ default: () => <i>the details</i> }));
@@ -36,6 +36,12 @@ describe('Sidebar', () => {
     expect(html.indexOf('the details')).toBeLessThan(html.indexOf('the list'));
     expect(html.indexOf('the list')).toBeLessThan(request);
     expect(request).toBeLessThan(html.indexOf('the request'));
+  });
+
+  it('leaves room for the row pinned in the request pane when a field is scrolled into view', () => {
+    const html = render(ON_REQUEST);
+    expect(pane(html, 'request-pane')).toContain(`scroll-padding-top:${PINNED_ROW_ROOM}px`);
+    expect(pane(html, 'api-pane')).toContain('scroll-padding-top:0px');
   });
 
   it('names the panes for screen readers', () => {

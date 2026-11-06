@@ -74,13 +74,33 @@ function StepButton({ label, keyName, hint, Icon, target }: {
   );
 }
 
-// Back to the list, and on to the collections beside this one. Outside what starts afresh for each open, so that the
-// buttons stay where they are, under the pointer and with the focus, for going on to the next.
+// Back to the list, and on to the collections beside this one. Pinned to the top of the pane, and outside what starts
+// afresh for each open, so that the buttons stay where they are, under the pointer and with the focus, for going on to
+// the next.
 function CollectionNav({ collection }: { collection: Collection }) {
   const { collections } = useCollection();
   const { showPane } = usePanes();
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, px: 2, pt: 2, mb: 1 }}>
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 1,
+        px: 2,
+        py: 0.5,
+        mb: 1.5,
+        // In reach on a long form, which goes under it, with the pane's own surface, which in dark mode has an overlay
+        // as well as a colour
+        position: 'sticky',
+        top: 0,
+        zIndex: 1,
+        bgcolor: 'inherit',
+        backgroundImage: 'inherit',
+        borderBottom: 1,
+        borderColor: 'divider',
+      }}
+    >
       <Button size="small" startIcon={<ArrowBack />} onClick={() => showPane('api')} sx={{ ml: -0.5 }}>
         All collections
       </Button>
@@ -136,7 +156,8 @@ function OpenCollection({ collection }: { collection: Collection }) {
   };
 
   return (
-    <>
+    // Its own stacking context, so that nothing in it, like the time slider's label, can draw over the row pinned above
+    <Box sx={{ isolation: 'isolate' }}>
       <Box sx={{ px: 2, pb: 2 }}>
         {validationResult.collectionErrors && (
           <Box sx={{ fontSize: '0.7rem', fontWeight: 500, mb: 0.5, color: issues ? 'warning.main' : 'success.main' }}>
@@ -223,7 +244,7 @@ function OpenCollection({ collection }: { collection: Collection }) {
       <Collapse in={showChecks} timeout="auto" unmountOnExit>
         <CollectionChecks collection={collection} validationResult={validationResult} />
       </Collapse>
-    </>
+    </Box>
   );
 }
 

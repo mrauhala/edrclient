@@ -6,11 +6,11 @@ import ServiceInfoPanel from './ServiceInfoPanel';
 import ServiceSelector from './ServiceSelector';
 import CollectionsList from './CollectionsList';
 import { usePanes } from './contexts/PanesContext';
-import { REQUEST_WIDTH, leftPaneOpen } from './panes';
+import { PINNED_ROW_ROOM, REQUEST_WIDTH, leftPaneOpen } from './panes';
 
 // One of the panes that take turns on the left, on top of each other. Hidden rather than removed, so that it keeps
 // its scroll position and everything in it. Inherits otherwise, since the place as a whole may be hidden.
-function LeftPane({ id, label, shown, children }: { id: string; label: string; shown: boolean; children: ReactNode }) {
+function LeftPane({ id, label, shown, scrollPaddingTop = 0, children }: { id: string; label: string; shown: boolean; scrollPaddingTop?: number; children: ReactNode }) {
   const { isOpen, isMobile } = usePanes();
   // Alone it takes the room, since nothing else is showing
   const width = isMobile || (!isOpen.map && !isOpen.response) ? '100%' : REQUEST_WIDTH;
@@ -32,6 +32,7 @@ function LeftPane({ id, label, shown, children }: { id: string; label: string; s
         overflowX: 'hidden',
         // Scrolling past either end doesn't carry on to the page
         overscrollBehavior: 'contain',
+        scrollPaddingTop: `${scrollPaddingTop}px`,
         // Clear of a notch in landscape: on the left, and on phones, where it's full width, on the right
         pl: 'var(--safe-left)',
         pr: isMobile ? 'var(--safe-right)' : 0,
@@ -69,7 +70,7 @@ const Sidebar = () => {
         <ServiceInfoPanel />
         <CollectionsList />
       </LeftPane>
-      <LeftPane id="request-pane" label="Request" shown={isOpen.request}>
+      <LeftPane id="request-pane" label="Request" shown={isOpen.request} scrollPaddingTop={PINNED_ROW_ROOM}>
         <CollectionPane />
       </LeftPane>
     </Box>
