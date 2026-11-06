@@ -28,6 +28,7 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import FormControl from '@mui/material/FormControl';
 import FormLabel from '@mui/material/FormLabel';
 
+import ProjectLinks from './ProjectLinks';
 import { CustomService } from './types/CustomService';
 import { ServiceType } from './types/ServiceType';
 import { SERVICE_TYPE_CONFIG, SERVICE_TYPE_ORDER } from './config/serviceTypeConfig';
@@ -316,6 +317,10 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
               No custom services added
             </Typography>
           )}
+        </Box>
+
+        <Box sx={{ mt: 'auto' }}>
+          <ProjectLinks />
         </Box>
       </Box>
 
