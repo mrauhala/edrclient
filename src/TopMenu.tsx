@@ -19,6 +19,7 @@ import { useService } from './contexts/ServiceContext';
 import { useCollection } from './contexts/CollectionContext';
 import { usePanes } from './contexts/PanesContext';
 import PaneToggles from './PaneToggles';
+import { leftPaneOpen } from './panes';
 import systemServices from './config/services.json';
 import { ServiceDefinition } from './types/ServiceType';
 
@@ -84,9 +85,9 @@ const TopMenu: React.FC<TopMenuProps> = ({ onSettingsClick }) => {
             color="inherit"
             aria-label="Side panel"
             aria-controls="sidebar"
-            aria-expanded={isOpen.request}
+            aria-expanded={leftPaneOpen(isOpen)}
             sx={{ mr: 2 }}
-            onClick={() => togglePane('request')}
+            onClick={() => togglePane('api')}
           >
             <MenuIcon />
           </IconButton>

@@ -15,7 +15,7 @@ interface Options {
 }
 
 const render = (queryType: string, { hasGeometry = false, isDrawing = false, isMobile = false, selection = points, location, onUndo }: Options = {}) => renderToStaticMarkup(
-  <PanesProvider value={{ isOpen: { request: false, map: true, response: false }, isMobile, togglePane: () => {}, showPane: () => {}, showMap: () => {} }}>
+  <PanesProvider value={{ isOpen: { api: false, request: false, map: true, response: false }, isMobile, togglePane: () => {}, showPane: () => {}, showMap: () => {} }}>
     <MapQueryOverlay queryType={queryType} hasGeometry={hasGeometry} isDrawing={isDrawing} onClear={() => {}} onUndo={onUndo} radiusLabel="10 km" selection={selection} location={location}>
       <input aria-label="Radius" />
     </MapQueryOverlay>

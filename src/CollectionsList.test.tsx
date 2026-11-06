@@ -6,17 +6,16 @@ import type { Collection, ValidationResult } from './types/api';
 const state = vi.hoisted(() => ({
   api: {} as Record<string, unknown>,
   collections: [] as unknown[],
+  selected: null as unknown,
   validation: {} as unknown,
 }));
 vi.mock('./contexts/ApiContext', () => ({ useApi: () => state.api }));
 vi.mock('./contexts/CollectionContext', () => ({
-  useCollection: () => ({ collections: state.collections, selectedCollection: null, locationFeatures: null, setSelectedFeature: () => {} }),
+  useCollection: () => ({ collections: state.collections, selectedCollection: state.selected }),
 }));
 vi.mock('./contexts/ValidationContext', () => ({ useValidation: () => ({ validationResult: state.validation }) }));
-vi.mock('./contexts/GeoJsonLayerContext', () => ({ useGeoJsonLayers: () => ({ geoJsonLayers: [], setGeoJsonLayers: () => {} }) }));
 vi.mock('./contexts/OpenCollectionContext', () => ({ useOpenCollection: () => ({ openCollection: () => {}, closeCollection: () => {} }) }));
-vi.mock('./contexts/PanesContext', () => ({ usePanes: () => ({ showMap: () => {} }) }));
-vi.mock('./contexts/QueryBuilderContext', () => ({ useQueryBuilder: () => ({}) }));
+vi.mock('./contexts/PanesContext', () => ({ usePanes: () => ({ showPane: () => {} }) }));
 
 const collection = { id: 'one', title: 'First collection', links: [] } as unknown as Collection;
 
@@ -29,6 +28,7 @@ describe('CollectionsList', () => {
   beforeEach(() => {
     state.api = { apiUrl: 'https://a.example', status: 'done', license: null };
     state.collections = [];
+    state.selected = null;
   });
 
   it('says so while loading, and nothing else', () => {
@@ -44,6 +44,11 @@ describe('CollectionsList', () => {
     const html = render();
     expect(html).toContain('Found 1 collections');
     expect(html).toContain('First collection');
+  });
+
+  it('keeps long descriptions short on the row', () => {
+    state.collections = [{ ...collection, description: 'What it holds' }];
+    expect(render()).toContain('-webkit-line-clamp:6');
   });
 
   it('says when an API has none', () => {
@@ -84,6 +89,34 @@ describe('CollectionsList', () => {
     });
     expect(html).toContain('A 500');
     expect(html.split('No conformance').length - 1).toBe(1);
+  });
+
+  it('offers Close only on the open one, and marks it as open', () => {
+    const other = { id: 'two', title: 'Second collection', links: [] } as unknown as Collection;
+    state.collections = [collection, other];
+
+    // In a class: the styles mention it for every row
+    const selectedRows = (html: string) => [...html.matchAll(/class="[^"]*Mui-selected[^"]*"/g)];
+
+    expect(render()).not.toContain('>Close<');
+    expect(selectedRows(render())).toHaveLength(0);
+
+    state.selected = other;
+    const html = render();
+    expect(html.split('>Close<').length - 1).toBe(1);
+    expect(html.indexOf('>Close<')).toBeGreaterThan(html.indexOf('Second collection'));
+    const selected = selectedRows(html);
+    expect(selected).toHaveLength(1);
+    expect(selected[0].index).toBeGreaterThan(html.indexOf('First collection'));
+  });
+
+  it('shows the same row whether or not it is open, with no form in it', () => {
+    state.collections = [collection];
+    state.selected = collection;
+    const html = render();
+    expect(html).toContain('First collection');
+    expect(html).not.toContain('Show Validation');
+    expect(html).not.toContain('Data Query');
   });
 
   it("falls back on the API's licence for a collection without one", () => {

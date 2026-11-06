@@ -10,6 +10,7 @@ import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
 
 const shortcuts = [
+  { key: 'A', description: "The API's list, or back to the open collection" },
   { key: 'B', description: 'Toggle the Request pane' },
   { key: 'M', description: 'Toggle the Map pane' },
   { key: 'R', description: 'Toggle the Response pane' },
@@ -19,8 +20,8 @@ const shortcuts = [
   { key: 'I', description: 'Toggle collection info' },
   { key: '/', description: 'Toggle search' },
   { key: '?', description: 'Show this help' },
-  { key: 'PageUp', description: 'Previous collection' },
-  { key: 'PageDown', description: 'Next collection' },
+  { key: 'PageUp', description: "Previous collection, or scroll the API's list" },
+  { key: 'PageDown', description: "Next collection, or scroll the API's list" },
   { key: 'Cmd/Ctrl + Enter', description: 'Send the request' },
   { key: 'Enter', description: 'In the request URL: send it' },
   { key: 'Esc', description: 'In the request URL: undo your typing' },

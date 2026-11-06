@@ -2,7 +2,8 @@ import { useEffect } from 'react';
 import { useCollection } from '../contexts/CollectionContext';
 import { useOpenCollection } from '../contexts/OpenCollectionContext';
 
-export function useCollectionKeyboardNav() {
+// PageUp and PageDown go through the collections, or through the API's list while that's showing
+export function useCollectionKeyboardNav(listShowing: boolean) {
   const { collections, selectedCollection } = useCollection();
   const { openCollection } = useOpenCollection();
 
@@ -13,6 +14,14 @@ export function useCollectionKeyboardNav() {
       // Skip if focus is on an interactive element
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+      if (listShowing) {
+        const list = document.getElementById('api-pane');
+        if (!list) return;
+        e.preventDefault();
+        list.scrollBy({ top: (e.key === 'PageDown' ? 0.9 : -0.9) * list.clientHeight });
+        return;
+      }
 
       if (collections.length === 0) return;
 
@@ -35,5 +44,5 @@ export function useCollectionKeyboardNav() {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [collections, selectedCollection, openCollection]);
+  }, [listShowing, collections, selectedCollection, openCollection]);
 }

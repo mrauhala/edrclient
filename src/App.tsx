@@ -18,7 +18,7 @@ import { LayerManagerProvider } from './contexts/LayerManagerContext';
 import { ValidationProvider } from './contexts/ValidationContext';
 import { OpenApiProvider } from './contexts/OpenApiContext';
 import { MapInteractionProvider } from './contexts/MapInteractionContext';
-import { CollectionProvider } from './contexts/CollectionContext';
+import { CollectionProvider, useCollection } from './contexts/CollectionContext';
 import { QueryValidationProvider } from './contexts/QueryValidationContext';
 import { useCollectionKeyboardNav } from './hooks/useCollectionKeyboardNav';
 import { useQueryResponse } from './hooks/useQueryResponse';
@@ -27,13 +27,13 @@ import { PanesProvider, usePanesState } from './contexts/PanesContext';
 import PaneToggles from './PaneToggles';
 import ResponseDock from './ResponseDock';
 import ResponseStatusButton from './ResponseStatusButton';
-import { ALL_PANES_WIDTH, MIN_MAP_WIDTH } from './panes';
+import { ALL_PANES_WIDTH, MIN_MAP_WIDTH, leftPaneOpen } from './panes';
 import SendButton from './SendButton';
 import RequestUrlField from './RequestUrlField';
 import { RequestUrlProvider, useRequestUrl } from './contexts/RequestUrlContext';
 import { QueryBuilderProvider } from './contexts/QueryBuilderContext';
 import { ApiProvider, useApi } from './contexts/ApiContext';
-import { OpenCollectionProvider } from './contexts/OpenCollectionContext';
+import { OpenCollectionProvider, useOpenCollection } from './contexts/OpenCollectionContext';
 import { OpenRequestProvider, useOpenRequest } from './contexts/OpenRequestContext';
 import RequestNotice from './RequestNotice';
 import { useRequestIssues } from './hooks/useRequestIssues';
@@ -116,8 +116,9 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
   const { requestUrl, isEdited } = useRequestUrl();
   const { openRequest, note: requestNote, clearNote } = useOpenRequest();
   const { issues: requestIssues, summary: requestSummary } = useRequestIssues();
-  useCollectionKeyboardNav();
   const { getAuthCredentials } = useService();
+  const { selectedCollection } = useCollection();
+  const { openSerial } = useOpenCollection();
   const { loadApi } = useApi();
 
   // Detect system preference
@@ -168,11 +169,12 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
     [actualMode]
   );
 
-  // Phones show one pane at a time, with the list and the response covering the map
+  // Phones show one pane at a time, with the others covering the map
   const isMobile = useMediaQuery(theme.breakpoints.down('md'), { noSsr: true });
   const allPanesFit = useMediaQuery(`(min-width:${ALL_PANES_WIDTH}px)`, { noSsr: true });
-  const panes = usePanesState(isMobile, allPanesFit);
+  const panes = usePanesState(isMobile, allPanesFit, !!selectedCollection, openSerial);
   const { isOpen, togglePane, showPane } = panes;
+  useCollectionKeyboardNav(isOpen.api);
   const showResponse = useCallback(() => showPane('response'), [showPane]);
   const { fetchQuery, pane: responsePane } = useQueryResponse(showResponse);
   const mapHidden = !isMobile && !isOpen.map;
@@ -185,7 +187,7 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
     setSettingsDrawerOpen(prev => !prev);
   }, []);
 
-  // Single-letter keyboard shortcuts: B=request, M=map, R=response, S=settings, L=layers, V=validation
+  // Single-letter keyboard shortcuts: A=API, B=request, M=map, R=response, S=settings, L=layers, V=validation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -193,6 +195,9 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
 
       switch (e.key.toLowerCase()) {
+        case 'a':
+          togglePane('api');
+          break;
         case 'b':
           togglePane('request');
           break;
@@ -337,7 +342,7 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
           </Paper>
         )}
 
-      {/* Positioned, so that on phones the list and the response cover just this row, between the bars */}
+      {/* Positioned, so that on phones the panes on top of the map cover just this row, between the bars */}
       <Box
         sx={{
           display: 'flex',
@@ -358,7 +363,7 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
           sx={{
             height: '100%',
             overflow: 'hidden',
-            pl: isOpen.request && !isMobile ? 0 : 'var(--safe-left)',
+            pl: leftPaneOpen(isOpen) && !isMobile ? 0 : 'var(--safe-left)',
             pr: isOpen.response && !isMobile ? 0 : 'var(--safe-right)',
             ...(mapHidden
               ? { position: 'absolute', inset: 0, visibility: 'hidden' }

@@ -40,7 +40,7 @@ const CommandPalette: React.FC = () => {
   const { customServices } = useService();
   const { apiUrl: activeServiceUrl, loadApi } = useApi();
   const { geoJsonLayers, setGeoJsonLayers } = useGeoJsonLayers();
-  const { showMap } = usePanes();
+  const { isOpen, showPane, showMap } = usePanes();
 
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -208,6 +208,8 @@ const CommandPalette: React.FC = () => {
       const result = filteredCollections[index];
       if (!result) return;
       openCollection(result.collection);
+      // Picking the open one opens nothing, so nothing else leaves the list for it
+      if (isOpen.api) showPane('request');
       // Don't close — auto-switch to best available tab
       const col = result.collection;
       if (hasLocationQuery(col)) {
@@ -246,7 +248,7 @@ const CommandPalette: React.FC = () => {
       showMap();
     }
     handleClose();
-  }, [activeTab, filteredServices, filteredCollections, filteredItems, filteredLocations, selectedCollection?.id, loadApi, openCollection, geoJsonLayers, setGeoJsonLayers, setSelectedFeature, handleClose, showMap]);
+  }, [activeTab, filteredServices, filteredCollections, filteredItems, filteredLocations, selectedCollection?.id, loadApi, openCollection, isOpen.api, showPane, geoJsonLayers, setGeoJsonLayers, setSelectedFeature, handleClose, showMap]);
 
   // Keyboard navigation
   const {

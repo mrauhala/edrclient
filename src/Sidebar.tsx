@@ -1,15 +1,52 @@
+import type { ReactNode } from 'react';
 import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
+import CollectionPane from './CollectionPane';
 import ServiceInfoPanel from './ServiceInfoPanel';
 import ServiceSelector from './ServiceSelector';
 import CollectionsList from './CollectionsList';
 import { usePanes } from './contexts/PanesContext';
-import { REQUEST_WIDTH } from './panes';
+import { REQUEST_WIDTH, leftPaneOpen } from './panes';
+
+// One of the panes that take turns on the left, on top of each other. Hidden rather than removed, so that it keeps
+// its scroll position and everything in it. Inherits otherwise, since the place as a whole may be hidden.
+function LeftPane({ id, label, shown, children }: { id: string; label: string; shown: boolean; children: ReactNode }) {
+  const { isOpen, isMobile } = usePanes();
+  // Alone it takes the room, since nothing else is showing
+  const width = isMobile || (!isOpen.map && !isOpen.response) ? '100%' : REQUEST_WIDTH;
+  return (
+    <Paper
+      id={id}
+      component="section"
+      aria-label={label}
+      elevation={3}
+      sx={{
+        position: 'absolute',
+        top: 0,
+        bottom: 0,
+        left: 0,
+        visibility: shown ? 'inherit' : 'hidden',
+        minWidth: isMobile ? '100vw' : REQUEST_WIDTH,
+        width,
+        overflowY: 'scroll',
+        overflowX: 'hidden',
+        // Scrolling past either end doesn't carry on to the page
+        overscrollBehavior: 'contain',
+        // Clear of a notch in landscape: on the left, and on phones, where it's full width, on the right
+        pl: 'var(--safe-left)',
+        pr: isMobile ? 'var(--safe-right)' : 0,
+        borderRight: '1px solid rgba(0, 0, 0, 0.12)',
+      }}
+      className="sidebar-scrollable"
+    >
+      {children}
+    </Paper>
+  );
+}
 
 const Sidebar = () => {
   const { isOpen, isMobile } = usePanes();
-  const open = isOpen.request;
-  // Alone it takes the room, since nothing else is showing
+  const open = leftPaneOpen(isOpen);
   const sidebarWidth = isMobile || (!isOpen.map && !isOpen.response) ? '100%' : REQUEST_WIDTH;
 
   return (
@@ -27,27 +64,14 @@ const Sidebar = () => {
         ...(isMobile ? { position: 'absolute', top: 0, bottom: 0, left: 0, zIndex: 1100 } : { position: 'relative' }),
       }}
     >
-      <Paper
-        elevation={3}
-        sx={{
-          minWidth: isMobile ? '100vw' : REQUEST_WIDTH,
-          width: sidebarWidth,
-          height: '100%',
-          overflowY: 'scroll',
-          overflowX: 'hidden',
-          // Scrolling past either end doesn't carry on to the page
-          overscrollBehavior: 'contain',
-          // Clear of a notch in landscape: on the left, and on phones, where it's full width, on the right
-          pl: 'var(--safe-left)',
-          pr: isMobile ? 'var(--safe-right)' : 0,
-          borderRight: '1px solid rgba(0, 0, 0, 0.12)',
-        }}
-        className="sidebar-scrollable"
-      >
+      <LeftPane id="api-pane" label="API" shown={isOpen.api}>
         <ServiceSelector />
         <ServiceInfoPanel />
         <CollectionsList />
-      </Paper>
+      </LeftPane>
+      <LeftPane id="request-pane" label="Request" shown={isOpen.request}>
+        <CollectionPane />
+      </LeftPane>
     </Box>
   );
 };

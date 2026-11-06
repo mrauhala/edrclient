@@ -395,7 +395,7 @@ export default function MapsPanel({ collection, apiUrl, queryState }: MapsPanelP
           startIcon={<AddIcon />}
           onClick={handleAdd}
           disabled={adding}
-          sx={{ whiteSpace: 'nowrap' }}
+          sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
         >
           Add layer
         </Button>
