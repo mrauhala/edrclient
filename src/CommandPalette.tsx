@@ -14,6 +14,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
+import { useApi } from './contexts/ApiContext';
 import { useCollection } from './contexts/CollectionContext';
 import { useOpenCollection } from './contexts/OpenCollectionContext';
 import { useService } from './contexts/ServiceContext';
@@ -36,7 +37,8 @@ const CommandPalette: React.FC = () => {
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
   const { collections, selectedCollection, locationFeatures, setSelectedFeature } = useCollection();
-  const { activeServiceUrl, customServices, setSelectedServiceUrl } = useService();
+  const { customServices } = useService();
+  const { apiUrl: activeServiceUrl, loadApi } = useApi();
   const { geoJsonLayers, setGeoJsonLayers } = useGeoJsonLayers();
   const { showMap } = usePanes();
 
@@ -197,8 +199,7 @@ const CommandPalette: React.FC = () => {
     if (activeTab === 'services') {
       const svc = filteredServices[index];
       if (!svc) return;
-      setSelectedServiceUrl(svc.url);
-      setTimeout(() => setSelectedServiceUrl(null), 100);
+      loadApi(svc.url);
       setActiveTab('collections');
       setQuery('');
       inputRef.current?.focus();
@@ -245,7 +246,7 @@ const CommandPalette: React.FC = () => {
       showMap();
     }
     handleClose();
-  }, [activeTab, filteredServices, filteredCollections, filteredItems, filteredLocations, selectedCollection?.id, setSelectedServiceUrl, openCollection, geoJsonLayers, setGeoJsonLayers, setSelectedFeature, handleClose, showMap]);
+  }, [activeTab, filteredServices, filteredCollections, filteredItems, filteredLocations, selectedCollection?.id, loadApi, openCollection, geoJsonLayers, setGeoJsonLayers, setSelectedFeature, handleClose, showMap]);
 
   // Keyboard navigation
   const {

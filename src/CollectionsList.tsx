@@ -10,7 +10,7 @@ import Link from '@mui/material/Link';
 import Alert from '@mui/material/Alert';
 import AlertTitle from '@mui/material/AlertTitle';
 import Button from '@mui/material/Button';
-import { Collection, ValidationResult, hasLocationQuery, normalizeHref } from './DataRetrievalAPI';
+import { Collection, hasLocationQuery, normalizeHref } from './DataRetrievalAPI';
 import CollectionInfo, { LicenseInfo } from './CollectionInfo';
 import LocationFeatureList from './LocationFeatureList';
 import TemporalExtent from './TemporalExtent';
@@ -20,11 +20,13 @@ import ItemsTable from './ItemsTable';
 import CollectionQueryBuilder from './CollectionQueryBuilder';
 import MapsPanel from './MapsPanel';
 import { hasMapsSupport } from './api/maps';
+import { useApi } from './contexts/ApiContext';
 import { useGeoJsonLayers } from './contexts/GeoJsonLayerContext';
 import { useCollection } from './contexts/CollectionContext';
 import { useOpenCollection } from './contexts/OpenCollectionContext';
 import { usePanes } from './contexts/PanesContext';
-import { UseQueryUrlReturn } from './hooks/useQueryUrl';
+import { useQueryBuilder } from './contexts/QueryBuilderContext';
+import { useValidation } from './contexts/ValidationContext';
 
 interface CollectionListItemHeaderProps {
   collection: Collection;
@@ -75,26 +77,14 @@ const CollectionListItemHeader = memo(function CollectionListItemHeader({
   );
 });
 
-interface CollectionsListProps {
-  collections: Collection[];
-  validationResult: ValidationResult;
-  topLevelLicense: LicenseInfo | null;
-  isLoading: boolean;
-  currentApiUrl: string;
-  queryState: UseQueryUrlReturn;
-}
-
-const CollectionsList = ({
-  collections,
-  validationResult,
-  topLevelLicense,
-  isLoading,
-  currentApiUrl,
-  queryState,
-}: CollectionsListProps) => {
+const CollectionsList = () => {
   const { geoJsonLayers, setGeoJsonLayers } = useGeoJsonLayers();
   const { showMap } = usePanes();
-  const { selectedCollection, locationFeatures, setSelectedFeature } = useCollection();
+  const { collections, selectedCollection, locationFeatures, setSelectedFeature } = useCollection();
+  const { apiUrl, status, license } = useApi();
+  const isLoading = status === 'loading';
+  const { validationResult } = useValidation();
+  const queryState = useQueryBuilder();
   const { openCollection, closeCollection } = useOpenCollection();
   const [showCollectionValidation, setShowCollectionValidation] = useState<{[key: string]: boolean}>({});
 
@@ -191,7 +181,7 @@ const CollectionsList = ({
                 : undefined
             }
             hasErrors={!!(validationResult.collectionErrors && validationResult.collectionErrors[collection.id])}
-            fallbackLicense={topLevelLicense}
+            fallbackLicense={license}
           />
 
           <Collapse in={openIndex === index} timeout="auto" unmountOnExit>
@@ -200,7 +190,7 @@ const CollectionsList = ({
               <CollectionQueryBuilder collection={collection} queryState={queryState} />
 
               {hasMapsSupport(collection) && (
-                <MapsPanel collection={collection} apiUrl={currentApiUrl} queryState={queryState} />
+                <MapsPanel collection={collection} apiUrl={apiUrl} queryState={queryState} />
               )}
 
               {/* Items Table for collections with items links */}

@@ -1,18 +1,8 @@
 import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
-import { useEffect, useState, useMemo, useCallback } from 'react';
-import { GetCollectionsResult, Link as ApiLink } from './DataRetrievalAPI';
-import { useValidation } from './contexts/ValidationContext';
-import { parseLicense, LicenseInfo } from './CollectionInfo';
 import ServiceInfoPanel from './ServiceInfoPanel';
 import ServiceSelector from './ServiceSelector';
 import CollectionsList from './CollectionsList';
-import { useGeoJsonLayers } from './contexts/GeoJsonLayerContext';
-import { useMapInteraction } from './contexts/MapInteractionContext';
-import { useCollection } from './contexts/CollectionContext';
-import { useService } from './contexts/ServiceContext';
-import { useQueryBuilder } from './contexts/QueryBuilderContext';
-import { useOpenRequest } from './contexts/OpenRequestContext';
 import { usePanes } from './contexts/PanesContext';
 import { REQUEST_WIDTH } from './panes';
 
@@ -21,87 +11,6 @@ const Sidebar = () => {
   const open = isOpen.request;
   // Alone it takes the room, since nothing else is showing
   const sidebarWidth = isMobile || (!isOpen.map && !isOpen.response) ? '100%' : REQUEST_WIDTH;
-  const { setGeoJsonLayers } = useGeoJsonLayers();
-  const { setClickedCoords, setDataQuery } = useMapInteraction();
-  const { collections, setCollections, setSelectedCollection, setSelectedFeature, setSelectedCollectionExtents, setLocationFeatures, setLandingPageLicense, setCollectionUrl } = useCollection();
-  const { setLandingPageTitle, setActiveServiceUrl, conformsTo, setConformsTo } = useService();
-  const queryState = useQueryBuilder();
-  const { apiLoaded } = useOpenRequest();
-  const { resetQueryState } = queryState;
-  const { validationResult, setValidationResult, setEndpointUrls, setRawResponses } = useValidation();
-
-  const [currentApiUrl, setCurrentApiUrl] = useState('https://opendata.fmi.fi/edr');
-  const [isLoading, setIsLoading] = useState(false);
-  const [landingPageDescription, setLandingPageDescription] = useState<string | null>(null);
-  const [landingPageLinks, setLandingPageLinks] = useState<ApiLink[] | null>(null);
-  const [landingPageKeywords, setLandingPageKeywords] = useState<string[] | null>(null);
-  const [collectionsLinks, setCollectionsLinks] = useState<ApiLink[] | null>(null);
-  const [selectedConformanceUrl, setSelectedConformanceUrl] = useState<string | null>(null);
-
-  // Derive top-level service license
-  const topLevelLicense = useMemo<LicenseInfo | null>(() => {
-    for (const links of [collectionsLinks, landingPageLinks]) {
-      if (!links) continue;
-      const link = links.find((l) => l.rel === 'license');
-      if (link) return parseLicense(link.href, link.title);
-    }
-    return null;
-  }, [collectionsLinks, landingPageLinks]);
-
-  // Sync top-level service license to context
-  useEffect(() => {
-    setLandingPageLicense(topLevelLicense);
-  }, [topLevelLicense, setLandingPageLicense]);
-
-  // Callbacks for ServiceSelector
-  const handleBeforeLoad = useCallback(() => {
-    setCollections([]);
-    setSelectedCollection(null);
-    setSelectedFeature(null);
-    resetQueryState();
-    setCollectionUrl('');
-    setGeoJsonLayers([]);
-    setValidationResult({ isValid: true, errors: null });
-    setEndpointUrls({});
-    setRawResponses({});
-    setConformsTo(null);
-    setLandingPageLinks(null);
-    setCollectionsLinks(null);
-    setLandingPageTitle(null);
-    setLandingPageDescription(null);
-    setLandingPageKeywords(null);
-    setSelectedCollectionExtents(null);
-    setLocationFeatures(null);
-    setClickedCoords([]);
-    setDataQuery('');
-  }, [setCollections, resetQueryState, setCollectionUrl, setGeoJsonLayers, setSelectedCollection, setSelectedFeature, setSelectedCollectionExtents, setLocationFeatures, setClickedCoords, setDataQuery, setValidationResult, setEndpointUrls, setRawResponses, setLandingPageTitle, setConformsTo]);
-
-  const handleLoadResult = useCallback((result: GetCollectionsResult) => {
-    setCollections(result.collections || []);
-    setValidationResult(result.validation);
-    setEndpointUrls({
-      landingPage: result.landingPageUrl,
-      collections: result.collectionsUrl,
-      conformance: result.conformanceUrl,
-    });
-    setRawResponses(result.rawResponses || {});
-    setLandingPageTitle(result.landingPageTitle || null);
-    setLandingPageDescription(result.landingPageDescription || null);
-    setConformsTo(result.conformsTo || null);
-    setLandingPageLinks(result.landingPageLinks || null);
-    setCollectionsLinks(result.collectionsLinks || null);
-    setLandingPageKeywords(result.landingPageKeywords || null);
-    apiLoaded(!!result.collections?.length);
-  }, [setCollections, setValidationResult, setEndpointUrls, setRawResponses, setLandingPageTitle, setConformsTo, apiLoaded]);
-
-  const handleLoadError = useCallback((error: Error) => {
-    setCollections([]);
-    setValidationResult({
-      isValid: false,
-      errors: [{ message: error.message }]
-    });
-    apiLoaded(false);
-  }, [setCollections, setValidationResult, apiLoaded]);
 
   return (
     <Box
@@ -135,34 +44,9 @@ const Sidebar = () => {
         }}
         className="sidebar-scrollable"
       >
-        <ServiceSelector
-          isLoading={isLoading}
-          setIsLoading={setIsLoading}
-          onBeforeLoad={handleBeforeLoad}
-          onLoadResult={handleLoadResult}
-          onLoadError={handleLoadError}
-          onApiUrlChange={(url: string) => { setCurrentApiUrl(url); setActiveServiceUrl(url); }}
-          selectedConformanceUrl={selectedConformanceUrl}
-          setSelectedConformanceUrl={setSelectedConformanceUrl}
-        />
-
-        <ServiceInfoPanel
-          landingPageDescription={landingPageDescription}
-          landingPageKeywords={landingPageKeywords}
-          conformsTo={conformsTo}
-          landingPageLinks={landingPageLinks}
-          validationResult={validationResult}
-          onConformanceClick={setSelectedConformanceUrl}
-        />
-
-        <CollectionsList
-          collections={collections}
-          validationResult={validationResult}
-          topLevelLicense={topLevelLicense}
-          isLoading={isLoading}
-          currentApiUrl={currentApiUrl}
-          queryState={queryState}
-        />
+        <ServiceSelector />
+        <ServiceInfoPanel />
+        <CollectionsList />
       </Paper>
     </Box>
   );

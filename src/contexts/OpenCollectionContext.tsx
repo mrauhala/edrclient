@@ -3,6 +3,7 @@ import { executeLocationQuery, getLocationQueryUrl, hasLocationQuery } from '../
 import { extentsOf, geoJsonLinksOf, queryBaseUrlOf, withLocationsValidation, withoutLocationsValidation } from '../collections/openingCollection';
 import type { Collection } from '../types/api';
 import { detectEdrVersion, validateLocationsResponse } from '../validation/locationsValidator';
+import { useApi } from './ApiContext';
 import { useCollection } from './CollectionContext';
 import { useGeoJsonLayers } from './GeoJsonLayerContext';
 import { useMapInteraction } from './MapInteractionContext';
@@ -24,10 +25,10 @@ export function OpenCollectionProvider({ children }: { children: ReactNode }) {
   const { selectedCollection, setSelectedCollection, setSelectedFeature, setCollectionUrl, setSelectedCollectionExtents, setLocationFeatures } = useCollection();
   const { geoJsonLayers, setGeoJsonLayers } = useGeoJsonLayers();
   const { setClickedCoords, setDataQuery } = useMapInteraction();
-  const { activeServiceUrl, getAuthCredentials, conformsTo } = useService();
+  const { getAuthCredentials } = useService();
+  const { apiUrl, conformsTo } = useApi();
   const { setValidationResult, setEndpointUrls, setRawResponses } = useValidation();
   const { selectedDatetime, datetimeMode, startDatetime, endDatetime, resetQueryState } = useQueryBuilder();
-  const apiUrl = activeServiceUrl ?? '';
 
   // What's open by now, for a response that arrives after the app has moved on. Also follows a new API
   // being loaded, which closes it without coming through here.

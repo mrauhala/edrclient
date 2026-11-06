@@ -32,6 +32,7 @@ import SendButton from './SendButton';
 import RequestUrlField from './RequestUrlField';
 import { RequestUrlProvider, useRequestUrl } from './contexts/RequestUrlContext';
 import { QueryBuilderProvider } from './contexts/QueryBuilderContext';
+import { ApiProvider, useApi } from './contexts/ApiContext';
 import { OpenCollectionProvider } from './contexts/OpenCollectionContext';
 import { OpenRequestProvider, useOpenRequest } from './contexts/OpenRequestContext';
 import RequestNotice from './RequestNotice';
@@ -54,15 +55,13 @@ function App() {
     }
   });
 
-  const [selectedServiceUrl, setSelectedServiceUrl] = useState<string | null>(null);
-
   // Save custom services to localStorage whenever they change
   useEffect(() => {
     localStorage.setItem('customServices', JSON.stringify(customServices));
   }, [customServices]);
 
   return (
-    <ServiceProvider customServices={customServices} selectedServiceUrl={selectedServiceUrl} setSelectedServiceUrl={setSelectedServiceUrl}>
+    <ServiceProvider customServices={customServices}>
       <CollectionProvider>
         <RequestUrlProvider>
         <QueryValidationProvider>
@@ -73,14 +72,16 @@ function App() {
                   <ValidationProvider>
                     <OpenApiProvider>
                       <QueryBuilderProvider>
-                        <OpenCollectionProvider>
-                          <OpenRequestProvider>
-                            <AppContent
-                              customServices={customServices}
-                              setCustomServices={setCustomServices}
-                            />
-                          </OpenRequestProvider>
-                        </OpenCollectionProvider>
+                        <ApiProvider>
+                          <OpenCollectionProvider>
+                            <OpenRequestProvider>
+                              <AppContent
+                                customServices={customServices}
+                                setCustomServices={setCustomServices}
+                              />
+                            </OpenRequestProvider>
+                          </OpenCollectionProvider>
+                        </ApiProvider>
                       </QueryBuilderProvider>
                     </OpenApiProvider>
                   </ValidationProvider>
@@ -116,7 +117,8 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
   const { openRequest, note: requestNote, clearNote } = useOpenRequest();
   const { issues: requestIssues, summary: requestSummary } = useRequestIssues();
   useCollectionKeyboardNav();
-  const { setSelectedServiceUrl, getAuthCredentials } = useService();
+  const { getAuthCredentials } = useService();
+  const { loadApi } = useApi();
 
   // Detect system preference
   const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
@@ -247,12 +249,6 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
 
   const handleRemoveService = (id: string) => {
     setCustomServices((prev) => prev.filter((service) => service.id !== id));
-  };
-
-  const handleServiceSelect = (url: string) => {
-    setSelectedServiceUrl(url);
-    // Reset after a short delay so it can be triggered again if needed
-    setTimeout(() => setSelectedServiceUrl(null), 100);
   };
 
   const handleSend = useCallback(() => {
@@ -424,7 +420,7 @@ function AppContent({ customServices, setCustomServices }: AppContentProps) {
           onAddService={handleAddService}
           onUpdateService={handleUpdateService}
           onRemoveService={handleRemoveService}
-          onServiceSelect={handleServiceSelect}
+          onServiceSelect={loadApi}
         />
       </Suspense>
 

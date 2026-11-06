@@ -9,6 +9,7 @@ import DraggableMapPanel from './DraggableMapPanel';
 import MapsAnimationBar from './MapsAnimationBar';
 import { useGeoJsonLayers } from './contexts/GeoJsonLayerContext';
 import { useMapInteraction } from './contexts/MapInteractionContext';
+import { useApi } from './contexts/ApiContext';
 import { useCollection } from './contexts/CollectionContext';
 import { usePanes } from './contexts/PanesContext';
 import { useMapSetup } from './hooks/useMapSetup';
@@ -50,7 +51,8 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
   const { clickedCoords, setClickedCoords, selectedArea, setSelectedArea, selectedBbox, setSelectedBbox, radius, setRadius, radiusUnits, dataQuery } = useMapInteraction();
   const geometryKind = geometryKindOf(dataQuery);
   const radiusRange = rangeFor(radiusUnits);
-  const { selectedCollection, selectedCollectionExtents, selectedFeature, setSelectedFeature, landingPageLicense } = useCollection();
+  const { selectedCollection, selectedCollectionExtents, selectedFeature, setSelectedFeature } = useCollection();
+  const { license: apiLicense } = useApi();
   const { isMobile, isOpen } = usePanes();
   const mapShown = isMobile || isOpen.map;
 
@@ -115,7 +117,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
 
       {/* Collection Legend */}
       {selectedCollection && (
-        <DraggableMapPanel collection={selectedCollection} fallbackLicense={landingPageLicense} />
+        <DraggableMapPanel collection={selectedCollection} fallbackLicense={apiLicense} />
       )}
 
       <FeatureViewer

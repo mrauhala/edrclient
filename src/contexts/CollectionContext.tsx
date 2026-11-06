@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useMemo, type ReactNode } from 'react';
 import { Collection } from '../DataRetrievalAPI';
-import { LicenseInfo } from '../CollectionInfo';
 
 interface CollectionContextValue {
   collections: Collection[];
@@ -13,8 +12,6 @@ interface CollectionContextValue {
   setLocationFeatures: (features: any[] | null) => void;
   selectedFeature: any | null;
   setSelectedFeature: (feature: any | null) => void;
-  landingPageLicense: LicenseInfo | null;
-  setLandingPageLicense: (license: LicenseInfo | null) => void;
   collectionUrl: string;
   setCollectionUrl: (url: string) => void;
 }
@@ -27,7 +24,6 @@ export function CollectionProvider({ children }: { children: ReactNode }) {
   const [selectedCollectionExtents, setSelectedCollectionExtents] = useState<[number, number, number, number][] | null>(null);
   const [locationFeatures, setLocationFeatures] = useState<any[] | null>(null);
   const [selectedFeature, setSelectedFeature] = useState<any | null>(null);
-  const [landingPageLicense, setLandingPageLicense] = useState<LicenseInfo | null>(null);
   const [collectionUrl, setCollectionUrl] = useState<string>('');
 
   const value = useMemo(() => ({
@@ -41,11 +37,9 @@ export function CollectionProvider({ children }: { children: ReactNode }) {
     setLocationFeatures,
     selectedFeature,
     setSelectedFeature,
-    landingPageLicense,
-    setLandingPageLicense,
     collectionUrl,
     setCollectionUrl,
-  }), [collections, selectedCollection, selectedCollectionExtents, locationFeatures, selectedFeature, landingPageLicense, collectionUrl]);
+  }), [collections, selectedCollection, selectedCollectionExtents, locationFeatures, selectedFeature, collectionUrl]);
 
   return (
     <CollectionContext.Provider value={value}>

@@ -10,20 +10,14 @@ import Button from '@mui/material/Button';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
 import Person from '@mui/icons-material/Person';
 import Lock from '@mui/icons-material/Lock';
-import { getCollections, GetCollectionsResult } from './DataRetrievalAPI';
 import SwaggerUIViewer from './SwaggerUIViewer';
-import ConformanceViewer from './ConformanceViewer';
+import { useApi } from './contexts/ApiContext';
 import { useService } from './contexts/ServiceContext';
 import systemServices from './config/services.json';
-import { apiRootOf, knownServiceUrl, requestFromHash } from './query/requestLink';
 import { ServiceType, ServiceDefinition } from './types/ServiceType';
 import { SERVICE_TYPE_CONFIG, SERVICE_TYPE_ORDER } from './config/serviceTypeConfig';
 
 const typedSystemServices: ServiceDefinition[] = systemServices as ServiceDefinition[];
-
-const DEFAULT_SERVICE_URL = typedSystemServices.find(s => s.type === ServiceType.EDR && s.label === 'FMI Open Data')?.url
-  ?? typedSystemServices[0]?.url
-  ?? '';
 
 interface ServiceItem {
   label: string;
@@ -33,54 +27,11 @@ interface ServiceItem {
   hasAuth: boolean;
 }
 
-interface ServiceSelectorProps {
-  isLoading: boolean;
-  setIsLoading: (loading: boolean) => void;
-  onBeforeLoad: () => void;
-  onLoadResult: (result: GetCollectionsResult) => void;
-  onLoadError: (error: Error) => void;
-  onApiUrlChange: (url: string) => void;
-  selectedConformanceUrl: string | null;
-  setSelectedConformanceUrl: (url: string | null) => void;
-}
-
-const ServiceSelector = ({
-  isLoading,
-  setIsLoading,
-  onBeforeLoad,
-  onLoadResult,
-  onLoadError,
-  onApiUrlChange,
-  selectedConformanceUrl,
-  setSelectedConformanceUrl,
-}: ServiceSelectorProps) => {
-  const { customServices, getAuthCredentials, selectedServiceUrl: onServiceUrlSelect, landingPageTitle, serviceDescUrl, setServiceDescUrl } = useService();
-
-  // A link to a request opens on the request's API, by the name it's listed under if it is
-  const [startService] = useState(() => {
-    const link = requestFromHash(window.location.hash);
-    if (!link) return { url: DEFAULT_SERVICE_URL, listed: true };
-    const root = apiRootOf(link);
-    const listed = knownServiceUrl(root, [...typedSystemServices, ...customServices].map(service => service.url));
-    return { url: listed ?? root, listed: !!listed };
-  });
-  const [apiUrl, setApiUrl] = useState(startService.url);
-  const [selectedService, setSelectedService] = useState(startService.listed ? startService.url : '');
-  const [inputUrl, setInputUrl] = useState(startService.url);
-  const [validationTrigger, setValidationTrigger] = useState(0);
-
-  // Effect to handle external service URL selection (from settings)
-  useEffect(() => {
-    if (onServiceUrlSelect) {
-      // By the name it's listed under if it is, for a request's API worked out from its URL
-      const listed = knownServiceUrl(onServiceUrlSelect.replace(/\/+$/, ''), [...allServiceUrls]);
-      setSelectedService(listed ?? '');
-      setInputUrl(listed ?? onServiceUrlSelect);
-      setApiUrl(listed ?? onServiceUrlSelect);
-    }
-    // Only on being asked: allServiceUrls changes as services are edited
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onServiceUrlSelect]);
+const ServiceSelector = () => {
+  const { customServices, serviceDescUrl } = useService();
+  const { apiUrl, status, title, loadApi, reloadApi } = useApi();
+  const isLoading = status === 'loading';
+  const [inputUrl, setInputUrl] = useState(apiUrl);
 
   // Build typed custom service items
   const customServiceItems = useMemo(() =>
@@ -158,52 +109,28 @@ const ServiceSelector = ({
     return urls;
   }, [groupedServices, untypedCustomItems]);
 
-  // Notify parent when apiUrl changes (for auth lookups)
+  const [selectedService, setSelectedService] = useState(allServiceUrls.has(apiUrl) ? apiUrl : '');
+
+  // The form follows the API, wherever it was asked for
   useEffect(() => {
-    onApiUrlChange(apiUrl);
-  }, [apiUrl, onApiUrlChange]);
+    setInputUrl(apiUrl);
+  }, [apiUrl]);
+
+  // And the list names it, also once it's added as a service while loaded
+  useEffect(() => {
+    setSelectedService(allServiceUrls.has(apiUrl) ? apiUrl : '');
+  }, [apiUrl, allServiceUrls]);
 
   // Debounce effect for text input
   useEffect(() => {
     const timer = setTimeout(() => {
       if (inputUrl !== apiUrl) {
-        setApiUrl(inputUrl);
+        loadApi(inputUrl);
       }
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [inputUrl, apiUrl]);
-
-  // Load collections when apiUrl changes
-  useEffect(() => {
-    const controller = new AbortController();
-
-    async function loadCollections() {
-      setIsLoading(true);
-      onBeforeLoad();
-      setServiceDescUrl(null);
-
-      try {
-        console.log('Loading collections from:', apiUrl);
-        const result = await getCollections(apiUrl, getAuthCredentials(apiUrl), controller.signal);
-        if (controller.signal.aborted) return;
-        setServiceDescUrl(result.serviceDescUrl || null);
-        onLoadResult(result);
-      } catch (error) {
-        if (controller.signal.aborted) return;
-        console.error('Error loading collections:', error);
-        onLoadError(error instanceof Error ? error : new Error('Unknown error loading collections'));
-      } finally {
-        if (!controller.signal.aborted) {
-          setIsLoading(false);
-        }
-      }
-    }
-
-    loadCollections();
-    return () => controller.abort();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiUrl, validationTrigger]);
+  }, [inputUrl, apiUrl, loadApi]);
 
   function handleApiUrlChange(event: React.ChangeEvent<HTMLInputElement>) {
     const newUrl = event.target.value;
@@ -220,13 +147,13 @@ const ServiceSelector = ({
     setSelectedService(newService);
     if (newService !== '') {
       setInputUrl(newService);
-      setApiUrl(newService);
+      loadApi(newService);
     }
   };
 
   const handleValidateClick = () => {
-    setApiUrl(inputUrl);
-    setValidationTrigger(prev => prev + 1);
+    if (inputUrl === apiUrl) reloadApi();
+    else loadApi(inputUrl);
   };
 
   function renderServiceChip(type: ServiceType) {
@@ -379,11 +306,7 @@ const ServiceSelector = ({
       </Button>
       <SwaggerUIViewer
         serviceDescUrl={serviceDescUrl}
-        serviceName={landingPageTitle || undefined}
-      />
-      <ConformanceViewer
-        conformanceUrl={selectedConformanceUrl}
-        onClose={() => setSelectedConformanceUrl(null)}
+        serviceName={title || undefined}
       />
     </Box>
   );
