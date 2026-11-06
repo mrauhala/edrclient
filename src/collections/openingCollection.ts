@@ -6,6 +6,13 @@ import { allSectionsValid, isProblem } from '../validation/severity';
 
 // What opening a collection works out, apart from the state it goes into
 
+// The one before or after in the API's list, if there is one. With none open, the next one is the first. By the
+// collection itself, since two can share an ID.
+export function adjacentCollection(collections: Collection[], open: Collection | null, step: -1 | 1): Collection | null {
+  const index = open ? collections.indexOf(open) : -1;
+  return collections[index + step] ?? null;
+}
+
 export interface LayerTime {
   datetime?: string;
   mode?: 'individual' | 'range';

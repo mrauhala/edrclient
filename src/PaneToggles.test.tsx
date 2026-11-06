@@ -14,17 +14,19 @@ const pressed = (html: string, label: string) =>
   new RegExp(`<button[^>]*aria-label="${label}"[^>]*>`).exec(html)?.[0].includes('aria-pressed="true"');
 
 describe('PaneToggles', () => {
-  it('offers the three panes, showing which are open', () => {
-    const html = render({ request: true, map: false, response: true }, false);
+  it('offers the four panes, showing which are open', () => {
+    const html = render({ api: false, request: true, map: false, response: true }, false);
+    expect(pressed(html, 'API')).toBe(false);
     expect(pressed(html, 'Request')).toBe(true);
     expect(pressed(html, 'Map')).toBe(false);
     expect(pressed(html, 'Response')).toBe(true);
   });
 
   it('shows the one pane showing on a phone', () => {
-    const html = render({ request: false, map: true, response: false }, true);
+    const html = render({ api: true, request: false, map: false, response: false }, true);
+    expect(pressed(html, 'API')).toBe(true);
     expect(pressed(html, 'Request')).toBe(false);
-    expect(pressed(html, 'Map')).toBe(true);
+    expect(pressed(html, 'Map')).toBe(false);
     expect(pressed(html, 'Response')).toBe(false);
   });
 });

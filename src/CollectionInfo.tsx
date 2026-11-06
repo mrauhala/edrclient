@@ -81,6 +81,193 @@ export function parseLicense(
   return { label: label ?? title ?? 'License', href };
 }
 
+// What's known about a collection besides its name and description
+interface About {
+  crs: string | null;
+  time: string | null;
+  levels: string | null;
+  itemType: string | null;
+  license: LicenseInfo | null;
+  keywords: string[];
+}
+
+export function aboutCollection(collection: Collection, fallbackLicense: LicenseInfo | null): About {
+  // Prefer the collection's own license link; fall back to the service-level one.
+  const licenseLink = collection.links?.find((l) => l.rel === 'license');
+
+  let time: string | null = null;
+  if (collection.extent?.temporal) {
+    const norm = normalizeTemporal(collection.extent.temporal);
+    if (norm && norm.intervals.length > 0) {
+      const overall = getOverallTemporalExtent(norm.intervals);
+      if (overall) time = formatTemporalInterval(overall[0], overall[1]);
+    }
+  }
+
+  let levels: string | null = null;
+  if (collection.extent?.vertical) {
+    const norm = normalizeVertical(collection.extent.vertical);
+    if (norm && norm.intervals.length > 0) {
+      const overall = getOverallVerticalExtent(norm.intervals);
+      if (overall) levels = formatVerticalInterval(overall[0], overall[1], getVerticalUnit(norm.vrs));
+    }
+  }
+
+  return {
+    crs: collection.extent?.spatial?.crs || null,
+    time,
+    levels,
+    itemType: collection.itemType || null,
+    license: licenseLink ? parseLicense(licenseLink.href, licenseLink.title) : fallbackLicense,
+    keywords: Array.isArray(collection.keywords) ? collection.keywords : [],
+  };
+}
+
+// In a few words what "About" has in it, or an empty string if nothing
+export function aboutSummary({ crs, time, levels, itemType, license, keywords }: About): string {
+  return [
+    crs && 'CRS',
+    time && 'time',
+    levels && 'levels',
+    itemType && 'item type',
+    license && 'license',
+    keywords.length > 0 && `${keywords.length} ${keywords.length === 1 ? 'keyword' : 'keywords'}`,
+  ].filter(Boolean).join(', ');
+}
+
+const sectionLabelSx = (dark: boolean) => ({
+  fontSize: '0.6rem',
+  fontWeight: 700,
+  letterSpacing: '0.09em',
+  textTransform: 'uppercase' as const,
+  color: dark ? 'rgba(255,255,255,0.30)' : '#bdbdbd',
+  mb: 0.5,
+});
+
+// The description, with a thumbnail if it has one
+export function CollectionDescription({ collection, dark = false, clamp = false }: { collection: Collection; dark?: boolean; clamp?: boolean }) {
+  if (!collection.description) return null;
+  return (
+    <Box sx={{ position: 'relative', mb: 0.5 }}>
+      {collection.assets?.thumbnail?.href && (
+        <Box
+          component="img"
+          src={collection.assets.thumbnail.href}
+          alt={collection.assets.thumbnail.title ?? collection.title ?? 'Collection thumbnail'}
+          sx={{
+            float: 'right',
+            width: 100,
+            height: 100,
+            objectFit: 'cover',
+            borderRadius: 1,
+            ml: 1.5,
+            mb: 1,
+          }}
+          onError={(e) => {
+            (e.target as HTMLElement).style.display = 'none';
+          }}
+        />
+      )}
+      <Typography
+        variant="body2"
+        component="span"
+        sx={{
+          color: dark ? 'rgba(255,255,255,0.85)' : 'text.secondary',
+          ...(clamp && {
+            display: '-webkit-box',
+            WebkitLineClamp: 6,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+          }),
+        }}
+      >
+        {collection.description}
+      </Typography>
+    </Box>
+  );
+}
+
+// The rows of what's known about it, and its keywords
+export function CollectionAbout({ about, dark = false, divider = false }: { about: About; dark?: boolean; divider?: boolean }) {
+  const { crs, time, levels, itemType, license, keywords } = about;
+  const textSecondary = dark ? 'rgba(255,255,255,0.85)' : 'text.secondary';
+  const iconSx = { fontSize: '15px', color: dark ? 'rgba(255,255,255,0.32)' : '#c5c5c5', flexShrink: 0 };
+  const rowSx = { display: 'flex', alignItems: 'center', gap: '8px' };
+  return (
+    <>
+      {(crs || time || levels || itemType || license) && (
+        <>
+          {divider && <Divider sx={{ my: 1.25, borderColor: dark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.08)' }} />}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {crs && (
+              <Box sx={rowSx}>
+                <Public sx={iconSx} />
+                <Box sx={{ fontSize: '0.75rem', color: textSecondary }}>{crs}</Box>
+              </Box>
+            )}
+            {time && (
+              <Box sx={rowSx}>
+                <AccessTime sx={iconSx} />
+                <Box sx={{ fontSize: '0.75rem', color: textSecondary }}>{time}</Box>
+              </Box>
+            )}
+            {levels && (
+              <Box sx={rowSx}>
+                <Height sx={iconSx} />
+                <Box sx={{ fontSize: '0.75rem', color: textSecondary }}>{levels}</Box>
+              </Box>
+            )}
+            {itemType && (
+              <Box sx={rowSx}>
+                <Category sx={iconSx} />
+                <Box sx={{ fontSize: '0.75rem', color: textSecondary }}>{itemType}</Box>
+              </Box>
+            )}
+            {license && (
+              <Box sx={rowSx}>
+                <Balance sx={iconSx} />
+                <Link
+                  href={license.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  sx={{ fontSize: '0.75rem', color: textSecondary, textDecorationColor: 'inherit' }}
+                >
+                  {license.label}
+                </Link>
+              </Box>
+            )}
+          </Box>
+        </>
+      )}
+
+      {keywords.length > 0 && (
+        <Box sx={{ mt: 1 }}>
+          <Box sx={sectionLabelSx(dark)}>Keywords</Box>
+          <Box
+            sx={{
+              '& .MuiChip-root': {
+                borderRadius: '4px',
+                ...(dark
+                  ? {
+                      backgroundColor: 'rgba(255,255,255,0.05)',
+                      borderColor: 'rgba(255,255,255,0.17)',
+                      color: 'rgba(255,255,255,0.60)',
+                    }
+                  : {
+                      backgroundColor: 'action.hover',
+                      borderColor: 'divider',
+                    }),
+              },
+            }}
+          >
+            <KeywordChips keywords={keywords} size="small" maxVisible={5} />
+          </Box>
+        </Box>
+      )}
+    </>
+  );
+}
+
 export default function CollectionInfo({
   collection,
   dark = false,
@@ -91,17 +278,7 @@ export default function CollectionInfo({
 }: CollectionInfoProps) {
   // ── Colour tokens ────────────────────────────────────────────────────────
   const textPrimary   = dark ? 'rgba(255,255,255,1)'    : 'text.primary';
-  const textSecondary = dark ? 'rgba(255,255,255,0.85)' : 'text.secondary';
   const darkChipSx    = dark ? { color: 'white', borderColor: 'rgba(255,255,255,0.5)' } : {};
-
-  const sectionLabelSx = {
-    fontSize: '0.6rem',
-    fontWeight: 700,
-    letterSpacing: '0.09em',
-    textTransform: 'uppercase' as const,
-    color: dark ? 'rgba(255,255,255,0.30)' : '#bdbdbd',
-    mb: 0.5,
-  };
 
   const chipBaseSx = {
     height: '18px',
@@ -132,36 +309,6 @@ export default function CollectionInfo({
     collection.extent.custom.forEach((dim: any) => {
       if (dim.id) extentBadges.push({ label: dim.id, color: 'secondary' });
     });
-  }
-
-  // ── Licence ──────────────────────────────────────────────────────────────
-  // Prefer the collection's own license link; fall back to the service-level one.
-  const licenseLink = collection.links?.find((l) => l.rel === 'license');
-  const license = licenseLink
-    ? parseLicense(licenseLink.href, licenseLink.title)
-    : fallbackLicense ?? null;
-
-  // ── Spatial CRS ──────────────────────────────────────────────────────────
-  const spatialCrs = collection.extent?.spatial?.crs || null;
-
-  // ── Temporal interval ────────────────────────────────────────────────────
-  let temporalDisplay: string | null = null;
-  if (collection.extent?.temporal) {
-    const norm = normalizeTemporal(collection.extent.temporal);
-    if (norm && norm.intervals.length > 0) {
-      const overall = getOverallTemporalExtent(norm.intervals);
-      if (overall) temporalDisplay = formatTemporalInterval(overall[0], overall[1]);
-    }
-  }
-
-  // ── Vertical interval ────────────────────────────────────────────────────
-  let verticalDisplay: string | null = null;
-  if (collection.extent?.vertical) {
-    const norm = normalizeVertical(collection.extent.vertical);
-    if (norm && norm.intervals.length > 0) {
-      const overall = getOverallVerticalExtent(norm.intervals);
-      if (overall) verticalDisplay = formatVerticalInterval(overall[0], overall[1], getVerticalUnit(norm.vrs));
-    }
   }
 
   // ── Data queries ─────────────────────────────────────────────────────────
@@ -238,122 +385,13 @@ export default function CollectionInfo({
       {/* Sections 4–11 hidden in compact mode */}
       {!compact && (
         <>
-          {/* 4. Description (with optional thumbnail) */}
-          {collection.description && (
-            <Box sx={{ position: 'relative', mb: 0.5 }}>
-              {collection.assets?.thumbnail?.href && (
-                <Box
-                  component="img"
-                  src={collection.assets.thumbnail.href}
-                  alt={collection.assets.thumbnail.title ?? collection.title ?? 'Collection thumbnail'}
-                  sx={{
-                    float: 'right',
-                    width: 100,
-                    height: 100,
-                    objectFit: 'cover',
-                    borderRadius: 1,
-                    ml: 1.5,
-                    mb: 1,
-                  }}
-                  onError={(e) => {
-                    (e.target as HTMLElement).style.display = 'none';
-                  }}
-                />
-              )}
-              <Typography
-                variant="body2"
-                component="span"
-                sx={{
-                  color: textSecondary,
-                  ...(clampDescription && {
-                    display: '-webkit-box',
-                    WebkitLineClamp: 6,
-                    WebkitBoxOrient: 'vertical',
-                    overflow: 'hidden',
-                  }),
-                }}
-              >
-                {collection.description}
-              </Typography>
-            </Box>
-          )}
-
-          {/* 5–10. Metadata rows: spatial CRS, temporal, vertical, itemType, licence */}
-          {(spatialCrs || temporalDisplay || verticalDisplay || collection.itemType || license) && (
-            <>
-              <Divider sx={{ my: 1.25, borderColor: dark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.08)' }} />
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {spatialCrs && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Public sx={{ fontSize: '15px', color: dark ? 'rgba(255,255,255,0.32)' : '#c5c5c5', flexShrink: 0 }} />
-                    <Box sx={{ fontSize: '0.75rem', color: textSecondary }}>{spatialCrs}</Box>
-                  </Box>
-                )}
-                {temporalDisplay && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <AccessTime sx={{ fontSize: '15px', color: dark ? 'rgba(255,255,255,0.32)' : '#c5c5c5', flexShrink: 0 }} />
-                    <Box sx={{ fontSize: '0.75rem', color: textSecondary }}>{temporalDisplay}</Box>
-                  </Box>
-                )}
-                {verticalDisplay && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Height sx={{ fontSize: '15px', color: dark ? 'rgba(255,255,255,0.32)' : '#c5c5c5', flexShrink: 0 }} />
-                    <Box sx={{ fontSize: '0.75rem', color: textSecondary }}>{verticalDisplay}</Box>
-                  </Box>
-                )}
-                {collection.itemType && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Category sx={{ fontSize: '15px', color: dark ? 'rgba(255,255,255,0.32)' : '#c5c5c5', flexShrink: 0 }} />
-                    <Box sx={{ fontSize: '0.75rem', color: textSecondary }}>{collection.itemType}</Box>
-                  </Box>
-                )}
-                {license && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Balance sx={{ fontSize: '15px', color: dark ? 'rgba(255,255,255,0.32)' : '#c5c5c5', flexShrink: 0 }} />
-                    <Link
-                      href={license.href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      sx={{ fontSize: '0.75rem', color: textSecondary, textDecorationColor: 'inherit' }}
-                    >
-                      {license.label}
-                    </Link>
-                  </Box>
-                )}
-              </Box>
-            </>
-          )}
-
-          {/* 10. Keywords */}
-          {collection.keywords && collection.keywords.length > 0 && (
-            <Box sx={{ mt: 1 }}>
-              <Box sx={sectionLabelSx}>Keywords</Box>
-              <Box
-                sx={{
-                  '& .MuiChip-root': {
-                    borderRadius: '4px',
-                    ...(dark
-                      ? {
-                          backgroundColor: 'rgba(255,255,255,0.05)',
-                          borderColor: 'rgba(255,255,255,0.17)',
-                          color: 'rgba(255,255,255,0.60)',
-                        }
-                      : {
-                          backgroundColor: 'action.hover',
-                          borderColor: 'divider',
-                        }),
-                  },
-                }}
-              >
-                <KeywordChips keywords={collection.keywords} size="small" maxVisible={5} />
-              </Box>
-            </Box>
-          )}
+          <CollectionDescription collection={collection} dark={dark} clamp={clampDescription} />
+          <CollectionAbout about={aboutCollection(collection, fallbackLicense)} dark={dark} divider />
 
           {/* 11. Data queries */}
           {effectiveQueries.length > 0 && (
             <Box sx={{ mt: 1 }}>
-              <Box sx={sectionLabelSx}>Queries</Box>
+              <Box sx={sectionLabelSx(dark)}>Queries</Box>
               <Box sx={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                 {effectiveQueries.map((queryType) => (
                   <Chip

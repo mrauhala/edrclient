@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { executeLocationQuery, getLocationQueryUrl, hasLocationQuery } from '../DataRetrievalAPI';
 import { extentsOf, geoJsonLinksOf, queryBaseUrlOf, withLocationsValidation, withoutLocationsValidation } from '../collections/openingCollection';
 import type { Collection } from '../types/api';
@@ -16,11 +16,13 @@ interface OpenCollectionContextValue {
   // opened waits for. The collection itself, not its ID: an API under test can repeat or leave those out
   openCollection: (collection: Collection) => Promise<void>;
   closeCollection: () => void;
+  // A new number per open, so that what's shown for a collection can start afresh
+  openSerial: number;
 }
 
 const OpenCollectionContext = createContext<OpenCollectionContextValue | null>(null);
 
-// Opening and closing a collection, for everything that can: the list, a link, the palette, the keyboard
+// Opening and closing a collection, for everything that can: the list, a link, the palette, the keyboard, the buttons
 export function OpenCollectionProvider({ children }: { children: ReactNode }) {
   const { selectedCollection, setSelectedCollection, setSelectedFeature, setCollectionUrl, setSelectedCollectionExtents, setLocationFeatures } = useCollection();
   const { geoJsonLayers, setGeoJsonLayers } = useGeoJsonLayers();
@@ -29,6 +31,8 @@ export function OpenCollectionProvider({ children }: { children: ReactNode }) {
   const { apiUrl, conformsTo } = useApi();
   const { setValidationResult, setEndpointUrls, setRawResponses } = useValidation();
   const { selectedDatetime, datetimeMode, startDatetime, endDatetime, resetQueryState } = useQueryBuilder();
+
+  const [openSerial, setOpenSerial] = useState(0);
 
   // What's open by now, for a response that arrives after the app has moved on. Also follows a new API
   // being loaded, which closes it without coming through here.
@@ -49,6 +53,7 @@ export function OpenCollectionProvider({ children }: { children: ReactNode }) {
     if (openRef.current === collection) return;
     openRef.current = collection;
 
+    setOpenSerial(serial => serial + 1);
     setSelectedCollection(collection);
     setSelectedFeature(null);
     const auth = getAuthCredentials(apiUrl);
@@ -122,7 +127,7 @@ export function OpenCollectionProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDatetime, datetimeMode, startDatetime, endDatetime]);
 
-  const value = useMemo(() => ({ openCollection, closeCollection }), [openCollection, closeCollection]);
+  const value = useMemo(() => ({ openCollection, closeCollection, openSerial }), [openCollection, closeCollection, openSerial]);
   return <OpenCollectionContext.Provider value={value}>{children}</OpenCollectionContext.Provider>;
 }
 

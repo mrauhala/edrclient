@@ -4,12 +4,14 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Tooltip from '@mui/material/Tooltip';
 import DataObjectIcon from '@mui/icons-material/DataObject';
 import MapIcon from '@mui/icons-material/Map';
+import TuneIcon from '@mui/icons-material/Tune';
 import ViewListIcon from '@mui/icons-material/ViewList';
 import { usePanes } from './contexts/PanesContext';
 import type { Pane } from './panes';
 
 const PANES: { pane: Pane; label: string; shortcut: string; Icon: typeof MapIcon }[] = [
-  { pane: 'request', label: 'Request', shortcut: 'B', Icon: ViewListIcon },
+  { pane: 'api', label: 'API', shortcut: 'A', Icon: ViewListIcon },
+  { pane: 'request', label: 'Request', shortcut: 'B', Icon: TuneIcon },
   { pane: 'map', label: 'Map', shortcut: 'M', Icon: MapIcon },
   { pane: 'response', label: 'Response', shortcut: 'R', Icon: DataObjectIcon },
 ];

@@ -1,8 +1,10 @@
 import { useEffect } from 'react';
+import { adjacentCollection } from '../collections/openingCollection';
 import { useCollection } from '../contexts/CollectionContext';
 import { useOpenCollection } from '../contexts/OpenCollectionContext';
 
-export function useCollectionKeyboardNav() {
+// PageUp and PageDown go through the collections, or through the API's list while that's showing
+export function useCollectionKeyboardNav(listShowing: boolean) {
   const { collections, selectedCollection } = useCollection();
   const { openCollection } = useOpenCollection();
 
@@ -14,26 +16,21 @@ export function useCollectionKeyboardNav() {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
 
-      if (collections.length === 0) return;
-
-      // By the collection itself, since two can share an ID
-      const currentIndex = selectedCollection ? collections.indexOf(selectedCollection) : -1;
-
-      let newIndex: number;
-      if (e.key === 'PageDown') {
-        if (currentIndex >= collections.length - 1) return;
-        newIndex = currentIndex + 1;
-      } else {
-        // PageUp
-        if (currentIndex <= 0) return;
-        newIndex = currentIndex - 1;
+      if (listShowing) {
+        const list = document.getElementById('api-pane');
+        if (!list) return;
+        e.preventDefault();
+        list.scrollBy({ top: (e.key === 'PageDown' ? 0.9 : -0.9) * list.clientHeight });
+        return;
       }
 
+      const target = adjacentCollection(collections, selectedCollection, e.key === 'PageDown' ? 1 : -1);
+      if (!target) return;
       e.preventDefault();
-      openCollection(collections[newIndex]);
+      openCollection(target);
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [collections, selectedCollection, openCollection]);
+  }, [listShowing, collections, selectedCollection, openCollection]);
 }

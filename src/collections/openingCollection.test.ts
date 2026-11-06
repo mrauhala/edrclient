@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Collection, ValidationResult } from '../types/api';
-import { extentsOf, geoJsonLinksOf, queryBaseUrlOf, withLocationsValidation, withoutLocationsValidation } from './openingCollection';
+import { adjacentCollection, extentsOf, geoJsonLinksOf, queryBaseUrlOf, withLocationsValidation, withoutLocationsValidation } from './openingCollection';
 
 const collection = (overrides: Partial<Collection> = {}) => ({
   id: 'a',
@@ -10,6 +10,42 @@ const collection = (overrides: Partial<Collection> = {}) => ({
 }) as unknown as Collection;
 const GEOJSON = { href: 'https://api.test/a/items', rel: 'items', type: 'application/geo+json', title: 'Items' };
 const WITH_TIME = { extent: { temporal: { interval: [['2026-01-01T00:00:00Z', null]] } } } as unknown as Partial<Collection>;
+
+describe('adjacentCollection', () => {
+  const [one, two, three] = [collection({ id: 'one' }), collection({ id: 'two' }), collection({ id: 'three' })];
+  const list = [one, two, three];
+
+  it('finds the one before and the one after', () => {
+    expect(adjacentCollection(list, two, -1)).toBe(one);
+    expect(adjacentCollection(list, two, 1)).toBe(three);
+  });
+
+  it('has nothing beyond either end', () => {
+    expect(adjacentCollection(list, one, -1)).toBeNull();
+    expect(adjacentCollection(list, three, 1)).toBeNull();
+  });
+
+  it('starts at the first with none open', () => {
+    expect(adjacentCollection(list, null, 1)).toBe(one);
+    expect(adjacentCollection(list, null, -1)).toBeNull();
+  });
+
+  it('starts at the first with one open that is not in the list', () => {
+    expect(adjacentCollection(list, collection({ id: 'two' }), 1)).toBe(one);
+    expect(adjacentCollection(list, collection({ id: 'two' }), -1)).toBeNull();
+  });
+
+  it('has nothing in an empty list', () => {
+    expect(adjacentCollection([], null, 1)).toBeNull();
+    expect(adjacentCollection([], one, -1)).toBeNull();
+  });
+
+  it('tells apart two that share an ID', () => {
+    const [first, second] = [collection({ id: 'same' }), collection({ id: 'same' })];
+    expect(adjacentCollection([first, second, three], second, 1)).toBe(three);
+    expect(adjacentCollection([first, second, three], second, -1)).toBe(first);
+  });
+});
 
 describe('geoJsonLinksOf', () => {
   it('takes only GeoJSON links', () => {
