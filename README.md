@@ -4,7 +4,7 @@ A browser for OGC API services. Point it at an OGC API - EDR, Features, Maps, Re
 endpoint to explore its collections on a map, build and run data queries, and see how well the
 service follows the standards.
 
-**Use it online:** https://ogcbrowser.rauhala.app (also at https://mrauhala.github.io/ogcapi-browser/)
+**Use it online:** https://ogcapi-browser.meteo.fi (also at https://mrauhala.github.io/ogcapi-browser/)
 
 ## Features
 
@@ -33,7 +33,7 @@ service follows the standards.
 
 ## Running it
 
-**Online:** https://ogcbrowser.rauhala.app. Every merge to `main` deploys it.
+**Online:** https://ogcapi-browser.meteo.fi. Every merge to `main` deploys it.
 
 **With npx**, no clone needed (requires Node.js):
 

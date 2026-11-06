@@ -8,7 +8,7 @@ made by [release-please](https://github.com/googleapis/release-please) from the 
 
 | Target | Workflow | Result |
 |---|---|---|
-| Firebase Hosting | `firebase-hosting-merge.yml` | https://ogcbrowser.rauhala.app |
+| Firebase Hosting | `firebase-hosting-merge.yml` | https://ogcapi-browser.meteo.fi |
 | GitHub Pages | `github-pages.yml` | https://mrauhala.github.io/ogcapi-browser/ |
 | GitHub Container Registry | `docker.yml` | `ghcr.io/mrauhala/ogcapi-browser:latest` and `:sha-<commit>` |
 | Release pull request | `release-please.yml` | opened or updated, see below |
