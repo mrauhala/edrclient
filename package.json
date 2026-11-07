@@ -1,6 +1,6 @@
 {
   "name": "ogcapi-browser",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "license": "MIT OR Apache-2.0",
   "description": "Browser for OGC API services: explore EDR, Features, Maps, Records and STAC collections on a map, and build and validate data queries",
   "keywords": [
