@@ -24,8 +24,10 @@ import ResponseHeaders from './ResponseHeaders';
 import ResponseSizes from './ResponseSizes';
 import ResponseStatusLine from './ResponseStatusLine';
 import { useRequestUrl } from './contexts/RequestUrlContext';
+import { useCollection } from './contexts/CollectionContext';
 import { usePublishResponseCells } from './contexts/responseCells';
 import { shortUrl } from './query/requestUrl';
+import { collectionIdOf } from './query/requestLink';
 import { checksCount, responseTabs, shownTab, type ResponseTab } from './responseTabs';
 import type { ResponseDetails } from './api/sendRequest';
 import type { ValidationError } from './DataRetrievalAPI';
@@ -94,7 +96,11 @@ const ResponsePane: React.FC<ResponsePaneProps> = ({
     parsedJson, isIWXXM, language, shouldUseCodeView, formattedData,
   } = useContentTypeDetection(data, contentType);
 
-  const coverage = useMemo(() => summarizeCoverage(parsedJson), [parsedJson]);
+  // The open collection's levels say which should be there, if the request is for that collection: a URL can be edited
+  const { selectedCollection } = useCollection();
+  const checkedAgainst = selectedCollection && url && collectionIdOf(url) === String(selectedCollection.id) ? selectedCollection : null;
+  const vertical = checkedAgainst?.extent?.vertical;
+  const coverage = useMemo(() => summarizeCoverage(parsedJson, { url, vertical }), [parsedJson, url, vertical]);
   const [coverageView, setCoverageView] = useState<CoverageView | null>(null);
 
   const tabs = responseTabs({
@@ -137,7 +143,7 @@ const ResponsePane: React.FC<ResponsePaneProps> = ({
   // Only when they're asked for: each is a walk through the whole of the text
   const showingChecks = tab === 'checks';
   const dataNotes = useMemo(() => (showingChecks && coverage
-    ? coverage.notes.map(note => ({ message: note.message, line: findLineForJsonPointer(formattedData, note.path ?? '') }))
+    ? coverage.notes.map(note => ({ message: note.message, severity: note.severity, source: note.source, line: note.path ? findLineForJsonPointer(formattedData, note.path) : undefined }))
     : []), [showingChecks, coverage, formattedData]);
   const markedLines = useMemo(() => (noteLine === null ? errorLines : new Set(errorLines).add(noteLine)), [errorLines, noteLine]);
   const modifier = navigator.platform?.includes('Mac') ? '⌘' : 'Ctrl';
@@ -264,6 +270,7 @@ const ResponsePane: React.FC<ResponsePaneProps> = ({
               setPreferredTab('raw');
             }}
             dataNotes={dataNotes}
+            collectionId={checkedAgainst ? String(checkedAgainst.id) : null}
             onGoToNote={line => {
               setNoteLine(line);
               setPreferredTab('raw');

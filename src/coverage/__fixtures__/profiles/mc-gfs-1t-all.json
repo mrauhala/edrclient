@@ -1,0 +1,387 @@
+{
+ "_comment": "GET https://meteocore.app.meteo.fi/edr/collections/noaa-gfs-pressure/position?coords=POINT(24.94%2060.17)&parameter-name=TMP,RH,TCDC,WIND&datetime=2026-11-07T12:00:00Z, saved 2026-11-07",
+ "type": "CoverageCollection",
+ "domainType": "VerticalProfile",
+ "parameters": {
+  "RH": {
+   "type": "Parameter",
+   "description": {
+    "en": "Relative humidity, in %"
+   },
+   "unit": {
+    "label": {
+     "en": "%"
+    },
+    "symbol": {
+     "value": "%",
+     "type": "https://qudt.org/vocab/unit/PERCENT"
+    }
+   },
+   "observedProperty": {
+    "id": "RH",
+    "label": {
+     "en": "Relative humidity"
+    },
+    "description": {
+     "en": "Relative humidity, in %"
+    }
+   }
+  },
+  "TCDC": {
+   "type": "Parameter",
+   "description": {
+    "en": "Total cloud cover, in %"
+   },
+   "unit": {
+    "label": {
+     "en": "%"
+    },
+    "symbol": {
+     "value": "%",
+     "type": "https://qudt.org/vocab/unit/PERCENT"
+    }
+   },
+   "observedProperty": {
+    "id": "TCDC",
+    "label": {
+     "en": "Total cloud cover"
+    },
+    "description": {
+     "en": "Total cloud cover, in %"
+    }
+   }
+  },
+  "TMP": {
+   "type": "Parameter",
+   "description": {
+    "en": "Temperature, in °C"
+   },
+   "unit": {
+    "label": {
+     "en": "°C"
+    },
+    "symbol": {
+     "value": "°C",
+     "type": "https://qudt.org/vocab/unit/DEG_C"
+    }
+   },
+   "observedProperty": {
+    "id": "TMP",
+    "label": {
+     "en": "Temperature"
+    },
+    "description": {
+     "en": "Temperature, in °C"
+    }
+   }
+  },
+  "WIND": {
+   "type": "Parameter",
+   "description": {
+    "en": "Wind speed, in m/s"
+   },
+   "unit": {
+    "label": {
+     "en": "m s-1"
+    },
+    "symbol": {
+     "value": "m/s",
+     "type": "https://qudt.org/vocab/unit/M-PER-SEC"
+    }
+   },
+   "observedProperty": {
+    "id": "https://vocab.nerc.ac.uk/standard_name/wind_speed",
+    "label": {
+     "en": "Wind speed"
+    }
+   }
+  }
+ },
+ "coverages": [
+  {
+   "type": "Coverage",
+   "domain": {
+    "type": "Domain",
+    "domainType": "VerticalProfile",
+    "axes": {
+     "x": {
+      "values": [
+       24.94
+      ]
+     },
+     "y": {
+      "values": [
+       60.17
+      ]
+     },
+     "z": {
+      "values": [
+       1000.0,
+       975.0,
+       950.0,
+       925.0,
+       900.0,
+       850.0,
+       800.0,
+       750.0,
+       700.0,
+       650.0,
+       600.0,
+       550.0,
+       500.0,
+       450.0,
+       400.0,
+       350.0,
+       300.0,
+       250.0,
+       200.0,
+       150.0,
+       100.0,
+       70.0,
+       50.0,
+       40.0,
+       30.0,
+       20.0,
+       15.0,
+       10.0,
+       7.0,
+       5.0,
+       3.0,
+       2.0,
+       1.0
+      ]
+     },
+     "t": {
+      "values": [
+       "2026-11-07T12:00:00+00:00"
+      ]
+     }
+    },
+    "referencing": [
+     {
+      "coordinates": [
+       "x",
+       "y"
+      ],
+      "system": {
+       "type": "GeographicCRS",
+       "id": "http://www.opengis.net/def/crs/OGC/1.3/CRS84"
+      }
+     },
+     {
+      "coordinates": [
+       "z"
+      ],
+      "system": {
+       "type": "VerticalCRS",
+       "cs": {
+        "csAxes": [
+         {
+          "name": {
+           "en": "Pressure"
+          },
+          "direction": "down",
+          "unit": {
+           "symbol": "hPa"
+          }
+         }
+        ]
+       }
+      }
+     },
+     {
+      "coordinates": [
+       "t"
+      ],
+      "system": {
+       "type": "TemporalRS",
+       "calendar": "Gregorian"
+      }
+     }
+    ]
+   },
+   "ranges": {
+    "RH": {
+     "type": "NdArray",
+     "dataType": "float",
+     "axisNames": [
+      "z"
+     ],
+     "shape": [
+      33
+     ],
+     "values": [
+      86.818726,
+      95.50736,
+      90.149124,
+      72.90672,
+      66.396164,
+      60.85616,
+      61.53312,
+      62.384483,
+      57.44208,
+      55.436,
+      56.179363,
+      60.08464,
+      56.369118,
+      50.45072,
+      58.496002,
+      55.8776,
+      39.80144,
+      48.44192,
+      41.16672,
+      6.53632,
+      3.50368,
+      1.75168,
+      1.6320001,
+      1.57568,
+      1.3000001,
+      1.0,
+      0.8,
+      0.6,
+      0.4,
+      0.2,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "TCDC": {
+     "type": "NdArray",
+     "dataType": "float",
+     "axisNames": [
+      "z"
+     ],
+     "shape": [
+      33
+     ],
+     "values": [
+      0.0,
+      7.19104,
+      3.0808,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.02544,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      null,
+      0.0,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
+    },
+    "TMP": {
+     "type": "NdArray",
+     "dataType": "float",
+     "axisNames": [
+      "z"
+     ],
+     "shape": [
+      33
+     ],
+     "values": [
+      4.7739234,
+      2.9290352,
+      2.2402406,
+      2.3718753,
+      1.6359829,
+      -0.44294015,
+      -2.7484674,
+      -5.0373945,
+      -7.7987933,
+      -11.168768,
+      -14.782544,
+      -18.703074,
+      -23.118729,
+      -28.54278,
+      -35.038456,
+      -41.896492,
+      -48.610477,
+      -54.446987,
+      -60.467392,
+      -59.031178,
+      -60.413204,
+      -59.71204,
+      -62.02082,
+      -63.266094,
+      -63.73381,
+      -64.17871,
+      -64.87936,
+      -64.61459,
+      -64.4911,
+      -59.955765,
+      -47.770996,
+      -36.520065,
+      -12.022622
+     ]
+    },
+    "WIND": {
+     "type": "NdArray",
+     "dataType": "float",
+     "axisNames": [
+      "z"
+     ],
+     "shape": [
+      33
+     ],
+     "values": [
+      8.667228,
+      10.241081,
+      12.869208,
+      12.670921,
+      11.933407,
+      11.310537,
+      11.560427,
+      12.7509775,
+      14.064582,
+      15.599263,
+      17.500574,
+      18.514423,
+      18.619656,
+      18.794403,
+      21.69463,
+      27.59424,
+      36.896816,
+      47.04221,
+      43.86759,
+      23.876701,
+      13.636253,
+      8.155412,
+      5.887693,
+      7.8573914,
+      4.984594,
+      6.389941,
+      7.537463,
+      12.537923,
+      13.737564,
+      19.960882,
+      31.657188,
+      36.574066,
+      55.28797
+     ]
+    }
+   }
+  }
+ ]
+}

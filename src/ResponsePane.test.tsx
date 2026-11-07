@@ -1,9 +1,14 @@
 import type { ComponentProps } from 'react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import ResponsePane from './ResponsePane';
 import type { ResponseDetails } from './api/sendRequest';
 import { RequestUrlContext } from './contexts/RequestUrlContext';
+import type { Collection } from './types/api';
+
+// The open collection, which each test can set
+const open = vi.hoisted(() => ({ collection: null as Partial<Collection> | null }));
+vi.mock('./contexts/CollectionContext', () => ({ useCollection: () => ({ selectedCollection: open.collection }) }));
 
 const URL_ = 'https://api.example.com/collections/a/position?coords=POINT(1%202)';
 const OK: ResponseDetails = {
@@ -119,6 +124,39 @@ describe('ResponsePane', () => {
     nulls.ranges.a.values = [1, null];
     const html = render({ data: JSON.stringify(nulls), contentType: 'application/prs.coverage+json', response: OK });
     expect(html).toContain('>1 note<');
+  });
+
+  it('takes the levels that should be there from the open collection, only if the request is for it', () => {
+    // 1000 and 850 hPa came back, and the collection also has 925
+    const profile = JSON.stringify({
+      type: 'Coverage',
+      domain: {
+        type: 'Domain', domainType: 'VerticalProfile',
+        axes: { x: { values: [1] }, y: { values: [2] }, z: { values: [1000, 850] } },
+        referencing: [{ coordinates: ['z'], system: { type: 'VerticalCRS', cs: { csAxes: [{ name: { en: 'Pressure' }, direction: 'down', unit: { symbol: 'hPa' } }] } } }],
+      },
+      ranges: { a: { type: 'NdArray', dataType: 'float', axisNames: ['z'], shape: [2], values: [1, 2] } },
+    });
+    const withOpen = (id: string) => {
+      open.collection = { id, extent: { vertical: { values: ['1000', '925', '850'] } } };
+      try {
+        return render({ data: profile, contentType: 'application/prs.coverage+json', response: OK });
+      } finally {
+        open.collection = null;
+      }
+    };
+    // A level the collection has and the response hasn't is the server's to fix
+    expect(withOpen('a')).toContain('>1 issue<');
+    expect(withOpen('b')).not.toMatch(/(note|issue)</);
+    expect(withOpen('a')).toContain('1 point, 2 levels, 1 parameter');
+    // And the request's own levels: 777 was asked for, and didn't come
+    open.collection = { id: 'b' };
+    try {
+      const asked = render({ data: profile, contentType: 'application/prs.coverage+json', response: OK, url: 'https://api.example.com/collections/a/position?coords=POINT(1%202)&z=1000,850,777' });
+      expect(asked).toContain('>1 issue<');
+    } finally {
+      open.collection = null;
+    }
   });
 
   it('adds what the data is worth noting to what the schema found', () => {

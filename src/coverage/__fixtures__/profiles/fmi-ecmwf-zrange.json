@@ -1,0 +1,6 @@
+{
+ "_comment": "GET https://opendata.fmi.fi/edr/collections/ecmwf_painepinta/position?coords=POINT(24.94%2060.17)&parameter-name=temperature&datetime=2026-11-07T12:00:00Z&z=1000/500, saved 2026-11-07",
+ "title": "An error occurred",
+ "status": 400,
+ "detail": "Invalid z parameter, numeric value, list of values, repeating interval or min/max range expected"
+}
