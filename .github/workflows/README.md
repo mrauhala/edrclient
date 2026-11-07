@@ -37,7 +37,8 @@ This project uses GitHub Actions for continuous integration, testing, deployment
 
 **Jobs:**
 - Builds the application
-- Deploys to temporary Firebase Hosting preview channel
+- Keeps at most 10 preview channels: before deploying, deletes the least recently deployed ones that this workflow made (`pr<number>-<branch>`), never this PR's own, the live channel or one made by hand. Which ones go is worked out by `.github/scripts/preview-channels-to-delete.jq`
+- Deploys to a Firebase Hosting preview channel, which lasts 30 days, the longest Firebase allows
 - Adds preview URL as a comment on the PR
 - Only runs for PRs from the same repository (security)
 
