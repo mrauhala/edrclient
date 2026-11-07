@@ -39,9 +39,33 @@ jobs:
           CI: true
           VITE_CARTO_API_KEY: ${{ secrets.CARTO_API_KEY }}
 
+      # A site can only have so many preview channels. Keep the 10 most recently deployed, this one's among them, and
+      # delete the rest before deploying. A failure here doesn't stop the deploy, which says for itself if there's no room
+      - name: Keep at most 10 preview channels
+        continue-on-error: true
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_EDRCLIENT_METEO_FI }}
+          OWN: pr${{ github.event.pull_request.number }}
+          KEEP: 10
+        run: |
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/firebase-service-account.json"
+          trap 'rm -f "$GOOGLE_APPLICATION_CREDENTIALS"' EXIT
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$GOOGLE_APPLICATION_CREDENTIALS"
+          fb() { npx --yes firebase-tools@15.34.1 "$@" --project edrclient-meteo-fi; }
+          fb hosting:channel:list --json > "$RUNNER_TEMP/channels.json"
+          jq -r --arg own "$OWN" --argjson keep "$KEEP" -f .github/scripts/preview-channels-to-delete.jq "$RUNNER_TEMP/channels.json" > "$RUNNER_TEMP/to-delete.txt"
+          echo "$(jq '.result.channels | length' "$RUNNER_TEMP/channels.json") channels, $(wc -l < "$RUNNER_TEMP/to-delete.txt") to delete"
+          while read -r channel; do
+            echo "Deleting $channel"
+            # Not reading the list it's given in the loop
+            fb hosting:channel:delete "$channel" --force < /dev/null
+          done < "$RUNNER_TEMP/to-delete.txt"
+
       - name: Deploy preview to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0.11.0
         with:
           repoToken: '${{ secrets.GITHUB_TOKEN }}'
           firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_EDRCLIENT_METEO_FI }}'
           projectId: edrclient-meteo-fi
+          # The longest Firebase allows, so that the count above decides which go, and not their age
+          expires: 30d
