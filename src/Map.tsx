@@ -7,6 +7,7 @@ import ZoomOutMapIcon from '@mui/icons-material/ZoomOutMap';
 import { FeatureViewer, normalizeGeoJsonFeature, normalizeOLFeature } from './FeatureViewer';
 import DraggableMapPanel from './DraggableMapPanel';
 import MapsAnimationBar from './MapsAnimationBar';
+import ResponseCellsBar from './ResponseCellsBar';
 import { useGeoJsonLayers } from './contexts/GeoJsonLayerContext';
 import { useMapInteraction } from './contexts/MapInteractionContext';
 import { useApi } from './contexts/ApiContext';
@@ -17,6 +18,7 @@ import { useCollectionExtents } from './hooks/useCollectionExtents';
 import { useLocationFeatures } from './hooks/useLocationFeatures';
 import { useGeoJsonOverlays } from './hooks/useGeoJsonOverlays';
 import { useMapsOverlays } from './hooks/useMapsOverlays';
+import { useResponseCellsLayer } from './hooks/useResponseCellsLayer';
 import { useMapInteractions } from './hooks/useMapInteractions';
 import { useLayerManagerSync } from './hooks/useLayerManagerSync';
 import MapQueryOverlay from './MapQueryOverlay';
@@ -85,6 +87,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
 
   const { geoJsonMetadata } = useGeoJsonOverlays(map);
   useMapsOverlays(map);
+  const responseCells = useResponseCellsLayer(map, mapShown);
 
   const { abortDrawing, undoLast, isDrawing } = useMapInteractions(map, markerLayer, areaLayer, radiusLayer);
 
@@ -216,6 +219,7 @@ const OpenLayersMap: React.FC<MapProps> = ({ zoomLevel }) => {
           </Tooltip>
         </div>
 
+        <ResponseCellsBar shows={responseCells.shows} outOfView={responseCells.outOfView} onGoToData={responseCells.goToData} />
         <MapsAnimationBar />
       </div>
     </div>

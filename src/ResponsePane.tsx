@@ -24,6 +24,7 @@ import ResponseHeaders from './ResponseHeaders';
 import ResponseSizes from './ResponseSizes';
 import ResponseStatusLine from './ResponseStatusLine';
 import { useRequestUrl } from './contexts/RequestUrlContext';
+import { usePublishResponseCells } from './contexts/responseCells';
 import { shortUrl } from './query/requestUrl';
 import { checksCount, responseTabs, shownTab, type ResponseTab } from './responseTabs';
 import type { ResponseDetails } from './api/sendRequest';
@@ -94,7 +95,7 @@ const ResponsePane: React.FC<ResponsePaneProps> = ({
   } = useContentTypeDetection(data, contentType);
 
   const coverage = useMemo(() => summarizeCoverage(parsedJson), [parsedJson]);
-  const [coverageView, setCoverageView] = useState<CoverageView>('chart');
+  const [coverageView, setCoverageView] = useState<CoverageView | null>(null);
 
   const tabs = responseTabs({
     hasResponse: response !== null && !isLoading,
@@ -107,6 +108,13 @@ const ResponsePane: React.FC<ResponsePaneProps> = ({
 
   // A line a note in Checks sent the reader to. Not a flagged line: a note isn't a fault in the response
   const [noteLine, setNoteLine] = useState<number | null>(null);
+
+  // The map draws what this pane holds, and clears the moment a new request is sent
+  const openInRaw = useCallback((pointer: string) => {
+    setNoteLine(findLineForJsonPointer(formattedData, pointer));
+    setPreferredTab('raw');
+  }, [formattedData, setNoteLine, setPreferredTab]);
+  usePublishResponseCells(isLoading ? null : parsedJson, url, openInRaw);
 
   // Closing and reopening the pane leaves it as it was
   useEffect(() => {
