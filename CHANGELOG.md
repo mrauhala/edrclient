@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/mrauhala/ogcapi-browser/compare/v0.4.0...v0.5.0) (2026-11-07)
+
+
+### Features
+
+* read levels at a point as profiles, and check what a response says of z ([#179](https://github.com/mrauhala/ogcapi-browser/issues/179)) ([f60f5b6](https://github.com/mrauhala/ogcapi-browser/commit/f60f5b6a165c5b7145194c2db55638213530a29a))
+
 ## [0.4.0](https://github.com/mrauhala/ogcapi-browser/compare/v0.3.0...v0.4.0) (2026-11-07)
 
 
