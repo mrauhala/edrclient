@@ -1,5 +1,6 @@
 import { memo, useCallback, useMemo, useState, type ReactNode } from 'react';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import { useTheme, type Theme } from '@mui/material/styles';
@@ -10,11 +11,16 @@ import {
   countText, formatValue, meanText, rangeText,
   type ChartedParameter, type CoverageSeries, type CoverageSummary, type ParameterFigures, type StepChange,
 } from './coverage/coverageSummary';
+import { useResponseCells } from './contexts/responseCells';
+import { opensAsPicture } from './coverage/cellSelection';
+import CellsFigures from './coverage/CellsFigures';
+import CellsTable from './coverage/CellsTable';
+import CellsView from './coverage/CellsView';
 import CoverageTable from './CoverageTable';
 import { formatTimeTick } from './utils/timeAxisTicks';
 import { utcMoment } from './utils/utcTime';
 
-export type CoverageView = 'chart' | 'table';
+export type CoverageView = 'cells' | 'chart' | 'table';
 
 // Rows narrower than this put the words above a shorter chart
 const NARROW = '@container (max-width: 440px)';
@@ -305,49 +311,90 @@ function Legend({ locations, colours }: { locations: string[]; colours: string[]
 
 interface CoverageDataProps {
   summary: CoverageSummary;
-  // Chart or Table, kept by the pane across sends
-  view: CoverageView;
+  // What was chosen, kept by the pane across sends. Null until something is
+  view: CoverageView | null;
   onViewChange: (view: CoverageView) => void;
 }
 
-// A CoverageJSON response as data: what it holds in a sentence, then a row per parameter on a shared
-// time axis, or the same as a table. What isn't a time series, like a grid, gets its figures alone
+// A CoverageJSON response as data: what it holds in a sentence, then its cells as a picture, a row per parameter on a
+// shared time axis, or the same as a table. What can't be drawn or charted gets its figures alone
 export default function CoverageData({ summary, view, onViewChange }: CoverageDataProps) {
   const theme = useTheme();
+  const { reading, drawAnyway } = useResponseCells();
   const { series } = summary;
   const canChart = series !== null && series.times.length > 1;
   // One value for each parameter says it all in the figures
-  const hasTable = series !== null && (canChart || series.locations.length > 1);
-  const showTable = hasTable && view === 'table';
+  const hasSeriesTable = series !== null && (canChart || series.locations.length > 1);
+  const cells = reading?.drawable ? reading : null;
+  const hasTable = hasSeriesTable || cells !== null;
+
+  // What was chosen, if this response has it
+  const available: CoverageView[] = [...(cells ? ['cells' as const] : []), 'chart', ...(hasTable ? ['table' as const] : [])];
+  const preferred = view ?? (cells && opensAsPicture(cells) ? 'cells' : 'chart');
+  const shown = available.includes(preferred) ? preferred : 'chart';
 
   return (
-    <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', containerType: 'inline-size', backgroundColor: 'background.paper' }}>
+    // The picture and what's below it scroll along with the words above it, which would leave a phone little room if they stayed
+    <Box
+      data-cells-scroller={shown === 'cells' ? '' : undefined}
+      sx={{
+        flex: 1,
+        minHeight: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        containerType: 'inline-size',
+        backgroundColor: 'background.paper',
+        ...(shown === 'cells' ? { overflowY: 'auto', overflowX: 'hidden' } : {}),
+      }}
+    >
       <Box sx={{ flexShrink: 0, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1.5, px: 1.75, py: 1 }}>
         <Box sx={{ flex: '1 1 240px', minWidth: 0, fontSize: '0.8125rem', lineHeight: '18px' }}>
           <Box component="span" sx={{ fontFamily: 'monospace' }}>{summary.domainType}</Box>
           {`: ${summary.shape}.${summary.timeText ? ` ${summary.timeText}` : ''}`}
           {summary.axes.map(axis => <Box key={axis} sx={{ ...MONO, color: 'text.secondary' }}>{axis}</Box>)}
+          {cells?.order && <Box sx={{ ...MONO, color: 'text.secondary' }}>values[0] is at the {cells.order.firstY} {cells.order.firstX}</Box>}
+          {cells && !cells.crs.declared && <Box sx={{ ...MONO, color: 'text.secondary' }}>x and y have no CRS</Box>}
         </Box>
-        {hasTable && (
+        {available.length > 1 && (
           <ToggleButtonGroup
             exclusive
             size="small"
-            value={showTable ? 'table' : 'chart'}
+            value={shown}
             onChange={(_event, next: CoverageView | null) => { if (next) onViewChange(next); }}
             aria-label="How to show the data"
             sx={{ '& .MuiToggleButton-root': { height: 28, px: 1.25, py: 0, textTransform: 'none', fontSize: '0.8125rem' } }}
           >
+            {cells && <ToggleButton value="cells">{cells.viewLabel}</ToggleButton>}
             <ToggleButton value="chart">{canChart ? 'Chart' : 'Figures'}</ToggleButton>
             <ToggleButton value="table">Table</ToggleButton>
           </ToggleButtonGroup>
         )}
       </Box>
-      {series && canChart && !showTable && series.locations.length > 1 && (
+      {reading && !reading.drawable && reading.why !== 'other-view' && (
+        <Box sx={{ mx: 1.75, mb: 1, px: 1.5, py: 1, border: '1px solid', borderColor: 'divider', borderRadius: 1, fontSize: '0.8125rem', lineHeight: '18px' }}>
+          {reading.why === 'too-large' ? (
+            <>
+              <Box sx={{ fontWeight: 500 }}>{reading.reason}</Box>
+              <Box sx={{ color: 'text.secondary' }}>The figures are below, and Raw has every value.</Box>
+              <Button size="small" variant="outlined" onClick={drawAnyway} sx={{ mt: 0.75, textTransform: 'none' }}>Draw it anyway</Button>
+            </>
+          ) : (
+            <>
+              <Box sx={{ fontWeight: 500 }}>Can't draw this as a grid</Box>
+              <Box sx={{ ...MONO, overflowWrap: 'anywhere' }}>{reading.reason}</Box>
+              <Box sx={{ color: 'text.secondary', mt: 0.5 }}>Raw has what was sent.</Box>
+            </>
+          )}
+        </Box>
+      )}
+      {series && canChart && shown === 'chart' && series.locations.length > 1 && (
         <Legend locations={series.locations} colours={lineColours(series.locations.length, theme)} />
       )}
-      {showTable ? <CoverageTable series={series} />
-        : canChart ? <ChartedRows series={series} />
-          : <FiguresList parameters={summary.parameters} />}
+      {shown === 'cells' ? <CellsView />
+        : shown === 'table' ? (hasSeriesTable ? <CoverageTable series={series} /> : <CellsTable onOpenCell={() => onViewChange('cells')} />)
+          : canChart ? <ChartedRows series={series} />
+            : cells ? <CellsFigures onOpen={() => onViewChange('cells')} />
+              : <FiguresList parameters={summary.parameters} />}
     </Box>
   );
 }
