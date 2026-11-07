@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.4.0](https://github.com/mrauhala/ogcapi-browser/compare/v0.3.0...v0.4.0) (2026-11-07)
+
+
+### Features
+
+* draw an area or cube response's cells, in the Data tab and on the map ([#177](https://github.com/mrauhala/ogcapi-browser/issues/177)) ([12c790d](https://github.com/mrauhala/ogcapi-browser/commit/12c790dace373d74beef61bca4216c6e5b168fa2))
+* draw the collection's extent as a labelled outline, without colouring the map ([#173](https://github.com/mrauhala/ogcapi-browser/issues/173)) ([9036ad2](https://github.com/mrauhala/ogcapi-browser/commit/9036ad27583a0f96edfd0e34181573407516997e))
+* keep the way back and the next buttons in reach on a long form ([#172](https://github.com/mrauhala/ogcapi-browser/issues/172)) ([b102f99](https://github.com/mrauhala/ogcapi-browser/commit/b102f99ef8e52f537280de2488283ed2a8d2208f))
+* link to the source, issues and version from Settings ([#171](https://github.com/mrauhala/ogcapi-browser/issues/171)) ([82c2d70](https://github.com/mrauhala/ogcapi-browser/commit/82c2d7009379342032831a13ba71b11b6b124284))
+* open a collection in its own pane, replacing the list ([#168](https://github.com/mrauhala/ogcapi-browser/issues/168)) ([6f479ab](https://github.com/mrauhala/ogcapi-browser/commit/6f479ab25c5bb0b45bc302b6ccc4e2e73522320d))
+* resize the left pane, and keep all three panes open down to 1012 px ([#174](https://github.com/mrauhala/ogcapi-browser/issues/174)) ([1d0d10d](https://github.com/mrauhala/ogcapi-browser/commit/1d0d10d5392a6008fa9ea61d631904a4a582d3c2))
+* show CoverageJSON as a summary, a chart per parameter and a table ([#164](https://github.com/mrauhala/ogcapi-browser/issues/164)) ([0b3e0ce](https://github.com/mrauhala/ogcapi-browser/commit/0b3e0ced6dea3b7c48cfefb37347e21e3e556b00))
+* show what the API was loaded from, with each resource's real response ([#176](https://github.com/mrauhala/ogcapi-browser/issues/176)) ([17740ca](https://github.com/mrauhala/ogcapi-browser/commit/17740cace60f6ad880c50ffd10e3f6072b6c9e4b))
+* smaller location markers, easier to hit ([#170](https://github.com/mrauhala/ogcapi-browser/issues/170)) ([4bd9306](https://github.com/mrauhala/ogcapi-browser/commit/4bd9306ea167ad045257e45607c69360854d4c3e))
+
+
+### Bug Fixes
+
+* open collections from one place, fixing stale map data and a crash on odd IDs ([#166](https://github.com/mrauhala/ogcapi-browser/issues/166)) ([294b063](https://github.com/mrauhala/ogcapi-browser/commit/294b063ffc251f4585eba562ded2b097bc7cf3f0))
+
 ## [0.3.0](https://github.com/mrauhala/ogcapi-browser/compare/v0.2.1...v0.3.0) (2026-11-05)
 
 
