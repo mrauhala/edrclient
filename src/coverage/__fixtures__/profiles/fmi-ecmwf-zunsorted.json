@@ -1,0 +1,104 @@
+{
+ "_comment": "GET https://opendata.fmi.fi/edr/collections/ecmwf_painepinta/position?coords=POINT(24.94%2060.17)&parameter-name=temperature&datetime=2026-11-07T12:00:00Z&z=500,1000,850, saved 2026-11-07",
+ "coverages": [
+  {
+   "type": "Coverage",
+   "domain": {
+    "type": "Domain",
+    "axes": {
+     "t": {
+      "values": [
+       "2026-11-07T12:00:00Z"
+      ]
+     },
+     "x": {
+      "values": [
+       24.94
+      ]
+     },
+     "y": {
+      "values": [
+       60.17
+      ]
+     },
+     "z": {
+      "values": [
+       1000,
+       850,
+       500
+      ]
+     }
+    }
+   },
+   "ranges": {
+    "temperature": {
+     "axisNames": [
+      "z"
+     ],
+     "dataType": "float",
+     "shape": [
+      3
+     ],
+     "type": "NdArray",
+     "values": [
+      5.31473,
+      -1.49691,
+      -23.3537
+     ]
+    }
+   }
+  }
+ ],
+ "domainType": "VerticalProfile",
+ "referencing": [
+  {
+   "coordinates": [
+    "x",
+    "y"
+   ],
+   "system": {
+    "id": "OGC:CRS84",
+    "type": "GeographicCRS"
+   }
+  },
+  {
+   "coordinates": [
+    "z"
+   ],
+   "system": {
+    "type": "VerticalCRS",
+    "description": {
+     "en": "Pressure level in hPa"
+    }
+   }
+  },
+  {
+   "coordinates": [
+    "t"
+   ],
+   "system": {
+    "calendar": "Gregorian",
+    "type": "TemporalRS"
+   }
+  }
+ ],
+ "type": "CoverageCollection",
+ "parameters": {
+  "temperature": {
+   "id": "Temperature",
+   "type": "Parameter",
+   "description": {
+    "en": "Temperature"
+   },
+   "label": {
+    "en": "Temperature"
+   },
+   "observedProperty": {
+    "id": "Temperature",
+    "label": {
+     "en": "Temperature"
+    }
+   }
+  }
+ }
+}

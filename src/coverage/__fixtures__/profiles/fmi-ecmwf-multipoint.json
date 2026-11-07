@@ -1,0 +1,481 @@
+{
+ "_comment": "GET https://opendata.fmi.fi/edr/collections/ecmwf_painepinta/position?coords=MULTIPOINT((24.94%2060.17),(21.0%2063.1))&parameter-name=temperature,humidity&datetime=2026-11-07T12:00:00Z&z=1000,850,500, saved 2026-11-07",
+ "coverages": [
+  {
+   "type": "Coverage",
+   "domain": {
+    "type": "Domain",
+    "axes": {
+     "t": {
+      "values": [
+       "2026-11-07T12:00:00Z"
+      ]
+     },
+     "x": {
+      "values": [
+       24.94
+      ]
+     },
+     "y": {
+      "values": [
+       60.17
+      ]
+     },
+     "z": {
+      "values": [
+       500
+      ]
+     }
+    }
+   },
+   "ranges": {
+    "humidity": {
+     "axisNames": [
+      "t",
+      "z",
+      "y",
+      "x"
+     ],
+     "dataType": "float",
+     "shape": [
+      1,
+      1,
+      1,
+      1
+     ],
+     "type": "NdArray",
+     "values": [
+      45.0537
+     ]
+    },
+    "temperature": {
+     "axisNames": [
+      "t",
+      "z",
+      "y",
+      "x"
+     ],
+     "dataType": "float",
+     "shape": [
+      1,
+      1,
+      1,
+      1
+     ],
+     "type": "NdArray",
+     "values": [
+      -23.3537
+     ]
+    }
+   }
+  },
+  {
+   "type": "Coverage",
+   "domain": {
+    "type": "Domain",
+    "axes": {
+     "t": {
+      "values": [
+       "2026-11-07T12:00:00Z"
+      ]
+     },
+     "x": {
+      "values": [
+       21
+      ]
+     },
+     "y": {
+      "values": [
+       63.1
+      ]
+     },
+     "z": {
+      "values": [
+       500
+      ]
+     }
+    }
+   },
+   "ranges": {
+    "humidity": {
+     "axisNames": [
+      "t",
+      "z",
+      "y",
+      "x"
+     ],
+     "dataType": "float",
+     "shape": [
+      1,
+      1,
+      1,
+      1
+     ],
+     "type": "NdArray",
+     "values": [
+      63.5523
+     ]
+    },
+    "temperature": {
+     "axisNames": [
+      "t",
+      "z",
+      "y",
+      "x"
+     ],
+     "dataType": "float",
+     "shape": [
+      1,
+      1,
+      1,
+      1
+     ],
+     "type": "NdArray",
+     "values": [
+      -23.4091
+     ]
+    }
+   }
+  },
+  {
+   "type": "Coverage",
+   "domain": {
+    "type": "Domain",
+    "axes": {
+     "t": {
+      "values": [
+       "2026-11-07T12:00:00Z"
+      ]
+     },
+     "x": {
+      "values": [
+       24.94
+      ]
+     },
+     "y": {
+      "values": [
+       60.17
+      ]
+     },
+     "z": {
+      "values": [
+       850
+      ]
+     }
+    }
+   },
+   "ranges": {
+    "humidity": {
+     "axisNames": [
+      "t",
+      "z",
+      "y",
+      "x"
+     ],
+     "dataType": "float",
+     "shape": [
+      1,
+      1,
+      1,
+      1
+     ],
+     "type": "NdArray",
+     "values": [
+      74.4951
+     ]
+    },
+    "temperature": {
+     "axisNames": [
+      "t",
+      "z",
+      "y",
+      "x"
+     ],
+     "dataType": "float",
+     "shape": [
+      1,
+      1,
+      1,
+      1
+     ],
+     "type": "NdArray",
+     "values": [
+      -1.49691
+     ]
+    }
+   }
+  },
+  {
+   "type": "Coverage",
+   "domain": {
+    "type": "Domain",
+    "axes": {
+     "t": {
+      "values": [
+       "2026-11-07T12:00:00Z"
+      ]
+     },
+     "x": {
+      "values": [
+       21
+      ]
+     },
+     "y": {
+      "values": [
+       63.1
+      ]
+     },
+     "z": {
+      "values": [
+       850
+      ]
+     }
+    }
+   },
+   "ranges": {
+    "humidity": {
+     "axisNames": [
+      "t",
+      "z",
+      "y",
+      "x"
+     ],
+     "dataType": "float",
+     "shape": [
+      1,
+      1,
+      1,
+      1
+     ],
+     "type": "NdArray",
+     "values": [
+      74.3515
+     ]
+    },
+    "temperature": {
+     "axisNames": [
+      "t",
+      "z",
+      "y",
+      "x"
+     ],
+     "dataType": "float",
+     "shape": [
+      1,
+      1,
+      1,
+      1
+     ],
+     "type": "NdArray",
+     "values": [
+      -1.25854
+     ]
+    }
+   }
+  },
+  {
+   "type": "Coverage",
+   "domain": {
+    "type": "Domain",
+    "axes": {
+     "t": {
+      "values": [
+       "2026-11-07T12:00:00Z"
+      ]
+     },
+     "x": {
+      "values": [
+       24.94
+      ]
+     },
+     "y": {
+      "values": [
+       60.17
+      ]
+     },
+     "z": {
+      "values": [
+       1000
+      ]
+     }
+    }
+   },
+   "ranges": {
+    "humidity": {
+     "axisNames": [
+      "t",
+      "z",
+      "y",
+      "x"
+     ],
+     "dataType": "float",
+     "shape": [
+      1,
+      1,
+      1,
+      1
+     ],
+     "type": "NdArray",
+     "values": [
+      79.5272
+     ]
+    },
+    "temperature": {
+     "axisNames": [
+      "t",
+      "z",
+      "y",
+      "x"
+     ],
+     "dataType": "float",
+     "shape": [
+      1,
+      1,
+      1,
+      1
+     ],
+     "type": "NdArray",
+     "values": [
+      5.31473
+     ]
+    }
+   }
+  },
+  {
+   "type": "Coverage",
+   "domain": {
+    "type": "Domain",
+    "axes": {
+     "t": {
+      "values": [
+       "2026-11-07T12:00:00Z"
+      ]
+     },
+     "x": {
+      "values": [
+       21
+      ]
+     },
+     "y": {
+      "values": [
+       63.1
+      ]
+     },
+     "z": {
+      "values": [
+       1000
+      ]
+     }
+    }
+   },
+   "ranges": {
+    "humidity": {
+     "axisNames": [
+      "t",
+      "z",
+      "y",
+      "x"
+     ],
+     "dataType": "float",
+     "shape": [
+      1,
+      1,
+      1,
+      1
+     ],
+     "type": "NdArray",
+     "values": [
+      73.3122
+     ]
+    },
+    "temperature": {
+     "axisNames": [
+      "t",
+      "z",
+      "y",
+      "x"
+     ],
+     "dataType": "float",
+     "shape": [
+      1,
+      1,
+      1,
+      1
+     ],
+     "type": "NdArray",
+     "values": [
+      6.95583
+     ]
+    }
+   }
+  }
+ ],
+ "domainType": "Point",
+ "referencing": [
+  {
+   "coordinates": [
+    "x",
+    "y"
+   ],
+   "system": {
+    "id": "OGC:CRS84",
+    "type": "GeographicCRS"
+   }
+  },
+  {
+   "coordinates": [
+    "z"
+   ],
+   "system": {
+    "type": "VerticalCRS",
+    "description": {
+     "en": "Pressure level in hPa"
+    }
+   }
+  },
+  {
+   "coordinates": [
+    "t"
+   ],
+   "system": {
+    "calendar": "Gregorian",
+    "type": "TemporalRS"
+   }
+  }
+ ],
+ "type": "CoverageCollection",
+ "parameters": {
+  "humidity": {
+   "id": "Humidity",
+   "type": "Parameter",
+   "description": {
+    "en": "Suhteellinen kosteus"
+   },
+   "label": {
+    "en": "Humidity"
+   },
+   "observedProperty": {
+    "id": "Humidity",
+    "label": {
+     "en": "Humidity"
+    }
+   }
+  },
+  "temperature": {
+   "id": "Temperature",
+   "type": "Parameter",
+   "description": {
+    "en": "Temperature"
+   },
+   "label": {
+    "en": "Temperature"
+   },
+   "observedProperty": {
+    "id": "Temperature",
+    "label": {
+     "en": "Temperature"
+    }
+   }
+  }
+ }
+}

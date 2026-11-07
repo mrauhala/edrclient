@@ -1,0 +1,177 @@
+{
+ "_comment": "GET https://opendata.fmi.fi/edr/collections/ecmwf_painepinta/trajectory?coords=LINESTRING(24.94%2060.17,24.94%2060.17)&parameter-name=temperature&datetime=2026-11-07T12:00:00Z&z=1000,850,500, saved 2026-11-07",
+ "coverages": [
+  {
+   "type": "Coverage",
+   "domain": {
+    "type": "Domain",
+    "axes": {
+     "composite": {
+      "coordinates": [
+       "t",
+       "x",
+       "y",
+       "z"
+      ],
+      "dataType": "tuple",
+      "values": [
+       [
+        "2026-11-07T12:00:00Z",
+        24.94,
+        60.17,
+        500
+       ]
+      ]
+     }
+    }
+   },
+   "ranges": {
+    "temperature": {
+     "axisNames": [
+      "composite"
+     ],
+     "dataType": "float",
+     "shape": [
+      1
+     ],
+     "type": "NdArray",
+     "values": [
+      -23.3537
+     ]
+    }
+   }
+  },
+  {
+   "type": "Coverage",
+   "domain": {
+    "type": "Domain",
+    "axes": {
+     "composite": {
+      "coordinates": [
+       "t",
+       "x",
+       "y",
+       "z"
+      ],
+      "dataType": "tuple",
+      "values": [
+       [
+        "2026-11-07T12:00:00Z",
+        24.94,
+        60.17,
+        850
+       ]
+      ]
+     }
+    }
+   },
+   "ranges": {
+    "temperature": {
+     "axisNames": [
+      "composite"
+     ],
+     "dataType": "float",
+     "shape": [
+      1
+     ],
+     "type": "NdArray",
+     "values": [
+      -1.49691
+     ]
+    }
+   }
+  },
+  {
+   "type": "Coverage",
+   "domain": {
+    "type": "Domain",
+    "axes": {
+     "composite": {
+      "coordinates": [
+       "t",
+       "x",
+       "y",
+       "z"
+      ],
+      "dataType": "tuple",
+      "values": [
+       [
+        "2026-11-07T12:00:00Z",
+        24.94,
+        60.17,
+        1000
+       ]
+      ]
+     }
+    }
+   },
+   "ranges": {
+    "temperature": {
+     "axisNames": [
+      "composite"
+     ],
+     "dataType": "float",
+     "shape": [
+      1
+     ],
+     "type": "NdArray",
+     "values": [
+      5.31473
+     ]
+    }
+   }
+  }
+ ],
+ "domainType": "Trajectory",
+ "referencing": [
+  {
+   "coordinates": [
+    "x",
+    "y"
+   ],
+   "system": {
+    "id": "OGC:CRS84",
+    "type": "GeographicCRS"
+   }
+  },
+  {
+   "coordinates": [
+    "z"
+   ],
+   "system": {
+    "type": "VerticalCRS",
+    "description": {
+     "en": "Pressure level in hPa"
+    }
+   }
+  },
+  {
+   "coordinates": [
+    "t"
+   ],
+   "system": {
+    "calendar": "Gregorian",
+    "type": "TemporalRS"
+   }
+  }
+ ],
+ "type": "CoverageCollection",
+ "parameters": {
+  "temperature": {
+   "id": "Temperature",
+   "type": "Parameter",
+   "description": {
+    "en": "Temperature"
+   },
+   "label": {
+    "en": "Temperature"
+   },
+   "observedProperty": {
+    "id": "Temperature",
+    "label": {
+     "en": "Temperature"
+    }
+   }
+  }
+ }
+}

@@ -122,7 +122,11 @@ export interface ValidationError {
   params?: Record<string, any>;
   collectionId?: string;
   section?: string;
-  severity?: 'error' | 'warning' | 'info'; // undefined means error
+  // undefined means error. A pass is something checked and found right, which counts for nothing against the response
+  severity?: 'error' | 'warning' | 'info' | 'pass';
+  // What a finding about a response rests on: the response, which is undefined, or the collection's metadata it was
+  // checked against. One about the collection alone has no path, since there's nothing in the response to show
+  source?: 'collection';
 }
 
 export interface ValidationResult {

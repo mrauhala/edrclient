@@ -1,0 +1,194 @@
+{
+ "_comment": "GET https://geoservices.knmi.nl/edr/collections/uwcw_ha43_dini_5p5km.pl/position?coords=POINT(5.18%2052.1)&parameter-name=air_temperature_pl,relative_humidity_pl&datetime=2026-11-08T12:00:00Z&z=500,700,850,925&f=CoverageJSON, saved 2026-11-07",
+ "type": "CoverageCollection",
+ "coverages": [
+  {
+   "id": "coverage_1",
+   "type": "Coverage",
+   "domain": {
+    "type": "Domain",
+    "domainType": "VerticalProfile",
+    "axes": {
+     "x": {
+      "values": [
+       5.18
+      ]
+     },
+     "y": {
+      "values": [
+       52.1
+      ]
+     },
+     "z": {
+      "values": [
+       500.0,
+       700.0,
+       850.0,
+       925.0
+      ]
+     },
+     "t": {
+      "values": [
+       "2026-11-08T12:00:00Z"
+      ]
+     }
+    },
+    "referencing": [
+     {
+      "coordinates": [
+       "x",
+       "y",
+       "z"
+      ],
+      "system": {
+       "type": "GeographicCRS",
+       "id": "http://www.opengis.net/def/crs/OGC/1.3/CRS84"
+      }
+     },
+     {
+      "coordinates": [
+       "t"
+      ],
+      "system": {
+       "type": "TemporalRS",
+       "calendar": "Gregorian"
+      }
+     }
+    ]
+   },
+   "parameters": {
+    "air_temperature_pl": {
+     "type": "Parameter",
+     "id": "air_temperature_pl",
+     "label": {
+      "en:": "UWCW_HA43(DINI) Air temperature at pressure level"
+     },
+     "observedProperty": {
+      "id": "https://vocab.nerc.ac.uk/standard_name/air_temperature",
+      "label": {
+       "en": "Air temperature at pressure level"
+      }
+     },
+     "unit": {
+      "symbol": {
+       "value": "C",
+       "type": "http://www.opengis.net/def/uom/UCUM"
+      }
+     }
+    }
+   },
+   "ranges": {
+    "air_temperature_pl": {
+     "type": "NdArray",
+     "dataType": "float",
+     "axisNames": [
+      "z",
+      "t"
+     ],
+     "shape": [
+      4,
+      1
+     ],
+     "values": [
+      -29.338394,
+      -9.440399,
+      -1.004608,
+      2.572662
+     ]
+    }
+   }
+  },
+  {
+   "id": "coverage_2",
+   "type": "Coverage",
+   "domain": {
+    "type": "Domain",
+    "domainType": "VerticalProfile",
+    "axes": {
+     "x": {
+      "values": [
+       5.18
+      ]
+     },
+     "y": {
+      "values": [
+       52.1
+      ]
+     },
+     "z": {
+      "values": [
+       850.0,
+       925.0
+      ]
+     },
+     "t": {
+      "values": [
+       "2026-11-08T12:00:00Z"
+      ]
+     }
+    },
+    "referencing": [
+     {
+      "coordinates": [
+       "x",
+       "y",
+       "z"
+      ],
+      "system": {
+       "type": "GeographicCRS",
+       "id": "http://www.opengis.net/def/crs/OGC/1.3/CRS84"
+      }
+     },
+     {
+      "coordinates": [
+       "t"
+      ],
+      "system": {
+       "type": "TemporalRS",
+       "calendar": "Gregorian"
+      }
+     }
+    ]
+   },
+   "parameters": {
+    "relative_humidity_pl": {
+     "type": "Parameter",
+     "id": "relative_humidity_pl",
+     "label": {
+      "en:": "UWCW_HA43(DINI) Relative humidity at pressure level"
+     },
+     "observedProperty": {
+      "id": "https://vocab.nerc.ac.uk/standard_name/relative_humidity",
+      "label": {
+       "en": "Relative humidity at pressure level"
+      }
+     },
+     "unit": {
+      "symbol": {
+       "value": "-",
+       "type": "http://www.opengis.net/def/uom/UCUM"
+      }
+     }
+    }
+   },
+   "ranges": {
+    "relative_humidity_pl": {
+     "type": "NdArray",
+     "dataType": "float",
+     "axisNames": [
+      "z",
+      "t"
+     ],
+     "shape": [
+      2,
+      1
+     ],
+     "values": [
+      0.978879,
+      0.956619
+     ]
+    }
+   }
+  }
+ ]
+}

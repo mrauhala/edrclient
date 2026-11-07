@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { allSectionsValid, isProblem, problemCount } from './severity';
+import { alertSeverity, allSectionsValid, isProblem, problemCount } from './severity';
 import type { ValidationResult } from '../types/api';
 
 describe('isProblem', () => {
@@ -7,6 +7,7 @@ describe('isProblem', () => {
     expect(isProblem({ message: 'x' })).toBe(true);
     expect(isProblem({ message: 'x', severity: 'warning' })).toBe(true);
     expect(isProblem({ message: 'x', severity: 'info' })).toBe(false);
+    expect(isProblem({ message: 'x', severity: 'pass' })).toBe(false);
   });
 });
 
@@ -38,5 +39,14 @@ describe('problemCount', () => {
     };
     expect(problemCount(result)).toBe(3);
     expect(problemCount({ isValid: true, errors: null })).toBe(0);
+  });
+});
+
+describe('alertSeverity', () => {
+  it('gives an alert the colour of a finding, a pass a success', () => {
+    expect(alertSeverity(undefined)).toBe('error');
+    expect(alertSeverity('warning')).toBe('warning');
+    expect(alertSeverity('info')).toBe('info');
+    expect(alertSeverity('pass')).toBe('success');
   });
 });

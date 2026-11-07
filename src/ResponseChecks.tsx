@@ -17,7 +17,12 @@ const SEVERITY_ICON = {
   error: <ErrorOutlineIcon fontSize="inherit" color="error" aria-label="Error" />,
   warning: <WarningAmberIcon fontSize="inherit" color="warning" aria-label="Issue" />,
   info: <InfoOutlinedIcon fontSize="inherit" color="info" aria-label="Note" />,
+  pass: <CheckIcon fontSize="inherit" color="success" aria-label="Passed" />,
 };
+const WORST_FIRST = ['error', 'warning', 'info', 'pass'] as const;
+// A finding about the data, and its line in Raw if it's about something there
+type DataNote = { message: string; line?: number; severity?: ValidationError['severity']; source?: ValidationError['source'] };
+const worstFirst = (notes: DataNote[]) => WORST_FIRST.flatMap(severity => notes.filter(note => (note.severity ?? 'info') === severity));
 
 const Item = ({ icon, children, line, onClick }: { icon: ReactNode; children: ReactNode; line?: number; onClick?: () => void }) => (
   <Box component="li" sx={{ display: 'flex', gap: 1, alignItems: 'baseline', py: 0.25, fontSize: '0.8125rem', lineHeight: '18px' }}>
@@ -77,13 +82,15 @@ interface ResponseChecksProps {
   // Each line with findings on it, in the order Raw steps through them
   lines: { line: number; errors: ValidationError[] }[];
   onGoToLine: (lineIndex: number) => void;
-  // What's worth knowing about the data itself, each where it is in Raw
-  dataNotes?: { message: string; line: number }[];
+  // What's worth knowing about the data itself, each where it is in Raw: what's wrong with it, and what's right
+  dataNotes?: DataNote[];
   onGoToNote?: (line: number) => void;
+  // The collection the response was checked against, if it was
+  collectionId?: string | null;
 }
 
 // What was checked about this response, and what that found
-export default function ResponseChecks({ schemaName, findings, lines, onGoToLine, dataNotes = [], onGoToNote }: ResponseChecksProps) {
+export default function ResponseChecks({ schemaName, findings, lines, onGoToLine, dataNotes = [], onGoToNote, collectionId }: ResponseChecksProps) {
   if (!schemaName && findings.length === 0 && dataNotes.length === 0) {
     return (
       <Typography variant="body2" sx={{ color: 'text.secondary', p: 2 }}>
@@ -122,18 +129,21 @@ export default function ResponseChecks({ schemaName, findings, lines, onGoToLine
           And {findings.length - MOST_SHOWN} more, flagged in Raw.
         </Typography>
       )}
-      {dataNotes.length > 0 && (
-        <>
-          <Heading sx={{ mt: schemaName || findings.length > 0 ? 2 : 0 }}>The data</Heading>
+      {[
+        { heading: 'The data', notes: worstFirst(dataNotes.filter(note => note.source !== 'collection')) },
+        { heading: `Against the collection${collectionId ? `: ${collectionId}` : ''}`, notes: worstFirst(dataNotes.filter(note => note.source === 'collection')) },
+      ].filter(section => section.notes.length > 0).map((section, index) => (
+        <Box key={section.heading}>
+          <Heading sx={{ mt: index > 0 || schemaName || findings.length > 0 ? 2 : 0 }}>{section.heading}</Heading>
           <Box component="ul" sx={{ listStyle: 'none', m: 0, p: 0 }}>
-            {dataNotes.map(note => (
-              <Item key={note.message} icon={SEVERITY_ICON.info} line={note.line} onClick={() => onGoToNote?.(note.line)}>
+            {section.notes.map(note => (
+              <Item key={note.message} icon={SEVERITY_ICON[note.severity ?? 'info']} line={note.line} onClick={() => note.line !== undefined && onGoToNote?.(note.line)}>
                 {note.message}
               </Item>
             ))}
           </Box>
-        </>
-      )}
+        </Box>
+      ))}
     </Box>
   );
 }

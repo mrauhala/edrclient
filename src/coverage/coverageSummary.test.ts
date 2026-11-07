@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { countText, describeTimes, formatValue, meanText, rangeText, stepRuns, summarizeCoverage } from './coverageSummary';
+import fmiMultipoint from './__fixtures__/profiles/fmi-ecmwf-multipoint.json';
+import mcIfs85t from './__fixtures__/profiles/mc-ifs-85t-2p.json';
+import mcGfs from './__fixtures__/profiles/mc-gfs-1t-all.json';
+import mcIfsZunsorted from './__fixtures__/profiles/mc-ifs-zunsorted.json';
 
 const hours = (from: number, count: number, step = 1) => Array.from({ length: count }, (_, i) => new Date(Date.UTC(2026, 10, 5, from + i * step)).toISOString().replace('.000', ''));
 const axes = (t: string[], x = 10, y = 50) => ({ x: { values: [x] }, y: { values: [y] }, t: { values: t } });
@@ -432,5 +436,49 @@ describe('the words beside a parameter', () => {
     expect(formatValue(0.000123456789)).toBe('0.000123457');
     expect(formatValue(1234567)).toBe('1234570');
     expect(formatValue(0)).toBe('0');
+  });
+});
+
+describe('summarizeCoverage: levels at a point or a few', () => {
+  it('counts FMI’s one-value coverages as 2 points at 3 levels, not 6 points', () => {
+    const summary = summarizeCoverage(fmiMultipoint)!;
+    expect(summary.shape).toBe('2 points, 3 levels, 1 time, 2 parameters');
+    expect(summary.profile?.locations).toHaveLength(2);
+  });
+
+  it('counts 85 coverages as one point over 85 times, and describes the times', () => {
+    const summary = summarizeCoverage(mcIfs85t)!;
+    expect(summary.shape).toBe('1 point, 14 levels, 85 times, 1 parameter');
+    expect(summary.timeText).toBe('3-hourly to Nov 12 12:00, then 6-hourly.');
+  });
+
+  it('names the level of the first null, in place of the note without it', () => {
+    const { notes } = summarizeCoverage(mcGfs)!;
+    expect(notes.map(note => note.message)).toContain('11 nulls in TCDC, first at 1 hPa');
+    expect(notes.filter(note => /nulls? in TCDC/.test(note.message))).toHaveLength(1);
+  });
+
+  it('passes the request and the collection’s levels on, for the levels that should be there', () => {
+    const { notes, profile } = summarizeCoverage(mcIfsZunsorted, { url: 'x?f=CoverageJSON', vertical: { values: [1000, 925, 850, 500] } })!;
+    expect(profile?.missing).toEqual([925]);
+    expect(notes.map(note => note.message)).toContain("Level 925 hPa is in the collection's extent, and isn't in the response");
+  });
+
+  it('keeps one coverage’s own words for its shape, which a grid’s cells say better', () => {
+    const grid = {
+      type: 'Coverage',
+      domain: { type: 'Domain', domainType: 'Grid', axes: { x: { values: [1, 2] }, y: { values: [5, 6] }, z: { values: [1000, 850] } } },
+      ranges: { a: { type: 'NdArray', dataType: 'float', axisNames: ['z', 'y', 'x'], shape: [2, 2, 2], values: [1, 2, 3, 4, 5, 6, 7, null] } },
+    };
+    const summary = summarizeCoverage(grid)!;
+    expect(summary.shape).toBe('2 × 2 cells, every 1, 2 levels, 1 parameter');
+    expect(summary.profile?.locations).toHaveLength(4);
+    expect(summary.notes.map(note => note.message)).toContain('1 null in a, at 850 (2, 6)');
+  });
+
+  it('has no profile, and the notes it had, where there are no levels', () => {
+    const summary = summarizeCoverage(point([1, null, 3]))!;
+    expect(summary.profile).toBeNull();
+    expect(summary.notes.map(note => note.message)).toEqual(['1 null in t2m, at Nov 5 01:00']);
   });
 });

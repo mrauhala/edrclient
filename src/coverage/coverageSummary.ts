@@ -1,6 +1,7 @@
 import type { ValidationError } from '../types/api';
 import { axisLength, coverageParameters, isTimeSeriesCoverage, parameterLabel, parameterUnit } from '../utils/coverageTimeSeries';
 import { parseTime, utcMoment } from '../utils/utcTime';
+import { coverageToProfile, type CoverageProfile, type ProfileContext } from './coverageProfile';
 
 // What a CoverageJSON response holds, worked out once for all the ways of showing it: its shape in
 // a sentence, each parameter's figures, its time series if it has them, and what's worth a note.
@@ -55,6 +56,8 @@ export interface CoverageSummary {
   parameters: ParameterFigures[];
   // If it's time series at one or more locations
   series: CoverageSeries | null;
+  // If it has values at several levels, at a point or a few
+  profile: CoverageProfile | null;
   notes: ValidationError[];
 }
 
@@ -306,12 +309,18 @@ function buildSeries(coverages: Json[], tallies: Map<string, Tally>): { series: 
   };
 }
 
-export function summarizeCoverage(json: unknown): CoverageSummary | null {
+// The request's URL and the open collection's vertical extent tell a profile which levels should be there
+export function summarizeCoverage(json: unknown, context: ProfileContext = {}): CoverageSummary | null {
   if (!isObject(json)) return null;
   const isCollection = json.type === 'CoverageCollection' && Array.isArray(json.coverages);
   if (json.type !== 'Coverage' && !isCollection) return null;
 
   const coverages = (isCollection ? (json.coverages as unknown[]) : [json]).map(coverage => (isObject(coverage) ? coverage : {}));
+  // Levels at a point read as a profile. Its notes for nulls name the level. Of a collection it says the shape better
+  // too: 2 points at 3 levels, not 6 points, and 1 point over 85 times, not 85 coverages. One coverage's axes say it
+  // already, a grid's cells better than points would
+  const { profile } = coverageToProfile(json, context);
+  const profileShape = profile && coverages.length > 1 ? profile.shape : null;
   const prefix = (coverage: number) => (isCollection ? `/coverages/${coverage}` : '');
   const tallies = tallyParameters(coverages, json);
   const built = buildSeries(coverages, tallies);
@@ -320,8 +329,9 @@ export function summarizeCoverage(json: unknown): CoverageSummary | null {
   const notes: ValidationError[] = [];
   const note = (message: string, path: string) => notes.push({ message, path, severity: 'info' });
 
+  if (profile) notes.push(...profile.notes);
   for (const { id, nulls, count, firstNull } of tallies.values()) {
-    if (!firstNull) continue;
+    if (!firstNull || profile) continue;
     const path = `${prefix(firstNull.coverage)}/ranges/${pointerPart(id)}/values/${firstNull.index}`;
     if (nulls === count) {
       note(`All ${plural(count, 'value')} of ${id} are null`, path);
@@ -350,11 +360,12 @@ export function summarizeCoverage(json: unknown): CoverageSummary | null {
     const placeWord = /polygon/i.test(domainTypeOf(coverages, json)) ? 'polygon' : 'point';
     return {
       domainType: domainTypeOf(coverages, json),
-      shape: `${plural(locations.length, placeWord)}, ${plural(times.length, 'time')}, ${parameterCount}`,
+      shape: profileShape ?? `${plural(locations.length, placeWord)}, ${plural(times.length, 'time')}, ${parameterCount}`,
       timeText: describeTimes(times),
       axes: [],
       parameters: built.series.parameters,
       series: built.series,
+      profile,
       notes,
     };
   }
@@ -363,13 +374,15 @@ export function summarizeCoverage(json: unknown): CoverageSummary | null {
   const [only] = coverages;
   const one = coverages.length === 1 ? only : null;
   const time = one ? timesOf(one) : null;
+  const profileTimes = profileShape && profile ? profile.times.map(({ at }) => at).filter(Number.isFinite) : null;
   return {
     domainType: domainTypeOf(coverages, json),
-    shape: [...(one ? describeAxes(one) : [plural(coverages.length, 'coverage')]), parameterCount].join(', '),
-    timeText: time ? describeTimes([...new Set(time.parsed)].sort((a, b) => a - b)) : null,
+    shape: profileShape ?? [...(one ? describeAxes(one) : [plural(coverages.length, 'coverage')]), parameterCount].join(', '),
+    timeText: profileTimes ? describeTimes(profileTimes) : time ? describeTimes([...new Set(time.parsed)].sort((a, b) => a - b)) : null,
     axes: one ? ['x', 'y', 'z'].flatMap(name => axisSpan(name, axesOf(one)[name]) ?? []) : [],
     parameters: [...tallies.values()].map(toFigures),
     series: null,
+    profile,
     notes,
   };
 }

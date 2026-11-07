@@ -89,6 +89,48 @@ describe('ResponseChecks', () => {
     it('has no heading with nothing to say', () => {
       expect(render({ schemaName: 'CoverageJSON 1.0' })).not.toContain('>The data<');
     });
+
+    it('puts what rests on the collection under it, with no line where the response has nothing to show', () => {
+      const html = render({
+        collectionId: 'ecmwf_painepinta',
+        dataNotes: [
+          { message: "The collection's vrs gives z's unit: hPa", severity: 'pass', source: 'collection' },
+          { message: "z 4.8 isn't among the levels in the collection's extent", line: 45, severity: 'warning', source: 'collection' },
+          { message: "z's unit, hPa, is only in a description", line: 44, severity: 'warning' },
+        ],
+      });
+      const data = html.indexOf('>The data<');
+      const collection = html.indexOf('>Against the collection: ecmwf_painepinta<');
+      expect(data).toBeGreaterThan(-1);
+      expect(collection).toBeGreaterThan(data);
+      // As it's written in HTML
+      const at = (text: string) => html.indexOf(text.replace(/'/g, '&#x27;'));
+      expect(at("z's unit, hPa, is only in a description")).toBeGreaterThan(data);
+      expect(at("z's unit, hPa, is only in a description")).toBeLessThan(collection);
+      expect(at("The collection's vrs gives z's unit: hPa")).toBeGreaterThan(collection);
+      expect(html.match(/>line \d+</g)).toEqual(['>line 44<', '>line 45<']);
+    });
+
+    it('has no heading for the collection with nothing against it, and no name without one', () => {
+      expect(render({ dataNotes: [{ message: 'a', line: 1 }] })).not.toContain('Against the collection');
+      expect(render({ dataNotes: [{ message: 'a', line: 1, source: 'collection' }] })).toContain('>Against the collection<');
+    });
+
+    it('shows each finding as what it is, the worst first and what passed last', () => {
+      const html = render({
+        dataNotes: [
+          { message: 'passed', line: 1, severity: 'pass' },
+          { message: 'noted', line: 2, severity: 'info' },
+          { message: 'an issue', line: 3, severity: 'warning' },
+          { message: 'broken', line: 4, severity: 'error' },
+          { message: 'noted too', line: 5 },
+        ],
+      });
+      const order = ['broken', 'an issue', 'noted', 'noted too', 'passed'].map(message => html.indexOf(`>${message}<`));
+      expect(order.every((at, i) => at > 0 && (i === 0 || at > order[i - 1]))).toBe(true);
+      const icons = [...html.matchAll(/aria-label="(Error|Issue|Note|Passed)"/g)].map(match => match[1]);
+      expect(icons).toEqual(['Error', 'Issue', 'Note', 'Note', 'Passed']);
+    });
   });
 
   it('keeps a long list short', () => {
