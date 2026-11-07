@@ -42,16 +42,20 @@ function within(json: unknown, element: ReactElement, { choices, hovered, url = 
   );
 }
 
-// Only what shows: no emotion's styles, no tags, and not what's hidden to keep room. The styles and tags go again until
-// none are left, since taking one out can join what was around it into another
+// Only what shows: the text between tags, without emotion's styles. Read tag by tag, rather than cut out by a pattern
 const words = (html: string) => {
-  let text = html;
-  let previous;
-  do {
-    previous = text;
-    text = text.replace(/<style[^>]*>.*?<\/style>/g, '').replace(/<[^>]+>/g, ' ');
-  } while (text !== previous);
-  return text
+  let inStyle = false;
+  const shown: string[] = [];
+  for (const piece of html.split(/(<[^>]*>)/)) {
+    if (piece.startsWith('<')) {
+      if (/^<style[\s>]/.test(piece)) inStyle = true;
+      else if (piece === '</style>') inStyle = false;
+      shown.push(' ');
+    } else if (!inStyle) {
+      shown.push(piece);
+    }
+  }
+  return shown.join('')
     .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(/&amp;/g, '&')
     .replace(/\s+/g, ' ')
     .trim();
