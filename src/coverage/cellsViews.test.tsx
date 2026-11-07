@@ -42,13 +42,20 @@ function within(json: unknown, element: ReactElement, { choices, hovered, url = 
   );
 }
 
-// Only what shows: no emotion's styles, no tags, and not what's hidden to keep room
-const words = (html: string) => html
-  .replace(/<style[^>]*>.*?<\/style>/g, '')
-  .replace(/<[^>]+>/g, ' ')
-  .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(/&amp;/g, '&')
-  .replace(/\s+/g, ' ')
-  .trim();
+// Only what shows: no emotion's styles, no tags, and not what's hidden to keep room. The styles and tags go again until
+// none are left, since taking one out can join what was around it into another
+const words = (html: string) => {
+  let text = html;
+  let previous;
+  do {
+    previous = text;
+    text = text.replace(/<style[^>]*>.*?<\/style>/g, '').replace(/<[^>]+>/g, ' ');
+  } while (text !== previous);
+  return text
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(/&amp;/g, '&')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
 const shownPart = (html: string) => html.slice(html.indexOf('aria-live="polite"'));
 const keptRoom = (html: string) => html.slice(html.indexOf('aria-hidden="true"'), html.indexOf('aria-live="polite"'));
 
